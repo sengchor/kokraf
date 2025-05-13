@@ -1,5 +1,9 @@
 import * as THREE from "three"
 import { OrbitControls} from "jsm/controls/OrbitControls.js";
+import { loadComponent } from './utils/loadComponent.js';
+
+// Load UI components
+loadComponent('#menu-container', 'components/menu-bar.html');
 
 // Scene setup
 const scene = new THREE.Scene();
