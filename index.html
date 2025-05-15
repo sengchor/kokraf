@@ -14,14 +14,21 @@
     </script>
   </head>
   <body>
-    <div id="menu-container"></div>
-    <canvas id="three-canvas"></canvas>
-    <script type="module" src="js/main.js"></script>
-  </body>
+    <div class="app-container">
+      <div id="menu-container"></div>
 
-  <script>
-    function toggleCheck(item) {
-      item.classList.toggle('checked');
-    }
-  </script>
+      <div class="editor-container">
+        <canvas id="three-canvas"></canvas>
+        <div class="resizer" id="outliner-resizer"></div>
+        <div id="outliner-container"></div>
+      </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+    <script>
+      function toggleCheck(item) {
+        item.classList.toggle('checked');
+      }
+    </script>
+  </body>
 </html>

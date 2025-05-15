@@ -1,3 +1,10 @@
+/* disable text selection across your whole website */
+* {
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+
 body, html {
   margin: 0;
   overflow: hidden;
@@ -135,4 +142,86 @@ canvas {
 
 .checked .tick::before {
   content: '\2713';
+}
+
+.outliner {
+  position: absolute;
+  top: 30px;
+  right: 0px;
+  width: calc(100% + 2.5px);
+  height: calc(100vh - 30px);
+  background-color: #eee;
+  color: #5c5c5c;
+  font-family: sans-serif;
+  font-size: 12px;
+  overflow-y: auto;
+  z-index: 9;
+}
+
+.outliner-header {
+  padding: 10px;
+  font-size: 14px;
+  background-color: #e0e0e0;
+  border-bottom: 1px solid #ccc;
+}
+
+.outliner-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.outliner-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: pre;
+}
+
+.outliner-item:hover {
+  background-color: #e0e0e0;
+}
+
+.outliner-item.selected {
+  background-color: #d6d6d6;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.editor-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.resizer {
+  position: absolute;
+  top: 30px;
+  right: 325px;
+  width: 5px;
+  height: calc(100vh - 30px);
+  background-color: #08f;
+  cursor: col-resize;
+  z-index: 10;
+  opacity: 0;
+}
+
+.resizer:hover {
+  opacity: 0.7;
+}
+
+body.resizing .resizer {
+  opacity: 1;
+}
+
+#outliner-container {
+  position: absolute;
+  right: 0;
+  height: calc(100vh - 30px);
+  width: 325px;
+  z-index: 9;
+  border: none;
 }
