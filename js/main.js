@@ -1,17 +1,30 @@
 import * as THREE from "three"
 import { OrbitControls} from "jsm/controls/OrbitControls.js";
 import { loadComponent } from './utils/loadComponent.js';
-import { setupOutlinerResizer } from './outliner-resize.js';
+import { setupRightPanelResizer, setupOutlinerResizer } from './panel-resizer.js';
 
 // Load UI components
 loadComponent('#menu-container', 'components/menu-bar.html');
-loadComponent('#outliner-container', 'components/outliner.html', () => {
+
+loadComponent('#right-panel-container', 'components/panel-tabs.html', () => {
+  document.querySelectorAll('.tab').forEach((tab, index) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel-content').forEach(c => c.style.display = 'none');
+
+      tab.classList.add('active');
+      document.querySelectorAll('.panel-content')[index].style.display = 'block';
+    });
+  });
+
   document.querySelectorAll('.outliner-item').forEach(item => {
     item.addEventListener('click', () => {
       document.querySelectorAll('.outliner-item').forEach(i => i.classList.remove('selected'));
       item.classList.add('selected');
     });
   });
+
+  setupOutlinerResizer();
 });
 
 // Scene setup
@@ -53,19 +66,30 @@ const cube = new THREE.Mesh(
 cube.position.y = 0.5;
 scene.add(cube);
 
-function resizeCanvas() {
-  const outliner = document.getElementById('outliner-container');
+function resizeUIComponents() {
+  const outliner = document.getElementById('right-panel-container');
   const width = window.innerWidth - (outliner?.offsetWidth || 0);
   const height = window.innerHeight + 30;
   
   renderer.setSize(width, height);
   _DEFAULT_CAMERA.aspect = width / height;
   _DEFAULT_CAMERA.updateProjectionMatrix();
+
+  // Resize the outliner list if it's present
+  const outlinerList = document.getElementById('outliner-list');
+  const sceneTab = document.getElementById('scene-tab');
+    if (sceneTab && outlinerList) {
+    const sceneTabRect = sceneTab.getBoundingClientRect();
+    const maxHeight = window.innerHeight - sceneTabRect.top - 50;
+    outlinerList.style.maxHeight = `${maxHeight}px`;
+    outlinerList.style.overflowY = 'auto';
+  }
 }
 
 // Initial canvas size setup
-resizeCanvas();
-setupOutlinerResizer(resizeCanvas);
+resizeUIComponents();
+setupRightPanelResizer(resizeUIComponents);
+window.addEventListener('resize', resizeUIComponents);
 
 // Render Loop
 function animate() {

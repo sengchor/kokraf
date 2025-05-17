@@ -19,8 +19,8 @@
 
       <div class="editor-container">
         <canvas id="three-canvas"></canvas>
-        <div class="resizer" id="outliner-resizer"></div>
-        <div id="outliner-container"></div>
+        <div class="right-panel-resizer" id="right-panel-resizer"></div>
+        <div id="right-panel-container"></div>
       </div>
     </div>
 
@@ -28,6 +28,23 @@
     <script>
       function toggleCheck(item) {
         item.classList.toggle('checked');
+      }
+
+      function playCheck(button) {
+        button.classList.toggle("playing");
+
+        if (button.classList.contains("playing")) {
+          button.textContent = "STOP";
+        } else {
+          button.textContent = "PLAY";
+        }
+      }
+
+      function handleEnter(event, input) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          input.blur(); 
+        }
       }
     </script>
   </body>

@@ -1,0 +1,211 @@
+<div class="right-panel">
+  <div class="panel-tabs">
+    <button class="tab active">SCENE</button>
+    <button class="tab">PROJECT</button>
+    <button class="tab">SETTINGS</button>
+  </div>
+
+  <div class="panel-content" id="scene-tab">
+    <ul class="outliner-list" id="outliner-list">
+      <li class="outliner-item">• Group</li>
+      <li class="outliner-item">  • Cube</li>
+      <li class="outliner-item">  • Sphere</li>
+      <li class="outliner-item">• Light</li>
+      <li class="outliner-item">• Camera</li>
+    </ul>
+    <div class="panel-divider"></div>
+    <div class="outliner-resizer" id="outliner-resizer"></div>
+  </div>
+
+  <div class="panel-content" id="project-tab" style="display: none;">
+    <ul class="project-settings-list">
+      <li class="setting-option">
+        <span class="label">Antialias</span>
+        <input type="checkbox" id="antialias" checked />
+      </li>
+      <li class="setting-option">
+        <span class="label">Shadows</span>
+        <input type="checkbox" id="shadows" checked />
+        <select id="shadows-options" name="shadows-options">
+          <option value="basic">BASIC</option>
+          <option value="pcf">PCF</option>
+          <option value="pcf-soft">PCF SOFT</option>
+        </select>
+      </li>
+      <li class="setting-option">
+        <span class="label">Tonemapping</span>
+        <select id="tonemapping-options" name="tonemapping-options">
+          <option value="no">NO</option>
+          <option value="linear">LINEAR</option>
+          <option value="reinhard">REINHARD</option>
+          <option value="cineon">CINEON</option>
+          <option value="acesfilmic">ACES FILMIC</option>
+          <option value="agx">AGX</option>
+          <option value="neutral">NEUTRAL</option>
+        </select>
+      </li>
+    </ul>
+    <div class="panel-divider"></div>
+    <ul class="project-settings-list">
+      <li class="setting-option">
+        <span class="label">APP</span>
+      </li>
+      <li class="setting-option">
+        <span class="label">Title</span>
+        <input type="text" id="title" />
+      </li>
+      <li class="setting-option">
+        <span class="label">Editable</span>
+        <input type="checkbox" id="editable" />
+      </li>
+      <li class="setting-option">
+        <span class="label"></span>
+        <button class="action-button" id="play-button" onclick="playCheck(this)">PLAY</button>
+      </li>
+      <li class="setting-option">
+        <span class="label"></span> 
+        <button class="action-button" id="publish-button">PUBLISH</button>
+      </li>
+    </ul>
+    <div class="panel-divider"></div>
+    <ul class="project-settings-list">
+      <li class="setting-option">
+        <span class="label">IMAGE</span>
+      </li>
+      <li class="setting-option">
+        <span class="label">Shading</span>
+        <select id="shading-options" name="shading-options">
+          <option value="solid">SOLID</option>
+          <option value="realistic">REALISTIC</option>
+        </select>
+      </li>
+      <li class="setting-option">
+        <span class="label">Resolution</span>
+        <input class="number" id="image-width" type="number" min="1" max="10000" step="1" value="1024" onclick="this.select()" onkeydown="handleEnter(event, this)" />
+        <span>&times;</span>
+        <input class="number" id="image-height" type="number" min="1" max="10000" step="1" value="1024" onclick="this.select()" onkeydown="handleEnter(event, this)" />
+      <li class="setting-option">
+        <span class="label"></span> 
+        <button class="action-button" id="image-render-button">RENDER</button>
+      </li>
+    </ul>
+    <div class="panel-divider"></div>
+    <ul class="project-settings-list">
+      <li class="setting-option">
+        <span class="label">VIDEO</span>
+      </li>
+      <li class="setting-option">
+        <span class="label">Resolution</span>
+        <input class="number" id="video-width" type="number" min="1" max="10000" step="1" value="1024" onclick="this.select()" onkeydown="handleEnter(event, this)" />
+        <span>&times;</span>
+        <input class="number" id="video-height" type="number" min="1" max="10000" step="1" value="1024" onclick="this.select()" onkeydown="handleEnter(event, this)" />
+        <input class="number" id="frame-rate" type="number" min="1" max="300" step="1" value="30" onclick="this.select()" onkeydown="handleEnter(event, this)" style="padding: 4px 0px; width: 2ch;" />
+        <span>fps</span>
+      </li>
+      <li class="setting-option">
+        <span class="label">Duration</span>
+        <input class="number" id="duration" type="number" min="1" max="10000" step="1" value="10" onclick="this.select()" onkeydown="handleEnter(event, this)" style="width: 150px;" />
+      </li>
+      <li class="setting-option">
+        <span class="label"></span> 
+        <button class="action-button" id="video-render-button">RENDER</button>
+      </li>
+    </ul>
+  </div>
+
+  <div class="panel-content" id="settings-tab" style="display: none;">
+    <ul class="project-settings-list">
+      <li class="setting-option">
+        <span class="label">Language</span>
+        <select id="language-options" name="language-options">
+          <option value="english">ENGLISH</option>
+          <option value="khmer">ខ្មែរ</option>
+          <option value="french">français</option>
+          <option value="chinese">中文</option>
+          <option value="japanese">日本語</option>
+          <option value="korean">한국어</option>
+          <option value="persian">فارسی</option>
+        </select>
+      </li>
+    </ul>
+    <div class="panel-divider"></div>
+    <ul class="project-settings-list">
+      <li class="setting-option">
+        <span class="label">SHORTCUTS</span>
+      </li>
+      <li class="setting-option">
+        <span class="label">Translate</span>
+        <input
+          class="key-input"
+          id="translate-shortcut"
+          type="text"
+          maxlength="1"
+          value="w"
+          onclick="this.select()"
+          oninput="this.value = this.value.toLowerCase();"
+          onkeydown="handleShortcutKey(event, this)" />
+      </li>
+      <li class="setting-option">
+        <span class="label">Rotate</span>
+        <input
+          class="key-input"
+          id="rotate-shortcut"
+          type="text"
+          maxlength="1"
+          value="e"
+          onclick="this.select()"
+          oninput="this.value = this.value.toLowerCase();"
+          onkeydown="handleShortcutKey(event, this)" />
+      </li>
+      <li class="setting-option">
+        <span class="label">Scale</span>
+        <input
+          class="key-input"
+          id="scale-shortcut"
+          type="text"
+          maxlength="1"
+          value="s"
+          onclick="this.select()"
+          oninput="this.value = this.value.toLowerCase();"
+          onkeydown="handleShortcutKey(event, this)" />
+      </li>
+      <li class="setting-option">
+        <span class="label">Undo</span>
+        <input
+          class="key-input"
+          id="undo-shortcut"
+          type="text"
+          maxlength="1"
+          value="z"
+          onclick="this.select()"
+          oninput="this.value = this.value.toLowerCase();"
+          onkeydown="handleShortcutKey(event, this)" />
+      </li>
+      <li class="setting-option">
+        <span class="label">Focus</span>
+        <input
+          class="key-input"
+          id="focus-shortcut"
+          type="text"
+          maxlength="1"
+          value="f"
+          onclick="this.select()"
+          oninput="this.value = this.value.toLowerCase();"
+          onkeydown="handleShortcutKey(event, this)" />
+      </li>
+    </ul>
+    <div class="panel-divider"></div>
+    <ul class="project-settings-list">
+      <li class="setting-option" >
+        <span class="label" style="min-width: 217px;">HISTORY</span>
+        <input type="checkbox" id="persistent" />
+        <span class="label" style="min-width: 0px; margin: 3px;">Persistent</span>
+      </li>
+      <ul class="outliner-list" id="history-list" style="height: 180px; margin: 5px 1px">
+      </ul>
+      <li class="setting-option">
+        <button class="action-button" id="clear-button" style="width: 60px;">CLEAR</button>
+      </li>
+    </ul>
+  </div>
+</div>
