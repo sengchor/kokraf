@@ -1,0 +1,32 @@
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 40px;
+  left: 10px;
+  z-index: 9;
+}
+
+.toolbar-button img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  opacity: 0.5;
+}
+
+.toolbar-button {
+  width: 32px;
+  height: 32px;
+  padding: 0px;
+  border: none;
+  cursor: pointer;
+  background-color: #ddd;
+}
+
+.toolbar-button:hover {
+  background-color: #f8f8f8;
+}
+
+.toolbar-button.active {
+  background-color: #f8f8f8;
+}

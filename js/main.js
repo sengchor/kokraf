@@ -27,6 +27,18 @@ loadComponent('#right-panel-container', 'components/panel-tabs.html', () => {
   setupOutlinerResizer();
 });
 
+loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
+  const buttons = container.querySelectorAll('.toolbar-button');
+   buttons.forEach(button => {
+    button.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('active'));
+      button.classList.add('active');
+    });
+  });
+});
+
+loadComponent('#viewport-controls-container', 'components/viewport-controls.html');
+
 // Scene setup
 const scene = new THREE.Scene();
 

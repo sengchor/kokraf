@@ -8,6 +8,7 @@ export function setupRightPanelResizer(resizeCanvas) {
 
   resizer.addEventListener('mousedown', () => {
     isResizing = true;
+    document.body.classList.remove('resizing-outliner');
     document.body.classList.add('resizing-right-panel');
     document.body.style.cursor = 'col-resize';
   });
@@ -44,6 +45,7 @@ export function setupOutlinerResizer() {
 
   resizer.addEventListener('mousedown', (e) => {
     isResizing = true;
+    document.body.classList.remove('resizing-right-panel');
     document.body.classList.add('resizing-outliner');
     document.body.style.cursor = 'row-resize';
   });

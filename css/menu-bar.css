@@ -1,0 +1,127 @@
+.menu-bar {
+  background-color: #eeeeee;
+  color: #888888;
+  font-family: sans-serif;
+  font-size: 14px;
+  user-select: none;
+  padding: 0 10px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+}
+
+.menu-bar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+}
+
+.menu-item {
+  position: relative;
+  padding: 0 15px;
+  line-height: 30px;
+  cursor: pointer;
+}
+
+.submenu {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  background-color: #eeeeee;
+  border-top: 5px solid #eeeeee;
+  border-bottom: 5px solid #eeeeee;
+  flex-direction: column;
+  min-width: 145px;
+  z-index: 100;
+  visibility: hidden;
+}
+
+.menu-item:hover > .submenu {
+  visibility: visible;
+}
+
+.submenu li {
+  padding: 0px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-item {
+  justify-content: start;
+  gap: 4px;
+}
+
+.submenu li:hover {
+  background-color: #1587f9;
+  color: white;
+}
+
+.submenu .divider {
+  height: 1px;
+  margin: 4px 0;
+  background-color: #ccc;
+  pointer-events: none;
+}
+
+.submenu-item {
+  position: relative;
+  justify-content: space-between;
+}
+
+.submenu.right {
+  position: absolute;
+  top: -5px;
+  left: 100%;
+  background-color: #eeeeee;
+  color: #888888;
+  border-top: 5px solid #eeeeee;
+  border-bottom: 5px solid #eeeeee;
+  min-width: 145px;
+  visibility: hidden;
+  z-index: 101;
+}
+
+.submenu-item:hover .submenu.right {
+  visibility: visible;
+}
+
+.arrow {
+  float: right;
+  margin-left: 10px;
+  font-size: 22px;
+}
+
+.shortcut {
+  font-family: monospace;
+  background-color: transparent;
+  padding: 0px 4px;
+  border-radius: 5px;
+  border: solid 1px #bbb;
+  margin-left: auto;
+  font-size: 10.5px;
+  color: #bbb;
+  line-height: 1.5;
+}
+
+.tick {
+  width: auto;
+  font-weight: bold;
+  min-width: 1em;
+  text-align: center
+}
+
+.tick::before {
+  content: ' ';
+}
+
+.checked .tick::before {
+  content: '\2713';
+}
