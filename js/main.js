@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import { OrbitControls} from "jsm/controls/OrbitControls.js";
+import { createViewHelper, updateViewHelperPosition } from './view-helper.js';
 import { loadComponent } from './utils/loadComponent.js';
 import { setupRightPanelResizer, setupOutlinerResizer } from './panel-resizer.js';
 
@@ -41,6 +42,7 @@ loadComponent('#viewport-controls-container', 'components/viewport-controls.html
 
 // Scene setup
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x3b3b3b);
 
 // Camera
 var _DEFAULT_CAMERA = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -49,9 +51,11 @@ _DEFAULT_CAMERA.position.set( 0, 5, 10 );
 _DEFAULT_CAMERA.lookAt( new THREE.Vector3() );
 
 // Renderer
-const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('three-canvas'), antialias: true });
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.autoClear = false;
 
 // Orbit controls
 const controls = new OrbitControls(_DEFAULT_CAMERA, renderer.domElement);
@@ -65,7 +69,7 @@ scene.add(new THREE.AmbientLight(0x404040));
 // Ground
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(10, 10),
-  new THREE.MeshStandardMaterial({ color: 'gray' })
+  new THREE.MeshStandardMaterial({ color: 'white' })
 );
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
@@ -78,6 +82,10 @@ const cube = new THREE.Mesh(
 cube.position.y = 0.5;
 scene.add(cube);
 
+// Helper
+const { viewHelper, helperRenderer } = createViewHelper(_DEFAULT_CAMERA);
+const clock = new THREE.Clock();
+
 function resizeUIComponents() {
   const outliner = document.getElementById('right-panel-container');
   const width = window.innerWidth - (outliner?.offsetWidth || 0);
@@ -86,6 +94,8 @@ function resizeUIComponents() {
   renderer.setSize(width, height);
   _DEFAULT_CAMERA.aspect = width / height;
   _DEFAULT_CAMERA.updateProjectionMatrix();
+
+  updateViewHelperPosition(canvas);
 
   // Resize the outliner list if it's present
   const outlinerList = document.getElementById('outliner-list');
@@ -105,7 +115,16 @@ window.addEventListener('resize', resizeUIComponents);
 
 // Render Loop
 function animate() {
+  const delta = clock.getDelta();
+
   requestAnimationFrame(animate);
+  renderer.clear();
   renderer.render(scene, _DEFAULT_CAMERA);
+
+  if (viewHelper.animating === true) {
+    viewHelper.update(delta);
+  }
+  
+  viewHelper.render(helperRenderer);
 }
 animate();
