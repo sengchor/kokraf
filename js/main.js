@@ -4,6 +4,7 @@ import { createViewHelper, updateViewHelperPosition } from './helpers/view-helpe
 import { loadComponent } from './utils/loadComponent.js';
 import { setupRightPanelResizer, setupOutlinerResizer } from './panel-resizer.js';
 import { OutlineEffect } from "jsm/effects/OutlineEffect.js";
+import { createGridHelper } from './helpers/grid-helper.js';
 
 // Load UI components
 loadComponent('#menu-container', 'components/menu-bar.html');
@@ -67,6 +68,8 @@ const effect = new OutlineEffect(renderer);
 scene.add(ambientLight);
 
 // Create grid helper
+const gridHelper = createGridHelper();
+scene.add(gridHelper);
 
 // Load matcap texture
 const matcapURL = '/assets/textures/matcaps/040full.jpg';
@@ -116,6 +119,9 @@ function animate() {
   const delta = clock.getDelta();
 
   requestAnimationFrame(animate);
+
+  // Update camera position
+  gridHelper.material.uniforms.uCameraPos.value.copy(_DEFAULT_CAMERA.position);
 
   renderer.clear();
   renderer.render(scene, _DEFAULT_CAMERA);
