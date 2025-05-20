@@ -1,8 +1,9 @@
 import * as THREE from "three"
 import { OrbitControls} from "jsm/controls/OrbitControls.js";
-import { createViewHelper, updateViewHelperPosition } from './view-helper.js';
+import { createViewHelper, updateViewHelperPosition } from './helpers/view-helper.js';
 import { loadComponent } from './utils/loadComponent.js';
 import { setupRightPanelResizer, setupOutlinerResizer } from './panel-resizer.js';
+import { OutlineEffect } from "jsm/effects/OutlineEffect.js";
 
 // Load UI components
 loadComponent('#menu-container', 'components/menu-bar.html');
@@ -61,23 +62,20 @@ renderer.autoClear = false;
 const controls = new OrbitControls(_DEFAULT_CAMERA, renderer.domElement);
 
 // Lights
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 5, 5);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x404040));
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+const effect = new OutlineEffect(renderer);
+scene.add(ambientLight);
 
-// Ground
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(10, 10),
-  new THREE.MeshStandardMaterial({ color: 'white' })
-);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
+// Create grid helper
+
+// Load matcap texture
+const matcapURL = '/assets/textures/matcaps/040full.jpg';
+const matcapTexture = new THREE.TextureLoader().load(matcapURL);
 
 // Cube
 const cube = new THREE.Mesh(
   new THREE.BoxGeometry(),
-  new THREE.MeshStandardMaterial({ color: 'orange' })
+  new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
 );
 cube.position.y = 0.5;
 scene.add(cube);
@@ -118,8 +116,10 @@ function animate() {
   const delta = clock.getDelta();
 
   requestAnimationFrame(animate);
+
   renderer.clear();
   renderer.render(scene, _DEFAULT_CAMERA);
+  effect.render(scene, _DEFAULT_CAMERA);
 
   if (viewHelper.animating === true) {
     viewHelper.update(delta);
