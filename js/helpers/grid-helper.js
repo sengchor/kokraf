@@ -4,30 +4,36 @@ export function createGridHelper() {
   const geometry = new THREE.PlaneGeometry(100, 100);
   geometry.rotateX(- Math.PI / 2);
 
-  // const material = new THREE.MeshStandardMaterial({ color: '#86B049'});\
-
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uCameraPos: { value: new THREE.Vector3() },
+      uCameraDir: { value: new THREE.Vector3() },
       uGridSize: { value: 1.0 },
-      uLineThickness: { value: 1.0 },
+      uLineThickness: { value: 1.5 },
       uLineColor: { value: new THREE.Color(0xFFFFFF) },
-      uBackgroundColor: { value: new THREE.Color(0x0000FF) },
+      uBackgroundColor: { value: new THREE.Color(0x000000) },
+      uDistance: { value: 2.0 },
     },
     vertexShader: `
       varying vec3 vWorldPos;
+      uniform vec3 uCameraPos;
+      uniform float uDistance;
       void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vWorldPos = worldPosition.xyz;
+        vec3 scaledPosition = position * uDistance;
+        vec4 worldPosition = modelMatrix * vec4(scaledPosition, 1.0);
+        worldPosition.xz += uCameraPos.xz;
         gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        vWorldPos = worldPosition.xyz;
       }
     `,
     fragmentShader: `
       uniform vec3 uCameraPos;
+      uniform vec3 uCameraDir;
       uniform float uGridSize;
       uniform float uLineThickness;
       uniform vec3 uLineColor;
       uniform vec3 uBackgroundColor;
+      uniform float uDistance;
       varying vec3 vWorldPos;
 
       float getGridLine(vec2 coord, float size, float thickness) {
@@ -36,17 +42,54 @@ export function createGridHelper() {
         return 1.0 - smoothstep(0.0, thickness, line);
       }
 
+      float computeGridFade(vec3 cameraPos, vec3 worldPos, vec3 cameraDir) {
+        // Distance-based fade
+        float distFade = 1.0 - min(distance(cameraPos, worldPos) / 100.0, 1.0);
+        distFade = pow(distFade, 3.0);
+
+        // Angle-based fade
+        vec3 planeNormal = vec3(0.0, 1.0, 0.0);
+        float angleDot = abs(dot(normalize(cameraDir), planeNormal));
+        float fadeStart = 0.0872; // ≈ cos(85°)
+        float t = clamp((angleDot - fadeStart) / (1.0 - fadeStart), 0.0, 1.0);
+        float angleFade = pow(t, 0.5);
+
+        return distFade * angleFade * 0.5;
+     }
+
       void main() {
         vec2 coord = vWorldPos.xz;
         float grid = getGridLine(coord, uGridSize, uLineThickness);
+
+        float combinedFade = computeGridFade(uCameraPos, vWorldPos, uCameraDir);
         vec3 color = mix(uBackgroundColor, uLineColor, grid);
-        gl_FragColor = vec4(color, 1.0);
+        gl_FragColor = vec4(color, grid * combinedFade);
       }
     `,
     side: THREE.DoubleSide,
-    transparent: false
+    transparent: true
   });
 
   const gridHelper = new THREE.Mesh(geometry, material);
+  gridHelper.frustumCulled = false;
   return gridHelper;
+}
+
+export function updateGridHelperUniforms(gridHelper, camera, maxScale = 5) {
+  const material = gridHelper.material;
+  const cameraPos = camera.position;
+  const gridPos = gridHelper.position;
+
+  // Update camera position uniform
+  material.uniforms.uCameraPos.value.copy(cameraPos);
+
+  // Calculate and clamp distance scale
+  const cameraDistance = cameraPos.distanceTo(gridPos);
+  const distanceScale = Math.min(cameraDistance * 2.0, maxScale);
+  material.uniforms.uDistance.value = distanceScale;
+
+  // Update camera direction uniform
+  const cameraDir = new THREE.Vector3();
+  camera.getWorldDirection(cameraDir);
+  material.uniforms.uCameraDir.value.copy(cameraDir);
 }

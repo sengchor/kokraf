@@ -4,7 +4,7 @@ import { createViewHelper, updateViewHelperPosition } from './helpers/view-helpe
 import { loadComponent } from './utils/loadComponent.js';
 import { setupRightPanelResizer, setupOutlinerResizer } from './panel-resizer.js';
 import { OutlineEffect } from "jsm/effects/OutlineEffect.js";
-import { createGridHelper } from './helpers/grid-helper.js';
+import { createGridHelper, updateGridHelperUniforms } from './helpers/grid-helper.js';
 
 // Load UI components
 loadComponent('#menu-container', 'components/menu-bar.html');
@@ -120,8 +120,7 @@ function animate() {
 
   requestAnimationFrame(animate);
 
-  // Update camera position
-  gridHelper.material.uniforms.uCameraPos.value.copy(_DEFAULT_CAMERA.position);
+  updateGridHelperUniforms(gridHelper, _DEFAULT_CAMERA);
 
   renderer.clear();
   renderer.render(scene, _DEFAULT_CAMERA);
