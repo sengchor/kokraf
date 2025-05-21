@@ -8,7 +8,8 @@ export function createGridHelper() {
     uniforms: {
       uCameraPos: { value: new THREE.Vector3() },
       uCameraDir: { value: new THREE.Vector3() },
-      uGridSize: { value: 1.0 },
+      uGridSize: { value: 0.5 },
+      uMajorGridSize: { value: 5.0 },
       uLineThickness: { value: 1.5 },
       uLineColor: { value: new THREE.Color(0xFFFFFF) },
       uBackgroundColor: { value: new THREE.Color(0x000000) },
@@ -30,6 +31,7 @@ export function createGridHelper() {
       uniform vec3 uCameraPos;
       uniform vec3 uCameraDir;
       uniform float uGridSize;
+      uniform float uMajorGridSize;
       uniform float uLineThickness;
       uniform vec3 uLineColor;
       uniform vec3 uBackgroundColor;
@@ -42,9 +44,15 @@ export function createGridHelper() {
         return 1.0 - smoothstep(0.0, thickness, line);
       }
 
+      float getAxisLine(vec2 coord, float thickness) {
+        float xLine = 1.0 - smoothstep(0.0, thickness, abs(coord.x) / fwidth(coord.x));
+        float zLine = 1.0 - smoothstep(0.0, thickness, abs(coord.y) / fwidth(coord.y));
+        return max(xLine, zLine);
+      }
+
       float computeGridFade(vec3 cameraPos, vec3 worldPos, vec3 cameraDir) {
         // Distance-based fade
-        float distFade = 1.0 - min(distance(cameraPos, worldPos) / 100.0, 1.0);
+        float distFade = 1.0 - min(distance(cameraPos, worldPos) / uDistance / 40.0, 1.0);
         distFade = pow(distFade, 3.0);
 
         // Angle-based fade
@@ -54,16 +62,30 @@ export function createGridHelper() {
         float t = clamp((angleDot - fadeStart) / (1.0 - fadeStart), 0.0, 1.0);
         float angleFade = pow(t, 0.5);
 
-        return distFade * angleFade * 0.5;
+        return distFade * angleFade;
      }
 
       void main() {
         vec2 coord = vWorldPos.xz;
-        float grid = getGridLine(coord, uGridSize, uLineThickness);
+        float minorGrid = getGridLine(coord, uGridSize, uLineThickness);
+        float majorGrid = getGridLine(coord, uMajorGridSize, uLineThickness);
+        float axis = getAxisLine(coord, uLineThickness * 1.5);
 
         float combinedFade = computeGridFade(uCameraPos, vWorldPos, uCameraDir);
-        vec3 color = mix(uBackgroundColor, uLineColor, grid);
-        gl_FragColor = vec4(color, grid * combinedFade);
+
+        vec3 color = uBackgroundColor;
+        color = mix(color, uLineColor, minorGrid);
+        color = mix(color, uLineColor, majorGrid);
+
+        // Override axis color
+        if (axis > 0.0) {
+          vec3 xAxisColor = vec3(252.0 / 255.0, 74.0 / 255.0, 103.0 / 255.0);
+          vec3 zAxisColor = vec3(142.0 / 255.0, 254.0 / 255.0, 97.0 / 255.0);
+          color = (abs(coord.x) < abs(coord.y)) ? zAxisColor : xAxisColor;
+        }
+
+        float alpha = max(max(minorGrid * 0.4, majorGrid * 0.7), axis * 0.9) * combinedFade;
+        gl_FragColor = vec4(color, alpha);
       }
     `,
     side: THREE.DoubleSide,
