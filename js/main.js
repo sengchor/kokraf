@@ -1,46 +1,13 @@
 import * as THREE from "three"
-import { OrbitControls} from "jsm/controls/OrbitControls.js";
 import { createViewHelper, updateViewHelperPosition } from './helpers/view-helper.js';
-import { loadComponent } from './utils/loadComponent.js';
+import { loadUIComponents  } from './utils/loadComponent.js';
 import { setupRightPanelResizer, setupOutlinerResizer } from './panel-resizer.js';
 import { OutlineEffect } from "jsm/effects/OutlineEffect.js";
 import { createGridHelper, updateGridHelperUniforms } from './helpers/grid-helper.js';
+import { QuaternionOrbitControls } from './control/QuaternionOrbitControls.js';
 
 // Load UI components
-loadComponent('#menu-container', 'components/menu-bar.html');
-
-loadComponent('#right-panel-container', 'components/panel-tabs.html', () => {
-  document.querySelectorAll('.tab').forEach((tab, index) => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.panel-content').forEach(c => c.style.display = 'none');
-
-      tab.classList.add('active');
-      document.querySelectorAll('.panel-content')[index].style.display = 'block';
-    });
-  });
-
-  document.querySelectorAll('.outliner-item').forEach(item => {
-    item.addEventListener('click', () => {
-      document.querySelectorAll('.outliner-item').forEach(i => i.classList.remove('selected'));
-      item.classList.add('selected');
-    });
-  });
-
-  setupOutlinerResizer();
-});
-
-loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
-  const buttons = container.querySelectorAll('.toolbar-button');
-   buttons.forEach(button => {
-    button.addEventListener('click', () => {
-      buttons.forEach(b => b.classList.remove('active'));
-      button.classList.add('active');
-    });
-  });
-});
-
-loadComponent('#viewport-controls-container', 'components/viewport-controls.html');
+loadUIComponents();
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -49,7 +16,7 @@ scene.background = new THREE.Color(0x3b3b3b);
 // Camera
 var _DEFAULT_CAMERA = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
 _DEFAULT_CAMERA.name = 'Camera';
-_DEFAULT_CAMERA.position.set( 0, 5, 10 );
+_DEFAULT_CAMERA.position.set( 0, 5, 5 );
 _DEFAULT_CAMERA.lookAt( new THREE.Vector3() );
 
 // Renderer
@@ -60,7 +27,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.autoClear = false;
 
 // Orbit controls
-const controls = new OrbitControls(_DEFAULT_CAMERA, renderer.domElement);
+const controls = new QuaternionOrbitControls(_DEFAULT_CAMERA, renderer.domElement);
 
 // Lights
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -80,7 +47,7 @@ const cube = new THREE.Mesh(
   new THREE.BoxGeometry(),
   new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
 );
-cube.position.y = 0.5;
+cube.position.y = 0.0;
 scene.add(cube);
 
 // Helper
@@ -129,7 +96,6 @@ function animate() {
   if (viewHelper.animating === true) {
     viewHelper.update(delta);
   }
-  
   viewHelper.render(helperRenderer);
 }
 animate();

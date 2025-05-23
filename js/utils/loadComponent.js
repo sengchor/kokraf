@@ -18,3 +18,40 @@ export async function loadComponent(selector, url, onLoaded) {
     console.error(`Failed to load component from ${url}`, error);
   }
 }
+
+export function loadUIComponents() {
+  loadComponent('#menu-container', 'components/menu-bar.html');
+
+  loadComponent('#right-panel-container', 'components/panel-tabs.html', () => {
+    document.querySelectorAll('.tab').forEach((tab, index) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel-content').forEach(c => c.style.display = 'none');
+
+        tab.classList.add('active');
+        document.querySelectorAll('.panel-content')[index].style.display = 'block';
+      });
+    });
+
+    document.querySelectorAll('.outliner-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.outliner-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+      });
+    });
+
+    import('../panel-resizer.js').then(module => module.setupOutlinerResizer());
+  });
+
+  loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
+    const buttons = container.querySelectorAll('.toolbar-button');
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+      });
+    });
+  });
+
+  loadComponent('#viewport-controls-container', 'components/viewport-controls.html');
+}
