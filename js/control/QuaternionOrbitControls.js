@@ -5,6 +5,7 @@ export class QuaternionOrbitControls {
 		this.camera = camera;
 		this.domElement = domElement;
 		this.target = target;
+		this.enabled = true;
 
 		this.moveCurr = new Vector2();
 		this.movePrev = new Vector2();
@@ -34,7 +35,7 @@ export class QuaternionOrbitControls {
 	}
 
 	_onMouseDown(event) {
-		if (event.button !== 1) return;
+		if (!this.enabled || event.button !== 1) return;
 
 		this.movePrev.copy(this._getMouseOnCircle(event.clientX, event.clientY));
 
@@ -67,6 +68,7 @@ export class QuaternionOrbitControls {
 	}
 
 	_onMouseWheel(event) {
+		if (!this.enabled) return;
 		event.preventDefault();
 
 		this._zoom(event);

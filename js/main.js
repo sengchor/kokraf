@@ -1,7 +1,7 @@
 import * as THREE from "three"
-import { createViewHelper, updateViewHelperPosition } from './helpers/view-helper.js';
+import { createViewHelper, updateViewHelperPosition } from './helpers/view-helper-ui.js';
 import { loadUIComponents  } from './utils/loadComponent.js';
-import { setupRightPanelResizer, setupOutlinerResizer } from './panel-resizer.js';
+import { setupRightPanelResizer } from './panel-resizer.js';
 import { OutlineEffect } from "jsm/effects/OutlineEffect.js";
 import { createGridHelper, updateGridHelperUniforms } from './helpers/grid-helper.js';
 import { QuaternionOrbitControls } from './control/QuaternionOrbitControls.js';
@@ -12,12 +12,16 @@ loadUIComponents();
 // Scene setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x3b3b3b);
+const sceneGridHelper = new THREE.Scene();
+sceneGridHelper.background = null;
+const sceneHelpers = new THREE.Scene();
+sceneHelpers.background = null;
 
 // Camera
-var _DEFAULT_CAMERA = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-_DEFAULT_CAMERA.name = 'Camera';
-_DEFAULT_CAMERA.position.set( 0, 5, 5 );
-_DEFAULT_CAMERA.lookAt( new THREE.Vector3() );
+var camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.name = 'Camera';
+camera.position.set( 3, 2, 5 );
+camera.lookAt( new THREE.Vector3() );
 
 // Renderer
 const canvas = document.getElementById('three-canvas');
@@ -27,7 +31,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.autoClear = false;
 
 // Orbit controls
-const controls = new QuaternionOrbitControls(_DEFAULT_CAMERA, renderer.domElement);
+const controls = new QuaternionOrbitControls(camera, renderer.domElement);
 
 // Lights
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -36,7 +40,7 @@ scene.add(ambientLight);
 
 // Create grid helper
 const gridHelper = createGridHelper();
-scene.add(gridHelper);
+sceneGridHelper.add(gridHelper);
 
 // Load matcap texture
 const matcapURL = '/assets/textures/matcaps/040full.jpg';
@@ -50,8 +54,16 @@ const cube = new THREE.Mesh(
 cube.position.y = 0.0;
 scene.add(cube);
 
+// Torus
+const torus = new THREE.Mesh(
+  new THREE.TorusGeometry(0.5, 0.2, 16, 100),
+  new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
+);
+torus.position.set(1.5, 0, 0);
+scene.add(torus);
+
 // Helper
-const { viewHelper, helperRenderer } = createViewHelper(_DEFAULT_CAMERA);
+const { viewHelper, helperRenderer } = createViewHelper(camera);
 const clock = new THREE.Clock();
 
 function resizeUIComponents() {
@@ -60,8 +72,8 @@ function resizeUIComponents() {
   const height = window.innerHeight + 30;
   
   renderer.setSize(width, height);
-  _DEFAULT_CAMERA.aspect = width / height;
-  _DEFAULT_CAMERA.updateProjectionMatrix();
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
 
   updateViewHelperPosition(canvas);
 
@@ -86,15 +98,20 @@ function animate() {
   const delta = clock.getDelta();
 
   requestAnimationFrame(animate);
-
-  updateGridHelperUniforms(gridHelper, _DEFAULT_CAMERA);
+  
+  updateGridHelperUniforms(gridHelper, camera);
 
   renderer.clear();
-  renderer.render(scene, _DEFAULT_CAMERA);
-  effect.render(scene, _DEFAULT_CAMERA);
-
+  renderer.render(scene, camera);
+  effect.render(scene, camera);
+  renderer.render(sceneGridHelper, camera);
+  renderer.render(sceneHelpers, camera);
+  
   if (viewHelper.animating === true) {
+    controls.enabled = false;
     viewHelper.update(delta);
+  } else {
+    controls.enabled = true;
   }
   viewHelper.render(helperRenderer);
 }

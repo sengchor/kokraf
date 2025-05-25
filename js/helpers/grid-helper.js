@@ -79,8 +79,8 @@ export function createGridHelper() {
 
         // Override axis color
         if (axis > 0.0) {
-          vec3 xAxisColor = vec3(252.0 / 255.0, 74.0 / 255.0, 103.0 / 255.0);
-          vec3 zAxisColor = vec3(142.0 / 255.0, 254.0 / 255.0, 97.0 / 255.0);
+          vec3 xAxisColor = vec3(142.0 / 255.0, 254.0 / 255.0, 97.0 / 255.0);
+          vec3 zAxisColor = vec3(252.0 / 255.0, 74.0 / 255.0, 103.0 / 255.0);
           color = (abs(coord.x) < abs(coord.y)) ? zAxisColor : xAxisColor;
         }
 
