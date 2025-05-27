@@ -19,7 +19,7 @@ export async function loadComponent(selector, url, onLoaded) {
   }
 }
 
-export function loadUIComponents() {
+export function loadUIComponents(toolbar) {
   loadComponent('#menu-container', 'components/menu-bar.html');
 
   loadComponent('#right-panel-container', 'components/panel-tabs.html', () => {
@@ -41,16 +41,6 @@ export function loadUIComponents() {
     });
 
     import('../panel-resizer.js').then(module => module.setupOutlinerResizer());
-  });
-
-  loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
-    const buttons = container.querySelectorAll('.toolbar-button');
-    buttons.forEach(button => {
-      button.addEventListener('click', () => {
-        buttons.forEach(b => b.classList.remove('active'));
-        button.classList.add('active');
-      });
-    });
   });
 
   loadComponent('#viewport-controls-container', 'components/viewport-controls.html');

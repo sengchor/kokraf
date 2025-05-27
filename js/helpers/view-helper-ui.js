@@ -14,7 +14,7 @@ export function createViewHelper(camera) {
 
   viewHelper  = new ViewHelper(camera, helperRenderer.domElement);
 
-  setupViewHelperEvents(camera);
+  setupViewHelperEvents();
 
   return { viewHelper, helperRenderer };
 }
@@ -26,7 +26,7 @@ export function updateViewHelperPosition(canvas) {
   viewHelperContainer.style.right = '325px';
 }
 
-function setupViewHelperEvents(camera) {
+function setupViewHelperEvents() {
   const domElement = helperRenderer.domElement;
 
   domElement.addEventListener('pointerdown', (event) => {

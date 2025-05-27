@@ -1,13 +1,12 @@
 import * as THREE from "three"
 import { createViewHelper, updateViewHelperPosition } from './helpers/view-helper-ui.js';
-import { loadUIComponents  } from './utils/loadComponent.js';
+import { loadUIComponents, loadComponent } from './utils/loadComponent.js';
 import { setupRightPanelResizer } from './panel-resizer.js';
 import { OutlineEffect } from "jsm/effects/OutlineEffect.js";
 import { createGridHelper, updateGridHelperUniforms } from './helpers/grid-helper.js';
-import { QuaternionOrbitControls } from './control/QuaternionOrbitControls.js';
-
-// Load UI components
-loadUIComponents();
+import { QuaternionOrbitControls } from './controls/QuaternionOrbitControls.js';
+import { Toolbar } from "./tools/Toolbar.js";
+import { Selection } from './tools/selection.js';
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -88,10 +87,21 @@ function resizeUIComponents() {
   }
 }
 
+
 // Initial canvas size setup
 resizeUIComponents();
 setupRightPanelResizer(resizeUIComponents);
 window.addEventListener('resize', resizeUIComponents);
+
+// Load UI components
+loadUIComponents();
+
+// Select
+const selectionHelper = new Selection(sceneHelpers);
+loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
+  const toolbar = new Toolbar({renderer, camera, scene, controls, sceneHelpers, selectionHelper});
+  toolbar.setupToolbarButtons(container);
+});
 
 // Render Loop
 function animate() {
@@ -100,6 +110,10 @@ function animate() {
   requestAnimationFrame(animate);
   
   updateGridHelperUniforms(gridHelper, camera);
+  
+  if (selectionHelper.getSelectedObject()) {
+    selectionHelper.update();
+  }
 
   renderer.clear();
   renderer.render(scene, camera);
