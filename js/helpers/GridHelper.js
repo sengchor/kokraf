@@ -1,22 +1,22 @@
-import * as THREE from "three"
+import * as THREE from "three";
 
-export function createGridHelper() {
-  const geometry = new THREE.PlaneGeometry(100, 100);
-  geometry.rotateX(- Math.PI / 2);
+export class GridHelper extends THREE.Mesh {
+  constructor() {
+    const geometry = new THREE.PlaneGeometry(100, 100);
+    geometry.rotateX(-Math.PI / 2);
 
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      uCameraPos: { value: new THREE.Vector3() },
-      uCameraDir: { value: new THREE.Vector3() },
-      uGridSize: { value: 0.5 },
-      uMajorGridSize: { value: 5.0 },
-      uLineThickness: { value: 1.5 },
-      uLineColor: { value: new THREE.Color(0xFFFFFF) },
-      uBackgroundColor: { value: new THREE.Color(0x000000) },
-      uDistance: { value: 2.0 },
-    },
-    vertexShader: `
-      varying vec3 vWorldPos;
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uCameraPos: { value: new THREE.Vector3() },
+        uCameraDir: { value: new THREE.Vector3() },
+        uGridSize: { value: 0.5 },
+        uMajorGridSize: { value: 5.0 },
+        uLineThickness: { value: 1.5 },
+        uLineColor: { value: new THREE.Color(0xffffff) },
+        uBackgroundColor: { value: new THREE.Color(0x000000) },
+        uDistance: { value: 2.0 },
+      },
+      vertexShader: `varying vec3 vWorldPos;
       uniform vec3 uCameraPos;
       uniform float uDistance;
       void main() {
@@ -25,10 +25,8 @@ export function createGridHelper() {
         worldPosition.xz += uCameraPos.xz;
         gl_Position = projectionMatrix * viewMatrix * worldPosition;
         vWorldPos = worldPosition.xyz;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uCameraPos;
+      }`,
+      fragmentShader: `uniform vec3 uCameraPos;
       uniform vec3 uCameraDir;
       uniform float uGridSize;
       uniform float uMajorGridSize;
@@ -51,19 +49,15 @@ export function createGridHelper() {
       }
 
       float computeGridFade(vec3 cameraPos, vec3 worldPos, vec3 cameraDir) {
-        // Distance-based fade
         float distFade = 1.0 - min(distance(cameraPos, worldPos) / uDistance / 40.0, 1.0);
         distFade = pow(distFade, 3.0);
-
-        // Angle-based fade
         vec3 planeNormal = vec3(0.0, 1.0, 0.0);
         float angleDot = abs(dot(normalize(cameraDir), planeNormal));
-        float fadeStart = 0.0872; // ≈ cos(85°)
+        float fadeStart = 0.0872;
         float t = clamp((angleDot - fadeStart) / (1.0 - fadeStart), 0.0, 1.0);
         float angleFade = pow(t, 0.5);
-
         return distFade * angleFade;
-     }
+      }
 
       void main() {
         vec2 coord = vWorldPos.xz;
@@ -77,7 +71,6 @@ export function createGridHelper() {
         color = mix(color, uLineColor, minorGrid);
         color = mix(color, uLineColor, majorGrid);
 
-        // Override axis color
         if (axis > 0.0) {
           vec3 xAxisColor = vec3(142.0 / 255.0, 254.0 / 255.0, 97.0 / 255.0);
           vec3 zAxisColor = vec3(252.0 / 255.0, 74.0 / 255.0, 103.0 / 255.0);
@@ -86,32 +79,29 @@ export function createGridHelper() {
 
         float alpha = max(max(minorGrid * 0.4, majorGrid * 0.7), axis * 0.9) * combinedFade;
         gl_FragColor = vec4(color, alpha);
-      }
-    `,
-    side: THREE.DoubleSide,
-    transparent: true
-  });
+      }`,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
 
-  const gridHelper = new THREE.Mesh(geometry, material);
-  gridHelper.frustumCulled = false;
-  return gridHelper;
-}
+    super(geometry, material);
 
-export function updateGridHelperUniforms(gridHelper, camera, maxScale = 5) {
-  const material = gridHelper.material;
-  const cameraPos = camera.position;
-  const gridPos = gridHelper.position;
+    this.frustumCulled = false;
+  }
 
-  // Update camera position uniform
-  material.uniforms.uCameraPos.value.copy(cameraPos);
+  updateUniforms(camera, maxScale = 5) {
+    const material = this.material;
+    const cameraPos = camera.position;
+    const gridPos = this.position;
 
-  // Calculate and clamp distance scale
-  const cameraDistance = cameraPos.distanceTo(gridPos);
-  const distanceScale = Math.min(cameraDistance * 2.0, maxScale);
-  material.uniforms.uDistance.value = distanceScale;
+    material.uniforms.uCameraPos.value.copy(cameraPos);
 
-  // Update camera direction uniform
-  const cameraDir = new THREE.Vector3();
-  camera.getWorldDirection(cameraDir);
-  material.uniforms.uCameraDir.value.copy(cameraDir);
+    const cameraDistance = cameraPos.distanceTo(gridPos);
+    const distanceScale = Math.min(cameraDistance * 2.0, maxScale);
+    material.uniforms.uDistance.value = distanceScale;
+
+    const cameraDir = new THREE.Vector3();
+    camera.getWorldDirection(cameraDir);
+    material.uniforms.uCameraDir.value.copy(cameraDir);
+  }
 }

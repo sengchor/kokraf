@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export class Selection {
+export default class Selection {
   constructor(scene) {
     this.box = new THREE.Box3();
     this.selectionBox = new THREE.Box3Helper(this.box, 0xffa500);
