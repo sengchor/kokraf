@@ -2,6 +2,7 @@ import { TransformTool } from '../tools/TransformTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
+    this.uiLoader = editor.uiLoader;
     this.canvas = document.getElementById('three-canvas');
     this.renderer = editor.renderer;
     this.camera = editor.cameraManager.camera;
@@ -15,7 +16,14 @@ export default class Toolbar {
     this.rotateTool = new TransformTool('rotate', this.camera, this.renderer, this.sceneHelpers, this.controls);
     this.scaleTool = new TransformTool('scale', this.camera, this.renderer, this.sceneHelpers, this.controls);
 
+    this.load();
     this.handlePointerDown();
+  }
+
+  load() {
+    this.uiLoader.loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
+      this.setupToolbarButtons(container);
+    });
   }
 
   setupToolbarButtons(container) {

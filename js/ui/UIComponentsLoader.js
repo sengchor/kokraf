@@ -22,8 +22,6 @@ export default class UIComponentsLoader {
   }
 
   loadUIComponents(panelResizer) {
-    this.loadComponent('#menu-container', 'components/menu-bar.html');
-
     this.loadComponent('#right-panel-container', 'components/panel-tabs.html', () => {
       // Tab switching
       document.querySelectorAll('.tab').forEach((tab, index) => {

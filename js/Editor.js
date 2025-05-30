@@ -9,6 +9,7 @@ import Selection from './tools/Selection.js';
 import UIComponentsLoader from './ui/UIComponentsLoader.js';
 import PanelResizer from './ui/PanelResizer.js';
 import { ViewHelperUI } from './helpers/ViewHelperUI.js';
+import Menubar from './ui/Menubar.js';
 
 export default class Editor {
   constructor() {
@@ -37,6 +38,7 @@ export default class Editor {
     this.clock = new THREE.Clock();
 
     this.animate = this.animate.bind(this);
+    window.addEventListener('keydown', this.onKeyDown.bind(this));
   }
 
   init() {    
@@ -47,9 +49,7 @@ export default class Editor {
     this.uiLoader.loadUIComponents(this.panelResizer);
     
     this.toolbar = new Toolbar(this);
-    this.uiLoader.loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
-      this.toolbar.setupToolbarButtons(container);
-    });
+    this.menubar = new Menubar(this);
 
     this.animate();
   }
@@ -78,5 +78,16 @@ export default class Editor {
       this.controlsManager.enable();
     }
     this.viewHelperUI.render();
+  }
+
+  onKeyDown(event) {
+    if (event.key === 'Delete') {
+      const selected = this.selectionHelper.getSelectedObject();
+      if (selected && selected.parent) {
+        selected.parent.remove(selected);
+        this.selectionHelper.deselect();
+        this.toolbar.updateTools();
+      }
+    }
   }
 }

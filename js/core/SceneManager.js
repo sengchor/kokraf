@@ -28,7 +28,7 @@ export default class SceneManager {
       new THREE.BoxGeometry(),
       new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
     );
-    cube.position.y = 0.0;
+    cube.position.set(3.5, 0, 0);
     this.mainScene.add(cube);
 
     const torus = new THREE.Mesh(
@@ -37,5 +37,17 @@ export default class SceneManager {
     );
     torus.position.set(1.5, 0, 0);
     this.mainScene.add(torus);
+  }
+
+  addGeometry(geometry) {
+    const matcapTexture = this.loaderMatcap();
+    const material = new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, 0, 0);
+    this.mainScene.add(mesh);
+  }
+
+  addObject(object) {
+    this.mainScene.add(object);
   }
 }

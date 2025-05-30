@@ -23,8 +23,10 @@ export default class Selection {
     this.raycaster.setFromCamera(this.mouse, camera);
     const intersects = this.raycaster.intersectObjects(scene.children, true);
 
-    if (intersects.length > 0) {
-      this.selectedObject = intersects[0].object;
+    const validHit = intersects.find(i => !i.object.userData.unselectable);
+
+    if (validHit) {
+      this.selectedObject = validHit.object;
       this.update();
       this.selectionBox.visible = true;
       this.selectionBox.updateMatrixWorld(true);
