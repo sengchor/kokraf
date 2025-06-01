@@ -68,8 +68,8 @@ export default class Editor {
     this.renderer.clearAll();
     this.renderer.render(this.sceneManager.mainScene, this.cameraManager.camera);
     this.renderer.renderWithOutline(this.sceneManager.mainScene, this.cameraManager.camera);
-    this.renderer.render(this.sceneManager.sceneGridHelper, this.cameraManager.camera);
     this.renderer.render(this.sceneManager.sceneHelpers, this.cameraManager.camera);
+    this.renderer.render(this.sceneManager.sceneGridHelper, this.cameraManager.camera);
 
     if (this.viewHelperUI.viewHelper.animating) {
       this.controlsManager.disable();

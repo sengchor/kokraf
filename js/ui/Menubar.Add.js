@@ -7,6 +7,12 @@ export class MenubarAdd {
   }
 
   init() {
+    document.querySelector('[data-group]').addEventListener('click', (event) => {
+      const groupType = event.target.getAttribute('data-group');
+      const group = this.createGroup(groupType);
+      this.sceneManager.addObject(group);
+    });
+
     document.querySelectorAll('[data-geometry]').forEach(item => {
       item.addEventListener('click', (event) => {
         const geometryType = event.target.getAttribute('data-geometry');
@@ -29,12 +35,6 @@ export class MenubarAdd {
         const camera = this.createCamera(cameraType);
         this.sceneManager.addObject(camera);
       })
-    });
-
-    document.querySelector('[data-group]').addEventListener('click', (event) => {
-      const groupType = event.target.getAttribute('data-group');
-      const group = this.createGroup(groupType);
-      this.sceneManager.addObject(group);
     });
   }
 
@@ -116,8 +116,6 @@ export class MenubarAdd {
         light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(5, 5, 5);
         helper = new THREE.DirectionalLightHelper(light, 0.5);
-        //helper.targetLine.userData.unselectable = true;
-        //helper.lightPlane.userData.unselectable = true;
         break;
 
       case 'Hemisphere':
@@ -134,33 +132,28 @@ export class MenubarAdd {
       case 'Spot':
         light = new THREE.SpotLight(0xffffff, 1);
         light.position.set(5, 5, 5);
-        light.angle = Math.PI / 6;
-        light.penumbra = 0.1;
-        light.decay = 2;
-        light.distance = 50;
-        light.castShadow = true;
+        light.angle = Math.PI * 0.1;
+        light.penumbra = 0;
+        light.distance = 20;
         helper = new THREE.SpotLightHelper(light);
-        //helper.cone.userData.unselectable = true;
         break;
 
       default:
         return null;
     }
 
-    const group = new THREE.Group();
-    group.name = `${type} Light`;
-    group.add(light);
-    if (helper) group.add(helper);
+    this.addHelper(light, helper);
 
-    return group;
+    return light;
   }
 
   createCamera(type) {
-    let camera;
+    let camera, helper;
 
     switch (type) {
       case 'Perspective': {
         camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+        helper = new THREE.CameraHelper(camera);
         break;
       }
       case 'Orthographic': {
@@ -171,6 +164,7 @@ export class MenubarAdd {
           frustumSize / 2, -frustumSize / 2,
           0.1, 2000
         );
+        helper = new THREE.CameraHelper(camera);
         break;
       }
       default:
@@ -179,17 +173,14 @@ export class MenubarAdd {
 
     camera.position.set(0, 0, 0);
     camera.lookAt(0, 0, -1);
-    camera.name = `${type}Camera`;
+    const color = new THREE.Color(0xffffff);
+    helper.setColors(
+      color, color, color, color, color
+    );
 
-    const helper = new THREE.CameraHelper(camera);
-    helper.name = `${type}CameraHelper`;
+    this.addHelper(camera, helper);
 
-    const group = new THREE.Group();
-    group.name = `${type}CameraGroup`;
-    group.add(camera);
-    group.add(helper);
-
-    return group;
+    return camera;
   }
 
   createGroup(type) {
@@ -197,5 +188,21 @@ export class MenubarAdd {
     group.name = type || 'Group';
     group.position.set(0, 0, 0);
     return group;
+  }
+
+  addHelper(object, helper) {
+    if (!helper) return;
+
+    var geometry = new THREE.SphereGeometry( 1, 4, 2 );
+    var material = new THREE.MeshBasicMaterial({ color: 0xff0000, visible: false, wireframe: true });
+
+    const picker = new THREE.Mesh(geometry, material);
+    picker.name = 'picker';
+    picker.userData.object = object;
+
+    object.userData.helper = helper;
+    object.add(picker);
+
+    this.sceneManager.sceneHelpers.add(helper);
   }
 }

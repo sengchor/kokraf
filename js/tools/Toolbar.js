@@ -46,7 +46,7 @@ export default class Toolbar {
       if (event.button !== 0) return;
       if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging) return;
 
-      this.selectionHelper.select(event, this.renderer, this.camera, this.scene);
+      this.selectionHelper.onMouseSelect(event, this.renderer, this.camera, this.scene);
       this.updateTools();
     });
   }
