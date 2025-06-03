@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { ViewHelper } from './ViewHelper.js';
 
 export class ViewHelperUI {
-  constructor(camera) {
-    this.camera = camera;
+  constructor(editor) {
+    this.camera = editor.cameraManager.camera;
+    this.orbitControls = editor.controlsManager.instance;
     this.viewHelperContainer = document.getElementById('viewHelper');
 
     if (!this.viewHelperContainer) {
@@ -17,7 +18,7 @@ export class ViewHelperUI {
     this.viewHelperContainer.style.position = 'relative';
     this.viewHelperContainer.style.zIndex = '9';
 
-    this.viewHelper = new ViewHelper(this.camera, this.helperRenderer.domElement);
+    this.viewHelper = new ViewHelper(this.camera, this.helperRenderer.domElement, this.orbitControls);
 
     this._setupEvents();
   }

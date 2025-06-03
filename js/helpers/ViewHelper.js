@@ -36,7 +36,7 @@ class ViewHelper extends Object3D {
 	 * @param {Camera} camera - The camera whose transformation should be visualized.
 	 * @param {HTMLDOMElement} [domElement] - The DOM element that is used to render the view.
 	 */
-	constructor( camera, domElement ) {
+	constructor( camera, domElement, orbitControls ) {
 
 		super();
 
@@ -58,12 +58,14 @@ class ViewHelper extends Object3D {
 		 */
 		this.animating = false;
 
+		this.orbitControls = orbitControls;
+
 		/**
 		 * The helper's center point.
 		 *
 		 * @type {Vector3}
 		 */
-		this.center = new Vector3();
+		this.center = this.orbitControls.target;
 
 		const color1 = new Color( '#ff4466' );
 		const color2 = new Color( '#88ff44' );
@@ -233,6 +235,11 @@ class ViewHelper extends Object3D {
 
 				const intersection = intersects[ 0 ];
 				const object = intersection.object;
+
+				const direction = new Vector3();
+				camera.getWorldDirection(direction);
+				const radius = camera.position.distanceTo(this.center);
+				this.center.copy(camera.position).add(direction.multiplyScalar(radius));
 
 				prepareAnimationData( object, this.center );
 

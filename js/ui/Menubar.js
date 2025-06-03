@@ -1,15 +1,16 @@
 import { MenubarAdd } from './Menubar.Add.js';
+import { MenubarView } from './Menubar.View.js';
 
 export default class Menubar {
   constructor( editor ) {
     this.uiLoader = editor.uiLoader;
-    this.sceneManager = editor.sceneManager;
-    this.load();
+    this.load(editor);
   }
 
-  load() {
+  load(editor) {
     this.uiLoader.loadComponent('#menu-container', 'components/menu-bar.html', () => {
-      new MenubarAdd(this.sceneManager);
+      new MenubarAdd(editor);
+      new MenubarView(editor);
     });
   }
 }

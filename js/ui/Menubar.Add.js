@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 export class MenubarAdd {
-  constructor(sceneManager) {
-    this.sceneManager = sceneManager;
+  constructor(editor) {
+    this.sceneManager = editor.sceneManager;
     this.init();
   }
 
@@ -201,7 +201,7 @@ export class MenubarAdd {
     picker.userData.object = object;
 
     object.userData.helper = helper;
-    object.add(picker);
+    helper.add(picker);
 
     this.sceneManager.sceneHelpers.add(helper);
   }

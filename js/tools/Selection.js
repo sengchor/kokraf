@@ -1,14 +1,15 @@
 import * as THREE from 'three';
 
 export default class Selection {
-  constructor(scene) {
+  constructor(sceneManager) {
     this.box = new THREE.Box3();
     this.selectionBox = new THREE.Box3Helper(this.box, 0xffa500);
     this.selectionBox.material.depthTest = false;
     this.selectionBox.material.transparent = true;
     this.selectionBox.visible = false;
 
-    scene.add(this.selectionBox);
+    this.sceneManager = sceneManager;
+    this.sceneManager.sceneHelpers.add(this.selectionBox);
 
     this.selectedObject = null;
     this.lastHighlighted = null;
@@ -23,7 +24,7 @@ export default class Selection {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, camera);
-    const intersects = this.raycaster.intersectObjects(scene.children, true);
+    const intersects = this.getIntersects(this.raycaster);
 
     if (intersects.length > 0) {
       const object = intersects[0].object;
@@ -38,6 +39,20 @@ export default class Selection {
     } else {
       this.deselect();
     }
+  }
+
+  getIntersects(raycaster) {
+    const objects = [];
+
+    this.sceneManager.mainScene.traverseVisible( child => {
+      objects.push(child);
+    });
+
+    this.sceneManager.sceneHelpers.traverseVisible( child => {
+      if (child.name === 'picker') objects.push(child);
+    });
+
+    return raycaster.intersectObjects(objects, false);
   }
 
   update() {
