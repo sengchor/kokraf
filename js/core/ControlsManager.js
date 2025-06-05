@@ -1,8 +1,10 @@
 import { QuaternionOrbitControls } from '../controls/QuaternionOrbitControls.js';
 
 export default class ControlsManager {
-  constructor({ camera, domElement }) {
-    this.instance = new QuaternionOrbitControls(camera, domElement);
+  constructor(editor) {
+    this.camera = editor.cameraManager.camera;
+    this.domElement = editor.renderer.domElement;
+    this.instance = new QuaternionOrbitControls(this.camera, this.domElement);
   }
 
   enable() {

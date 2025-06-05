@@ -11,6 +11,40 @@ export default class SceneManager {
     this.sceneHelpers = new THREE.Scene();
     this.sceneHelpers.background = null;
   }
+  
+  emptyScene(scene) {
+    while (scene.children.length > 0) {
+      const obj = scene.children[0];
+      scene.remove(obj);
+
+      if (obj.geomety) {
+        obj.geometry.dispose?.();
+      }
+
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(mat => mat.dispose?.());
+        } else {
+          obj.material.dispose?.();
+        }
+      }
+
+      if (obj.texture) {
+        obj.texture.dispose?.();
+      }
+    }
+  }
+
+  emptyAllScenes() {
+    this.emptyScene(this.mainScene);
+    this.emptyScene(this.sceneHelpers);
+  }
+
+  setScene(scene) {
+    while (scene.children.length > 0) {
+      this.addObject(scene.children[0]);
+    }
+  }
 
   addAmbientLight(color = 0xffffff, intensity = 0.5) {
     const light = new THREE.AmbientLight(color, intensity);

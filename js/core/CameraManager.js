@@ -18,4 +18,16 @@ export default class CameraManager {
     this.camera.aspect = newAspect;
     this.camera.updateProjectionMatrix();
   }
+
+  setCamera(newCamera) {
+    const oldUuid = this.camera.uuid;
+    const newUuid = newCamera.uuid;
+
+    this.camera.copy(newCamera);
+    this.camera.uuid = newUuid;
+
+    delete this.cameras?.[oldUuid];
+    this.cameras = this.cameras || {};
+    this.cameras[newUuid] = this.camera;
+  }
 }

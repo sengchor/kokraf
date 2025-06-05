@@ -16,17 +16,14 @@ export default class Editor {
   constructor() {
     // Signals
     this.signals = {
-      showHelpersChanged: new Signal()
+      showHelpersChanged: new Signal(),
     }
 
     // Core setup
     this.renderer = new Renderer({ canvasId: 'three-canvas' });
     this.sceneManager = new SceneManager();
     this.cameraManager = new CameraManager();
-    this.controlsManager = new ControlsManager({
-      camera: this.cameraManager.camera,
-      domElement: this.renderer.domElement,
-    });
+    this.controlsManager = new ControlsManager(this);
 
     // Helpers
     this.gridHelper = new GridHelper();
@@ -126,6 +123,29 @@ export default class Editor {
         this.selectionHelper.deselect();
         this.toolbar.updateTools();
       }
+    }
+  }
+
+  fromJSON(json) {
+    const loader = new THREE.ObjectLoader();
+
+    this.sceneManager.emptyAllScenes();
+
+    const scene = loader.parse(json.scene);
+    this.sceneManager.setScene(scene);
+
+    const camera = loader.parse(json.camera);
+    this.cameraManager.setCamera(camera);
+  }
+
+  toJSON() {
+    return {
+      metadata: {
+        version: 1.0,
+        type: 'Project',
+      },
+      scene: this.sceneManager.mainScene.toJSON(),
+      camera: this.cameraManager.camera.toJSON()
     }
   }
 }
