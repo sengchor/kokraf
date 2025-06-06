@@ -1,18 +1,20 @@
 import * as THREE from 'three';
 
 export default class Selection {
-  constructor(sceneManager) {
+  constructor(editor) {
     this.box = new THREE.Box3();
     this.selectionBox = new THREE.Box3Helper(this.box, 0xffa500);
     this.selectionBox.material.depthTest = false;
     this.selectionBox.material.transparent = true;
     this.selectionBox.visible = false;
 
-    this.sceneManager = sceneManager;
-    this.sceneManager.sceneHelpers.add(this.selectionBox);
+    this.sceneManager = editor.sceneManager;
+    this.sceneManager.sceneEditorHelpers.add(this.selectionBox);
 
     this.selectedObject = null;
     this.lastHighlighted = null;
+    this.helper = null;
+    this.helpers = editor.helpers;
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -59,13 +61,11 @@ export default class Selection {
     if (!this.selectedObject) return;
     this.box.setFromObject(this.selectedObject);
 
-    const helper = this.selectedObject.userData.helper;
+    if (this.helper) {
+      this.helper.update();
 
-    if (helper) {
-      helper.update();
-
-      if (this.lastHighlighted === helper) {
-        helper.traverse(child => {
+      if (this.lastHighlighted === this.helper) {
+        this.helper.traverse(child => {
           if (child.material && child.material.color) {
             child.material.color.set(0xffa500);
           }
@@ -104,17 +104,17 @@ export default class Selection {
     this.selectionBox.visible = true;
     this.selectionBox.updateMatrixWorld(true);
 
-    const helper = object.userData.helper;
-    if (helper) {
-      helper.update();
+    this.helper = this.helpers[object.id];
+    if (this.helper) {
+      this.helper.update();
 
-      helper.traverse(child => {
+      this.helper.traverse(child => {
         if (child.material && child.material.color) {
           child.material.color.set(0xffa500);
         }
       });
 
-      this.lastHighlighted = helper;
+      this.lastHighlighted = this.helper;
     } else {
       this.lastHighlighted = null;
     }

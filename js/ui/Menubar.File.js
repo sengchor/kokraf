@@ -1,8 +1,7 @@
-import {createGeometry, createCamera} from '../utils/ObjectFactory.js'
-
 export class MenubarFile {
   constructor(editor) {
     this.sceneManager = editor.sceneManager;
+    this.objectFactory = editor.objectFactory;
     this.init(editor);
   }
 
@@ -30,15 +29,15 @@ export class MenubarFile {
         break;
       case 'cube': {
         this.sceneManager.emptyAllScenes();
-        const cube = createGeometry('Box');
+        const cube = this.objectFactory.createGeometry('Box');
         this.sceneManager.addGeometry(cube);
         break;
       }
       case 'camera': {
         this.sceneManager.emptyAllScenes();
-        const cube = createGeometry('Box');
+        const cube = this.objectFactory.createGeometry('Box');
         this.sceneManager.addGeometry(cube);
-        const camera = createCamera('Perspective', this.sceneManager);
+        const camera = this.objectFactory.createCamera('Perspective', this.sceneManager);
         camera.position.set(0, 0, 10);
         this.sceneManager.addObject(camera);
         break;

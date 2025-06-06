@@ -11,6 +11,7 @@ import PanelResizer from './ui/PanelResizer.js';
 import { ViewHelperUI } from './helpers/ViewHelperUI.js';
 import Menubar from './ui/Menubar.js';
 import { Signal } from './utils/Signals.js';
+import { ObjectFactory } from './utils/ObjectFactory.js'
 
 export default class Editor {
   constructor() {
@@ -19,16 +20,19 @@ export default class Editor {
       showHelpersChanged: new Signal(),
     }
 
+    this.helpers = {};
+
     // Core setup
     this.renderer = new Renderer({ canvasId: 'three-canvas' });
-    this.sceneManager = new SceneManager();
+    this.objectFactory = new ObjectFactory(this);
+    this.sceneManager = new SceneManager(this);
     this.cameraManager = new CameraManager();
     this.controlsManager = new ControlsManager(this);
 
     // Helpers
     this.gridHelper = new GridHelper();
     this.viewHelperUI = new ViewHelperUI(this);
-    this.selectionHelper = new Selection(this.sceneManager);
+    this.selectionHelper = new Selection(this);
 
     // UI
     this.uiLoader = new UIComponentsLoader();
@@ -73,7 +77,7 @@ export default class Editor {
 
   init() {    
     this.sceneManager.addAmbientLight(0xffffff, 0.5);
-    this.sceneManager.sceneGridHelper.add(this.gridHelper);
+    this.sceneManager.sceneEditorHelpers.add(this.gridHelper);
     this.sceneManager.addDemoObjects();
 
     this.uiLoader.loadUIComponents(this.panelResizer);
@@ -99,7 +103,7 @@ export default class Editor {
     this.renderer.render(this.sceneManager.mainScene, this.cameraManager.camera);
     this.renderer.renderWithOutline(this.sceneManager.mainScene, this.cameraManager.camera);
     this.renderer.render(this.sceneManager.sceneHelpers, this.cameraManager.camera);
-    this.renderer.render(this.sceneManager.sceneGridHelper, this.cameraManager.camera);
+    this.renderer.render(this.sceneManager.sceneEditorHelpers, this.cameraManager.camera);
 
     if (this.viewHelperUI.viewHelper.animating) {
       this.controlsManager.disable();
@@ -114,9 +118,11 @@ export default class Editor {
     if (event.key === 'Delete') {
       const selected = this.selectionHelper.getSelectedObject();
       if (selected && selected.parent) {
-        const helper = selected.userData.helper;
+        const helper = this.helpers[selected.id];
+
         if (helper && helper.parent) {
           helper.parent.remove(helper);
+          delete this.helpers[selected.id];
         }
 
         selected.parent.remove(selected);

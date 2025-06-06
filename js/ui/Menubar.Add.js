@@ -1,22 +1,21 @@
-import {createGroup, createGeometry, createLight, createCamera} from '../utils/ObjectFactory.js'
-
 export class MenubarAdd {
   constructor(editor) {
     this.sceneManager = editor.sceneManager;
+    this.objectFactory = editor.objectFactory;
     this.init();
   }
 
   init() {
     document.querySelector('[data-group]').addEventListener('click', (event) => {
       const groupType = event.target.getAttribute('data-group');
-      const group = createGroup(groupType);
+      const group = this.objectFactory.createGroup(groupType);
       this.sceneManager.addObject(group);
     });
 
     document.querySelectorAll('[data-geometry]').forEach(item => {
       item.addEventListener('click', (event) => {
         const geometryType = event.target.getAttribute('data-geometry');
-        const geometry = createGeometry(geometryType);
+        const geometry = this.objectFactory.createGeometry(geometryType);
         this.sceneManager.addGeometry(geometry);
       });
     });
@@ -24,7 +23,7 @@ export class MenubarAdd {
     document.querySelectorAll('[data-light]').forEach(item => {
       item.addEventListener('click', (event) => {
         const lightType = event.target.getAttribute('data-light');
-        const light = createLight(lightType, this.sceneManager);
+        const light = this.objectFactory.createLight(lightType);
         this.sceneManager.addObject(light);
       });
     });
@@ -32,7 +31,7 @@ export class MenubarAdd {
     document.querySelectorAll('[data-camera]').forEach(item => {
       item.addEventListener('click', (event) => {
         const cameraType = event.target.getAttribute('data-camera');
-        const camera = createCamera(cameraType, this.sceneManager);
+        const camera = this.objectFactory.createCamera(cameraType);
         this.sceneManager.addObject(camera);
       })
     });

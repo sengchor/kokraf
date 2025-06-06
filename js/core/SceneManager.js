@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 
 export default class SceneManager {
-  constructor() {
+  constructor(editor) {
+    this.helpers = editor.helpers;
+    this.objectFactory = editor.objectFactory;
+
     this.mainScene = new THREE.Scene();
     this.mainScene.background = new THREE.Color(0x3b3b3b);
 
-    this.sceneGridHelper = new THREE.Scene();
-    this.sceneGridHelper.background = null;
+    this.sceneEditorHelpers  = new THREE.Scene();
+    this.sceneEditorHelpers.background = null;
 
     this.sceneHelpers = new THREE.Scene();
     this.sceneHelpers.background = null;
@@ -17,7 +20,7 @@ export default class SceneManager {
       const obj = scene.children[0];
       scene.remove(obj);
 
-      if (obj.geomety) {
+      if (obj.geometry) {
         obj.geometry.dispose?.();
       }
 
@@ -83,5 +86,10 @@ export default class SceneManager {
 
   addObject(object) {
     this.mainScene.add(object);
+    const helper = this.objectFactory.createHelper(object);
+    if (helper) {
+      this.sceneHelpers.add(helper);
+      this.helpers[object.id] = helper;
+    }
   }
 }

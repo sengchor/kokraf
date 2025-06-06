@@ -8,13 +8,13 @@ export default class Toolbar {
     this.camera = editor.cameraManager.camera;
     this.scene = editor.sceneManager.mainScene;
     this.selectionHelper = editor.selectionHelper;
-    this.sceneHelpers = editor.sceneManager.sceneHelpers;
+    this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
     this.controls = editor.controlsManager;
     this.activeTool = 'select';
 
-    this.moveTool = new TransformTool('translate', this.camera, this.renderer, this.sceneHelpers, this.controls);
-    this.rotateTool = new TransformTool('rotate', this.camera, this.renderer, this.sceneHelpers, this.controls);
-    this.scaleTool = new TransformTool('scale', this.camera, this.renderer, this.sceneHelpers, this.controls);
+    this.moveTool = new TransformTool('translate', this.camera, this.renderer, this.sceneEditorHelpers, this.controls);
+    this.rotateTool = new TransformTool('rotate', this.camera, this.renderer, this.sceneEditorHelpers, this.controls);
+    this.scaleTool = new TransformTool('scale', this.camera, this.renderer, this.sceneEditorHelpers, this.controls);
 
     this.load();
     this.handlePointerDown();
