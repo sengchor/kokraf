@@ -1,7 +1,13 @@
+import * as THREE from 'three';
+import { Loader } from '../utils/Loader.js';
+import { Exporter } from '../utils/Exporter.js';
+
+
 export class MenubarFile {
   constructor(editor) {
     this.sceneManager = editor.sceneManager;
     this.objectFactory = editor.objectFactory;
+    this.selectionHelper = editor.selectionHelper;
     this.init(editor);
   }
 
@@ -20,6 +26,17 @@ export class MenubarFile {
      document.querySelector('.save').addEventListener('click', () => {
       this.saveProject(editor);
      });
+
+     document.querySelector('.import').addEventListener('click', () => {
+      this.importObject(editor);
+     });
+
+     document.querySelectorAll('[data-export]').forEach(item => {
+      item.addEventListener('click', (event) => {
+        const exportFormat = event.target.getAttribute('data-export');
+        this.exportObject(editor, exportFormat);
+      });
+    });
   }
 
   createScene(type) {
@@ -86,5 +103,36 @@ export class MenubarFile {
       console.error('Failed to save project:', e);
       alert('Failed to save project.');
     }
+  }
+
+  importObject(editor) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = [
+      '.3dm', '.3ds', '3mf', '.amf', '.dae', '.drc', '.fbx',
+      '.glb', '.gltf', '.js', '.json', '.kmz', '.ldr', '.mpd',
+      '.md2', '.obj', '.pcd', '.ply', '.stl', '.svg', '.usdz', '.vox'
+    ].join(',');
+
+    input.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const loader = new Loader(editor);
+      loader.load(file);
+    });
+
+    input.click();
+  }
+
+  exportObject(editor, format) {
+    const object = this.selectionHelper.selectedObject;
+    const exporter = new Exporter(editor);
+
+    if (!object) {
+      alert('Please select an object to export.');
+      return;
+    }
+    exporter.export(object, format);
   }
 }
