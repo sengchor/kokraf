@@ -116,20 +116,32 @@ export default class Editor {
 
   onKeyDown(event) {
     if (event.key === 'Delete') {
-      const selected = this.selectionHelper.getSelectedObject();
-      if (selected && selected.parent) {
-        const helper = this.helpers[selected.id];
-
-        if (helper && helper.parent) {
-          helper.parent.remove(helper);
-          delete this.helpers[selected.id];
-        }
-
-        selected.parent.remove(selected);
-        this.selectionHelper.deselect();
-        this.toolbar.updateTools();
-      }
+      this.deleteObject();
     }
+  }
+
+  deleteObject() {
+    const selected = this.selectionHelper.getSelectedObject();
+    if (selected && selected.parent) {
+      const helper = this.helpers[selected.id];
+
+      if (helper && helper.parent) {
+        helper.parent.remove(helper);
+        delete this.helpers[selected.id];
+      }
+
+      selected.parent.remove(selected);
+      this.selectionHelper.deselect();
+      this.toolbar.updateTools();
+    }
+  }
+
+  undo() {
+    console.log('undo');
+  }
+
+  redo() {
+    console.log('redo');
   }
 
   fromJSON(json) {
