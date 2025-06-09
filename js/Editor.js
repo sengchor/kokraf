@@ -11,7 +11,9 @@ import PanelResizer from './ui/PanelResizer.js';
 import { ViewHelperUI } from './helpers/ViewHelperUI.js';
 import Menubar from './ui/Menubar.js';
 import { Signal } from './utils/Signals.js';
-import { ObjectFactory } from './utils/ObjectFactory.js'
+import { ObjectFactory } from './utils/ObjectFactory.js';
+import { History } from './core/History.js';
+import { KeyHandler } from './tools/KeyHandler.js';
 
 export default class Editor {
   constructor() {
@@ -28,11 +30,14 @@ export default class Editor {
     this.sceneManager = new SceneManager(this);
     this.cameraManager = new CameraManager();
     this.controlsManager = new ControlsManager(this);
+    this.history = new History(this);
 
     // Helpers
     this.gridHelper = new GridHelper();
     this.viewHelperUI = new ViewHelperUI(this);
     this.selectionHelper = new Selection(this);
+
+    this.keyHandler = new KeyHandler(this);
 
     // UI
     this.uiLoader = new UIComponentsLoader();
@@ -45,7 +50,6 @@ export default class Editor {
     this.clock = new THREE.Clock();
 
     this.animate = this.animate.bind(this);
-    window.addEventListener('keydown', this.onKeyDown.bind(this));
 
     // Listen to signals
     this.signals.showHelpersChanged.add((states) => {
@@ -114,36 +118,6 @@ export default class Editor {
     this.viewHelperUI.render();
   }
 
-  onKeyDown(event) {
-    if (event.key === 'Delete') {
-      this.deleteObject();
-    }
-  }
-
-  deleteObject() {
-    const selected = this.selectionHelper.getSelectedObject();
-    if (selected && selected.parent) {
-      const helper = this.helpers[selected.id];
-
-      if (helper && helper.parent) {
-        helper.parent.remove(helper);
-        delete this.helpers[selected.id];
-      }
-
-      selected.parent.remove(selected);
-      this.selectionHelper.deselect();
-      this.toolbar.updateTools();
-    }
-  }
-
-  undo() {
-    console.log('undo');
-  }
-
-  redo() {
-    console.log('redo');
-  }
-
   fromJSON(json) {
     const loader = new THREE.ObjectLoader();
 
@@ -165,5 +139,17 @@ export default class Editor {
       scene: this.sceneManager.mainScene.toJSON(),
       camera: this.cameraManager.camera.toJSON()
     }
+  }
+
+  execute(cmd) {
+    this.history.execute(cmd);
+  }
+
+  undo() {
+    this.history.undo();
+  }
+
+  redo() {
+    this.history.redo();
   }
 }

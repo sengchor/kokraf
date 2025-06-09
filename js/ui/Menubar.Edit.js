@@ -1,3 +1,5 @@
+import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
+
 export class MenubarEdit {
   constructor(editor) {
     this.editor = editor;
@@ -24,7 +26,8 @@ export class MenubarEdit {
     });
 
     document.querySelector('.delete').addEventListener('click', () => {
-      this.editor.deleteObject();
+      const object = this.selectionHelper.selectedObject;
+      this.editor.execute(new RemoveObjectCommand(this.editor, object));
     });
   }
 

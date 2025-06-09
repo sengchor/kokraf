@@ -30,14 +30,8 @@ export default class Selection {
 
     if (intersects.length > 0) {
       const object = intersects[0].object;
-
-      if ( object.userData.object !== undefined ) {
-        // helper
-        this.select(object.userData.object);
-        this.selectionBox.visible = false;
-      } else {
-        this.select(object);
-      }
+      const target = object.userData.object || object;
+      this.select(target);
     } else {
       this.deselect();
     }
@@ -99,12 +93,8 @@ export default class Selection {
     this.clearHighlight();
 
     this.selectedObject = object;
-
-    this.box.setFromObject(object);
-    this.selectionBox.visible = true;
-    this.selectionBox.updateMatrixWorld(true);
-
     this.helper = this.helpers[object.id];
+
     if (this.helper) {
       this.helper.update();
 
@@ -113,9 +103,13 @@ export default class Selection {
           child.material.color.set(0xffa500);
         }
       });
-
+      
+      this.selectionBox.visible = false;
       this.lastHighlighted = this.helper;
     } else {
+      this.box.setFromObject(object);
+      this.selectionBox.visible = true;
+      this.selectionBox.updateMatrixWorld(true);
       this.lastHighlighted = null;
     }
   }
