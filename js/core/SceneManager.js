@@ -54,12 +54,8 @@ export default class SceneManager {
     this.mainScene.add(light);
   }
 
-  loaderMatcap() {
-    return new THREE.TextureLoader().load('/assets/textures/matcaps/040full.jpg');
-  }
-
   addDemoObjects() {
-    const matcapTexture = this.loaderMatcap();
+    const matcapTexture = new THREE.TextureLoader().load('/assets/textures/matcaps/040full.jpg');
     
     const cube = new THREE.Mesh(
       new THREE.BoxGeometry(),
@@ -75,21 +71,27 @@ export default class SceneManager {
     torus.position.set(1.5, 0, 0);
     this.mainScene.add(torus);
   }
-
-  addGeometry(geometry) {
-    const matcapTexture = this.loaderMatcap();
-    const material = new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(0, 0, 0);
-    this.mainScene.add(mesh);
-  }
-
+  
   addObject(object) {
     this.mainScene.add(object);
+
     const helper = this.objectFactory.createHelper(object);
     if (helper) {
       this.sceneHelpers.add(helper);
       this.helpers[object.id] = helper;
+    }
+  }
+
+  removeObject(object) {
+    const helper = this.helpers[object.id];
+
+    if (helper && helper.parent) {
+      helper.parent.remove(helper);
+      delete this.helpers[object.id];
+    }
+
+    if (object.parent) {
+      object.parent.remove(object);
     }
   }
 }

@@ -6,36 +6,72 @@ export class ObjectFactory {
   }
 
   createGeometry(type) {
+    let geometry;
+
     switch (type) {
-      case 'Box': return new THREE.BoxGeometry();
-      case 'Capsule': return new THREE.CapsuleGeometry(0.5, 0.5);
-      case 'Circle': return new THREE.CircleGeometry(0.75);
-      case 'Cylinder': return new THREE.CylinderGeometry(0.5, 0.5);
-      case 'Dodecahedron': return new THREE.DodecahedronGeometry(0.75);
-      case 'Icosahedron': return new THREE.IcosahedronGeometry(0.75);
+      case 'Box': 
+        geometry = new THREE.BoxGeometry();
+        break;
+      case 'Capsule': 
+        geometry = new THREE.CapsuleGeometry(0.5, 0.5);
+        break;
+      case 'Circle': 
+        geometry = new THREE.CircleGeometry(0.75);
+        break;
+      case 'Cylinder': 
+        geometry = new THREE.CylinderGeometry(0.5, 0.5);
+        break;
+      case 'Dodecahedron': 
+        geometry = new THREE.DodecahedronGeometry(0.75);
+        break;
+      case 'Icosahedron': 
+        geometry = new THREE.IcosahedronGeometry(0.75);
+        break;
       case 'Lathe':
-        return new THREE.LatheGeometry([
+        geometry = new THREE.LatheGeometry([
           new THREE.Vector2(0, -0.75),
           new THREE.Vector2(0.75, 0),
           new THREE.Vector2(0, 0.75)
         ]);
-      case 'Octahedron': return new THREE.OctahedronGeometry(0.75);
-      case 'Plane': return new THREE.PlaneGeometry(1, 1);
-      case 'Ring': return new THREE.RingGeometry(0.4, 0.75);
-      case 'Sphere': return new THREE.SphereGeometry(0.75);
-      case 'Tetrahedron': return new THREE.TetrahedronGeometry(1);
-      case 'Torus': return new THREE.TorusGeometry(0.5, 0.2);
-      case 'TorusKnot': return new THREE.TorusKnotGeometry(0.4, 0.16);
+        break;
+      case 'Octahedron': 
+        geometry = new THREE.OctahedronGeometry(0.75);
+        break;
+      case 'Plane': 
+        geometry = new THREE.PlaneGeometry(1, 1);
+        break;
+      case 'Ring': 
+        geometry = new THREE.RingGeometry(0.4, 0.75);
+        break;
+      case 'Sphere': 
+        geometry = new THREE.SphereGeometry(0.75);
+        break;
+      case 'Tetrahedron': 
+        geometry = new THREE.TetrahedronGeometry(1);
+        break;
+      case 'Torus': 
+        geometry = new THREE.TorusGeometry(0.5, 0.2);
+        break;
+      case 'TorusKnot': 
+        geometry = new THREE.TorusKnotGeometry(0.4, 0.16);
+        break;
       case 'Tube': {
         const path = new THREE.CatmullRomCurve3([
           new THREE.Vector3(-1, 0, 0),
           new THREE.Vector3(0, 0.5, 0),
           new THREE.Vector3(1, 0, 0)
         ]);
-        return new THREE.TubeGeometry(path, 20, 0.2, 8, false);
+        geometry = new THREE.TubeGeometry(path, 20, 0.2, 8, false);
+        break;
       }
       default: return null;
     }
+
+    const matcapTexture = new THREE.TextureLoader().load('/assets/textures/matcaps/040full.jpg');
+    const material = new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, 0, 0);
+    return mesh;
   }
 
   createLight(type) {

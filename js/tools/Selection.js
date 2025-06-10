@@ -106,6 +106,9 @@ export default class Selection {
       
       this.selectionBox.visible = false;
       this.lastHighlighted = this.helper;
+    } else if (object instanceof THREE.Group || object instanceof THREE.AmbientLight) {
+      this.selectionBox.visible = false;
+      this.lastHighlighted = null;
     } else {
       this.box.setFromObject(object);
       this.selectionBox.visible = true;

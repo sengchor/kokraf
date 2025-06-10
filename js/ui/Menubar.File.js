@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { Loader } from '../utils/Loader.js';
 import { Exporter } from '../utils/Exporter.js';
 
-
 export class MenubarFile {
   constructor(editor) {
     this.sceneManager = editor.sceneManager;
@@ -47,13 +46,13 @@ export class MenubarFile {
       case 'cube': {
         this.sceneManager.emptyAllScenes();
         const cube = this.objectFactory.createGeometry('Box');
-        this.sceneManager.addGeometry(cube);
+        this.sceneManager.addObject(cube);
         break;
       }
       case 'camera': {
         this.sceneManager.emptyAllScenes();
         const cube = this.objectFactory.createGeometry('Box');
-        this.sceneManager.addGeometry(cube);
+        this.sceneManager.addObject(cube);
         const camera = this.objectFactory.createCamera('Perspective', this.sceneManager);
         camera.position.set(0, 0, 10);
         this.sceneManager.addObject(camera);

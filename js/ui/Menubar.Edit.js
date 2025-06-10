@@ -1,3 +1,7 @@
+import * as THREE from 'three';
+
+import { SetPositionCommand } from "../commands/SetPositionCommand.js";
+import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
 
 export class MenubarEdit {
@@ -18,31 +22,22 @@ export class MenubarEdit {
     });
 
     document.querySelector('.center').addEventListener('click', () => {
-      this.centerObject();
+      const newPos = new THREE.Vector3(0, 0, 0);
+      const object = this.selectionHelper.selectedObject;
+      this.editor.execute(new SetPositionCommand(this.editor, object, newPos));
     });
 
     document.querySelector('.clone').addEventListener('click', () => {
-      this.cloneObject();
+      const object = this.selectionHelper.selectedObject;
+      if (object) {
+        const clone = object.clone(true);
+        this.editor.execute(new AddObjectCommand(this.editor, clone));
+      }
     });
 
     document.querySelector('.delete').addEventListener('click', () => {
       const object = this.selectionHelper.selectedObject;
       this.editor.execute(new RemoveObjectCommand(this.editor, object));
     });
-  }
-
-  centerObject() {
-    const object = this.selectionHelper.selectedObject;
-    if (object) {
-      object.position.set(0, 0, 0);
-    }
-  }
-
-  cloneObject() {
-    const object = this.selectionHelper.selectedObject;
-    if (object) {
-      const clone = object.clone(true);
-      this.sceneManager.addObject(clone);
-    }
   }
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 
 export class Loader {
   constructor(editor) {
@@ -62,7 +63,7 @@ export class Loader {
       loader.parse(contents, (object) => {
         object.name = file.name;
 
-        this.sceneManager.addObject(object);
+        this.editor.execute(new AddObjectCommand(this.editor, object));
       });
     });
     reader.readAsArrayBuffer(file);
@@ -75,7 +76,7 @@ export class Loader {
       const loader = new TDSLoader();
       const object = loader.parse(event.target.result);
 
-      this.sceneManager.addObject(object);
+      this.editor.execute(new AddObjectCommand(this.editor, object));
     });
     reader.readAsArrayBuffer(file);
   }
@@ -87,7 +88,7 @@ export class Loader {
         const loader = new ThreeMFLoader();
         const object = loader.parse(event.target.result);
 
-        this.sceneManager.addObject(object);
+        this.editor.execute(new AddObjectCommand(this.editor, object));
     });
     reader.readAsArrayBuffer(file);
   }
@@ -99,7 +100,7 @@ export class Loader {
 				const loader = new AMFLoader();
 				const amfobject = loader.parse(event.target.result);
 
-        this.sceneManager.addObject(amfobject);
+        this.editor.execute(new AddObjectCommand(this.editor, amfobject));
     });
     reader.readAsArrayBuffer(file);
   }
@@ -114,7 +115,7 @@ export class Loader {
 
       collada.scene.name = file.name;
 
-      this.sceneManager.addObject(collada.scene);
+      this.editor.execute(new AddObjectCommand(this.editor, collada.scene));
     });
 
     reader.readAsText(file);
@@ -144,7 +145,7 @@ export class Loader {
         object.name = file.name;
 
         loader.dispose();
-        this.sceneManager.addObject(object);
+        this.editor.execute(new AddObjectCommand(this.editor, object));
       });
     });
 
@@ -162,7 +163,7 @@ export class Loader {
 
       object.name = file.name;
 
-      this.sceneManager.addObject(object);
+      this.editor.execute(new AddObjectCommand(this.editor, object));
     });
 
     reader.readAsArrayBuffer(file);
@@ -172,14 +173,15 @@ export class Loader {
     reader.addEventListener('load', async (event) => {
       const contents = event.target.result;
 
-      const loader = await createGLTFLoader();
+      const { GLTFLoader } = await import('jsm/loaders/GLTFLoader.js');
+      const loader = new GLTFLoader();
 
       loader.parse(contents, '', (result) => {
         const scene = result.scene;
         scene.name = file.name;
         scene.animations.push(...result.animations);
 
-        this.sceneManager.addObject(scene);
+        this.editor.execute(new AddObjectCommand(this.editor, scene));
 
         if (loader.dracoLoader) loader.dracoLoader.dispose();
         if (loader.ktx2Loader) loader.ktx2Loader.dispose();
@@ -193,7 +195,8 @@ export class Loader {
     reader.addEventListener('load', async (event) => {
       const contents = event.target.result;
 
-      const loader = await createGLTFLoader(this.manager);
+      const { GLTFLoader } = await import('jsm/loaders/GLTFLoader.js');
+      const loader = new GLTFLoader(this.manager);
 
       loader.parse(contents, '', (result) => {
         const scene = result.scene;
@@ -201,7 +204,7 @@ export class Loader {
 
         scene.animations.push(...result.animations);
 
-        this.sceneManager.addObject(scene);
+        this.editor.execute(new AddObjectCommand(this.editor, scene));
 
         if (loader.dracoLoader) loader.dracoLoader.dispose();
         if (loader.ktx2Loader) loader.ktx2Loader.dispose();
@@ -252,7 +255,7 @@ export class Loader {
 
       collada.scene.name = file.name;
 
-      this.sceneManager.addObject(collada.scene);
+      this.editor.execute(new AddObjectCommand(this.editor, collada.scene));
     });
 
     reader.readAsArrayBuffer(file);
@@ -271,7 +274,7 @@ export class Loader {
         group.name = file.name;
         group.rotation.x = Math.PI;
 
-        this.sceneManager.addObject(group);
+        this.editor.execute(new AddObjectCommand(this.editor, group));
       });
     });
 
@@ -294,7 +297,7 @@ export class Loader {
 
       mesh.animations.push(...geometry.animations);
 
-      this.sceneManager.addObject(mesh);
+      this.editor.execute(new AddObjectCommand(this.editor, mesh));
     });
 
     reader.readAsArrayBuffer(file);
@@ -306,7 +309,7 @@ export class Loader {
 
       const object = new OBJLoader().parse(event.target.result);
       object.name = file.name;
-      this.sceneManager.addObject(object);
+      this.editor.execute(new AddObjectCommand(this.editor, object));
     });
     reader.readAsText(file);
   }
@@ -321,7 +324,7 @@ export class Loader {
       const points = loader.parse(contents);
       points.name = file.name;
 
-      this.sceneManager.addObject(points);
+      this.editor.execute(new AddObjectCommand(this.editor, points));
     });
 
     reader.readAsArrayBuffer(file);
@@ -347,7 +350,7 @@ export class Loader {
       }
 
       object.name = file.name;
-      this.sceneManager.addObject(object);
+      this.editor.execute(new AddObjectCommand(this.editor, object));
     });
 
     reader.readAsArrayBuffer(file);
@@ -366,7 +369,7 @@ export class Loader {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = file.name;
 
-      this.sceneManager.addObject(mesh);
+      this.editor.execute(new AddObjectCommand(this.editor, mesh));
     });
 
     if (reader.readAsBinaryString !== undefined) {
@@ -407,7 +410,7 @@ export class Loader {
         }
       }
 
-      this.sceneManager.addObject(group);
+      this.editor.execute(new AddObjectCommand(this.editor, group));
     });
 
     reader.readAsText(file);
@@ -422,7 +425,7 @@ export class Loader {
       const group = new USDZLoader().parse(contents);
       group.name = file.name;
 
-      this.sceneManager.addObject(group);
+      this.editor.execute(new AddObjectCommand(this.editor, group));
     });
 
     reader.readAsArrayBuffer(file);
@@ -444,7 +447,7 @@ export class Loader {
         group.add(mesh);
       });
 
-      this.sceneManager.addObject(group);
+      this.editor.execute(new AddObjectCommand(this.editor, group));
     });
 
     reader.readAsArrayBuffer(file);
@@ -462,7 +465,7 @@ export class Loader {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = file.name;
 
-      this.sceneManager.addObject(mesh);
+      this.editor.execute(new AddObjectCommand(this.editor, mesh));
     });
 
     reader.readAsArrayBuffer(file);
@@ -476,7 +479,7 @@ export class Loader {
 
       const result = new VRMLLoader().parse(contents);
 
-      this.sceneManager.addObject(result);
+      this.editor.execute(new AddObjectCommand(this.editor, result));
     });
 
     reader.readAsText(file);
@@ -496,7 +499,7 @@ export class Loader {
       const points = new THREE.Points(geometry, material);
       points.name = file.name;
 
-      this.sceneManager.addObject(points);
+      this.editor.execute(new AddObjectCommand(this.editor, points));
     });
 
     reader.readAsText(file);
