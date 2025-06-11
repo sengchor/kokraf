@@ -1,25 +1,31 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
+import { SetPositionCommand } from "../commands/SetPositionCommand.js";
+import { SetRotationCommand } from "../commands/SetRotationCommand.js";
+import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 
 export class TransformTool {
-  constructor(mode, camera, renderer, scene, controls) {
+  constructor(mode, editor) {
+    this.editor = editor;
     this.mode = mode; // 'translate', 'rotate', or 'scale'
-    this.camera = camera;
-    this.renderer = renderer;
-    this.scene = scene;
-    this.controls = controls;
+    this.camera = editor.cameraManager.camera;
+    this.renderer = editor.renderer;
+    this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
+    this.controls = editor.controlsManager;
 
-    this.transformControls = new TransformControls(camera, renderer.domElement);
-    this.transformControls.setMode(mode);
+    this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
+    this.transformControls.setMode(this.mode);
     this.transformControls.visible = false;
 
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.controls.enabled = !event.value;
     });
 
-    this.scene.add(this.transformControls.getHelper());
+    this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.changeTransformControlsColor();
+
+    this.setupTransformListeners();
   }
 
   changeTransformControlsColor() {
@@ -41,9 +47,46 @@ export class TransformTool {
     });
   }
 
+  setupTransformListeners() {
+    this.objectPositionOnDown = null;
+    this.objectRotationOnDown = null;
+    this.objectScaleOnDown = null;
+
+    this.transformControls.addEventListener('mouseDown', () => {
+      const object = this.transformControls.object;
+      if (!object) return;
+
+      this.objectPositionOnDown = object.position.clone();
+      this.objectRotationOnDown = object.rotation.clone();
+      this.objectScaleOnDown = object.scale.clone();
+    });
+
+    this.transformControls.addEventListener('mouseUp', () => {
+      const object = this.transformControls.object;
+      if (!object) return;
+
+      switch (this.mode) {
+        case 'translate':
+          if (!object.position.equals(this.objectPositionOnDown)) {
+            this.editor.execute(new SetPositionCommand(this.editor, object, object.position, this.objectPositionOnDown));
+            break;
+          }
+        case 'rotate':
+          if (!object.rotation.equals(this.objectRotationOnDown)) {
+            this.editor.execute(new SetRotationCommand(this.editor, object, object.rotation, this.objectRotationOnDown));
+            break;
+          }
+        case 'scale':
+          if (!object.scale.equals(this.objectScaleOnDown)) {
+            this.editor.execute(new SetScaleCommand(this.editor, object, object.scale, this.objectScaleOnDown));
+            break;
+          }
+      }
+    });
+  }
+
   enableFor(object) {
     if (!object) return;
-
     this.transformControls.attach(object);
     this.transformControls.visible = true;
   }

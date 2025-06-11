@@ -2,19 +2,18 @@ import { TransformTool } from '../tools/TransformTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
+    this.editor = editor;
     this.uiLoader = editor.uiLoader;
     this.canvas = document.getElementById('three-canvas');
     this.renderer = editor.renderer;
     this.camera = editor.cameraManager.camera;
     this.scene = editor.sceneManager.mainScene;
     this.selectionHelper = editor.selectionHelper;
-    this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
-    this.controls = editor.controlsManager;
     this.activeTool = 'select';
 
-    this.moveTool = new TransformTool('translate', this.camera, this.renderer, this.sceneEditorHelpers, this.controls);
-    this.rotateTool = new TransformTool('rotate', this.camera, this.renderer, this.sceneEditorHelpers, this.controls);
-    this.scaleTool = new TransformTool('scale', this.camera, this.renderer, this.sceneEditorHelpers, this.controls);
+    this.moveTool = new TransformTool('translate', this.editor);
+    this.rotateTool = new TransformTool('rotate', this.editor);
+    this.scaleTool = new TransformTool('scale', this.editor);
 
     this.load();
     this.handlePointerDown();
