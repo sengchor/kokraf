@@ -14,7 +14,7 @@ export class MenubarFile {
      document.querySelectorAll('[data-new]').forEach(item => {
       item.addEventListener('click', (event) => {
         const sceneType = event.target.getAttribute('data-new');
-        this.createScene(sceneType);
+        this.tryCreateScene(sceneType);
       })
      });
 
@@ -36,6 +36,13 @@ export class MenubarFile {
         this.exportObject(editor, exportFormat);
       });
     });
+  }
+
+  tryCreateScene(type) {
+    const confirmed = window.confirm('Any unsaved data will be lost. Continue?');
+    if (confirmed) {
+      this.createScene(type);
+    }
   }
 
   createScene(type) {

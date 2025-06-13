@@ -45,7 +45,5 @@ export default class UIComponentsLoader {
       panelResizer.initRightPanelResizer();
       panelResizer.initOutlinerResizer();
     });
-
-    this.loadComponent('#viewport-controls-container', 'components/viewport-controls.html');
   }
 }

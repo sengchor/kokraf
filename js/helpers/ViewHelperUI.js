@@ -15,7 +15,7 @@ export class ViewHelperUI {
     this.helperRenderer.setSize(128, 128);
     this.viewHelperContainer.appendChild(this.helperRenderer.domElement);
 
-    this.viewHelperContainer.style.position = 'relative';
+    this.viewHelperContainer.style.position = 'absolute';
     this.viewHelperContainer.style.zIndex = '9';
 
     this.viewHelper = new ViewHelper(this.camera, this.helperRenderer.domElement, this.orbitControls);
@@ -27,8 +27,9 @@ export class ViewHelperUI {
     if (!this.viewHelperContainer || !canvas) return;
 
     const canvasHeight = canvas.clientHeight;
+    const canvasWidth = canvas.clientWidth;
     this.viewHelperContainer.style.top = `${canvasHeight - 128 * 1.2}px`;
-    this.viewHelperContainer.style.right = '325px';
+    this.viewHelperContainer.style.right = `${window.innerWidth - canvasWidth}px`;
   }
 
   render() {
@@ -46,6 +47,14 @@ export class ViewHelperUI {
       event.stopPropagation();
       this.viewHelper.handleClick(event);
     });
+  }
+
+  setVisible(visible) {
+    this.viewHelperContainer.style.display = visible ? 'block' : 'none';
+  }
+
+  update(delta) {
+    this.viewHelper.update(delta);
   }
 
   dispose() {

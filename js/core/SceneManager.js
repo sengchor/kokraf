@@ -1,9 +1,13 @@
 import * as THREE from 'three';
+import { GridHelper } from '../helpers/GridHelper.js';
 
 export default class SceneManager {
   constructor(editor) {
+    this.signals = editor.signals;
+    this.cameraManager = editor.cameraManager;
     this.helpers = editor.helpers;
     this.objectFactory = editor.objectFactory;
+    this.gridHelper = new GridHelper();
 
     this.mainScene = new THREE.Scene();
     this.mainScene.background = new THREE.Color(0x3b3b3b);
@@ -13,6 +17,8 @@ export default class SceneManager {
 
     this.sceneHelpers = new THREE.Scene();
     this.sceneHelpers.background = null;
+
+    this.setupListeners();
   }
   
   emptyScene(scene) {
@@ -80,6 +86,11 @@ export default class SceneManager {
       this.sceneHelpers.add(helper);
       this.helpers[object.id] = helper;
     }
+
+    if (object.isCamera) {
+      this.cameraManager.cameras[object.uuid] = object;
+      this.signals.cameraAdded.dispatch(this.cameraManager.cameras);
+    }
   }
 
   removeObject(object) {
@@ -93,5 +104,60 @@ export default class SceneManager {
     if (object.parent) {
       object.parent.remove(object);
     }
+
+    if (object.isCamera) {
+      delete this.cameraManager.cameras[object.uuid];
+      this.signals.cameraRemoved.dispatch(this.cameraManager.cameras);
+    }
+  }
+
+  setupListeners() {
+    this.signals.showHelpersChanged.add((states) => {
+      this.gridHelper.visible = states.gridHelper;
+
+      this.sceneHelpers.traverse((object) => {
+        switch (object.type) {
+          case 'CameraHelper':
+            object.visible = states.cameraHelpers;
+            break;
+
+          case 'PointLightHelper':
+          case 'DirectionalLightHelper':
+          case 'SpotLightHelper':
+          case 'HemisphereLightHelper':
+            object.visible = states.lightHelpers;
+            break;
+
+          case 'SkeletonHelper':
+            object.visible = states.skeletonHelpers;
+            break;
+        }
+      });
+    });
+
+    this.signals.viewportShadingChanged.add((value) => {
+      switch (value) {
+        case 'material':
+          this.mainScene.overrideMaterial = null;
+          break;
+        case 'solid':
+          const matcapTexture = new THREE.TextureLoader().load('/assets/textures/matcaps/040full.jpg');
+          this.mainScene.overrideMaterial = new THREE.MeshMatcapMaterial({
+            matcap: matcapTexture,
+            color: 0xcccccc,
+            side: THREE.DoubleSide
+          });
+          break;
+        case 'normal':
+          this.mainScene.overrideMaterial = new THREE.MeshNormalMaterial();
+          break;
+        case 'wireframe':
+          this.mainScene.overrideMaterial = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            wireframe: true
+          });
+          break;
+      }
+    });
   }
 }

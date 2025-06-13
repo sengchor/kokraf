@@ -1,11 +1,11 @@
 export default class PanelResizer {
-  constructor({ renderer, cameraManager, viewHelperUI }) {
+  constructor(editor) {
+    this.renderer = editor.renderer;
+    this.cameraManager = editor.cameraManager;
+    this.viewHelperUI = editor.viewHelperUI;
+
     this.isRightPanelResizing = false;
     this.isOutlinerResizing = false;
-
-    this.renderer = renderer;
-    this.cameraManager = cameraManager;
-    this.viewHelperUI = viewHelperUI;
 
     this.onWindowResize();
     window.addEventListener('resize', this.onWindowResize.bind(this));
