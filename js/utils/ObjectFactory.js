@@ -71,6 +71,7 @@ export class ObjectFactory {
     const material = new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(0, 0, 0);
+    mesh.name = type;
     return mesh;
   }
 

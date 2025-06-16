@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 export default class Selection {
   constructor(editor) {
+    this.signals = editor.signals;
     this.box = new THREE.Box3();
     this.selectionBox = new THREE.Box3Helper(this.box, 0xffa500);
     this.selectionBox.material.depthTest = false;
@@ -20,7 +21,7 @@ export default class Selection {
     this.mouse = new THREE.Vector2();
   }
 
-  onMouseSelect(event, renderer, camera, scene) {
+  onMouseSelect(event, renderer, camera) {
     const rect = renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -76,6 +77,7 @@ export default class Selection {
     this.clearHighlight();
     this.selectedObject = null;
     this.selectionBox.visible = false;
+    this.signals.objectSelected.dispatch();
   }
 
   clearHighlight() {
@@ -93,6 +95,7 @@ export default class Selection {
     this.clearHighlight();
 
     this.selectedObject = object;
+    this.signals.objectSelected.dispatch(object);
     this.helper = this.helpers[object.id];
 
     if (this.helper) {

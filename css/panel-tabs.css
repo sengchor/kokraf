@@ -20,9 +20,21 @@
 }
 
 .outliner-item {
-  padding: 6px 10px;
   cursor: pointer;
-  white-space: pre;
+  border: 1px solid transparent;
+  padding: 6px 6px;
+}
+
+.outliner-item.dragInto {
+  border: 1px dashed #aaa;
+}
+
+.outliner-item.dragTop {
+  border-top: 1px dashed #aaa;
+}
+
+.outliner-item.dragBottom {
+  border-bottom: 1px dashed #aaa;
 }
 
 .outliner-item:hover {
@@ -75,6 +87,15 @@ body.resizing-right-panel .right-panel-resizer {
   cursor: row-resize;
   z-index: 10;
   opacity: 0;
+}
+
+.space {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin: 0px 0px;
+  vertical-align: top;
+  text-align: center;
 }
 
 body:not(.resizing-right-panel) .outliner-resizer:hover {

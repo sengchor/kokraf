@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { ViewHelper } from './ViewHelper.js';
+import { ViewHelper } from '../helpers/ViewHelper.js';
 
-export class ViewHelperUI {
+export class ViewportViewHelper {
   constructor(editor) {
     this.camera = editor.cameraManager.camera;
     this.orbitControls = editor.controlsManager.instance;

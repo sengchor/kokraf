@@ -68,6 +68,7 @@ export default class SceneManager {
       new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
     );
     cube.position.set(3.5, 0, 0);
+    cube.name = 'Cube';
     this.mainScene.add(cube);
 
     const torus = new THREE.Mesh(
@@ -75,11 +76,14 @@ export default class SceneManager {
       new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
     );
     torus.position.set(1.5, 0, 0);
+    torus.name = 'Torus';
     this.mainScene.add(torus);
   }
   
   addObject(object) {
+    if (!object) return;
     this.mainScene.add(object);
+    this.signals.objectAdded.dispatch();
 
     const helper = this.objectFactory.createHelper(object);
     if (helper) {
@@ -94,6 +98,7 @@ export default class SceneManager {
   }
 
   removeObject(object) {
+    if (!object) return;
     const helper = this.helpers[object.id];
 
     if (helper && helper.parent) {
@@ -103,6 +108,7 @@ export default class SceneManager {
 
     if (object.parent) {
       object.parent.remove(object);
+      this.signals.objectRemoved.dispatch();
     }
 
     if (object.isCamera) {

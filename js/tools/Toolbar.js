@@ -7,7 +7,6 @@ export default class Toolbar {
     this.canvas = document.getElementById('three-canvas');
     this.renderer = editor.renderer;
     this.camera = editor.cameraManager.camera;
-    this.scene = editor.sceneManager.mainScene;
     this.selectionHelper = editor.selectionHelper;
     this.activeTool = 'select';
 
@@ -45,7 +44,7 @@ export default class Toolbar {
       if (event.button !== 0) return;
       if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging) return;
 
-      this.selectionHelper.onMouseSelect(event, this.renderer, this.camera, this.scene);
+      this.selectionHelper.onMouseSelect(event, this.renderer, this.camera);
       this.updateTools();
     });
   }

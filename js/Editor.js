@@ -7,13 +7,14 @@ import Toolbar from './tools/Toolbar.js';
 import Selection from './tools/Selection.js';
 import UIComponentsLoader from './ui/UIComponentsLoader.js';
 import PanelResizer from './ui/PanelResizer.js';
-import { ViewHelperUI } from './helpers/ViewHelperUI.js';
+import { ViewportViewHelper } from './tools/Viewport.ViewHelper.js';
 import Menubar from './ui/Menubar.js';
 import { Signal } from './utils/Signals.js';
 import { ObjectFactory } from './utils/ObjectFactory.js';
 import { History } from './core/History.js';
 import { KeyHandler } from './tools/KeyHandler.js';
 import ViewportControls from './tools/Viewport.Controls.js';
+import Sidebar from './ui/Sidebar.js';
 
 export default class Editor {
   constructor() {
@@ -26,6 +27,11 @@ export default class Editor {
 
       cameraAdded: new Signal(),
       cameraRemoved: new Signal(),
+
+      objectAdded: new Signal(),
+      objectRemoved: new Signal(),
+
+      objectSelected: new Signal(),
     }
 
     this.helpers = {};
@@ -39,7 +45,7 @@ export default class Editor {
     this.history = new History(this);
 
     // Helpers
-    this.viewHelperUI = new ViewHelperUI(this);
+    this.ViewportViewHelper = new ViewportViewHelper(this);
     this.selectionHelper = new Selection(this);
     this.keyHandler = new KeyHandler(this);
 
@@ -56,12 +62,11 @@ export default class Editor {
     this.sceneManager.addAmbientLight(0xffffff, 0.5);
     this.sceneManager.sceneEditorHelpers.add(this.sceneManager.gridHelper);
     this.sceneManager.addDemoObjects();
-
-    this.uiLoader.loadUIComponents(this.panelResizer);
     
     this.viewportControls = new ViewportControls(this);
     this.toolbar = new Toolbar(this);
     this.menubar = new Menubar(this);
+    this.sidebar = new Sidebar(this);
 
     this.setupListeners();
     this.animate();
@@ -72,7 +77,7 @@ export default class Editor {
       this.cameraManager.camera = camera;
       this.panelResizer.onWindowResize();
 
-      this.viewHelperUI.setVisible(camera.isDefault);
+      this.ViewportViewHelper.setVisible(camera.isDefault);
 
       this.selectionHelper.deselect();
       this.toolbar.updateTools();
@@ -95,19 +100,19 @@ export default class Editor {
     this.renderer.render(this.sceneManager.sceneHelpers, this.cameraManager.camera);
     this.renderer.render(this.sceneManager.sceneEditorHelpers, this.cameraManager.camera);
 
-    const viewHelperAnimating = this.viewHelperUI.viewHelper.animating;
+    const viewHelperAnimating = this.ViewportViewHelper.viewHelper.animating;
     const isDefaultCamera = this.cameraManager.camera.isDefault;
     
     if (viewHelperAnimating) {
       this.controlsManager.disable();
-      this.viewHelperUI.update(delta);
+      this.ViewportViewHelper.update(delta);
     } else if (!isDefaultCamera) {
       this.controlsManager.disable();
     } else {
       this.controlsManager.enable();
     }
 
-    this.viewHelperUI.render();
+    this.ViewportViewHelper.render();
   }
 
   fromJSON(json) {
