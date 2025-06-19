@@ -15,6 +15,7 @@ import { History } from './core/History.js';
 import { KeyHandler } from './tools/KeyHandler.js';
 import ViewportControls from './tools/Viewport.Controls.js';
 import Sidebar from './ui/Sidebar.js';
+import Config from './core/Config.js';
 
 export default class Editor {
   constructor() {
@@ -37,7 +38,8 @@ export default class Editor {
     this.helpers = {};
 
     // Core setup
-    this.renderer = new Renderer({ canvasId: 'three-canvas' });
+    this.config = new Config();
+    this.renderer = new Renderer(this);
     this.objectFactory = new ObjectFactory(this);
     this.cameraManager = new CameraManager(this);
     this.sceneManager = new SceneManager(this);

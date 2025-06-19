@@ -11,6 +11,8 @@ body, html {
 }
 
 .canvas-container {
+  width: auto;
+  height: auto;
   position: relative;
   width: 100%;
   height: 100%;

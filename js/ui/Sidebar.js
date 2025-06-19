@@ -1,4 +1,5 @@
 import { SidebarScene } from './Sidebar.Scene.js'
+import { SidebarProject } from './Sidebar.Project.js';
 
 export default class Sidebar {
   constructor( editor ) {
@@ -23,6 +24,7 @@ export default class Sidebar {
       this.panelResizer.initRightPanelResizer();
 
       new SidebarScene(editor);
+      new SidebarProject(editor);
     });
   }
 }

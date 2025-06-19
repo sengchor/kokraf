@@ -80,25 +80,25 @@ export class ObjectFactory {
 
     switch (type) {
       case 'Ambient':
-        light = new THREE.AmbientLight(0xffffff, 0.5);
+        light = new THREE.AmbientLight(0xffffff, 5);
         break;
 
       case 'Directional':
-        light = new THREE.DirectionalLight(0xffffff, 1);
+        light = new THREE.DirectionalLight(0xffffff, 10);
         light.position.set(5, 5, 5);
         break;
 
       case 'Hemisphere':
-        light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+        light = new THREE.HemisphereLight(0xffffff, 0x444444, 10);
         break;
 
       case 'Point':
-        light = new THREE.PointLight(0xffffff, 1, 10);
+        light = new THREE.PointLight(0xffffff, 10, 10);
         light.position.set(0, 0, 0);
         break;
 
       case 'Spot':
-        light = new THREE.SpotLight(0xffffff, 1);
+        light = new THREE.SpotLight(0xffffff, 100);
         light.position.set(5, 5, 5);
         light.angle = Math.PI * 0.1;
         light.penumbra = 0;

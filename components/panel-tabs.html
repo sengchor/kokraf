@@ -25,44 +25,22 @@
         <span class="label">Shadows</span>
         <input type="checkbox" id="shadows" checked />
         <select id="shadows-options" name="shadows-options">
-          <option value="basic">BASIC</option>
-          <option value="pcf">PCF</option>
-          <option value="pcf-soft">PCF SOFT</option>
+          <option value="0">BASIC</option>
+          <option value="1">PCF</option>
+          <option value="2">PCF SOFT</option>
         </select>
       </li>
       <li class="setting-option">
         <span class="label">Tonemapping</span>
         <select id="tonemapping-options" name="tonemapping-options">
-          <option value="no">NO</option>
-          <option value="linear">LINEAR</option>
-          <option value="reinhard">REINHARD</option>
-          <option value="cineon">CINEON</option>
-          <option value="acesfilmic">ACES FILMIC</option>
-          <option value="agx">AGX</option>
-          <option value="neutral">NEUTRAL</option>
+          <option value="0">NO</option>
+          <option value="1">LINEAR</option>
+          <option value="2">REINHARD</option>
+          <option value="3">CINEON</option>
+          <option value="4">ACES FILMIC</option>
+          <option value="5">AGX</option>
+          <option value="6">NEUTRAL</option>
         </select>
-      </li>
-    </ul>
-    <div class="panel-divider"></div>
-    <ul class="project-settings-list">
-      <li class="setting-option">
-        <span class="label">APP</span>
-      </li>
-      <li class="setting-option">
-        <span class="label">Title</span>
-        <input type="text" id="title" />
-      </li>
-      <li class="setting-option">
-        <span class="label">Editable</span>
-        <input type="checkbox" id="editable" />
-      </li>
-      <li class="setting-option">
-        <span class="label"></span>
-        <button class="action-button" id="play-button" onclick="playCheck(this)">PLAY</button>
-      </li>
-      <li class="setting-option">
-        <span class="label"></span> 
-        <button class="action-button" id="publish-button">PUBLISH</button>
       </li>
     </ul>
     <div class="panel-divider"></div>
@@ -77,36 +55,19 @@
           <option value="realistic">REALISTIC</option>
         </select>
       </li>
+      <li class="setting-option" id="samples-setting">
+        <span class="label">Samples</span>
+        <input class="number" id="pathtracerSamples" type="number" min="1" max="10000" step="1" value="16" onclick="this.select()" onkeydown="handleEnter(event, this)" style="width: 150px;" />
+      </li>
       <li class="setting-option">
         <span class="label">Resolution</span>
         <input class="number" id="image-width" type="number" min="1" max="10000" step="1" value="1024" onclick="this.select()" onkeydown="handleEnter(event, this)" />
         <span>&times;</span>
         <input class="number" id="image-height" type="number" min="1" max="10000" step="1" value="1024" onclick="this.select()" onkeydown="handleEnter(event, this)" />
+      </li>
       <li class="setting-option">
         <span class="label"></span> 
         <button class="action-button" id="image-render-button">RENDER</button>
-      </li>
-    </ul>
-    <div class="panel-divider"></div>
-    <ul class="project-settings-list">
-      <li class="setting-option">
-        <span class="label">VIDEO</span>
-      </li>
-      <li class="setting-option">
-        <span class="label">Resolution</span>
-        <input class="number" id="video-width" type="number" min="1" max="10000" step="1" value="1024" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        <span>&times;</span>
-        <input class="number" id="video-height" type="number" min="1" max="10000" step="1" value="1024" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        <input class="number" id="frame-rate" type="number" min="1" max="300" step="1" value="30" onclick="this.select()" onkeydown="handleEnter(event, this)" style="padding: 4px 0px; width: 2ch;" />
-        <span>fps</span>
-      </li>
-      <li class="setting-option">
-        <span class="label">Duration</span>
-        <input class="number" id="duration" type="number" min="1" max="10000" step="1" value="10" onclick="this.select()" onkeydown="handleEnter(event, this)" style="width: 150px;" />
-      </li>
-      <li class="setting-option">
-        <span class="label"></span> 
-        <button class="action-button" id="video-render-button">RENDER</button>
       </li>
     </ul>
   </div>

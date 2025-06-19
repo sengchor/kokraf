@@ -65,7 +65,7 @@ export default class SceneManager {
     
     const cube = new THREE.Mesh(
       new THREE.BoxGeometry(),
-      new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
+      new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide })
     );
     cube.position.set(3.5, 0, 0);
     cube.name = 'Cube';
@@ -73,7 +73,7 @@ export default class SceneManager {
 
     const torus = new THREE.Mesh(
       new THREE.TorusGeometry(0.5, 0.2, 16, 100),
-      new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
+      new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide })
     );
     torus.position.set(1.5, 0, 0);
     torus.name = 'Torus';
