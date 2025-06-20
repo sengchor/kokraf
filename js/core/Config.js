@@ -9,6 +9,13 @@ export default class Config {
       shadows: true,
       shadowType: 1, // PCF
       tonemapping: 0, // NoToneMapping
+      shortcuts: {
+        translate: 'w',
+        rotate: 'e',
+        scale: 'r',
+        undo: 'z',
+        focus: 'f'
+      }
     });
 
     this.storage = { ...saved };
@@ -25,5 +32,9 @@ export default class Config {
 
   reset() {
     this.storage = { ...this.defaults };
+  }
+
+  save() {
+    Storage.set('projectSettings', this.storage);
   }
 }

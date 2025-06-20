@@ -33,6 +33,7 @@ export default class Editor {
       objectRemoved: new Signal(),
 
       objectSelected: new Signal(),
+      objectFocused: new Signal(),
     }
 
     this.helpers = {};
@@ -83,6 +84,13 @@ export default class Editor {
 
       this.selectionHelper.deselect();
       this.toolbar.updateTools();
+    });
+    
+    this.signals.objectFocused.add(() => {
+      const object = this.selectionHelper.selectedObject;
+      if (object !== null && this.controlsManager?.focus) {
+        this.controlsManager.focus(object);
+      }
     });
   }
 

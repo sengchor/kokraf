@@ -14,4 +14,8 @@ export default class ControlsManager {
   disable() {
     this.instance.enabled = false;
   }
+
+  focus(object) {
+    this.instance._focus(object);
+  }
 }

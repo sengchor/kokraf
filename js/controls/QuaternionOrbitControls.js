@@ -1,4 +1,4 @@
-import { Vector2, Vector3, Quaternion } from 'three';
+import { Vector2, Vector3, Quaternion, Box3, Sphere } from 'three';
 
 export class QuaternionOrbitControls {
 	constructor(camera, domElement, target = new Vector3()) {
@@ -138,5 +138,28 @@ export class QuaternionOrbitControls {
     this.camera.lookAt(this.target);
 
     this.movePrev.copy(this.moveCurr);
+	}
+
+	_focus(targetObject) {
+		const box = new Box3().setFromObject(targetObject);
+		const sphere = new Sphere();
+
+		let distance;
+
+		if (!box.isEmpty()) {
+			box.getCenter(this.target);
+			box.getBoundingSphere(sphere);
+			distance = sphere.radius;
+		} else {
+			this.target.setFromMatrixPosition(targetObject.matrixWorld);
+			distance = 0.1;
+		}
+
+		this.eye.set(0, 0, 1);
+		this.eye.applyQuaternion(this.camera.quaternion);
+		this.eye.multiplyScalar(distance * 4);
+
+		this.camera.position.copy(this.target).add(this.eye);
+		this.camera.lookAt(this.target);
 	}
 }

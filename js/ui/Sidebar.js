@@ -1,5 +1,6 @@
 import { SidebarScene } from './Sidebar.Scene.js'
 import { SidebarProject } from './Sidebar.Project.js';
+import { SidebarSetting } from './Sidebar.Setting.js';
 
 export default class Sidebar {
   constructor( editor ) {
@@ -25,6 +26,7 @@ export default class Sidebar {
 
       new SidebarScene(editor);
       new SidebarProject(editor);
+      new SidebarSetting(editor);
     });
   }
 }

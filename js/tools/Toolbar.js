@@ -39,6 +39,16 @@ export default class Toolbar {
     });
   }
 
+  setActiveTool(toolName) {
+    this.activeTool = toolName;
+    this.updateTools();
+
+    const buttons = document.querySelectorAll('.toolbar-button');
+    buttons.forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-tool') === toolName);
+    });
+  }
+
   handlePointerDown() {
     this.canvas.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
