@@ -7,6 +7,7 @@ export class RemoveObjectCommand {
   constructor(editor, object = null) {
     this.editor = editor;
     this.object = object;
+    this.name = 'Remove Object: ' + object.name;
   }
 
   execute() {

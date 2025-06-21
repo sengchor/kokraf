@@ -20,6 +20,7 @@
 }
 
 .outliner-item {
+  font-size: 12.5px;
   cursor: pointer;
   border: 1px solid transparent;
   padding: 6px 6px;

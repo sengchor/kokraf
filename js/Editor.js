@@ -34,6 +34,8 @@ export default class Editor {
 
       objectSelected: new Signal(),
       objectFocused: new Signal(),
+
+      historyChanged: new Signal(),
     }
 
     this.helpers = {};

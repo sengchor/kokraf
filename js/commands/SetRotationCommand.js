@@ -9,6 +9,7 @@ export class SetRotationCommand {
   constructor(editor, object, newRotation, optionalOldRotation) {
     this.editor = editor;
     this.object = object;
+    this.name = 'Set Rotation';
 
     this.oldRotation = optionalOldRotation ? optionalOldRotation.clone() : object.rotation.clone();
     this.newRotation = newRotation.clone();

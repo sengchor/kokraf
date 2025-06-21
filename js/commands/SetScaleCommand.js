@@ -9,6 +9,7 @@ export class SetScaleCommand {
   constructor(editor, object, newScale, optionalOldScale) {
     this.editor = editor;
     this.object = object;
+    this.name = 'Set Scale';
 
     this.oldScale = optionalOldScale ? optionalOldScale.clone() : object.scale.clone();
     this.newScale = newScale.clone();

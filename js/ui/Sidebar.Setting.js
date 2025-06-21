@@ -3,13 +3,20 @@ import * as THREE from 'three';
 export class SidebarSetting {
   constructor(editor) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.config = editor.config;
+    this.history = editor.history;
+
+    this.clearButton = document.getElementById('clear-button');
+    this.persistentButton = document.getElementById('persistent');
+    this.historyList = document.getElementById('history-list');
 
     this.init();
   }
 
   init() {
     this.initShortcuts();
+    this.initHistory();
   }
 
   initShortcuts() {
@@ -29,5 +36,68 @@ export class SidebarSetting {
         this.config.save();
       });
     });
+  }
+
+  initHistory() {
+    this.clearButton.addEventListener('click', () => {
+      this.history.clear();
+    });
+
+    const isPersistent = this.config.get('persistentHistory');
+    this.persistentButton.checked = isPersistent;
+    this.persistentButton.addEventListener('click', () => {
+      this.config.set('persistentHistory', this.persistentButton.checked);
+      console.log('Persistent is', this.persistentButton.checked ? 'ON' : 'OFF');
+    });
+
+    this.updateHistoryList(this.history);
+
+    this.signals.historyChanged.add(() => this.updateHistoryList(this.history));
+  }
+
+  updateHistoryList(history) {
+    this.historyList.innerHTML = '';
+
+    const undoList = history.undos.slice();
+    undoList.forEach((cmd, index) => {
+      const li = document.createElement('li');
+      li.className = 'outliner-item';
+      li.textContent = cmd.name || 'Unnamed Command';
+      li.dataset.index = index;
+      li.dataset.type = 'undo';
+      li.addEventListener('click', () => {
+        this.jumpToHistory(index, 'undo');
+      });
+      this.historyList.appendChild(li);
+    });
+
+    const redoList = history.redos.slice().reverse();
+    redoList.forEach((cmd, index) => {
+      const li = document.createElement('li');
+      li.className = 'outliner-item';
+      li.style.opacity = 0.5;
+      li.textContent = cmd.name || 'Unnamed Command';
+      li.dataset.index = index;
+      li.dataset.type = 'redo';
+      li.addEventListener('click', () => {
+        this.jumpToHistory(index, 'redo', redoList.length);
+      });
+      this.historyList.appendChild(li);
+    })
+  }
+
+  jumpToHistory(index, type, redoLength = 0) {
+    if (type === 'undo') {
+      while (this.history.undos.length > index + 1) {
+        this.history.undo();
+      }
+    } else if (type === 'redo') {
+      const targetRedoIndex = redoLength - index - 1;
+      while (this.history.redos.length > targetRedoIndex) {
+        this.history.redo();
+      }
+    }
+
+    this.updateHistoryList(this.history);
   }
 }

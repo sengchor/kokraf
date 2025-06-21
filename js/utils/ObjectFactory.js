@@ -107,6 +107,7 @@ export class ObjectFactory {
 
       default: return null;
     }
+    light.name = type;
     return light;
   }
 
@@ -133,6 +134,7 @@ export class ObjectFactory {
 
     camera.position.set(0, 0, 0);
     camera.lookAt(0, 0, -1);
+    camera.name = type;
 
     return camera;
   }

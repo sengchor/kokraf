@@ -15,7 +15,8 @@ export default class Config {
         scale: 'r',
         undo: 'z',
         focus: 'f'
-      }
+      },
+      persistentHistory: false,
     });
 
     this.storage = { ...saved };

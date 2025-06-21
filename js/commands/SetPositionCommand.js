@@ -9,6 +9,7 @@ export class SetPositionCommand {
   constructor(editor, object, newPosition, optionalOldPosition) {
     this.editor = editor;
     this.object = object;
+    this.name = 'Set Position';
 
     this.oldPosition = optionalOldPosition ? optionalOldPosition.clone() : object.position.clone();
     this.newPosition = newPosition.clone();

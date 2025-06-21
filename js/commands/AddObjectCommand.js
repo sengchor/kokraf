@@ -7,6 +7,7 @@ export class AddObjectCommand {
   constructor(editor, object = null) {
     this.editor = editor;
     this.object = object;
+    this.name = 'Add Object: ' + object.name;
   }
 
   execute() {
