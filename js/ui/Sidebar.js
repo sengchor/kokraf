@@ -6,6 +6,9 @@ export default class Sidebar {
   constructor( editor ) {
     this.uiLoader = editor.uiLoader;
     this.panelResizer = editor.panelResizer;
+    this.sidebarScene = null;
+    this.sidebarProject = null;
+    this.sidebarSetting = null;
     this.load(editor);
   }
 
@@ -24,9 +27,9 @@ export default class Sidebar {
 
       this.panelResizer.initRightPanelResizer();
 
-      new SidebarScene(editor);
-      new SidebarProject(editor);
-      new SidebarSetting(editor);
+      this.sidebarScene = new SidebarScene(editor);
+      this.sidebarProject = new SidebarProject(editor);
+      this.sidebarSetting = new SidebarSetting(editor);
     });
   }
 }

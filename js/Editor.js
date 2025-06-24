@@ -16,6 +16,7 @@ import { KeyHandler } from './tools/KeyHandler.js';
 import ViewportControls from './tools/Viewport.Controls.js';
 import Sidebar from './ui/Sidebar.js';
 import Config from './core/Config.js';
+import { Storage } from './core/Storage.js';
 
 export default class Editor {
   constructor() {
@@ -63,10 +64,16 @@ export default class Editor {
     this.animate = this.animate.bind(this);
   }
 
-  init() {    
-    this.sceneManager.addAmbientLight(0xffffff, 0.5);
+  init() {
+    const saved = Storage.get('scene');
+    if (saved) {
+      this.fromJSON(saved);
+      this.panelResizer.onWindowResize();
+    } else {
+      this.sceneManager.addAmbientLight(0xffffff, 0.5);
+      this.sceneManager.addDemoObjects();
+    }
     this.sceneManager.sceneEditorHelpers.add(this.sceneManager.gridHelper);
-    this.sceneManager.addDemoObjects();
     
     this.viewportControls = new ViewportControls(this);
     this.toolbar = new Toolbar(this);
@@ -93,6 +100,10 @@ export default class Editor {
       if (object !== null && this.controlsManager?.focus) {
         this.controlsManager.focus(object);
       }
+    });
+
+    this.signals.historyChanged.add(() => {
+      Storage.set('scene', this.toJSON());
     });
   }
 
@@ -127,16 +138,17 @@ export default class Editor {
     this.ViewportViewHelper.render();
   }
 
-  fromJSON(json) {
+  async fromJSON(json) {
     const loader = new THREE.ObjectLoader();
 
-    this.sceneManager.emptyAllScenes();
-
-    const scene = loader.parse(json.scene);
+    const scene = await loader.parseAsync(json.scene);
     this.sceneManager.setScene(scene);
 
-    const camera = loader.parse(json.camera);
+    const camera = await loader.parseAsync(json.camera);
     this.cameraManager.setCamera(camera);
+
+    this.history.fromJSON(json.history);
+    this.signals.historyChanged.dispatch();
   }
 
   toJSON() {
@@ -146,8 +158,13 @@ export default class Editor {
         type: 'Project',
       },
       scene: this.sceneManager.mainScene.toJSON(),
-      camera: this.cameraManager.camera.toJSON()
+      camera: this.cameraManager.camera.toJSON(),
+      history: this.history.toJSON()
     }
+  }
+
+  objectByUuid(uuid) {
+    return this.sceneManager.mainScene.getObjectByProperty('uuid', uuid);
   }
 
   execute(cmd) {

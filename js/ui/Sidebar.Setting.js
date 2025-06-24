@@ -43,10 +43,10 @@ export class SidebarSetting {
       this.history.clear();
     });
 
-    const isPersistent = this.config.get('persistentHistory');
+    const isPersistent = this.config.get('history');
     this.persistentButton.checked = isPersistent;
     this.persistentButton.addEventListener('click', () => {
-      this.config.set('persistentHistory', this.persistentButton.checked);
+      this.config.set('history', this.persistentButton.checked);
       console.log('Persistent is', this.persistentButton.checked ? 'ON' : 'OFF');
     });
 
@@ -97,7 +97,5 @@ export class SidebarSetting {
         this.history.redo();
       }
     }
-
-    this.updateHistoryList(this.history);
   }
 }

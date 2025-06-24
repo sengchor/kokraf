@@ -7,6 +7,7 @@ export class MenubarFile {
     this.sceneManager = editor.sceneManager;
     this.objectFactory = editor.objectFactory;
     this.selectionHelper = editor.selectionHelper;
+    this.toolbar = editor.toolbar;
     this.init(editor);
   }
 
@@ -46,6 +47,8 @@ export class MenubarFile {
   }
 
   createScene(type) {
+    this.selectionHelper.deselect();
+
     switch (type) {
       case 'empty':
         this.sceneManager.emptyAllScenes();
@@ -66,6 +69,8 @@ export class MenubarFile {
         break;
       }
     }
+
+    this.toolbar.updateTools();
   }
 
   openProject(editor) {

@@ -16,7 +16,7 @@ export default class Config {
         undo: 'z',
         focus: 'f'
       },
-      persistentHistory: false,
+      history: false,
     });
 
     this.storage = { ...saved };

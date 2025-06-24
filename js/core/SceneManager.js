@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GridHelper } from '../helpers/GridHelper.js';
+import { Storage } from './Storage.js';
 
 export default class SceneManager {
   constructor(editor) {
@@ -47,9 +48,13 @@ export default class SceneManager {
   emptyAllScenes() {
     this.emptyScene(this.mainScene);
     this.emptyScene(this.sceneHelpers);
+    Storage.remove('scene');
   }
 
   setScene(scene) {
+    this.mainScene.uuid = scene.uuid;
+    this.mainScene.name = scene.name;
+
     while (scene.children.length > 0) {
       this.addObject(scene.children[0]);
     }
@@ -61,29 +66,24 @@ export default class SceneManager {
   }
 
   addDemoObjects() {
-    const matcapTexture = new THREE.TextureLoader().load('/assets/textures/matcaps/040full.jpg');
-    
-    const cube = new THREE.Mesh(
-      new THREE.BoxGeometry(),
-      new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide })
-    );
-    cube.position.set(3.5, 0, 0);
-    cube.name = 'Cube';
-    this.mainScene.add(cube);
-
     const torus = new THREE.Mesh(
       new THREE.TorusGeometry(0.5, 0.2, 16, 100),
       new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide })
     );
-    torus.position.set(1.5, 0, 0);
+    torus.position.set(0, 0, 0);
     torus.name = 'Torus';
     this.mainScene.add(torus);
   }
   
-  addObject(object) {
+  addObject(object, parent, index) {
     if (!object) return;
-    this.mainScene.add(object);
-    this.signals.objectAdded.dispatch();
+
+    if (parent === undefined) {
+      this.mainScene.add(object);
+    } else {
+      parent.children.splice(index, 0, object);
+      object.parent = parent;
+    }
 
     const helper = this.objectFactory.createHelper(object);
     if (helper) {
@@ -95,6 +95,8 @@ export default class SceneManager {
       this.cameraManager.cameras[object.uuid] = object;
       this.signals.cameraAdded.dispatch(this.cameraManager.cameras);
     }
+
+    this.signals.objectAdded.dispatch();
   }
 
   removeObject(object) {
@@ -115,6 +117,8 @@ export default class SceneManager {
       delete this.cameraManager.cameras[object.uuid];
       this.signals.cameraRemoved.dispatch(this.cameraManager.cameras);
     }
+    
+    this.signals.objectRemoved.dispatch();
   }
 
   setupListeners() {

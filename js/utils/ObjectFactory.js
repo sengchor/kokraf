@@ -67,8 +67,7 @@ export class ObjectFactory {
       default: return null;
     }
 
-    const matcapTexture = new THREE.TextureLoader().load('/assets/textures/matcaps/040full.jpg');
-    const material = new THREE.MeshMatcapMaterial({ matcap: matcapTexture, color: 0xcccccc, side: THREE.DoubleSide })
+    const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(0, 0, 0);
     mesh.name = type;
