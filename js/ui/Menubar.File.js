@@ -53,20 +53,20 @@ export class MenubarFile {
     switch (type) {
       case 'empty':
         this.sceneManager.emptyAllScenes();
-        this.signals.objectAdded.dispatch();
+        this.signals.sceneGraphChanged.dispatch();
         break;
       case 'cube': {
         this.sceneManager.emptyAllScenes();
         const cube = this.objectFactory.createGeometry('Box');
         this.sceneManager.addObject(cube);
-        this.signals.objectAdded.dispatch();
+        this.signals.sceneGraphChanged.dispatch();
         break;
       }
       case 'torus': {
         this.sceneManager.emptyAllScenes();
         const cube = this.objectFactory.createGeometry('Torus');
         this.sceneManager.addObject(cube);
-        this.signals.objectAdded.dispatch();
+        this.signals.sceneGraphChanged.dispatch();
         break;
       }
       case 'camera': {
@@ -76,7 +76,7 @@ export class MenubarFile {
         const camera = this.objectFactory.createCamera('Perspective', this.sceneManager);
         camera.position.set(0, 0, 10);
         this.sceneManager.addObject(camera);
-        this.signals.objectAdded.dispatch();
+        this.signals.sceneGraphChanged.dispatch();
         break;
       }
     }

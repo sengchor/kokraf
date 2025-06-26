@@ -37,6 +37,8 @@ export default class Editor {
       objectFocused: new Signal(),
 
       historyChanged: new Signal(),
+
+      sceneGraphChanged: new Signal(),
     }
 
     this.helpers = {};

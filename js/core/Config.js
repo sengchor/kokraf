@@ -2,7 +2,7 @@ import { Storage } from '../core/Storage.js';
 
 export default class Config {
   constructor() {
-    this.name = 'Kokraf 3D Viewer';
+    this.name = 'Kokraf';
 
     const saved = Storage.get('projectSettings', {
       antialias: true,

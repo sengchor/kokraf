@@ -1,3 +1,5 @@
+import { MoveObjectCommand } from '../commands/MoveObjectCommand.js';
+
 export class SidebarScene {
   constructor(editor) {
     this.editor = editor;
@@ -35,6 +37,7 @@ export class SidebarScene {
   setupListeners() {
     this.signals.objectAdded.add(() => this.rebuild());
     this.signals.objectRemoved.add(() => this.rebuild());
+    this.signals.sceneGraphChanged.add(() => this.rebuild());
     this.signals.objectSelected.add((object) => this.highlightOutlinerItem(object));
   }
 
@@ -128,19 +131,21 @@ export class SidebarScene {
       });
       
       if (dropTarget) {
-          const dropUuid = dropTarget.dataset.uuid;
-          const dragUuid = draggedItem.dataset.uuid;
+        const dropUuid = dropTarget.dataset.uuid;
+        const dragUuid = draggedItem.dataset.uuid;
 
-          const dropObject = this.scene.getObjectByProperty('uuid', dropUuid);
-          const dragObject = this.scene.getObjectByProperty('uuid', dragUuid);
+        const dropObject = this.scene.getObjectByProperty('uuid', dropUuid);
+        const dragObject = this.scene.getObjectByProperty('uuid', dragUuid);
+
+        let newParent = null;
 
         if (dropMode === 'child') {
           if (dragObject !== dropObject && !this.isAncestor(dropObject, dragObject)) {
-            dropObject.attach(dragObject);
+            newParent = dropObject;
           }
         } else if (dropMode === 'before' || dropMode === 'after') {
           if (nextDropTarget === null) {
-            this.scene.attach(dragObject);
+            newParent = this.scene;
           } else {
             const nextDropUuid = nextDropTarget.dataset.uuid;
             const nextDropObject = this.scene.getObjectByProperty('uuid', nextDropUuid);
@@ -149,14 +154,13 @@ export class SidebarScene {
             if (!dropParent || dragObject === dropParent || this.isAncestor(dropParent, dragObject)) {
               return;
             }
-            dropParent.attach(dragObject);
+            newParent = dropParent;
           }
         }
+        this.editor.execute(new MoveObjectCommand(this.editor, dragObject, newParent));
       }
 
       dropTarget = nextDropTarget = dropMode = null;
-      this.rebuild();
-
       this.selectObjectFromOutlinerItem(draggedItem);
     });
   }
