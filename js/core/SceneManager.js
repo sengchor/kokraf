@@ -9,6 +9,7 @@ export default class SceneManager {
     this.helpers = editor.helpers;
     this.objectFactory = editor.objectFactory;
     this.gridHelper = new GridHelper();
+    this.history = editor.history;
 
     this.mainScene = new THREE.Scene();
     this.mainScene.background = new THREE.Color(0x3b3b3b);
@@ -49,6 +50,7 @@ export default class SceneManager {
     this.emptyScene(this.mainScene);
     this.emptyScene(this.sceneHelpers);
     Storage.remove('scene');
+    this.history.clear();
   }
 
   setScene(scene) {
@@ -100,7 +102,7 @@ export default class SceneManager {
   }
 
   removeObject(object) {
-    if (!object) return;
+    if (object.parent === null) return;
     const helper = this.helpers[object.id];
 
     if (helper && helper.parent) {
@@ -108,16 +110,12 @@ export default class SceneManager {
       delete this.helpers[object.id];
     }
 
-    if (object.parent) {
-      object.parent.remove(object);
-      this.signals.objectRemoved.dispatch();
-    }
-
     if (object.isCamera) {
       delete this.cameraManager.cameras[object.uuid];
       this.signals.cameraRemoved.dispatch(this.cameraManager.cameras);
     }
     
+    object.parent.remove(object);
     this.signals.objectRemoved.dispatch();
   }
 

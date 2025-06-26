@@ -4,6 +4,7 @@ import { Exporter } from '../utils/Exporter.js';
 
 export class MenubarFile {
   constructor(editor) {
+    this.signals = editor.signals;
     this.sceneManager = editor.sceneManager;
     this.objectFactory = editor.objectFactory;
     this.selectionHelper = editor.selectionHelper;
@@ -52,11 +53,20 @@ export class MenubarFile {
     switch (type) {
       case 'empty':
         this.sceneManager.emptyAllScenes();
+        this.signals.objectAdded.dispatch();
         break;
       case 'cube': {
         this.sceneManager.emptyAllScenes();
         const cube = this.objectFactory.createGeometry('Box');
         this.sceneManager.addObject(cube);
+        this.signals.objectAdded.dispatch();
+        break;
+      }
+      case 'torus': {
+        this.sceneManager.emptyAllScenes();
+        const cube = this.objectFactory.createGeometry('Torus');
+        this.sceneManager.addObject(cube);
+        this.signals.objectAdded.dispatch();
         break;
       }
       case 'camera': {
@@ -66,6 +76,7 @@ export class MenubarFile {
         const camera = this.objectFactory.createCamera('Perspective', this.sceneManager);
         camera.position.set(0, 0, 10);
         this.sceneManager.addObject(camera);
+        this.signals.objectAdded.dispatch();
         break;
       }
     }

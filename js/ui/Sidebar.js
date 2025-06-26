@@ -25,11 +25,12 @@ export default class Sidebar {
         });
       });
 
-      this.panelResizer.initRightPanelResizer();
-
       this.sidebarScene = new SidebarScene(editor);
       this.sidebarProject = new SidebarProject(editor);
       this.sidebarSetting = new SidebarSetting(editor);
+
+      this.panelResizer.initRightPanelResizer();
+      this.panelResizer.onWindowResize();
     });
   }
 }

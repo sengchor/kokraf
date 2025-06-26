@@ -20,6 +20,7 @@ export class RemoveObjectCommand {
   }
 
   execute() {
+    this.object = this.editor.objectByUuid(this.object.uuid);
     this.editor.sceneManager.removeObject(this.object);
     this.editor.selectionHelper.deselect();
     this.editor.toolbar.updateTools();
@@ -49,11 +50,10 @@ export class RemoveObjectCommand {
       const loader = new THREE.ObjectLoader();
       obj = loader.parse(json.object);
     }
-    
+
     const cmd = new RemoveObjectCommand(editor, obj);
     cmd.index = json.index;
-
-    cmd.parent = editor.objectByUuid(json.parentUuid) || editor.sceneManager.mainScene;
+    cmd.parent = editor.objectByUuid(json.parentUuid);
 
     return cmd;
   }

@@ -43,12 +43,12 @@ export default class Editor {
 
     // Core setup
     this.config = new Config();
+    this.history = new History(this);
     this.renderer = new Renderer(this);
     this.objectFactory = new ObjectFactory(this);
     this.cameraManager = new CameraManager(this);
     this.sceneManager = new SceneManager(this);
     this.controlsManager = new ControlsManager(this);
-    this.history = new History(this);
 
     // Helpers
     this.ViewportViewHelper = new ViewportViewHelper(this);
@@ -68,7 +68,6 @@ export default class Editor {
     const saved = Storage.get('scene');
     if (saved) {
       this.fromJSON(saved);
-      this.panelResizer.onWindowResize();
     } else {
       this.sceneManager.addAmbientLight(0xffffff, 0.5);
       this.sceneManager.addDemoObjects();
@@ -147,20 +146,27 @@ export default class Editor {
     const camera = await loader.parseAsync(json.camera);
     this.cameraManager.setCamera(camera);
 
-    this.history.fromJSON(json.history);
+    if (this.config.get('history')) {
+      this.history.fromJSON(json.history);
+    }
     this.signals.historyChanged.dispatch();
   }
 
   toJSON() {
-    return {
+    const json = {
       metadata: {
         version: 1.0,
         type: 'Project',
       },
       scene: this.sceneManager.mainScene.toJSON(),
       camera: this.cameraManager.camera.toJSON(),
-      history: this.history.toJSON()
+    };
+
+    if (this.config.get('history')) {
+      json.history = this.history.toJSON();
     }
+
+    return json;
   }
 
   objectByUuid(uuid) {

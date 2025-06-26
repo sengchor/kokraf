@@ -47,7 +47,7 @@ export class SidebarSetting {
     this.persistentButton.checked = isPersistent;
     this.persistentButton.addEventListener('click', () => {
       this.config.set('history', this.persistentButton.checked);
-      console.log('Persistent is', this.persistentButton.checked ? 'ON' : 'OFF');
+      this.signals.historyChanged.dispatch();
     });
 
     this.updateHistoryList(this.history);

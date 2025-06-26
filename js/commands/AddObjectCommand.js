@@ -21,6 +21,7 @@ export class AddObjectCommand {
   }
 
   undo() {
+    this.object = this.editor.objectByUuid(this.object.uuid);
     this.editor.sceneManager.removeObject(this.object);
     this.editor.selectionHelper.deselect();
     this.editor.toolbar.updateTools();

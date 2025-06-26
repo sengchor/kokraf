@@ -6,12 +6,18 @@ export class History {
     this.signals = editor.signals;
     this.undos = [];
     this.redos = [];
+    this.maxCommands = 25;
   }
 
   execute(cmd) {
     cmd.execute();
     this.undos.push(cmd);
     this.redos.length = 0;
+
+    while (this.undos.length + this.redos.length > this.maxCommands) {
+      this.undos.shift();
+    }
+
     this.signals.historyChanged.dispatch();
   }
 
@@ -20,6 +26,11 @@ export class History {
     if (cmd) {
       cmd.undo();
       this.redos.push(cmd);
+
+      while (this.undos.length + this.redos.length > this.maxCommands) {
+        this.redos.shift();
+      }
+
       this.signals.historyChanged.dispatch();
     }
   }
@@ -29,6 +40,11 @@ export class History {
     if (cmd) {
       cmd.execute();
       this.undos.push(cmd);
+
+      while (this.undos.length + this.redos.length > this.maxCommands) {
+        this.undos.shift();
+      }
+
       this.signals.historyChanged.dispatch();
     }
   }

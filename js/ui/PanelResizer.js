@@ -7,7 +7,6 @@ export default class PanelResizer {
     this.isRightPanelResizing = false;
     this.isOutlinerResizing = false;
 
-    this.onWindowResize();
     window.addEventListener('resize', this.onWindowResize.bind(this));
   }
 
@@ -80,7 +79,7 @@ export default class PanelResizer {
 
   onWindowResize() {
     const outliner = document.getElementById('right-panel-container');
-    const width = window.innerWidth - (outliner?.offsetWidth || 0);
+    const width = window.innerWidth - outliner.offsetWidth;
     const height = window.innerHeight + 30;
 
     this.renderer.setSize(width, height);

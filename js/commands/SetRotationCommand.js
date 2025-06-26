@@ -10,21 +10,35 @@ export class SetRotationCommand {
    * @param {THREE.Euler|null} optionalOldRotation
    * @constructor
    */
-  constructor(editor, object, newRotation, optionalOldRotation) {
+  constructor(editor, object = null, objectUuid = null, newRotation = null, optionalOldRotation = null) {
     this.editor = editor;
     this.name = 'Set Rotation';
 
     this.object = object;
-    this.oldRotation = optionalOldRotation ? optionalOldRotation.clone() : object.rotation.clone();
+    this.objectUuid = objectUuid;
+
+    if (object != null) {
+      this.oldRotation = object.rotation.clone();
+    }
     this.newRotation = newRotation.clone();
+
+    if (optionalOldRotation !== null) {
+      this.oldRotation = optionalOldRotation.clone();
+    }
   }
 
   execute() {
+    if (this.object == null) {
+      this.object = this.editor.objectByUuid(this.objectUuid);
+    }
     this.object.rotation.copy(this.newRotation);
     this.object.updateMatrixWorld(true);
   }
 
   undo() {
+    if (this.object == null) {
+      this.object = this.editor.objectByUuid(this.objectUuid);
+    }
     this.object.rotation.copy(this.oldRotation);
     this.object.updateMatrixWorld(true);
   }
@@ -32,7 +46,7 @@ export class SetRotationCommand {
   toJSON() {
     return {
       type: SetRotationCommand.type,
-      objectUuid: this.object.uuid,
+      objectUuid: this.object ? this.object.uuid : this.objectUuid,
       oldRotation: this.oldRotation.toArray(),
       newRotation: this.newRotation.toArray()
     };
@@ -42,9 +56,10 @@ export class SetRotationCommand {
     if (!json || json.type !== SetRotationCommand.type) return null;
 
     const obj = editor.objectByUuid(json.objectUuid);
+    const objUuid = json.objectUuid;
     const newRot = new THREE.Euler().fromArray(json.newRotation);
     const oldRot = new THREE.Euler().fromArray(json.oldRotation);
 
-    return new SetRotationCommand(editor, obj, newRot, oldRot);
+    return new SetRotationCommand(editor, obj, objUuid, newRot, oldRot);
   }
 }

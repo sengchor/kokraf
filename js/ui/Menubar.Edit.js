@@ -24,7 +24,7 @@ export class MenubarEdit {
     document.querySelector('.center').addEventListener('click', () => {
       const newPos = new THREE.Vector3(0, 0, 0);
       const object = this.selectionHelper.selectedObject;
-      this.editor.execute(new SetPositionCommand(this.editor, object, newPos));
+      this.editor.execute(new SetPositionCommand(this.editor, object, null, newPos));
     });
 
     document.querySelector('.clone').addEventListener('click', () => {
