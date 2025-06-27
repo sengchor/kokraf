@@ -157,7 +157,9 @@ export class SidebarScene {
             newParent = dropParent;
           }
         }
-        this.editor.execute(new MoveObjectCommand(this.editor, dragObject, newParent));
+        if (newParent && dragObject.parent !== newParent) {
+          this.editor.execute(new MoveObjectCommand(this.editor, dragObject, newParent));
+        }
       }
 
       dropTarget = nextDropTarget = dropMode = null;

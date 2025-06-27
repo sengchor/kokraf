@@ -26,7 +26,7 @@ export default class SceneManager {
   emptyScene(scene) {
     while (scene.children.length > 0) {
       const obj = scene.children[0];
-      scene.remove(obj);
+      this.removeObject(obj);
 
       if (obj.geometry) {
         obj.geometry.dispose?.();
@@ -87,33 +87,21 @@ export default class SceneManager {
       object.parent = parent;
     }
 
-    const helper = this.objectFactory.createHelper(object);
-    if (helper) {
-      this.sceneHelpers.add(helper);
-      this.helpers[object.id] = helper;
-    }
-
-    if (object.isCamera) {
-      this.cameraManager.cameras[object.uuid] = object;
-      this.signals.cameraAdded.dispatch(this.cameraManager.cameras);
-    }
+    object.traverse((child) => {
+      this.addHelper(child);
+      this.addCamera(child);
+    });
 
     this.signals.objectAdded.dispatch();
   }
 
   removeObject(object) {
     if (object.parent === null) return;
-    const helper = this.helpers[object.id];
 
-    if (helper && helper.parent) {
-      helper.parent.remove(helper);
-      delete this.helpers[object.id];
-    }
-
-    if (object.isCamera) {
-      delete this.cameraManager.cameras[object.uuid];
-      this.signals.cameraRemoved.dispatch(this.cameraManager.cameras);
-    }
+    object.traverse((child) => {
+      this.removeHelper(child);
+      this.removeCamera(child);
+    });
     
     object.parent.remove(object);
     this.signals.objectRemoved.dispatch();
@@ -167,5 +155,35 @@ export default class SceneManager {
           break;
       }
     });
+  }
+
+  addHelper(object) {
+    const helper = this.objectFactory.createHelper(object);
+    if (helper) {
+      this.sceneHelpers.add(helper);
+      this.helpers[object.id] = helper;
+    }
+  }
+
+  addCamera(object) {
+    if (object.isCamera) {
+      this.cameraManager.cameras[object.uuid] = object;
+      this.signals.cameraAdded.dispatch(this.cameraManager.cameras);
+    }
+  }
+
+  removeHelper(object) {
+    const helper = this.helpers[object.id];
+    if (helper && helper.parent) {
+      helper.parent.remove(helper);
+      delete this.helpers[object.id];
+    }
+  }
+
+  removeCamera(object) {
+    if (object.isCamera) {
+      delete this.cameraManager.cameras[object.uuid];
+      this.signals.cameraRemoved.dispatch(this.cameraManager.cameras);
+    }
   }
 }
