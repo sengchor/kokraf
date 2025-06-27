@@ -37,12 +37,12 @@ export class AddObjectCommand {
   static fromJSON(editor, json) {
     if (!json || json.type !== AddObjectCommand.type) return null;
 
-    let obj = editor.objectByUuid(json.object.object.uuid);
+    let object = editor.objectByUuid(json.object.object.uuid);
 
-    if ( obj === undefined ) {
+    if ( object === undefined ) {
       const loader = new THREE.ObjectLoader();
-      obj = loader.parse(json.object);
+      object = loader.parse(json.object);
     }
-    return new AddObjectCommand(editor, obj);
+    return new AddObjectCommand(editor, object);
   }
 }

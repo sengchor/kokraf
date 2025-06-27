@@ -68,17 +68,17 @@ export class TransformTool {
       switch (this.mode) {
         case 'translate':
           if (!object.position.equals(this.objectPositionOnDown)) {
-            this.editor.execute(new SetPositionCommand(this.editor, object, null, object.position, this.objectPositionOnDown));
+            this.editor.execute(new SetPositionCommand(this.editor, object, object.position, this.objectPositionOnDown));
             break;
           }
         case 'rotate':
           if (!object.rotation.equals(this.objectRotationOnDown)) {
-            this.editor.execute(new SetRotationCommand(this.editor, object, null, object.rotation, this.objectRotationOnDown));
+            this.editor.execute(new SetRotationCommand(this.editor, object, object.rotation, this.objectRotationOnDown));
             break;
           }
         case 'scale':
           if (!object.scale.equals(this.objectScaleOnDown)) {
-            this.editor.execute(new SetScaleCommand(this.editor, object, null, object.scale, this.objectScaleOnDown));
+            this.editor.execute(new SetScaleCommand(this.editor, object, object.scale, this.objectScaleOnDown));
             break;
           }
       }

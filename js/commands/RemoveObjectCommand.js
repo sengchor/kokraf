@@ -44,14 +44,14 @@ export class RemoveObjectCommand {
   static fromJSON(editor, json) {
     if (!json || json.type !== RemoveObjectCommand.type) return null;
 
-    let obj = editor.objectByUuid(json.object.object.uuid);
+    let object = editor.objectByUuid(json.object.object.uuid);
 
-    if ( obj === undefined ) {
+    if ( object === undefined ) {
       const loader = new THREE.ObjectLoader();
-      obj = loader.parse(json.object);
+      object = loader.parse(json.object);
     }
 
-    const cmd = new RemoveObjectCommand(editor, obj);
+    const cmd = new RemoveObjectCommand(editor, object);
     cmd.index = json.index;
     cmd.parent = editor.objectByUuid(json.parentUuid);
 
