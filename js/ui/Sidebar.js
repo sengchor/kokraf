@@ -14,14 +14,20 @@ export default class Sidebar {
 
   load(editor) {
     this.uiLoader.loadComponent('#right-panel-container', 'components/panel-tabs.html', () => {
-      // Tab switching
-      document.querySelectorAll('.tab').forEach((tab, index) => {
+      const tabs = document.querySelectorAll('.right-panel .tab');
+      const panels = document.querySelectorAll('.panel-content');
+
+      tabs.forEach((tab, index) => {
         tab.addEventListener('click', () => {
-          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-          document.querySelectorAll('.panel-content').forEach(c => c.style.display = 'none');
+          tabs.forEach(t => t.classList.remove('active'));
+          panels.forEach(p => p.style.display = 'none');
 
           tab.classList.add('active');
-          document.querySelectorAll('.panel-content')[index].style.display = 'block';
+          panels[index].style.display = 'block';
+
+          if (index === 0 && this.sidebarScene?.sidebarProperties) {
+            this.sidebarScene.sidebarProperties.showActiveTab();
+          }
         });
       });
 

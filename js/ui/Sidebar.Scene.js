@@ -1,3 +1,4 @@
+import SidebarProperties from './Sidebar.Properties.js';
 import { MoveObjectCommand } from '../commands/MoveObjectCommand.js';
 
 export class SidebarScene {
@@ -5,6 +6,7 @@ export class SidebarScene {
     this.editor = editor;
     this.signals = editor.signals;
     this.panelResizer = editor.panelResizer;
+    this.sidebarProperties = new SidebarProperties(editor);
     this.scene = editor.sceneManager.mainScene;
     this.selectionHelper = editor.selectionHelper;
     this.toolbar = editor.toolbar;

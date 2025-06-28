@@ -1,0 +1,9 @@
+.details-panel-container {
+  position: relative;
+  z-index: 1;
+}
+
+.properties-content {
+  flex: 1;
+  overflow-y: auto;
+}
