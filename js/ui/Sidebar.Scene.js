@@ -39,6 +39,7 @@ export class SidebarScene {
   setupListeners() {
     this.signals.objectAdded.add(() => this.rebuild());
     this.signals.objectRemoved.add(() => this.rebuild());
+    this.signals.objectChanged.add(() => this.rebuild());
     this.signals.sceneGraphChanged.add(() => this.rebuild());
     this.signals.objectSelected.add((object) => this.highlightOutlinerItem(object));
   }

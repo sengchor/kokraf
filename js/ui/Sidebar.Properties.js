@@ -1,3 +1,5 @@
+import { SidebarObject } from './Sidebar.Object.js';
+
 export default class SidebarProperties {
   constructor(editor) {
     this.uiLoader = editor.uiLoader;
@@ -18,6 +20,8 @@ export default class SidebarProperties {
           this.showActiveTab();
         });
       });
+
+      new SidebarObject(editor);
 
       this.showActiveTab();
     });

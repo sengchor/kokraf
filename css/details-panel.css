@@ -7,3 +7,55 @@
   flex: 1;
   overflow-y: auto;
 }
+
+.setting-option .label {
+  min-width: 125px;
+}
+
+.setting-option .label-value {
+  min-width: 125px;
+}
+
+.setting-option .text-input {
+  width: calc(20ch + 6px);
+  padding: 4px 5px;
+  font-size: 12.5px;
+  color: #444;
+  background-color: white;
+  text-align: left;
+  border: none;
+}
+
+.setting-option .text-input:focus {
+  background-color: white;
+  outline: none;
+}
+
+.setting-option .number-input {
+  width: 7.5ch;
+  padding: 2px;
+  font-size: 12.5px;
+  color: #08f;
+  background-color: #ffffff00;
+  text-align: left;
+  border: none;
+}
+
+.setting-option .number-input:focus {
+  background-color: white;
+  outline: none;
+}
+
+.setting-option .number-input::-webkit-outer-spin-button,
+.setting-option .number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.uuid-input {
+  width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; 
+  padding: 5px;
+}

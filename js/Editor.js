@@ -35,6 +35,7 @@ export default class Editor {
 
       objectSelected: new Signal(),
       objectFocused: new Signal(),
+      objectChanged: new Signal(),
 
       historyChanged: new Signal(),
 
@@ -80,7 +81,7 @@ export default class Editor {
     this.toolbar = new Toolbar(this);
     this.menubar = new Menubar(this);
     this.sidebar = new Sidebar(this);
-
+    
     this.setupListeners();
     this.animate();
   }
