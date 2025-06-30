@@ -1,10 +1,15 @@
 import * as THREE from 'three';
+import { SetPositionCommand } from "../commands/SetPositionCommand.js";
+import { SetRotationCommand } from "../commands/SetRotationCommand.js";
+import { SetScaleCommand } from '../commands/SetScaleCommand.js';
+import { SetValueCommand } from '../commands/SetValueCommand.js';
 
 export class SidebarObject {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
-    this.selectionHelper = this.editor.selectionHelper;
+    this.selectionHelper = editor.selectionHelper;
+    this.lastSelectedObject = null;
     
     this.typeElement = document.getElementById('object-type');
     this.uuidInput = document.getElementById('object-uuid');
@@ -34,7 +39,21 @@ export class SidebarObject {
   }
 
   setupListeners() {
-    this.signals.objectSelected.add((object) => this.update());
+    this.signals.objectSelected.add(object => {
+      const inputs = Array.from(document.querySelectorAll('.properties-content .number-input, .properties-content .text-input'));
+      inputs.forEach(input => {
+        if (document.activeElement === input) {
+          input.blur();
+        }
+      });
+
+      if (object) {
+        this.lastSelectedObject = object;
+      }
+      this.update();
+    });
+
+    this.signals.objectChanged.add(() => this.update());
 
     this.setupNameInput();
     this.setupPositionInput();
@@ -44,7 +63,6 @@ export class SidebarObject {
     this.setupVisibleToggle();
     this.setupFrustumCullToggle();
     this.setupRenderOrderInput();
-    
   }
 
   update() {
@@ -73,6 +91,8 @@ export class SidebarObject {
       this.visibleCheckbox.checked = true;
       this.frustumCullCheckbox.checked = true;
       this.renderOrderInput.value = '0';
+
+      this.lastSelectedObject = null;
       return;
     }
 
@@ -102,14 +122,12 @@ export class SidebarObject {
 
   setupNameInput() {
     this.nameInput.addEventListener('blur', () => {
-      const object = this.selectionHelper.selectedObject;
-      if (object) {
-        if (this.nameInput.value === '') {
-          this.nameInput.value = 'object'
-        } else {
-          object.name = this.nameInput.value;
-        }
-        this.signals.objectChanged.dispatch();
+      const object = this.lastSelectedObject;
+      if (!object) return;
+      const newName = this.nameInput.value.trim() || 'Object';
+
+      if (object.name !== newName) {
+        this.editor.execute(new SetValueCommand(this.editor, object, 'name', newName));
       }
     });
     this.nameInput.addEventListener('keydown', (event) => {
@@ -122,15 +140,20 @@ export class SidebarObject {
   setupPositionInput() {
     [this.positionX, this.positionY, this.positionZ].forEach(input => {
       input.addEventListener('blur', () => {
-        const object = this.selectionHelper.selectedObject;
+        const object = this.lastSelectedObject;
         if (!object) return;
 
         const x = parseFloat(this.positionX.value) || 0;
         const y = parseFloat(this.positionY.value) || 0;
         const z = parseFloat(this.positionZ.value) || 0;
-        object.position.set(y, z, x);
 
-        this.signals.objectChanged.dispatch();
+        const newPosition = new THREE.Vector3(y, z, x);
+        const oldPosition = object.position.clone();
+
+        if (!oldPosition.equals(newPosition)) {
+          this.editor.execute(new SetPositionCommand(this.editor, object, newPosition, oldPosition));
+          this.signals.objectChanged.dispatch();
+        }
       });
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') input.blur();
@@ -141,15 +164,20 @@ export class SidebarObject {
   setupRotationInput() {
     [this.rotationX, this.rotationY, this.rotationZ].forEach(input => {
       input.addEventListener('blur', () => {
-        const object = this.selectionHelper.selectedObject;
+        const object = this.lastSelectedObject;
         if (!object) return;
 
         const x = THREE.MathUtils.degToRad(parseFloat(this.rotationX.value) || 0);
         const y = THREE.MathUtils.degToRad(parseFloat(this.rotationY.value) || 0);
         const z = THREE.MathUtils.degToRad(parseFloat(this.rotationZ.value) || 0);
-        object.rotation.set(y, z, x);
 
-        this.signals.objectChanged.dispatch();
+        const newRotation = new THREE.Euler(y, z, x);
+        const oldRotation = object.rotation.clone();
+
+        if (!oldRotation.equals(newRotation)) {
+          this.editor.execute(new SetRotationCommand(this.editor, object, newRotation, oldRotation));
+          this.signals.objectChanged.dispatch();
+        }
       });
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') input.blur();
@@ -160,15 +188,20 @@ export class SidebarObject {
   setupScaleInput() {
     [this.scaleX, this.scaleY, this.scaleZ].forEach(input => {
       input.addEventListener('blur', () => {
-        const object = this.selectionHelper.selectedObject;
+        const object = this.lastSelectedObject;
         if (!object) return;
 
         const x = parseFloat(this.scaleX.value) || 1;
         const y = parseFloat(this.scaleY.value) || 1;
         const z = parseFloat(this.scaleZ.value) || 1;
-        object.scale.set(y, z, x);
 
-        this.signals.objectChanged.dispatch();
+        const newScale = new THREE.Vector3(y, z, x);
+        const oldScale = object.scale.clone();
+
+        if (!oldScale.equals(newScale)) {
+          this.editor.execute(new SetScaleCommand(this.editor, object, newScale, oldScale));
+          this.signals.objectChanged.dispatch();
+        }
       });
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') input.blur();
@@ -178,51 +211,53 @@ export class SidebarObject {
 
   setupShadowInputs() {
     this.castShadowCheckbox.addEventListener('change', () => {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.lastSelectedObject;
       if (object) {
-        object.castShadow = this.castShadowCheckbox.checked;
-        this.signals.objectChanged.dispatch();
+        const newValue = this.castShadowCheckbox.checked;
+        this.editor.execute(new SetValueCommand(this.editor, object, 'castShadow', newValue));
       }
     });
 
     this.receiveShadowCheckbox.addEventListener('change', () => {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.lastSelectedObject;
       if (object) {
-        object.receiveShadow = this.receiveShadowCheckbox.checked;
-        this.signals.objectChanged.dispatch();
+        const newValue = this.receiveShadowCheckbox.checked;
+        this.editor.execute(new SetValueCommand(this.editor, object, 'receiveShadow', newValue));
       }
     });
   }
 
   setupVisibleToggle() {
     this.visibleCheckbox.addEventListener('change', () => {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.lastSelectedObject;
       if (!object) return;
 
-      object.visible = this.visibleCheckbox.checked;
-      this.signals.objectChanged.dispatch();
+      const newValue = this.visibleCheckbox.checked;
+      this.editor.execute(new SetValueCommand(this.editor, object, 'visible', newValue));
     });
   }
 
   setupFrustumCullToggle() {
     this.frustumCullCheckbox.addEventListener('change', () => {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.lastSelectedObject;
       if (!object) return;
 
-      object.frustumCulled = this.frustumCullCheckbox.checked;
-      this.signals.objectChanged.dispatch();
+      const newValue = this.frustumCullCheckbox.checked;
+      this.editor.execute(new SetValueCommand(this.editor, object, 'frustumCulled', newValue));
     });
   }
 
   setupRenderOrderInput() {
     this.renderOrderInput.addEventListener('blur', () => {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.lastSelectedObject;
       if (!object) return;
 
       const value = parseInt(this.renderOrderInput.value);
-      object.renderOrder = isNaN(value) ? 0 : value;
+      const newValue = isNaN(value) ? 0 : value;
 
-      this.signals.objectChanged.dispatch();
+      if (object.renderOrder !== newValue) {
+        this.editor.execute(new SetValueCommand(this.editor, object, 'renderOrder', newValue));
+      }
     });
 
     this.renderOrderInput.addEventListener('keydown', (event) => {

@@ -4,6 +4,7 @@ import { SetScaleCommand } from './SetScaleCommand.js';
 import { AddObjectCommand } from './AddObjectCommand.js';
 import { RemoveObjectCommand } from './RemoveObjectCommand.js';
 import { MoveObjectCommand } from './MoveObjectCommand.js';
+import { SetValueCommand } from './SetValueCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -11,5 +12,6 @@ export const commands = new Map([
   [SetScaleCommand.type, SetScaleCommand],
   [AddObjectCommand.type, AddObjectCommand],
   [RemoveObjectCommand.type, RemoveObjectCommand],
-  [MoveObjectCommand.type, MoveObjectCommand]
+  [MoveObjectCommand.type, MoveObjectCommand],
+  [SetValueCommand.type, SetValueCommand]
 ]);

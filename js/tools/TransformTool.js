@@ -7,6 +7,7 @@ import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 export class TransformTool {
   constructor(mode, editor) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.mode = mode; // 'translate', 'rotate', or 'scale'
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
@@ -19,6 +20,14 @@ export class TransformTool {
 
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.controls.enabled = !event.value;
+      if (this.controls.enabled) {
+        this.signals.objectChanged.dispatch();
+      }
+    });
+    this.transformControls.addEventListener('change', () => {
+      if (this.transformControls.dragging) {
+        this.signals.objectChanged.dispatch();
+      }
     });
 
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
