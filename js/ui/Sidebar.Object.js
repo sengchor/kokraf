@@ -10,6 +10,9 @@ export class SidebarObject {
     this.signals = editor.signals;
     this.selectionHelper = editor.selectionHelper;
     this.lastSelectedObject = null;
+
+    this.emptyMessage = document.getElementById('object-empty-message');
+    this.contentSection = document.getElementById('object-properties-content');
     
     this.typeElement = document.getElementById('object-type');
     this.uuidInput = document.getElementById('object-uuid');
@@ -68,34 +71,37 @@ export class SidebarObject {
   update() {
     const object = this.selectionHelper.selectedObject;
 
+    this.emptyMessage.style.display = object ? 'none' : 'block';
+    this.contentSection.style.display = object ? 'block' : 'none';
+
     if (!object) {
-      this.typeElement.textContent = '';
-      this.uuidInput.value = '';
-      this.nameInput.value = '';
-
-      this.positionX.value = '0.000';
-      this.positionY.value = '0.000';
-      this.positionZ.value = '0.000';
-
-      this.rotationX.value = '0.000';
-      this.rotationY.value = '0.000';
-      this.rotationZ.value = '0.000';
-
-      this.scaleX.value = '1.000';
-      this.scaleY.value = '1.000';
-      this.scaleZ.value = '1.000';
-
-      this.castShadowCheckbox.checked = false;
-      this.receiveShadowCheckbox.checked = false;
-
-      this.visibleCheckbox.checked = true;
-      this.frustumCullCheckbox.checked = true;
-      this.renderOrderInput.value = '0';
-
-      this.lastSelectedObject = null;
+      this.clearFields();
       return;
     }
 
+    this.updateFields(object);
+  }
+
+  clearFields() {
+    this.typeElement.textContent = '';
+    this.uuidInput.value = '';
+    this.nameInput.value = '';
+
+    ['positionX', 'positionY', 'positionZ'].forEach(k => this[k].value = '0.000');
+    ['rotationX', 'rotationY', 'rotationZ'].forEach(k => this[k].value = '0.000');
+    ['scaleX', 'scaleY', 'scaleZ'].forEach(k => this[k].value = '1.000');
+
+    this.castShadowCheckbox.checked = false;
+    this.receiveShadowCheckbox.checked = false;
+
+    this.visibleCheckbox.checked = true;
+    this.frustumCullCheckbox.checked = true;
+    this.renderOrderInput.value = '0';
+
+    this.lastSelectedObject = null;
+  }
+
+  updateFields(object) {
     this.typeElement.textContent = object.type || 'Unknown';
     this.uuidInput.value = object.uuid || '';
     this.nameInput.value = object.name || '';

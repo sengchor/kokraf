@@ -1,12 +1,13 @@
 <div class="details-panel">
   <div class="panel-tabs">
-    <button class="tab active">OBJECT</button>
-    <button class="tab">GEOMETRY</button>
-    <button class="tab">MATERIAL</button>
+    <button class="tab active" data-tab="object">OBJECT</button>
+    <button class="tab" data-tab="geometry">GEOMETRY</button>
+    <button class="tab" data-tab="material">MATERIAL</button>
   </div>
 
   <div class="properties-content" id="object-tab">
-    <ul class="project-settings-list">
+    <div class="center-text" id="object-empty-message">Select an object to view details.</div>
+    <ul class="project-settings-list" id="object-properties-content">
       <li class="setting-option">
         <span class="label">Type</span>
         <span class="label-value" id="object-type">Mesh</span>

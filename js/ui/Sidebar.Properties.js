@@ -2,6 +2,7 @@ import { SidebarObject } from './Sidebar.Object.js';
 
 export default class SidebarProperties {
   constructor(editor) {
+    this.signals = editor.signals;
     this.uiLoader = editor.uiLoader;
     this.activeTabIndex = 0;
     this.tabs = [];
@@ -24,6 +25,11 @@ export default class SidebarProperties {
       new SidebarObject(editor);
 
       this.showActiveTab();
+      this.updateTabVisibility();
+    });
+
+    this.signals.objectSelected.add(object => {
+      this.updateTabVisibility(object);
     });
   }
 
@@ -35,5 +41,16 @@ export default class SidebarProperties {
       this.tabs[this.activeTabIndex].classList.add('active');
       this.panels[this.activeTabIndex].style.display = 'block';
     }
+  }
+
+  updateTabVisibility(object) {
+    this.objectTab = document.querySelector('.tab[data-tab="object"]');
+    this.geometryTab = document.querySelector('.tab[data-tab="geometry"]');
+    this.materialTab = document.querySelector('.tab[data-tab="material"]');
+
+    const isMesh = !!(object && object.isMesh);
+
+    if (this.geometryTab) this.geometryTab.style.display = isMesh ? 'inline-block' : 'none';
+    if (this.materialTab) this.materialTab.style.display = isMesh ? 'inline-block' : 'none';
   }
 }
