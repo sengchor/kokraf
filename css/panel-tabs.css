@@ -175,6 +175,7 @@ body.resizing-outliner .outliner-resizer {
 
 .setting-option .label {
   min-width: 125px;
+  max-width: 125px;
 }
 
 select {

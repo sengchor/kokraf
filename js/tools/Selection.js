@@ -84,7 +84,11 @@ export default class Selection {
     if (this.lastHighlighted) {
       this.lastHighlighted.traverse(obj => {
         if (obj.material && obj.material.color) {
-          obj.material.color.set(0xffffff);
+          if (this.selectedObject.isCamera) {
+            obj.material.color.set(0xffffff);
+          } else {
+            obj.material.color.set(this.selectedObject.color);
+          }
         }
       });
       this.lastHighlighted = null;

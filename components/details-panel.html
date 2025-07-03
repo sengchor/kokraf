@@ -1,67 +1,12 @@
 <div class="details-panel">
   <div class="panel-tabs">
     <button class="tab active" data-tab="object">OBJECT</button>
-    <button class="tab" data-tab="geometry">GEOMETRY</button>
     <button class="tab" data-tab="material">MATERIAL</button>
   </div>
 
   <div class="properties-content" id="object-tab">
     <div class="center-text" id="object-empty-message">Select an object to view details.</div>
-    <ul class="project-settings-list" id="object-properties-content">
-      <li class="setting-option">
-        <span class="label">Type</span>
-        <span class="label-value" id="object-type">Mesh</span>
-      </li>
-      <li class="setting-option">
-        <span class="label">UUID</span>
-        <input class="text-input uuid-input" id="object-uuid" type="text" maxlength="40"
-          style="padding: 2px; background-color: transparent;" readonly />
-      </li>
-      <li class="setting-option">
-        <span class="label">Name</span>
-        <input class="text-input" id="name-input" type="text" maxlength="20" />
-      </li>
-      <li class="setting-option">
-        <span class="label">Position</span>
-        <input class="number-input" id="position-x" type="number" min="1" max="10000" step="1" value="0.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        <input class="number-input" id="position-y" type="number" min="1" max="10000" step="1" value="0.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        <input class="number-input" id="position-z" type="number" min="1" max="10000" step="1" value="0.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-      </li>
-      <li class="setting-option">
-        <span class="label">Rotation</span>
-        <input class="number-input" id="rotation-x" type="number" min="1" max="10000" step="1" value="0.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        <input class="number-input" id="rotation-y" type="number" min="1" max="10000" step="1" value="0.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        <input class="number-input" id="rotation-z" type="number" min="1" max="10000" step="1" value="0.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-      </li>
-      <li class="setting-option">
-        <span class="label">Scale</span>
-        <input class="number-input" id="scale-x" type="number" min="1" max="10000" step="1" value="1.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        <input class="number-input" id="scale-y" type="number" min="1" max="10000" step="1" value="1.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        <input class="number-input" id="scale-z" type="number" min="1" max="10000" step="1" value="1.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-      </li>
-      <li class="setting-option">
-        <span class="label">Shadow</span>
-        <input type="checkbox" id="cast-shadow" />
-        <span style="padding: 0 4px;">cast</span>
-        <input type="checkbox" id="receive-shadow" />
-        <span style="padding: 0 4px;">receive</span>
-      </li>
-      <li class="setting-option">
-        <span class="label">Visible</span>
-        <input type="checkbox" id="object-visible" checked/>
-      </li>
-      <li class="setting-option">
-        <span class="label">Frustum Cull</span>
-        <input type="checkbox" id="object-frustum-cull" checked/>
-      </li>
-      <li class="setting-option">
-        <span class="label">Render Order</span>
-        <input class="number-input" id="object-render-order" type="text" min="1" max="10000" step="1" value="0" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-      </li>
-    </ul>
-  </div>
-  <div class="properties-content" id="geometry-tab">
-    <div>Geometry</div>
+    <ul class="project-settings-list" id="object-properties-content"></ul>
   </div>
   <div class="properties-content" id="material-tab">
     <div>Material</div>

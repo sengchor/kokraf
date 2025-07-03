@@ -64,3 +64,13 @@
   margin-top: 20px;
   text-align: center;
 }
+
+.setting-option .color-input {
+  width: 3em;
+  height: 1.5em;
+  border: none;
+  background: none;
+  padding: 0;
+  border: 0;
+  vertical-align: middle;
+}

@@ -45,12 +45,10 @@ export default class SidebarProperties {
 
   updateTabVisibility(object) {
     this.objectTab = document.querySelector('.tab[data-tab="object"]');
-    this.geometryTab = document.querySelector('.tab[data-tab="geometry"]');
     this.materialTab = document.querySelector('.tab[data-tab="material"]');
 
     const isMesh = !!(object && object.isMesh);
 
-    if (this.geometryTab) this.geometryTab.style.display = isMesh ? 'inline-block' : 'none';
     if (this.materialTab) this.materialTab.style.display = isMesh ? 'inline-block' : 'none';
   }
 }
