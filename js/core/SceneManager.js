@@ -137,7 +137,7 @@ export default class SceneManager {
           this.mainScene.overrideMaterial = null;
           break;
         case 'solid':
-          const matcapTexture = new THREE.TextureLoader().load('/assets/textures/matcaps/040full.jpg');
+          const matcapTexture = new THREE.TextureLoader().load('assets/textures/matcaps/040full.jpg');
           this.mainScene.overrideMaterial = new THREE.MeshMatcapMaterial({
             matcap: matcapTexture,
             color: 0xcccccc,

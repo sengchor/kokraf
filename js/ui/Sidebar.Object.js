@@ -3,6 +3,7 @@ import { SetPositionCommand } from "../commands/SetPositionCommand.js";
 import { SetRotationCommand } from "../commands/SetRotationCommand.js";
 import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 import { SetValueCommand } from '../commands/SetValueCommand.js';
+import { SetColorCommand } from '../commands/SetColorCommand.js';
 import { SetShadowValueCommand } from '../commands/SetShadowValueCommand.js';
 
 export class SidebarObject {
@@ -441,7 +442,7 @@ export class SidebarObject {
 
   bindInput(input, getValue, apply) {
     if (!input) return;
-    input.addEventListener('blur', function() {
+    input.addEventListener('change', function() {
       const object = this.lastSelectedObject;
       if (!object) return;
       const value = getValue();
@@ -560,8 +561,10 @@ export class SidebarObject {
 
         case 'color':
           this.bindInput(f.color, () => new THREE.Color(f.color.value), (object, value) => {
-            if (object.color !== value) {
-              this.editor.execute(new SetValueCommand(this.editor, object, 'color', value));
+            const currentHex = object.color.getHex();
+            const newHex = value.getHex();
+            if (currentHex !== newHex) {
+              this.editor.execute(new SetColorCommand(this.editor, object, 'color', newHex));
             }
           });
           break;
@@ -592,8 +595,10 @@ export class SidebarObject {
 
         case 'groundColor':
           this.bindInput(f.groundColor, () => new THREE.Color(f.groundColor.value), (object, value) => {
-            if (object.groundColor !== value) {
-              this.editor.execute(new SetValueCommand(this.editor, object, 'groundColor', value));
+            const currentHex = object.groundColor.getHex();
+            const newHex = value.getHex();
+            if (currentHex !== newHex) {
+              this.editor.execute(new SetColorCommand(this.editor, object, 'groundColor', newHex));
             }
           });
           break;

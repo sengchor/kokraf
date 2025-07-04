@@ -1,4 +1,5 @@
 import { SidebarObject } from './Sidebar.Object.js';
+import { SidebarMaterial } from './Sidebar.Material.js';
 
 export default class SidebarProperties {
   constructor(editor) {
@@ -23,6 +24,7 @@ export default class SidebarProperties {
       });
 
       new SidebarObject(editor);
+      new SidebarMaterial(editor);
 
       this.showActiveTab();
       this.updateTabVisibility();
@@ -50,5 +52,10 @@ export default class SidebarProperties {
     const isMesh = !!(object && object.isMesh);
 
     if (this.materialTab) this.materialTab.style.display = isMesh ? 'inline-block' : 'none';
+
+    if (!object || (!isMesh && this.activeTabIndex === 1)) {
+      this.activeTabIndex = 0;
+      this.showActiveTab();
+    }
   }
 }
