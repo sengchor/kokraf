@@ -4,7 +4,7 @@ export default class Config {
   constructor() {
     this.name = 'Kokraf';
 
-    const saved = Storage.get('projectSettings', {
+    this.defaults = {
       antialias: true,
       shadows: true,
       shadowType: 1, // PCF
@@ -17,14 +17,21 @@ export default class Config {
         focus: 'f'
       },
       history: false,
-    });
+    };
 
-    this.storage = { ...saved };
+    this.storage = {};
+
+    this.loadSettings();
   }
 
-  set(key, value) {
+  async loadSettings() {
+    const saved = await Storage.get('projectSettings', this.defaults);
+    this.storage = { ...this.defaults, ...saved };
+  }
+
+  async set(key, value) {
     this.storage[key] = value;
-    Storage.set('projectSettings', this.storage);
+    await Storage.set('projectSettings', this.storage);
   }
 
   get(key) {
@@ -33,9 +40,10 @@ export default class Config {
 
   reset() {
     this.storage = { ...this.defaults };
+    this.save();
   }
 
-  save() {
-    Storage.set('projectSettings', this.storage);
+  async save() {
+    await Storage.set('projectSettings', this.storage);
   }
 }

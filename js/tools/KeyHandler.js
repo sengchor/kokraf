@@ -5,13 +5,18 @@ export class KeyHandler {
     this.editor = editor;
     this.signals = editor.signals;
     this.config = editor.config;
-    this.shortcuts = this.config.get('shortcuts');
     this.selectionHelper = editor.selectionHelper;
-    this.bindEvents();
+    this.shortcuts = null;
+    
+    this.init();
   }
 
-  bindEvents() {
-    window.addEventListener('keydown', this.onKeyDown.bind(this));
+  async init() {
+    await this.config.loadSettings();
+    this.shortcuts = this.config.get('shortcuts');
+
+    this.onKeyDown = this.onKeyDown.bind(this);
+    window.addEventListener('keydown', this.onKeyDown);
   }
 
   onKeyDown(event) {

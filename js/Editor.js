@@ -67,10 +67,10 @@ export default class Editor {
     this.animate = this.animate.bind(this);
   }
 
-  init() {
-    const saved = Storage.get('scene');
+  async init() {
+    const saved = await Storage.get('scene');
     if (saved) {
-      this.fromJSON(saved);
+      await this.fromJSON(saved);
     } else {
       this.sceneManager.addAmbientLight(0xffffff, 0.5);
       this.sceneManager.addDemoObjects();
@@ -104,8 +104,8 @@ export default class Editor {
       }
     });
 
-    this.signals.historyChanged.add(() => {
-      Storage.set('scene', this.toJSON());
+    this.signals.historyChanged.add(async () => {
+      await Storage.set('scene', this.toJSON());
     });
   }
 
