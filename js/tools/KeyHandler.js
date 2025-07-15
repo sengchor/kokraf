@@ -20,6 +20,10 @@ export class KeyHandler {
   }
 
   onKeyDown(event) {
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+      return;
+    }
+
     if (event.ctrlKey && event.key === this.shortcuts['undo']) {
       this.editor.undo();
     } else if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === this.shortcuts['undo']) {
