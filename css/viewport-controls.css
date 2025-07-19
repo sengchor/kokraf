@@ -1,19 +1,27 @@
 .viewport-controls {
   display: flex;
-  position: relative;
+  position: absolute;
+  flex-direction: row;
   top: 40px;
-  transform: translateX(-100%);
-  right: 10px;
+  left: 5px;
   z-index: 8;
-  padding: 0px;
+  justify-content: space-between;
 }
 
 .camera-select {
   padding: 1px;
-  margin-left: 0px;
+  margin-left: 10px;
 }
 
-.shading-modes {
+.shading-select {
   padding: 1px;
   margin-left: 10px;
+}
+
+.mode-select {
+  padding: 1px;
+}
+
+.right-controls-container {
+  margin-left: 5px;
 }

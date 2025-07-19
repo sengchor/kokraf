@@ -19,9 +19,11 @@ export default class Selection {
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
+    this.enable = true;
   }
 
   onMouseSelect(event, renderer, camera) {
+    if (!this.enable) return;
     const rect = renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;

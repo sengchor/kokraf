@@ -86,6 +86,11 @@ export default class PanelResizer {
     this.cameraManager.updateAspect(width / height);
     this.ViewportViewHelper.updatePosition(this.renderer.domElement);
     this.adjustOutlinerHeight();
+
+    const rightControls = document.getElementById('right-controls-container');
+    if (rightControls) {
+      rightControls.style.marginLeft = `${width - 355}px`;
+    }
   }
 
   adjustOutlinerHeight() {
