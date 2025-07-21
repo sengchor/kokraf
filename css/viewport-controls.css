@@ -24,4 +24,43 @@
 
 .right-controls-container {
   margin-left: 5px;
+  z-index: 9;
+}
+
+.selection-mode {
+  display: flex;
+  flex-direction: row;
+  position: absolute;
+  margin-left: 142px;
+  z-index: 9;
+}
+
+.selection-mode.hidden {
+  display: none;
+}
+
+.selection-button {
+  width: 20px;
+  height: 20px;
+  padding: 0px;
+  border: none;
+  cursor: pointer;
+  background-color: #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selection-button img {
+  width: 18px;
+  height: 18px;
+  opacity: 0.5;
+}
+
+.selection-button:hover {
+  background-color: #f8f8f8;
+}
+
+.selection-button.active {
+  background-color: #f8f8f8;
 }

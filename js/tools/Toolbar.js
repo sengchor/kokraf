@@ -8,6 +8,7 @@ export default class Toolbar {
     this.renderer = editor.renderer;
     this.camera = editor.cameraManager.camera;
     this.selectionHelper = editor.selectionHelper;
+    this.editSelection = editor.editSelection;
     this.activeTool = 'select';
 
     this.moveTool = new TransformTool('translate', this.editor);
@@ -54,7 +55,12 @@ export default class Toolbar {
       if (event.button !== 0) return;
       if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging) return;
 
-      this.selectionHelper.onMouseSelect(event, this.renderer, this.camera);
+      const interactionDropdown = document.getElementById('interaction-modes');
+      if (interactionDropdown.value === 'object') {
+        this.selectionHelper.onMouseSelect(event, this.renderer, this.camera);
+      } else {
+        this.editSelection.onMouseSelect(event, this.renderer, this.camera);
+      }
       this.updateTools();
     });
   }

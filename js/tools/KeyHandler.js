@@ -38,6 +38,7 @@ export class KeyHandler {
       this.signals.objectFocused.dispatch();
     } else if (event.key === 'Delete') {
       const object = this.selectionHelper.selectedObject;
+      if (!object) return;
       this.editor.execute(new RemoveObjectCommand(this.editor, object));
     }
   }

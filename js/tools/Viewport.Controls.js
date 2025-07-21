@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MatcapWireframeMaterial } from '../materials/MatcapWireframeMaterial.js';
+import { GeometryEditor } from './GeometryEditor.js'
 
 export default class ViewportControls {
   constructor(editor) {
@@ -10,6 +11,7 @@ export default class ViewportControls {
     this.selectionHelper = editor.selectionHelper;
     this.sceneManager = editor.sceneManager;
     this.editedObject = null;
+    this.geometryEditor = null;
 
     this.load();
   }
@@ -26,6 +28,7 @@ export default class ViewportControls {
     this.cameraDropdown = document.getElementById('cameraDropdown');
     this.shadingDropdown = document.getElementById('shading-modes');
     this.interactionDropdown = document.getElementById('interaction-modes');
+    const selectionModeBar = document.querySelector('.selection-mode');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -60,8 +63,14 @@ export default class ViewportControls {
         }
 
         if (value === 'object') {
+          selectionModeBar.classList.add('hidden');
+          this.signals.modeChanged.dispatch('object');
           this.enterObjectMode();
         } else if (value === 'edit') {
+          this.geometryEditor = new GeometryEditor(selectedObject);
+
+          selectionModeBar.classList.remove('hidden');
+          this.signals.modeChanged.dispatch('edit');
           this.enterEditMode(selectedObject);
         }
       });
@@ -100,27 +109,6 @@ export default class ViewportControls {
     this.cameraDropdown.value = this.cameraManager.camera.uuid;
   }
 
-  applyBarycentricCoordinates(object) {
-    let geometry = object.geometry;
-
-    if (geometry.index) {
-      geometry = geometry.toNonIndexed();
-      object.geometry = geometry;
-    }
-
-    const count = geometry.attributes.position.count;
-    const barycentric = [];
-
-    for (let i = 0; i < count; i += 3) {
-      barycentric.push(1, 0, 0);
-      barycentric.push(0, 1, 0);
-      barycentric.push(0, 0, 1);
-    }
-
-    const barycentricAttr = new THREE.Float32BufferAttribute(barycentric, 3);
-    geometry.setAttribute('aBarycentric', barycentricAttr);
-  }
-
   enterObjectMode() {
     this.selectionHelper.enable = true;
     this.signals.viewportShadingChanged.dispatch(this.shadingDropdown.value);
@@ -130,6 +118,8 @@ export default class ViewportControls {
         obj.material = obj.userData.originalMaterial;
         delete obj.userData.originalMaterial;
       }
+
+      this.geometryEditor.removeVertexPoints(obj);
     });
 
     if (this.editedObject) {
@@ -166,8 +156,10 @@ export default class ViewportControls {
       wireframeOpacity: 0
     });
 
-    this.applyBarycentricCoordinates(selectedObject);
+    this.geometryEditor.applyBarycentricCoordinates(selectedObject);
     selectedObject.material = wireframeMaterial;
+
+    this.geometryEditor.addVertexPoints(selectedObject);
 
     this.editedObject = selectedObject;
     this.selectionHelper.deselect();

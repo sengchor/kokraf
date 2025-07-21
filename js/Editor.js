@@ -17,6 +17,7 @@ import ViewportControls from './tools/Viewport.Controls.js';
 import Sidebar from './ui/Sidebar.js';
 import Config from './core/Config.js';
 import { Storage } from './core/Storage.js';
+import EditSelection from './tools/EditSelection.js';
 
 export default class Editor {
   constructor() {
@@ -40,6 +41,7 @@ export default class Editor {
       historyChanged: new Signal(),
 
       sceneGraphChanged: new Signal(),
+      modeChanged: new Signal(),
     }
 
     this.helpers = {};
@@ -56,6 +58,7 @@ export default class Editor {
     // Helpers
     this.ViewportViewHelper = new ViewportViewHelper(this);
     this.selectionHelper = new Selection(this);
+    this.editSelection = new EditSelection(this);
     this.keyHandler = new KeyHandler(this);
 
     // UI

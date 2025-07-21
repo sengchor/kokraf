@@ -4,6 +4,18 @@
     <option value="edit">EDIT MODE</option>
   </select>
 
+  <div class="selection-mode hidden">
+    <button class="selection-button active" data-tool="select">
+      <img src="assets/icons/point-select.svg" alt="Select" />
+    </button>
+    <button class="selection-button" data-tool="select">
+      <img src="assets/icons/edge-select.svg" alt="Select" />
+    </button>
+    <button class="selection-button" data-tool="select">
+      <img src="assets/icons/face-select.svg" alt="Select" />
+    </button>
+  </div>
+
   <div id="right-controls-container">
     <select class="camera-select" id="cameraDropdown">
       <option value="perspective-camera" selected>CAMERA</option>
