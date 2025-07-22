@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GeometryEditor } from './GeometryEditor.js'
 
 export default class EditSelection {
   constructor(editor) {
@@ -9,17 +8,7 @@ export default class EditSelection {
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
-
-    this.setupListeners();
-  }
-
-  setupListeners() {
-    this.signals.modeChanged.add((newMode) => {
-      this.viewportControls = this.editor.viewportControls;
-      if (newMode !== 'edit') {
-        this.clearSelection();
-      }
-    });
+    this.selectedPoint = null;
   }
 
   onMouseSelect(event, renderer, camera) {
@@ -56,9 +45,7 @@ export default class EditSelection {
       this.clearSelection();
     }
 
-    this.highlightSelectedVertex(closestIndex);
-    // this.geometryEditor = new GeometryEditor(this.viewportControls.editedObject);
-    // this.geometryEditor.moveVertex(closestIndex, { x: 0, y: 1, z: 0 });
+    this.selectedPoint = this.highlightSelectedVertex(closestIndex);
   }
 
   highlightSelectedVertex(index) {
@@ -71,9 +58,10 @@ export default class EditSelection {
 
     this.clearSelection();
     const vertex = new THREE.Vector3().fromBufferAttribute(basePosition, index);
+    const worldPosition = vertex.clone().applyMatrix4(mesh.matrixWorld);
 
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertex.toArray(), 3));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0], 3));
 
     const material = new THREE.PointsMaterial({
       color: 0xffffff,
@@ -85,8 +73,13 @@ export default class EditSelection {
     });
 
     const point = new THREE.Points(geometry, material);
+    mesh.worldToLocal(worldPosition);
+    point.position.copy(worldPosition);
     point.name = '__SelectedVertex';
+    point.userData.vertexIndex = index;
     mesh.add(point);
+
+    return point;
   }
 
   addVertexPoints(selectedObject) {
@@ -111,5 +104,7 @@ export default class EditSelection {
       if (existing.geometry) existing.geometry.dispose();
       if (existing.material) existing.material.dispose();
     }
+
+    this.selectedPoint = null;
   }
 }

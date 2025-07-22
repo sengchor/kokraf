@@ -48,6 +48,8 @@ export class SidebarScene {
     this.outlinerList.innerHTML = '';
 
     const traverse = (object, depth = 0) => {
+      if (object.name === '__SelectedVertex' || object.name === '__VertexPoints') return;
+
       const li = document.createElement('li');
       li.className = 'outliner-item';
       li.dataset.uuid = object.uuid;

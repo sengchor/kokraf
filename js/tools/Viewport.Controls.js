@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MatcapWireframeMaterial } from '../materials/MatcapWireframeMaterial.js';
-import { GeometryEditor } from './GeometryEditor.js'
+import { VertexEditor } from './VertexEditor.js'
 
 export default class ViewportControls {
   constructor(editor) {
@@ -9,9 +9,10 @@ export default class ViewportControls {
     this.uiLoader = editor.uiLoader;
     this.cameraManager = editor.cameraManager;
     this.selectionHelper = editor.selectionHelper;
+    this.editSelection = editor.editSelection;
     this.sceneManager = editor.sceneManager;
     this.editedObject = null;
-    this.geometryEditor = null;
+    this.vertexEditor = null;
 
     this.load();
   }
@@ -64,14 +65,14 @@ export default class ViewportControls {
 
         if (value === 'object') {
           selectionModeBar.classList.add('hidden');
-          this.signals.modeChanged.dispatch('object');
           this.enterObjectMode();
+          this.signals.modeChanged.dispatch('object');
         } else if (value === 'edit') {
-          this.geometryEditor = new GeometryEditor(selectedObject);
+          this.vertexEditor = new VertexEditor(selectedObject);
 
           selectionModeBar.classList.remove('hidden');
-          this.signals.modeChanged.dispatch('edit');
           this.enterEditMode(selectedObject);
+          this.signals.modeChanged.dispatch('edit');
         }
       });
     }
@@ -119,11 +120,12 @@ export default class ViewportControls {
         delete obj.userData.originalMaterial;
       }
 
-      this.geometryEditor.removeVertexPoints(obj);
+      this.vertexEditor.removeVertexPoints(obj);
     });
 
     if (this.editedObject) {
       this.selectionHelper.select(this.editedObject);
+      this.editSelection.clearSelection();
       this.editedObject = null;
     }
   }
@@ -131,7 +133,6 @@ export default class ViewportControls {
   enterEditMode(selectedObject) {
     this.selectionHelper.enable = false;
     this.sceneManager.mainScene.overrideMaterial = null;
-    this.editor.toolbar.setActiveTool('select');
 
     const matcapTexture = new THREE.TextureLoader().load('assets/textures/matcaps/040full.jpg');
 
@@ -156,10 +157,10 @@ export default class ViewportControls {
       wireframeOpacity: 0
     });
 
-    this.geometryEditor.applyBarycentricCoordinates(selectedObject);
+    this.vertexEditor.applyBarycentricCoordinates(selectedObject);
     selectedObject.material = wireframeMaterial;
 
-    this.geometryEditor.addVertexPoints(selectedObject);
+    this.vertexEditor.addVertexPoints(selectedObject);
 
     this.editedObject = selectedObject;
     this.selectionHelper.deselect();

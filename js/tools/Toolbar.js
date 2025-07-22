@@ -3,6 +3,7 @@ import { TransformTool } from '../tools/TransformTool.js';
 export default class Toolbar {
   constructor( editor ) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.uiLoader = editor.uiLoader;
     this.canvas = document.getElementById('three-canvas');
     this.renderer = editor.renderer;
@@ -22,6 +23,13 @@ export default class Toolbar {
   load() {
     this.uiLoader.loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
       this.setupToolbarButtons(container);
+      this.setupListeners();
+    });
+  }
+
+  setupListeners() {
+    this.signals.modeChanged.add((newMode) => {
+      this.updateTools();
     });
   }
 
@@ -55,8 +63,8 @@ export default class Toolbar {
       if (event.button !== 0) return;
       if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging) return;
 
-      const interactionDropdown = document.getElementById('interaction-modes');
-      if (interactionDropdown.value === 'object') {
+      this.interactionDropdown = document.getElementById('interaction-modes');
+      if (this.interactionDropdown.value === 'object') {
         this.selectionHelper.onMouseSelect(event, this.renderer, this.camera);
       } else {
         this.editSelection.onMouseSelect(event, this.renderer, this.camera);
@@ -66,18 +74,27 @@ export default class Toolbar {
   }
 
   updateTools() {
-    const selectedObject = this.selectionHelper.getSelectedObject();
+    this.interactionDropdown = document.getElementById('interaction-modes');
+    const interactionMode = this.interactionDropdown.value;
 
-    if (selectedObject && this.activeTool === 'move') {
-      this.moveTool.enableFor(selectedObject);
+    let attachObject = null;
+
+    if (interactionMode === 'object') {
+      attachObject = this.selectionHelper.selectedObject;
+    } else {
+      attachObject = this.editSelection.selectedPoint;
+    }
+
+    if (attachObject && this.activeTool === 'move') {
+      this.moveTool.enableFor(attachObject);
       this.rotateTool.disable();
       this.scaleTool.disable();
-    } else if (selectedObject && this.activeTool === 'rotate') {
-      this.rotateTool.enableFor(selectedObject);
+    } else if (attachObject && this.activeTool === 'rotate') {
+      this.rotateTool.enableFor(attachObject);
       this.moveTool.disable();
       this.scaleTool.disable();
-    } else if (selectedObject && this.activeTool == 'scale') {
-      this.scaleTool.enableFor(selectedObject);
+    } else if (attachObject && this.activeTool == 'scale') {
+      this.scaleTool.enableFor(attachObject);
       this.moveTool.disable();
       this.rotateTool.disable();
     } else {

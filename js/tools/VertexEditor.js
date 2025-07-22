@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export class GeometryEditor {
+export class VertexEditor {
   constructor(object3D) {
     this.object = object3D;
     this.geometry = object3D.geometry;
@@ -13,6 +13,18 @@ export class GeometryEditor {
     const z = this.positionAttr.getZ(index) + delta.z;
 
     this.positionAttr.setXYZ(index, x, y, z);
+    this.positionAttr.needsUpdate = true;
+    this.geometry.computeVertexNormals();
+  }
+
+  setVertexWorldPosition(index, worldPosition) {
+    if (!this.object || !this.positionAttr) return;
+
+    const localPosition = worldPosition.clone().applyMatrix4(
+      new THREE.Matrix4().copy(this.object.matrixWorld).invert()
+    );
+
+    this.positionAttr.setXYZ(index, localPosition.x, localPosition.y, localPosition.z);
     this.positionAttr.needsUpdate = true;
     this.geometry.computeVertexNormals();
   }
