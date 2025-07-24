@@ -9,20 +9,19 @@ export default class EditSelection {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.selectedPoint = null;
+    this.editedObject = null;
   }
 
   onMouseSelect(event, renderer, camera) {
-    this.viewportControls = this.editor.viewportControls;
 
     const rect = renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, camera);
-    const mesh = this.viewportControls.editedObject;
 
-    const position = mesh.geometry.attributes.position;
-    const objectMatrixWorld = mesh.matrixWorld;
+    const position = this.editedObject.geometry.attributes.position;
+    const objectMatrixWorld = this.editedObject.matrixWorld;
     
     const threshold = 0.2;
     const localRay = this.raycaster.ray.clone().applyMatrix4(
@@ -49,8 +48,7 @@ export default class EditSelection {
   }
 
   highlightSelectedVertex(index) {
-    const mesh = this.viewportControls.editedObject;
-    const basePosition = mesh.geometry.attributes.position;
+    const basePosition = this.editedObject.geometry.attributes.position;
 
     if (index === -1 || index == null || index < 0 || index >= basePosition.count) {
       return;
@@ -58,7 +56,7 @@ export default class EditSelection {
 
     this.clearSelection();
     const vertex = new THREE.Vector3().fromBufferAttribute(basePosition, index);
-    const worldPosition = vertex.clone().applyMatrix4(mesh.matrixWorld);
+    const worldPosition = vertex.clone().applyMatrix4(this.editedObject.matrixWorld);
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0], 3));
@@ -73,37 +71,26 @@ export default class EditSelection {
     });
 
     const point = new THREE.Points(geometry, material);
-    mesh.worldToLocal(worldPosition);
+    this.editedObject.worldToLocal(worldPosition);
     point.position.copy(worldPosition);
+    point.userData.isEditorOnly = true;
     point.name = '__SelectedVertex';
     point.userData.vertexIndex = index;
-    mesh.add(point);
+    this.editedObject.add(point);
 
     return point;
   }
 
-  addVertexPoints(selectedObject) {
-    const pointMaterial = new THREE.PointsMaterial({
-      color: 0x000000,
-      size: 3.5,
-      sizeAttenuation: false
-    });
-
-    const pointCloud = new THREE.Points(selectedObject.geometry, pointMaterial);
-    pointCloud.name = '__VertexPoints';
-    selectedObject.add(pointCloud);
-  }
-
   clearSelection() {
-    const mesh = this.viewportControls.editedObject;
-    if (!mesh) return;
+    if (!this.editedObject) return;
 
-    const existing = mesh.getObjectByName('__SelectedVertex');
-    if (existing) {
-      mesh.remove(existing);
-      if (existing.geometry) existing.geometry.dispose();
-      if (existing.material) existing.material.dispose();
-    }
+    this.editedObject.traverse((child) => {
+      if (child.name === '__SelectedVertex') {
+        child.parent?.remove(child);
+        child.geometry?.dispose();
+        child.material?.dispose();
+      }
+    });
 
     this.selectedPoint = null;
   }

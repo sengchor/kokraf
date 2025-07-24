@@ -57,6 +57,8 @@ export default class SceneManager {
     this.mainScene.uuid = scene.uuid;
     this.mainScene.name = scene.name;
 
+    this.removeEditorOnlyObjects(scene);
+
     while (scene.children.length > 0) {
       this.addObject(scene.children[0]);
     }
@@ -184,6 +186,19 @@ export default class SceneManager {
     if (object.isCamera) {
       delete this.cameraManager.cameras[object.uuid];
       this.signals.cameraRemoved.dispatch(this.cameraManager.cameras);
+    }
+  }
+
+  removeEditorOnlyObjects(scene) {
+    const objectsToRemove = [];
+    scene.traverse((child) => {
+      if (child.userData.isEditorOnly) {
+        objectsToRemove.push(child);
+      }
+    });
+
+    for (const obj of objectsToRemove) {
+      obj.parent?.remove(obj);
     }
   }
 }

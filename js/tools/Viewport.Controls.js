@@ -11,8 +11,8 @@ export default class ViewportControls {
     this.selectionHelper = editor.selectionHelper;
     this.editSelection = editor.editSelection;
     this.sceneManager = editor.sceneManager;
-    this.editedObject = null;
     this.vertexEditor = null;
+    this._originalMaterials = new Map();
 
     this.load();
   }
@@ -85,7 +85,7 @@ export default class ViewportControls {
 
     this.signals.cameraRemoved.add((cameras) => {
       this.resetCameraOption(cameras);
-    })
+    });
   }
 
   resetCameraOption(cameras) {
@@ -114,19 +114,19 @@ export default class ViewportControls {
     this.selectionHelper.enable = true;
     this.signals.viewportShadingChanged.dispatch(this.shadingDropdown.value);
 
-    this.sceneManager.mainScene.traverse((obj) => {
-      if (obj.isMesh && obj.userData.originalMaterial) {
-        obj.material = obj.userData.originalMaterial;
-        delete obj.userData.originalMaterial;
-      }
+    this._originalMaterials.forEach((originalMaterial, obj) => {
+      obj.material = originalMaterial;
+    });
+    this._originalMaterials.clear();
 
+    this.sceneManager.mainScene.traverse((obj) => {
       this.vertexEditor.removeVertexPoints(obj);
     });
 
-    if (this.editedObject) {
-      this.selectionHelper.select(this.editedObject);
+    if (this.editSelection.editedObject) {
       this.editSelection.clearSelection();
-      this.editedObject = null;
+      this.selectionHelper.select(this.editSelection.editedObject);
+      this.editSelection.editedObject = null;
     }
   }
 
@@ -144,8 +144,8 @@ export default class ViewportControls {
 
     this.sceneManager.mainScene.traverse((obj) => {
       if (obj.isMesh) {
-        if (!obj.userData.originalMaterial) {
-          obj.userData.originalMaterial = obj.material;
+        if (!this._originalMaterials.has(obj)) {
+          this._originalMaterials.set(obj, obj.material);
         }
         obj.material = sharedMatcapMaterial;
       }
@@ -162,7 +162,8 @@ export default class ViewportControls {
 
     this.vertexEditor.addVertexPoints(selectedObject);
 
-    this.editedObject = selectedObject;
+    this.editSelection.editedObject = selectedObject;
+    this.editSelection.clearSelection();
     this.selectionHelper.deselect();
   }
 }

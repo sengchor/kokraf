@@ -27,6 +27,8 @@ export class VertexEditor {
     this.positionAttr.setXYZ(index, localPosition.x, localPosition.y, localPosition.z);
     this.positionAttr.needsUpdate = true;
     this.geometry.computeVertexNormals();
+    this.geometry.computeBoundingBox();
+    this.geometry.computeBoundingSphere();
   }
 
   getVertexPosition(index) {
@@ -46,6 +48,7 @@ export class VertexEditor {
     });
 
     const pointCloud = new THREE.Points(geometry, pointMaterial);
+    pointCloud.userData.isEditorOnly = true;
     pointCloud.name = '__VertexPoints';
     selectedObject.add(pointCloud);
   }

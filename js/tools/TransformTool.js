@@ -4,6 +4,7 @@ import { SetPositionCommand } from "../commands/SetPositionCommand.js";
 import { SetRotationCommand } from "../commands/SetRotationCommand.js";
 import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 import { VertexEditor } from './VertexEditor.js';
+import { SetVertexPositionCommand } from '../commands/SetVertexPositionCommand.js';
 
 export class TransformTool {
   constructor(mode, editor) {
@@ -14,7 +15,7 @@ export class TransformTool {
     this.renderer = editor.renderer;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
     this.controls = editor.controlsManager;
-    this.interactionMode = null;
+    this.interactionMode = 'object';
     this._worldPosHelper = new THREE.Vector3();
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
@@ -80,20 +81,20 @@ export class TransformTool {
         this.objectRotationOnDown = object.rotation.clone();
         this.objectScaleOnDown = object.scale.clone();
       } else if (this.interactionMode === 'edit') {
-        this.vertexEditor = new VertexEditor(object.parent);
+        this.objectPositionOnDown = object.getWorldPosition(this._worldPosHelper).clone();
       }
     });
 
     this.transformControls.addEventListener('change', () => {
-      if (!this.transformControls.dragging) return;
+      const object = this.transformControls.object;
+      if (!object) return;
 
       if (this.interactionMode === 'edit') {
         if (this.transformControls.dragging) {
-          const object = this.transformControls.object;
           const index = object.userData.vertexIndex;
-          const worldPos = object.getWorldPosition(this._worldPosHelper);
-          this.vertexEditor = new VertexEditor(object.parent);
-          this.vertexEditor.setVertexWorldPosition(index, worldPos);
+          const objectPosition = object.getWorldPosition(this._worldPosHelper);
+          if (!this.vertexEditor) this.vertexEditor = new VertexEditor(object.parent);
+          this.vertexEditor.setVertexWorldPosition(index, objectPosition);
         }
       }
     });
@@ -121,10 +122,16 @@ export class TransformTool {
             }
         }
       } else if (this.interactionMode === 'edit') {
+        switch (this.mode) {
+          case 'translate':
+            const index = object.userData.vertexIndex;
+            const objectPosition = object.getWorldPosition(this._worldPosHelper).clone();
+            if (!objectPosition.equals(this.objectPositionOnDown)) {
+              this.editor.execute(new SetVertexPositionCommand(this.editor, object.parent, index, objectPosition, this.objectPositionOnDown));
+              break;
+            }
+        }
         this.vertexEditor = null;
-        object.parent.geometry.computeBoundingBox();
-        object.parent.geometry.computeBoundingSphere();
-        object.parent.geometry.computeVertexNormals();
       }
     });
   }
