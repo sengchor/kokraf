@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { MatcapWireframeMaterial } from '../materials/MatcapWireframeMaterial.js';
-import { VertexEditor } from './VertexEditor.js'
+import { VertexEditor } from './VertexEditor.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -151,16 +150,8 @@ export default class ViewportControls {
       }
     });
 
-    const wireframeMaterial = new MatcapWireframeMaterial(matcapTexture, {
-      tintColor: 0xcccccc,
-      wireframeColor: 0x000000,
-      wireframeOpacity: 0
-    });
-
-    this.vertexEditor.applyBarycentricCoordinates(selectedObject);
-    selectedObject.material = wireframeMaterial;
-
     this.vertexEditor.addVertexPoints(selectedObject);
+    //this.vertexEditor.addEdgeLines(selectedObject);
 
     this.editSelection.editedObject = selectedObject;
     this.editSelection.clearSelection();

@@ -82,7 +82,10 @@ export default class Toolbar {
     if (interactionMode === 'object') {
       attachObject = this.selectionHelper.selectedObject;
     } else {
-      attachObject = this.editSelection.selectedPoint;
+      attachObject = this.editSelection.vertexHandle;
+      if (attachObject.visible === false) {
+        attachObject = null;
+      }
     }
 
     if (attachObject && this.activeTool === 'move') {

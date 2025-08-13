@@ -17,6 +17,7 @@ export class TransformTool {
     this.controls = editor.controlsManager;
     this.interactionMode = 'object';
     this._worldPosHelper = new THREE.Vector3();
+    this.editSelection = editor.editSelection;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode(this.mode);
@@ -86,15 +87,35 @@ export class TransformTool {
     });
 
     this.transformControls.addEventListener('change', () => {
-      const object = this.transformControls.object;
-      if (!object) return;
+      const handle = this.transformControls.object;
+      if (!handle) return;
 
-      if (this.interactionMode === 'edit') {
-        if (this.transformControls.dragging) {
-          const index = object.userData.vertexIndex;
-          const objectPosition = object.getWorldPosition(this._worldPosHelper);
-          if (!this.vertexEditor) this.vertexEditor = new VertexEditor(object.parent);
-          this.vertexEditor.setVertexWorldPosition(index, objectPosition);
+      if (this.interactionMode === 'edit' && this.transformControls.dragging) {
+        const vertexIndex = handle.userData.vertexIndex;
+        if (vertexIndex === undefined) return;
+
+        const newWorldPos = handle.getWorldPosition(new THREE.Vector3());
+        const localPos = newWorldPos.clone().applyMatrix4(
+          new THREE.Matrix4().copy(this.editSelection.editedObject.matrixWorld).invert()
+        );
+
+        // Update buffer geometry via VertexEditor
+        if (!this.vertexEditor) this.vertexEditor = new VertexEditor(this.editSelection.editedObject);
+        this.vertexEditor.setVertexWorldPosition(vertexIndex, newWorldPos);
+
+        // Update the logical Vertex in meshData
+        const meshData = this.editSelection.editedObject.userData.meshData;
+        if (meshData && meshData.vertices.has(vertexIndex)) {
+          const vertex = meshData.vertices.get(vertexIndex);
+          vertex.position = { x: localPos.x, y: localPos.y, z: localPos.z };
+        }
+
+        // Update point cloud of editedObject
+        const pointCloud = this.editSelection.editedObject.getObjectByName('__VertexPoints');
+        if (pointCloud) {
+          const posAttr = pointCloud.geometry.getAttribute('position');
+          posAttr.setXYZ(vertexIndex, localPos.x, localPos.y, localPos.z);
+          posAttr.needsUpdate = true;
         }
       }
     });
@@ -127,7 +148,7 @@ export class TransformTool {
             const index = object.userData.vertexIndex;
             const objectPosition = object.getWorldPosition(this._worldPosHelper).clone();
             if (!objectPosition.equals(this.objectPositionOnDown)) {
-              this.editor.execute(new SetVertexPositionCommand(this.editor, object.parent, index, objectPosition, this.objectPositionOnDown));
+              this.editor.execute(new SetVertexPositionCommand(this.editor, this.editSelection.editedObject, index, objectPosition, this.objectPositionOnDown));
               break;
             }
         }
