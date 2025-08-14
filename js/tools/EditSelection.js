@@ -9,11 +9,12 @@ export default class EditSelection {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.editedObject = null;
+    this.sceneManager = editor.sceneManager;
 
     this.vertexHandle = new THREE.Object3D();
     this.vertexHandle.name = '__VertexHandle';
     this.vertexHandle.visible = false;
-    this.editor.sceneManager.sceneEditorHelpers.add(this.vertexHandle);
+    this.sceneManager.sceneEditorHelpers.add(this.vertexHandle);
   }
 
   onMouseSelect(event, renderer, camera) {
@@ -24,7 +25,7 @@ export default class EditSelection {
     this.raycaster.setFromCamera(this.mouse, camera);
 
     // Intersect only with point cloud, not full mesh
-    const vertexPoints = this.editedObject.getObjectByName('__VertexPoints');
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (!vertexPoints) return;
 
     this.raycaster.params.Points.threshold = 0.1;
@@ -47,7 +48,7 @@ export default class EditSelection {
   }
 
   highlightSelectedVertex(vertexId) {
-    const vertexPoints = this.editedObject.getObjectByName('__VertexPoints');
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (!vertexPoints) return;
 
     const colors = vertexPoints.geometry.getAttribute('color');
@@ -68,7 +69,7 @@ export default class EditSelection {
   }
 
   clearSelection() {
-    const vertexPoints = this.editedObject.getObjectByName('__VertexPoints');
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (!vertexPoints) return;
 
     const colors = vertexPoints.geometry.attributes.color;

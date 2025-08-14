@@ -14,7 +14,7 @@ export default class SceneManager {
     this.mainScene = new THREE.Scene();
     this.mainScene.background = new THREE.Color(0x3b3b3b);
 
-    this.sceneEditorHelpers  = new THREE.Scene();
+    this.sceneEditorHelpers = new THREE.Scene();
     this.sceneEditorHelpers.background = null;
 
     this.sceneHelpers = new THREE.Scene();
@@ -46,10 +46,10 @@ export default class SceneManager {
     }
   }
 
-  emptyAllScenes() {
+  async emptyAllScenes() {
     this.emptyScene(this.mainScene);
     this.emptyScene(this.sceneHelpers);
-    Storage.remove('scene');
+    await Storage.remove('scene');
     this.history.clear();
   }
 

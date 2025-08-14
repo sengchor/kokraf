@@ -13,7 +13,8 @@ export class TransformTool {
     this.mode = mode; // 'translate', 'rotate', or 'scale'
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
-    this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
+    this.sceneManager = editor.sceneManager;
+    this.sceneEditorHelpers = this.sceneManager.sceneEditorHelpers;
     this.controls = editor.controlsManager;
     this.interactionMode = 'object';
     this._worldPosHelper = new THREE.Vector3();
@@ -95,28 +96,9 @@ export class TransformTool {
         if (vertexIndex === undefined) return;
 
         const newWorldPos = handle.getWorldPosition(new THREE.Vector3());
-        const localPos = newWorldPos.clone().applyMatrix4(
-          new THREE.Matrix4().copy(this.editSelection.editedObject.matrixWorld).invert()
-        );
 
-        // Update buffer geometry via VertexEditor
-        if (!this.vertexEditor) this.vertexEditor = new VertexEditor(this.editSelection.editedObject);
+        if (!this.vertexEditor) this.vertexEditor = new VertexEditor(this.editor, this.editSelection.editedObject);
         this.vertexEditor.setVertexWorldPosition(vertexIndex, newWorldPos);
-
-        // Update the logical Vertex in meshData
-        const meshData = this.editSelection.editedObject.userData.meshData;
-        if (meshData && meshData.vertices.has(vertexIndex)) {
-          const vertex = meshData.vertices.get(vertexIndex);
-          vertex.position = { x: localPos.x, y: localPos.y, z: localPos.z };
-        }
-
-        // Update point cloud of editedObject
-        const pointCloud = this.editSelection.editedObject.getObjectByName('__VertexPoints');
-        if (pointCloud) {
-          const posAttr = pointCloud.geometry.getAttribute('position');
-          posAttr.setXYZ(vertexIndex, localPos.x, localPos.y, localPos.z);
-          posAttr.needsUpdate = true;
-        }
       }
     });
 

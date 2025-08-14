@@ -11,7 +11,6 @@ export default class ViewportControls {
     this.editSelection = editor.editSelection;
     this.sceneManager = editor.sceneManager;
     this.vertexEditor = null;
-    this._originalMaterials = new Map();
 
     this.load();
   }
@@ -67,7 +66,7 @@ export default class ViewportControls {
           this.enterObjectMode();
           this.signals.modeChanged.dispatch('object');
         } else if (value === 'edit') {
-          this.vertexEditor = new VertexEditor(selectedObject);
+          this.vertexEditor = new VertexEditor(this.editor, selectedObject);
 
           selectionModeBar.classList.remove('hidden');
           this.enterEditMode(selectedObject);
@@ -113,12 +112,7 @@ export default class ViewportControls {
     this.selectionHelper.enable = true;
     this.signals.viewportShadingChanged.dispatch(this.shadingDropdown.value);
 
-    this._originalMaterials.forEach((originalMaterial, obj) => {
-      obj.material = originalMaterial;
-    });
-    this._originalMaterials.clear();
-
-    this.sceneManager.mainScene.traverse((obj) => {
+    this.sceneManager.sceneHelpers.traverse((obj) => {
       this.vertexEditor.removeVertexPoints(obj);
     });
 
@@ -131,27 +125,9 @@ export default class ViewportControls {
 
   enterEditMode(selectedObject) {
     this.selectionHelper.enable = false;
-    this.sceneManager.mainScene.overrideMaterial = null;
-
-    const matcapTexture = new THREE.TextureLoader().load('assets/textures/matcaps/040full.jpg');
-
-    const sharedMatcapMaterial = new THREE.MeshMatcapMaterial({
-      matcap: matcapTexture,
-      color: 0xcccccc,
-      side: THREE.DoubleSide
-    });
-
-    this.sceneManager.mainScene.traverse((obj) => {
-      if (obj.isMesh) {
-        if (!this._originalMaterials.has(obj)) {
-          this._originalMaterials.set(obj, obj.material);
-        }
-        obj.material = sharedMatcapMaterial;
-      }
-    });
 
     this.vertexEditor.addVertexPoints(selectedObject);
-    //this.vertexEditor.addEdgeLines(selectedObject);
+    this.vertexEditor.addEdgeLines(selectedObject);
 
     this.editSelection.editedObject = selectedObject;
     this.editSelection.clearSelection();

@@ -15,22 +15,22 @@ export class ObjectFactory {
       case 'Box': 
         meshData = new MeshData();
 
-        const v0 = meshData.addVertex({ x: 0, y: 0, z: 0 });
-        const v1 = meshData.addVertex({ x: 1, y: 0, z: 0 });
-        const v2 = meshData.addVertex({ x: 1, y: 1, z: 0 });
-        const v3 = meshData.addVertex({ x: 0, y: 1, z: 0 });
+        const v0 = meshData.addVertex({ x: -0.5, y: -0.5, z: -0.5 });
+        const v1 = meshData.addVertex({ x:  0.5, y: -0.5, z: -0.5 });
+        const v2 = meshData.addVertex({ x:  0.5, y:  0.5, z: -0.5 });
+        const v3 = meshData.addVertex({ x: -0.5, y:  0.5, z: -0.5 });
 
-        const v4 = meshData.addVertex({ x: 0, y: 0, z: 1 });
-        const v5 = meshData.addVertex({ x: 1, y: 0, z: 1 });
-        const v6 = meshData.addVertex({ x: 1, y: 1, z: 1 });
-        const v7 = meshData.addVertex({ x: 0, y: 1, z: 1 });
+        const v4 = meshData.addVertex({ x: -0.5, y: -0.5, z:  0.5 });
+        const v5 = meshData.addVertex({ x:  0.5, y: -0.5, z:  0.5 });
+        const v6 = meshData.addVertex({ x:  0.5, y:  0.5, z:  0.5 });
+        const v7 = meshData.addVertex({ x: -0.5, y:  0.5, z:  0.5 });
 
-        meshData.addFace([v0, v1, v2, v3]);
-        meshData.addFace([v5, v4, v7, v6]);
-        meshData.addFace([v4, v0, v3, v7]);
-        meshData.addFace([v1, v5, v6, v2]);
-        meshData.addFace([v3, v2, v6, v7]);
-        meshData.addFace([v4, v5, v1, v0]);
+        meshData.addFace([v3, v2, v1, v0]);
+        meshData.addFace([v4, v5, v6, v7]);
+        meshData.addFace([v0, v4, v7, v3]);
+        meshData.addFace([v2, v6, v5, v1]);
+        meshData.addFace([v3, v7, v6, v2]);
+        meshData.addFace([v1, v5, v4, v0]);
 
         ({ geometry, vertexIndexMap } = meshData.toBufferGeometry());
         break;

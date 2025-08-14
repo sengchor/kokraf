@@ -4,33 +4,49 @@ import { LineMaterial } from 'jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 
 export class VertexEditor {
-  constructor(object3D) {
+  constructor(editor, object3D) {
+    this.editor = editor;
     this.object = object3D;
     this.geometry = object3D.geometry;
     this.positionAttr = this.geometry.attributes.position;
+    this.sceneManager = this.editor.sceneManager;
   }
 
   setVertexWorldPosition(logicalVertexId, worldPosition) {
     if (!this.object || !this.positionAttr) return;
 
+    const meshData = this.object.userData.meshData;
     const vertexIndexMap = this.object.userData.vertexIndexMap;
 
     const localPosition = worldPosition.clone().applyMatrix4(
       new THREE.Matrix4().copy(this.object.matrixWorld).invert()
     );
 
+    // Update buffer geometry positions
     const indices = vertexIndexMap.get(logicalVertexId);
     if (!indices) return;
 
-    // Update all duplicated vertices for this logical vertex
     for (let bufferIndex of indices) {
       this.positionAttr.setXYZ(bufferIndex, localPosition.x, localPosition.y, localPosition.z);
     }
-
     this.positionAttr.needsUpdate = true;
     this.geometry.computeVertexNormals();
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
+
+    // Update logical meshData vertex
+    if (meshData && meshData.vertices.has(logicalVertexId)) {
+      const vertex = meshData.vertices.get(logicalVertexId);
+      vertex.position = { x: localPosition.x, y: localPosition.y, z: localPosition.z };
+    }
+
+    // Update helper __VertexPoints
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
+    if (vertexPoints) {
+      const posAttr = vertexPoints.geometry.getAttribute('position');
+      posAttr.setXYZ(logicalVertexId, localPosition.x, localPosition.y, localPosition.z);
+      posAttr.needsUpdate = true;
+    }
   }
 
   getVertexPosition(logicalVertexId) {
@@ -71,18 +87,20 @@ export class VertexEditor {
       vertexColors: true
     });
 
-    const pointCloud = new THREE.Points(pointGeometry, pointMaterial);
-    pointCloud.userData.isEditorOnly = true;
-    pointCloud.name = '__VertexPoints';
-    selectedObject.add(pointCloud);
+    const vertexPoints = new THREE.Points(pointGeometry, pointMaterial);
+    vertexPoints.renderOrder = 11;
+    vertexPoints.userData.isEditorOnly = true;
+    vertexPoints.name = '__VertexPoints';
+    this.sceneManager.sceneHelpers.add(vertexPoints);
+    vertexPoints.position.copy(selectedObject.getWorldPosition(new THREE.Vector3()));
   }
 
   removeVertexPoints(selectedObject) {
-    const pointCloud = selectedObject.getObjectByName('__VertexPoints');
-    if (pointCloud) {
-      selectedObject.remove(pointCloud);
-      pointCloud.geometry.dispose();
-      pointCloud.material.dispose();
+    const vertexPoints = selectedObject.getObjectByName('__VertexPoints');
+    if (vertexPoints) {
+      selectedObject.remove(vertexPoints);
+      vertexPoints.geometry.dispose();
+      vertexPoints.material.dispose();
     }
   }
   
@@ -100,7 +118,7 @@ export class VertexEditor {
       const linegeometry = new LineSegmentsGeometry().setPositions(positions);
 
       const material = new LineMaterial({
-        color: 0xffff00,
+        color: 0x000000,
         linewidth: 1,
         dashed: false,
         depthTest: true,
@@ -114,7 +132,8 @@ export class VertexEditor {
       line.userData.isEditorOnly = true;
       line.name = '__EdgeLines';
 
-      selectedObject.add(line);
+      this.sceneManager.sceneHelpers.add(line);
+      line.position.copy(selectedObject.getWorldPosition(new THREE.Vector3()));
     }
   }
 }

@@ -25,14 +25,14 @@ export class SetVertexPositionCommand {
   execute() {
     const object = this.editor.objectByUuid(this.objectUuid);
 
-    const vertexEditor = new VertexEditor(object);
+    const vertexEditor = new VertexEditor(this.editor, object);
     vertexEditor.setVertexWorldPosition(this.vertexIndex, this.newPosition);
   }
 
   undo() {
     const object = this.editor.objectByUuid(this.objectUuid);
     
-    const vertexEditor = new VertexEditor(object);
+    const vertexEditor = new VertexEditor(this.editor, object);
     vertexEditor.setVertexWorldPosition(this.vertexIndex, this.oldPosition);
   }
 
