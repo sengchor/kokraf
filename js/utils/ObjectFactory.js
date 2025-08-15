@@ -31,8 +31,6 @@ export class ObjectFactory {
         meshData.addFace([v2, v6, v5, v1]);
         meshData.addFace([v3, v7, v6, v2]);
         meshData.addFace([v1, v5, v4, v0]);
-
-        ({ geometry, vertexIndexMap } = meshData.toBufferGeometry());
         break;
       case 'Capsule': 
         geometry = new THREE.CapsuleGeometry(0.5, 0.5);
@@ -89,6 +87,7 @@ export class ObjectFactory {
       default: return null;
     }
 
+    ({ geometry, vertexIndexMap } = meshData.toBufferGeometry());
     console.log("Indexed:", geometry.index !== null);
     console.log("Vertex count:", geometry.attributes.position.count);
     console.log("Index count:", geometry.index.count);

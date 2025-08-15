@@ -35,8 +35,9 @@ export class VertexEditor {
     this.geometry.computeBoundingSphere();
 
     // Update logical meshData vertex
+    let vertex;
     if (meshData && meshData.vertices.has(logicalVertexId)) {
-      const vertex = meshData.vertices.get(logicalVertexId);
+      vertex = meshData.vertices.get(logicalVertexId);
       vertex.position = { x: localPosition.x, y: localPosition.y, z: localPosition.z };
     }
 
@@ -46,6 +47,19 @@ export class VertexEditor {
       const posAttr = vertexPoints.geometry.getAttribute('position');
       posAttr.setXYZ(logicalVertexId, localPosition.x, localPosition.y, localPosition.z);
       posAttr.needsUpdate = true;
+    }
+
+    // Update helper __EdgeLines
+    const edgeLines = this.getEdgeLineObjects();
+    for (let edge of vertex.edges) {
+      const line = edgeLines.find(line => line.userData.edge === edge);
+      if (!line || !line.geometry) continue;
+
+      const positions = [
+        edge.v1.position.x, edge.v1.position.y, edge.v1.position.z,
+        edge.v2.position.x, edge.v2.position.y, edge.v2.position.z
+      ];
+      line.geometry.setPositions(positions);
     }
   }
 
@@ -95,12 +109,12 @@ export class VertexEditor {
     vertexPoints.position.copy(selectedObject.getWorldPosition(new THREE.Vector3()));
   }
 
-  removeVertexPoints(selectedObject) {
-    const vertexPoints = selectedObject.getObjectByName('__VertexPoints');
+  removeVertexPoints() {
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (vertexPoints) {
-      selectedObject.remove(vertexPoints);
-      vertexPoints.geometry.dispose();
-      vertexPoints.material.dispose();
+      if (vertexPoints.parent) vertexPoints.parent.remove(vertexPoints);
+      if (vertexPoints.geometry) vertexPoints.geometry.dispose();
+      if (vertexPoints.material) vertexPoints.material.dispose();
     }
   }
   
@@ -130,10 +144,33 @@ export class VertexEditor {
       line.renderOrder = 10;
 
       line.userData.isEditorOnly = true;
+      line.userData.edge = edge;
       line.name = '__EdgeLines';
 
       this.sceneManager.sceneHelpers.add(line);
       line.position.copy(selectedObject.getWorldPosition(new THREE.Vector3()));
     }
+  }
+
+  removeEdgeLines() {
+    const edgeLines = this.getEdgeLineObjects();
+
+    for (let obj of edgeLines) {
+      if (obj.parent) obj.parent.remove(obj);
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    }
+  }
+
+  getEdgeLineObjects() {
+    const sceneHelpers = this.sceneManager.sceneHelpers;
+
+    const edgeLines = [];
+    sceneHelpers.traverse((obj) => {
+      if (obj.userData.isEditorOnly && obj.name === '__EdgeLines') {
+        edgeLines.push(obj);
+      }
+    });
+    return edgeLines;
   }
 }

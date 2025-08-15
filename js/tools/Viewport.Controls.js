@@ -9,7 +9,6 @@ export default class ViewportControls {
     this.cameraManager = editor.cameraManager;
     this.selectionHelper = editor.selectionHelper;
     this.editSelection = editor.editSelection;
-    this.sceneManager = editor.sceneManager;
     this.vertexEditor = null;
 
     this.load();
@@ -112,9 +111,8 @@ export default class ViewportControls {
     this.selectionHelper.enable = true;
     this.signals.viewportShadingChanged.dispatch(this.shadingDropdown.value);
 
-    this.sceneManager.sceneHelpers.traverse((obj) => {
-      this.vertexEditor.removeVertexPoints(obj);
-    });
+    this.vertexEditor.removeVertexPoints();
+    this.vertexEditor.removeEdgeLines();
 
     if (this.editSelection.editedObject) {
       this.editSelection.clearSelection();
