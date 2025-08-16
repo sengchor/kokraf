@@ -2,7 +2,7 @@ export default class PanelResizer {
   constructor(editor) {
     this.renderer = editor.renderer;
     this.cameraManager = editor.cameraManager;
-    this.ViewportViewHelper = editor.ViewportViewHelper;
+    this.viewportViewHelper = editor.viewportViewHelper;
 
     this.isRightPanelResizing = false;
     this.isOutlinerResizing = false;
@@ -84,7 +84,7 @@ export default class PanelResizer {
 
     this.renderer.setSize(width, height);
     this.cameraManager.updateAspect(width / height);
-    this.ViewportViewHelper.updatePosition(this.renderer.domElement);
+    this.viewportViewHelper.updatePosition(this.renderer.domElement);
     this.adjustOutlinerHeight();
 
     const rightControls = document.getElementById('right-controls-container');

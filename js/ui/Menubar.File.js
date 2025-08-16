@@ -7,7 +7,7 @@ export class MenubarFile {
     this.signals = editor.signals;
     this.sceneManager = editor.sceneManager;
     this.objectFactory = editor.objectFactory;
-    this.selectionHelper = editor.selectionHelper;
+    this.selection = editor.selection;
     this.toolbar = editor.toolbar;
     this.init(editor);
   }
@@ -48,7 +48,7 @@ export class MenubarFile {
   }
 
   createScene(type) {
-    this.selectionHelper.deselect();
+    this.selection.deselect();
 
     switch (type) {
       case 'empty':
@@ -148,7 +148,7 @@ export class MenubarFile {
   }
 
   exportObject(editor, format) {
-    const object = this.selectionHelper.selectedObject;
+    const object = this.selection.selectedObject;
     const exporter = new Exporter(editor);
 
     if (!object) {

@@ -22,13 +22,13 @@ export class RemoveObjectCommand {
   execute() {
     this.object = this.editor.objectByUuid(this.object.uuid);
     this.editor.sceneManager.removeObject(this.object);
-    this.editor.selectionHelper.deselect();
+    this.editor.selection.deselect();
     this.editor.toolbar.updateTools();
   }
 
   undo() {
     this.editor.sceneManager.addObject(this.object, this.parent, this.index);
-    this.editor.selectionHelper.select(this.object);
+    this.editor.selection.select(this.object);
     this.editor.toolbar.updateTools();
   }
 

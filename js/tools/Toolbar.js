@@ -8,7 +8,7 @@ export default class Toolbar {
     this.canvas = document.getElementById('three-canvas');
     this.renderer = editor.renderer;
     this.camera = editor.cameraManager.camera;
-    this.selectionHelper = editor.selectionHelper;
+    this.selection = editor.selection;
     this.editSelection = editor.editSelection;
     this.activeTool = 'select';
 
@@ -65,7 +65,7 @@ export default class Toolbar {
 
       this.interactionDropdown = document.getElementById('interaction-modes');
       if (this.interactionDropdown.value === 'object') {
-        this.selectionHelper.onMouseSelect(event, this.renderer, this.camera);
+        this.selection.onMouseSelect(event, this.renderer, this.camera);
       } else {
         this.editSelection.onMouseSelect(event, this.renderer, this.camera);
       }
@@ -80,7 +80,7 @@ export default class Toolbar {
     let attachObject = null;
 
     if (interactionMode === 'object') {
-      attachObject = this.selectionHelper.selectedObject;
+      attachObject = this.selection.selectedObject;
     } else {
       attachObject = this.editSelection.vertexHandle;
       if (attachObject.visible === false) {

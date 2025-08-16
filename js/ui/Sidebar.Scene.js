@@ -8,7 +8,7 @@ export class SidebarScene {
     this.panelResizer = editor.panelResizer;
     this.sidebarProperties = new SidebarProperties(editor);
     this.scene = editor.sceneManager.mainScene;
-    this.selectionHelper = editor.selectionHelper;
+    this.selection = editor.selection;
     this.toolbar = editor.toolbar;
     this.outlinerList = document.getElementById('outliner-list')
 
@@ -20,7 +20,7 @@ export class SidebarScene {
     this.outlinerList.addEventListener('click', (event) => {
       const item = event.target.closest('.outliner-item');
       if (!item) {
-        this.selectionHelper.deselect();
+        this.selection.deselect();
         this.toolbar.updateTools();
         return;
       }
@@ -205,7 +205,7 @@ export class SidebarScene {
     const object = this.scene.getObjectByProperty('uuid', uuid);
     if (!object) return;
 
-    this.selectionHelper.select(object);
+    this.selection.select(object);
     this.toolbar.updateTools();
   }
 }

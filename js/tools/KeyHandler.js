@@ -5,7 +5,7 @@ export class KeyHandler {
     this.editor = editor;
     this.signals = editor.signals;
     this.config = editor.config;
-    this.selectionHelper = editor.selectionHelper;
+    this.selection = editor.selection;
     this.shortcuts = null;
     
     this.init();
@@ -37,7 +37,7 @@ export class KeyHandler {
     } else if (event.key === this.shortcuts['focus']) {
       this.signals.objectFocused.dispatch();
     } else if (event.key === 'Delete') {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.selection.selectedObject;
       if (!object) return;
       this.editor.execute(new RemoveObjectCommand(this.editor, object));
     }

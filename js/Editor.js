@@ -56,8 +56,8 @@ export default class Editor {
     this.controlsManager = new ControlsManager(this);
 
     // Helpers
-    this.ViewportViewHelper = new ViewportViewHelper(this);
-    this.selectionHelper = new Selection(this);
+    this.viewportViewHelper = new ViewportViewHelper(this);
+    this.selection = new Selection(this);
     this.editSelection = new EditSelection(this);
     this.keyHandler = new KeyHandler(this);
 
@@ -94,14 +94,14 @@ export default class Editor {
       this.cameraManager.camera = camera;
       this.panelResizer.onWindowResize();
 
-      this.ViewportViewHelper.setVisible(camera.isDefault);
+      this.viewportViewHelper.setVisible(camera.isDefault);
 
-      this.selectionHelper.deselect();
+      this.selection.deselect();
       this.toolbar.updateTools();
     });
     
     this.signals.objectFocused.add(() => {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.selection.selectedObject;
       if (object !== null && this.controlsManager?.focus) {
         this.controlsManager.focus(object);
       }
@@ -118,8 +118,8 @@ export default class Editor {
     const delta = this.clock.getDelta();
 
     this.sceneManager.gridHelper.updateUniforms(this.cameraManager.camera);
-    if (this.selectionHelper.getSelectedObject()) {
-      this.selectionHelper.update();
+    if (this.selection.getSelectedObject()) {
+      this.selection.update();
     }
 
     this.renderer.clearAll();
@@ -128,19 +128,19 @@ export default class Editor {
     this.renderer.render(this.sceneManager.sceneHelpers, this.cameraManager.camera);
     this.renderer.render(this.sceneManager.sceneEditorHelpers, this.cameraManager.camera);
 
-    const viewHelperAnimating = this.ViewportViewHelper.viewHelper.animating;
+    const viewHelperAnimating = this.viewportViewHelper.viewHelper.animating;
     const isDefaultCamera = this.cameraManager.camera.isDefault;
     
     if (viewHelperAnimating) {
       this.controlsManager.disable();
-      this.ViewportViewHelper.update(delta);
+      this.viewportViewHelper.update(delta);
     } else if (!isDefaultCamera) {
       this.controlsManager.disable();
     } else {
       this.controlsManager.enable();
     }
 
-    this.ViewportViewHelper.render();
+    this.viewportViewHelper.render();
   }
 
   async fromJSON(json) {

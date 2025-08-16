@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { VertexEditor } from './VertexEditor.js';
+import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -7,7 +8,7 @@ export default class ViewportControls {
     this.signals = editor.signals;
     this.uiLoader = editor.uiLoader;
     this.cameraManager = editor.cameraManager;
-    this.selectionHelper = editor.selectionHelper;
+    this.selection = editor.selection;
     this.editSelection = editor.editSelection;
     this.vertexEditor = null;
 
@@ -26,7 +27,7 @@ export default class ViewportControls {
     this.cameraDropdown = document.getElementById('cameraDropdown');
     this.shadingDropdown = document.getElementById('shading-modes');
     this.interactionDropdown = document.getElementById('interaction-modes');
-    const selectionModeBar = document.querySelector('.selection-mode');
+    this.selectionModeBar = document.querySelector('.selection-mode');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -51,26 +52,19 @@ export default class ViewportControls {
       let previousMode = this.interactionDropdown.value;
       
       this.interactionDropdown.addEventListener('change', (e) => {
-        const value = e.target.value;
-        const selectedObject = this.selectionHelper.getSelectedObject();
-
-        if (value === 'edit' && !selectedObject) {
+        const newMode = e.target.value;
+        const object = previousMode === 'object'
+          ? this.selection.selectedObject
+          : this.editSelection.editedObject;
+        
+        if (newMode === 'edit' && !object) {
           alert('No object selected. Please select an object.');
           e.target.value = previousMode;
           return;
         }
 
-        if (value === 'object') {
-          selectionModeBar.classList.add('hidden');
-          this.enterObjectMode();
-          this.signals.modeChanged.dispatch('object');
-        } else if (value === 'edit') {
-          this.vertexEditor = new VertexEditor(this.editor, selectedObject);
-
-          selectionModeBar.classList.remove('hidden');
-          this.enterEditMode(selectedObject);
-          this.signals.modeChanged.dispatch('edit');
-        }
+        this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
+        previousMode = newMode;
       });
     }
   }
@@ -108,27 +102,36 @@ export default class ViewportControls {
   }
 
   enterObjectMode() {
-    this.selectionHelper.enable = true;
-    this.signals.viewportShadingChanged.dispatch(this.shadingDropdown.value);
+    this.selection.enable = true;
 
     this.vertexEditor.removeVertexPoints();
     this.vertexEditor.removeEdgeLines();
 
     if (this.editSelection.editedObject) {
       this.editSelection.clearSelection();
-      this.selectionHelper.select(this.editSelection.editedObject);
+      this.selection.select(this.editSelection.editedObject);
       this.editSelection.editedObject = null;
     }
   }
 
   enterEditMode(selectedObject) {
-    this.selectionHelper.enable = false;
+    this.selection.enable = false;
 
+    this.vertexEditor = new VertexEditor(this.editor, selectedObject);
     this.vertexEditor.addVertexPoints(selectedObject);
     this.vertexEditor.addEdgeLines(selectedObject);
 
     this.editSelection.editedObject = selectedObject;
     this.editSelection.clearSelection();
-    this.selectionHelper.deselect();
+    this.selection.deselect();
+  }
+
+  updateModeUI(mode) {
+    if (this.interactionDropdown) {
+      this.interactionDropdown.value = mode;
+    }
+    if (this.selectionModeBar) {
+      this.selectionModeBar.classList.toggle('hidden', mode === 'object');
+    }
   }
 }

@@ -8,7 +8,7 @@ export class MenubarEdit {
   constructor(editor) {
     this.editor = editor;
     this.sceneManager = editor.sceneManager;
-    this.selectionHelper = editor.selectionHelper;
+    this.selection = editor.selection;
     this.init();
   }
 
@@ -23,12 +23,12 @@ export class MenubarEdit {
 
     document.querySelector('.center').addEventListener('click', () => {
       const newPos = new THREE.Vector3(0, 0, 0);
-      const object = this.selectionHelper.selectedObject;
+      const object = this.selection.selectedObject;
       this.editor.execute(new SetPositionCommand(this.editor, object, newPos));
     });
 
     document.querySelector('.clone').addEventListener('click', () => {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.selection.selectedObject;
       if (object) {
         const clone = object.clone(true);
         this.editor.execute(new AddObjectCommand(this.editor, clone));
@@ -36,7 +36,7 @@ export class MenubarEdit {
     });
 
     document.querySelector('.delete').addEventListener('click', () => {
-      const object = this.selectionHelper.selectedObject;
+      const object = this.selection.selectedObject;
       this.editor.execute(new RemoveObjectCommand(this.editor, object));
     });
   }
