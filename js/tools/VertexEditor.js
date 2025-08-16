@@ -106,7 +106,12 @@ export class VertexEditor {
     vertexPoints.userData.isEditorOnly = true;
     vertexPoints.name = '__VertexPoints';
     this.sceneManager.sceneHelpers.add(vertexPoints);
-    vertexPoints.position.copy(selectedObject.getWorldPosition(new THREE.Vector3()));
+    vertexPoints.matrix.copy(selectedObject.matrixWorld);
+    vertexPoints.matrix.decompose(
+      vertexPoints.position,
+      vertexPoints.quaternion,
+      vertexPoints.scale
+    );
   }
 
   removeVertexPoints() {
@@ -148,7 +153,12 @@ export class VertexEditor {
       line.name = '__EdgeLines';
 
       this.sceneManager.sceneHelpers.add(line);
-      line.position.copy(selectedObject.getWorldPosition(new THREE.Vector3()));
+      line.matrix.copy(selectedObject.matrixWorld);
+      line.matrix.decompose(
+        line.position,
+        line.quaternion,
+        line.scale
+      );
     }
   }
 

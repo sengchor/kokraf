@@ -28,7 +28,7 @@ export default class EditSelection {
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (!vertexPoints) return;
 
-    this.raycaster.params.Points.threshold = 0.1;
+    this.raycaster.params.Points.threshold = 0.15;
 
     const intersects = this.raycaster.intersectObject(vertexPoints);
     if (intersects.length === 0) {
