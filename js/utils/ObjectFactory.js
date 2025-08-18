@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MeshData } from '../core/MeshData.js';
+import { MeshDataBuilders } from './MeshDataBuilders.js';
 
 export class ObjectFactory {
   constructor(editor) {
@@ -12,78 +12,27 @@ export class ObjectFactory {
     let vertexIndexMap;
 
     switch (type) {
-      case 'Box': 
-        meshData = new MeshData();
-
-        const v0 = meshData.addVertex({ x: -0.5, y: -0.5, z: -0.5 });
-        const v1 = meshData.addVertex({ x:  0.5, y: -0.5, z: -0.5 });
-        const v2 = meshData.addVertex({ x:  0.5, y:  0.5, z: -0.5 });
-        const v3 = meshData.addVertex({ x: -0.5, y:  0.5, z: -0.5 });
-
-        const v4 = meshData.addVertex({ x: -0.5, y: -0.5, z:  0.5 });
-        const v5 = meshData.addVertex({ x:  0.5, y: -0.5, z:  0.5 });
-        const v6 = meshData.addVertex({ x:  0.5, y:  0.5, z:  0.5 });
-        const v7 = meshData.addVertex({ x: -0.5, y:  0.5, z:  0.5 });
-
-        meshData.addFace([v3, v2, v1, v0]);
-        meshData.addFace([v4, v5, v6, v7]);
-        meshData.addFace([v0, v4, v7, v3]);
-        meshData.addFace([v2, v6, v5, v1]);
-        meshData.addFace([v3, v7, v6, v2]);
-        meshData.addFace([v1, v5, v4, v0]);
+      case 'Plane':
+        meshData = MeshDataBuilders.createPlaneMeshData();
         break;
-      case 'Capsule': 
-        geometry = new THREE.CapsuleGeometry(0.5, 0.5);
+      case 'Cube':
+        meshData = MeshDataBuilders.createCubeMeshData();
         break;
-      case 'Circle': 
-        geometry = new THREE.CircleGeometry(0.75);
+      case 'Circle':
+        meshData = MeshDataBuilders.createCircleMeshData();
         break;
-      case 'Cylinder': 
-        geometry = new THREE.CylinderGeometry(0.5, 0.5);
+      case 'Sphere':
+        meshData = MeshDataBuilders.createSphereMeshData();
         break;
-      case 'Dodecahedron': 
-        geometry = new THREE.DodecahedronGeometry(0.75);
+      case 'Cylinder':
+        meshData = MeshDataBuilders.createCylinderMeshData();
         break;
-      case 'Icosahedron': 
-        geometry = new THREE.IcosahedronGeometry(0.75);
+      case 'Cone':
+        meshData = MeshDataBuilders.createConeMeshData();
         break;
-      case 'Lathe':
-        geometry = new THREE.LatheGeometry([
-          new THREE.Vector2(0, -0.75),
-          new THREE.Vector2(0.75, 0),
-          new THREE.Vector2(0, 0.75)
-        ]);
+      case 'Torus':
+        meshData = MeshDataBuilders.createTorusMeshData();
         break;
-      case 'Octahedron': 
-        geometry = new THREE.OctahedronGeometry(0.75);
-        break;
-      case 'Plane': 
-        geometry = new THREE.PlaneGeometry(1, 1);
-        break;
-      case 'Ring': 
-        geometry = new THREE.RingGeometry(0.4, 0.75);
-        break;
-      case 'Sphere': 
-        geometry = new THREE.SphereGeometry(0.75);
-        break;
-      case 'Tetrahedron': 
-        geometry = new THREE.TetrahedronGeometry(1);
-        break;
-      case 'Torus': 
-        geometry = new THREE.TorusGeometry(0.5, 0.2);
-        break;
-      case 'TorusKnot': 
-        geometry = new THREE.TorusKnotGeometry(0.4, 0.16);
-        break;
-      case 'Tube': {
-        const path = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(-1, 0, 0),
-          new THREE.Vector3(0, 0.5, 0),
-          new THREE.Vector3(1, 0, 0)
-        ]);
-        geometry = new THREE.TubeGeometry(path, 20, 0.2, 8, false);
-        break;
-      }
       default: return null;
     }
 

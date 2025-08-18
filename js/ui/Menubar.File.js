@@ -57,7 +57,7 @@ export class MenubarFile {
         break;
       case 'cube': {
         this.sceneManager.emptyAllScenes();
-        const cube = this.objectFactory.createGeometry('Box');
+        const cube = this.objectFactory.createGeometry('Cube');
         this.sceneManager.addObject(cube);
         this.signals.sceneGraphChanged.dispatch();
         break;
@@ -71,7 +71,7 @@ export class MenubarFile {
       }
       case 'camera': {
         this.sceneManager.emptyAllScenes();
-        const cube = this.objectFactory.createGeometry('Box');
+        const cube = this.objectFactory.createGeometry('Cube');
         this.sceneManager.addObject(cube);
         const camera = this.objectFactory.createCamera('Perspective', this.sceneManager);
         camera.position.set(0, 0, 10);
