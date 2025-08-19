@@ -51,14 +51,20 @@ export class VertexEditor {
 
     // Update helper __EdgeLines
     const edgeLines = this.getEdgeLineObjects();
-    for (let edge of vertex.edges) {
+    for (let edgeId of vertex.edgeIds) {
+      const edge = meshData.edges.get(edgeId);
       const line = edgeLines.find(line => line.userData.edge === edge);
       if (!line || !line.geometry) continue;
 
+      const v1 = meshData.vertices.get(edge.v1Id);
+      const v2 = meshData.vertices.get(edge.v2Id);
+      if (!v1 || !v2) continue;
+
       const positions = [
-        edge.v1.position.x, edge.v1.position.y, edge.v1.position.z,
-        edge.v2.position.x, edge.v2.position.y, edge.v2.position.z
+        v1.position.x, v1.position.y, v1.position.z,
+        v2.position.x, v2.position.y, v2.position.z
       ];
+
       line.geometry.setPositions(positions);
     }
   }
@@ -129,9 +135,12 @@ export class VertexEditor {
     const meshData = selectedObject.userData.meshData;
 
     for (let edge of meshData.edges.values()) {
+      const v1 = meshData.vertices.get(edge.v1Id);
+      const v2 = meshData.vertices.get(edge.v2Id);
+
       const positions = [
-        edge.v1.position.x, edge.v1.position.y, edge.v1.position.z,
-        edge.v2.position.x, edge.v2.position.y, edge.v2.position.z
+        v1.position.x, v1.position.y, v1.position.z,
+        v2.position.x, v2.position.y, v2.position.z
       ];
 
       const linegeometry = new LineSegmentsGeometry().setPositions(positions);

@@ -4,25 +4,25 @@ class Vertex {
   constructor(id, position) {
     this.id = id;
     this.position = position;
-    this.edges = new Set();
-    this.faces = new Set();
+    this.edgeIds = new Set();
+    this.faceIds = new Set();
   }
 }
 
 class Edge {
-  constructor(id, v1, v2) {
+  constructor(id, v1Id, v2Id) {
     this.id = id;
-    this.v1 = v1;
-    this.v2 = v2;
-    this.faces = new Set();
+    this.v1Id = v1Id;
+    this.v2Id = v2Id;
+    this.faceIds = new Set();
   }
 }
 
 class Face {
-  constructor(id, vertices) {
+  constructor(id, vertexIds) {
     this.id = id;
-    this.vertices = vertices;
-    this.edges = new Set();
+    this.vertexIds = vertexIds;
+    this.edgeIds = new Set();
   }
 }
 
@@ -43,33 +43,38 @@ export class MeshData {
   }
 
   addEdge(v1, v2) {
+    // v1 and v2 are Vertex instances passed in
     for (let edge of this.edges.values()) {
-      if ((edge.v1 === v1 && edge.v2 === v2) || (edge.v1 === v2 && edge.v2 === v1)) {
+      if ((edge.v1Id === v1.id && edge.v2Id === v2.id) ||
+          (edge.v1Id === v2.id && edge.v2Id === v1.id)) {
         return edge;
       }
     }
-    const e = new Edge(this.nextEdgeId++, v1, v2);
+    const e = new Edge(this.nextEdgeId++, v1.id, v2.id);
     this.edges.set(e.id, e);
-    v1.edges.add(e);
-    v2.edges.add(e);
+    v1.edgeIds.add(e.id);
+    v2.edgeIds.add(e.id);
     return e;
   }
 
   addFace(vertexArray) {
-    const f = new Face(this.nextFaceId++, vertexArray);
+    const vIds = vertexArray.map(v => v.id);
+    const f = new Face(this.nextFaceId++, vIds);
     this.faces.set(f.id, f);
 
-    const len = vertexArray.length;
+    const len = vIds.length;
     for (let i = 0; i < len; i++) {
-      const v1 = vertexArray[i];
-      const v2 = vertexArray[(i + 1) % len];
+      const v1Id = vIds[i];
+      const v2Id = vIds[(i + 1) % len];
+      const v1 = this.vertices.get(v1Id);
+      const v2 = this.vertices.get(v2Id);
       const e = this.addEdge(v1, v2);
-      f.edges.add(e);
-      e.faces.add(f);
+      f.edgeIds.add(e.id);
+      e.faceIds.add(f.id);
     }
 
-    for (let v of vertexArray) {
-      v.faces.add(f);
+    for (let vId of vIds) {
+      this.vertices.get(vId).faceIds.add(f.id);
     }
 
     return f;
@@ -77,36 +82,26 @@ export class MeshData {
 
   toBufferGeometry() {
     const geometry = new THREE.BufferGeometry();
-
     const positions = [];
     const indices = [];
     let currentIndex = 0;
-
     const vertexIndexMap = new Map();
 
     for (let f of this.faces.values()) {
-      const verts = f.vertices;
+      const verts = f.vertexIds.map(id => this.vertices.get(id));
 
-      // fan triangulation, but duplicate vertices for each corner
       const baseIndex = currentIndex;
-
       for (let v of verts) {
         positions.push(v.position.x, v.position.y, v.position.z);
 
-        if (!vertexIndexMap.has(v.id)) {
-          vertexIndexMap.set(v.id, []);
-        }
+        if (!vertexIndexMap.has(v.id)) vertexIndexMap.set(v.id, []);
         vertexIndexMap.get(v.id).push(currentIndex);
 
         currentIndex++;
       }
 
       for (let i = 1; i < verts.length - 1; i++) {
-        indices.push(
-          baseIndex,
-          baseIndex + i,
-          baseIndex + i + 1
-        );
+        indices.push(baseIndex, baseIndex + i, baseIndex + i + 1);
       }
     }
 
