@@ -37,10 +37,7 @@ export class ObjectFactory {
     }
 
     ({ geometry, vertexIndexMap } = meshData.toBufferGeometry());
-    console.log("Indexed:", geometry.index !== null);
-    console.log("Vertex count:", geometry.attributes.position.count);
-    console.log("Index count:", geometry.index.count);
-
+    
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.userData.meshData = meshData;

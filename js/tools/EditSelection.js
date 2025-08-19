@@ -22,29 +22,25 @@ export default class EditSelection {
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
+    // raycast in helper scene to find candidate vertices
     this.raycaster.setFromCamera(this.mouse, camera);
-
-    // Intersect only with point cloud, not full mesh
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (!vertexPoints) return;
 
     this.raycaster.params.Points.threshold = 0.15;
+    const vertexHits = this.raycaster.intersectObject(vertexPoints);
+    if (vertexHits.length === 0) return this.clearSelection();
 
-    const intersects = this.raycaster.intersectObject(vertexPoints);
-    if (intersects.length === 0) {
-      this.clearSelection();
-      return;
-    }
+    // reverse ray trace for occlusion
+    const frontVertices = this.filterVisibleVertices(vertexHits, vertexPoints, camera);
+    if (frontVertices.length === 0) return this.clearSelection();
 
-    const intersect = intersects[0];
-    const pointIndex = intersect.index;
+    // choose nearest visible vertex in 2D to the click
+    const bestHit = this.pickNearestVertex(frontVertices, camera, rect, vertexPoints);
+    if (!bestHit) return this.clearSelection();
 
-    const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
-    const logicalVertexId = vertexIdAttr.getX(pointIndex);
-
-    this.highlightSelectedVertex(logicalVertexId);
-
-    this.moveVertexHandle(vertexPoints, pointIndex, logicalVertexId);
+    this.highlightSelectedVertex(bestHit.logicalVertexId);
+    this.moveVertexHandle(vertexPoints, bestHit.pointIndex, bestHit.logicalVertexId);
   }
 
   highlightSelectedVertex(vertexId) {
@@ -99,5 +95,74 @@ export default class EditSelection {
     this.vertexHandle.position.copy(worldPos);
     this.vertexHandle.userData.vertexIndex = logicalVertexId;
     this.vertexHandle.visible = true;
+  }
+
+  filterVisibleVertices(vertexHits, vertexPoints, camera) {
+    const mainObjects = this.sceneManager.mainScene.children;
+    const cameraPos = new THREE.Vector3();
+    camera.getWorldPosition(cameraPos);
+
+    const reverseRay = new THREE.Raycaster();
+    const frontVertices = [];
+
+    const posAttr = vertexPoints.geometry.getAttribute('position');
+    const epsilon = 0.001;
+    const occluders = mainObjects.filter(obj => obj !== vertexPoints);
+
+    for (const vh of vertexHits) {
+      const vertexPos = new THREE.Vector3(
+        posAttr.getX(vh.index),
+        posAttr.getY(vh.index),
+        posAttr.getZ(vh.index)
+      ).applyMatrix4(vertexPoints.matrixWorld);
+
+      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, vertexPos).normalize();
+      const rayOrigin = vertexPos.clone().add(dirToCamera.clone().multiplyScalar(epsilon));
+      reverseRay.set(rayOrigin, dirToCamera);
+
+      const hits = reverseRay.intersectObjects(occluders, true);
+      const maxDist = vertexPos.distanceTo(cameraPos);
+      const blocked = hits.some(h => h.distance < maxDist - epsilon);
+
+      if (!blocked) {
+        frontVertices.push({ ...vh, point: vertexPos });
+      }
+    }
+
+    if (frontVertices.length === 0) {
+      this.clearSelection();
+      return frontVertices;
+    }
+    return frontVertices;
+  }
+
+  pickNearestVertex(frontVertices, camera, rect, vertexPoints) {
+    let bestHit = null;
+    let minScreenDistSq = Infinity;
+
+    const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
+
+    const clickX = (this.mouse.x * 0.5 + 0.5) * rect.width;
+    const clickY = (-this.mouse.y * 0.5 + 0.5) * rect.height;
+
+    const screenPos = new THREE.Vector3();
+    frontVertices.forEach(hit => {
+      screenPos.copy(hit.point).project(camera);
+      const sx = (screenPos.x * 0.5 + 0.5) * rect.width;
+      const sy = (-screenPos.y * 0.5 + 0.5) * rect.height;
+
+      const dx = sx - clickX;
+      const dy = sy - clickY;
+      const distPxSq = dx * dx + dy * dy;
+
+      if (distPxSq < minScreenDistSq) {
+        minScreenDistSq = distPxSq;
+        bestHit = {
+          pointIndex: hit.index,
+          logicalVertexId: vertexIdAttr.getX(hit.index)
+        };
+      }
+    });
+    return bestHit;
   }
 }
