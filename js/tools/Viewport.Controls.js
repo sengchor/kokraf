@@ -57,8 +57,8 @@ export default class ViewportControls {
           ? this.selection.selectedObject
           : this.editSelection.editedObject;
         
-        if (newMode === 'edit' && !object) {
-          alert('No object selected. Please select an object.');
+        if (newMode === 'edit' && !(object && object.isMesh)) {
+          alert('No mesh selected. Please select a mesh object.');
           e.target.value = previousMode;
           return;
         }

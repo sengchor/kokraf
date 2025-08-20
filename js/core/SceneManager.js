@@ -70,13 +70,8 @@ export default class SceneManager {
   }
 
   addDemoObjects() {
-    const torus = new THREE.Mesh(
-      new THREE.TorusGeometry(0.5, 0.2, 16, 100),
-      new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide })
-    );
-    torus.position.set(0, 0, 0);
-    torus.name = 'Torus';
-    this.mainScene.add(torus);
+    const cube = this.objectFactory.createGeometry('Cube');
+    this.mainScene.add(cube);
   }
   
   addObject(object, parent, index) {

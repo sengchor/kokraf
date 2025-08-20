@@ -155,19 +155,19 @@ export class MeshDataBuilders {
       const t0 = topRing[i];
       const t1 = topRing[next];
 
-      meshData.addFace([b0, b1, t1, t0]); // quad
+      meshData.addFace([t0, t1, b1, b0]);
     }
 
     // Bottom cap (triangles)
     for (let i = 0; i < radialSegments; i++) {
       const next = (i + 1) % radialSegments;
-      meshData.addFace([bottomCenter, bottomRing[next], bottomRing[i]]);
+      meshData.addFace([bottomRing[i], bottomRing[next], bottomCenter]);
     }
 
     // Top cap (triangles)
     for (let i = 0; i < radialSegments; i++) {
       const next = (i + 1) % radialSegments;
-      meshData.addFace([topCenter, topRing[i], topRing[next]]);
+      meshData.addFace([topRing[next], topRing[i], topCenter]);
     }
 
     return meshData;
@@ -198,13 +198,13 @@ export class MeshDataBuilders {
     // --- Side faces (triangle fan from apex) ---
     for (let i = 0; i < radialSegments; i++) {
       const next = (i + 1) % radialSegments;
-      meshData.addFace([apex, bottomRing[i], bottomRing[next]]);
+      meshData.addFace([bottomRing[next], bottomRing[i], apex]);
     }
 
     // --- Base cap (triangle fan) ---
     for (let i = 0; i < radialSegments; i++) {
       const next = (i + 1) % radialSegments;
-      meshData.addFace([baseCenter, bottomRing[next], bottomRing[i]]);
+      meshData.addFace([bottomRing[i], bottomRing[next], baseCenter]);
     }
 
     return meshData;
@@ -213,10 +213,10 @@ export class MeshDataBuilders {
   static createTorusMeshData() {
     const meshData = new MeshData();
 
-    const radius = 0.5;         // main ring radius
-    const tubeRadius = 0.2;     // thickness of tube
-    const radialSegments = 24;  // around the main ring
-    const tubularSegments = 12; // around the tube
+    const radius = 0.5;
+    const tubeRadius = 0.2;
+    const radialSegments = 24;
+    const tubularSegments = 12;
 
     // --- Create vertices as a 2D grid ---
     const vertices = Array(radialSegments)
@@ -224,21 +224,20 @@ export class MeshDataBuilders {
       .map(() => Array(tubularSegments));
 
     for (let j = 0; j < radialSegments; j++) {
-      const v = (j / radialSegments) * Math.PI * 2; // main ring angle
+      const v = (j / radialSegments) * Math.PI * 2;
       const cosV = Math.cos(v);
       const sinV = Math.sin(v);
 
       for (let i = 0; i < tubularSegments; i++) {
-        const u = (i / tubularSegments) * Math.PI * 2; // tube angle
-
+        const u = (i / tubularSegments) * Math.PI * 2;
         const cosU = Math.cos(u);
         const sinU = Math.sin(u);
 
         const x = (radius + tubeRadius * cosU) * cosV;
-        const y = tubeRadius * sinU; // Y-up
+        const y = tubeRadius * sinU;
         const z = (radius + tubeRadius * cosU) * sinV;
 
-        vertices[j][i] = meshData.addVertex({ x, y, z });
+        vertices[j][i] = meshData.addVertex({ z, y, x });
       }
     }
 
@@ -254,7 +253,7 @@ export class MeshDataBuilders {
         const c = vertices[jNext][iNext];
         const d = vertices[j][iNext];
 
-        meshData.addFace([a, b, c, d]);
+        meshData.addFace([d, c, b, a]);
       }
     }
 
