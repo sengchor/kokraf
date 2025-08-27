@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { quadrangulateGeometry } from '../utils/QuadrangulateGeometry.js';
+import { weldVertices } from '../utils/WeldVertices.js';
 
 class Vertex {
   constructor(id, position) {
@@ -43,7 +45,6 @@ export class MeshData {
   }
 
   addEdge(v1, v2) {
-    // v1 and v2 are Vertex instances passed in
     for (let edge of this.edges.values()) {
       if ((edge.v1Id === v1.id && edge.v2Id === v2.id) ||
           (edge.v1Id === v2.id && edge.v2Id === v1.id)) {
@@ -112,5 +113,27 @@ export class MeshData {
     geometry.computeBoundingSphere();
 
     return { geometry, vertexIndexMap };
+  }
+
+  static fromFBXGeometry(geometry) {
+    geometry = weldVertices(geometry);
+    const { quads, triangles } = quadrangulateGeometry(geometry);
+
+    const meshData = new MeshData();
+    const posAttr = geometry.getAttribute('position');
+    const verts = [];
+    for (let i = 0; i < posAttr.count; i++) {
+      const p = new THREE.Vector3().fromBufferAttribute(posAttr, i);
+      verts.push(meshData.addVertex(p));
+    }
+
+    for (const q of quads) {
+      meshData.addFace([verts[q[0]], verts[q[1]], verts[q[2]], verts[q[3]]]);
+    }
+
+    for (const t of triangles) {
+      meshData.addFace([verts[t[0]], verts[t[1]], verts[t[2]]]);
+    }
+    return meshData;
   }
 }
