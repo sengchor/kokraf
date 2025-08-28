@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { quadrangulateGeometry } from '../utils/QuadrangulateGeometry.js';
 import { weldVertices } from '../utils/WeldVertices.js';
 
 class Vertex {
@@ -117,23 +116,86 @@ export class MeshData {
 
   static fromFBXGeometry(geometry) {
     geometry = weldVertices(geometry);
-    const { quads, triangles } = quadrangulateGeometry(geometry);
+
+    if (!geometry.index) {
+      const count = geometry.getAttribute('position').count;
+      const idx = new Uint32Array(count);
+      for (let i = 0; i < count; i++) idx[i] = i;
+      geometry.setIndex(new THREE.BufferAttribute(idx, 1));
+    }
 
     const meshData = new MeshData();
     const posAttr = geometry.getAttribute('position');
+    const index = geometry.index.array;
+
     const verts = [];
     for (let i = 0; i < posAttr.count; i++) {
       const p = new THREE.Vector3().fromBufferAttribute(posAttr, i);
       verts.push(meshData.addVertex(p));
     }
 
-    for (const q of quads) {
-      meshData.addFace([verts[q[0]], verts[q[1]], verts[q[2]], verts[q[3]]]);
+    for (let i = 0; i < index.length; i += 3) {
+      const v0 = verts[index[i]];
+      const v1 = verts[index[i + 1]];
+      const v2 = verts[index[i + 2]];
+      meshData.addFace([v0, v1, v2]);
     }
 
-    for (const t of triangles) {
-      meshData.addFace([verts[t[0]], verts[t[1]], verts[t[2]]]);
-    }
     return meshData;
+  }
+
+  static fromOBJText(objText) {
+    const lines = objText.split('\n');
+    const objects = [];
+    let current = { name: '', positions: [], faces: [], vertexOffset: 0 };
+
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length === 0) continue;
+
+      switch (parts[0]) {
+        case 'o':
+        case 'g':
+          if (current.faces.length > 0) {
+            objects.push(current);
+            current.vertexOffset += current.positions.length;
+          }
+          current = { 
+            name: parts.slice(1).join(' '), 
+            positions: [], 
+            faces: [], 
+            vertexOffset: current.vertexOffset 
+          };
+          break;
+
+        case 'v':
+          current.positions.push([
+            parseFloat(parts[1]),
+            parseFloat(parts[2]),
+            parseFloat(parts[3])
+          ]);
+          break;
+
+        case 'f':
+          const faceIndices = parts.slice(1).map(token => {
+            const idx = parseInt(token.split('/')[0], 10) - 1 - current.vertexOffset;
+            return idx;
+          });
+          current.faces.push(faceIndices);
+          break;
+      }
+    }
+    
+    if (current.faces.length > 0) objects.push(current);
+
+    return objects.map(obj => {
+      const { positions, faces, name } = obj;
+      const meshData = new MeshData();
+      const verts = positions.map(p => meshData.addVertex(new THREE.Vector3(...p)));
+      for (const face of faces) {
+        meshData.addFace(face.map(i => verts[i]));
+      }
+      return { name, meshData };
+    });
   }
 }

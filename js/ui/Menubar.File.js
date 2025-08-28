@@ -130,12 +130,7 @@ export class MenubarFile {
   importObject(editor) {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = [
-      '.3dm', '.3ds', '3mf', '.amf', '.dae', '.drc', '.fbx',
-      '.glb', '.gltf', '.js', '.json', '.kmz', '.ldr', '.mpd',
-      '.md2', '.obj', '.pcd', '.ply', '.stl', '.svg', '.usdz', '.vox'
-    ].join(',');
-
+    input.accept = '.fbx,.obj';
     input.addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;

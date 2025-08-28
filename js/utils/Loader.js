@@ -92,13 +92,39 @@ export class Loader {
   }
 
   async loadObj(file, reader) {
-    reader.addEventListener('load', async (event) => {
-      const { OBJLoader } = await import('jsm/loaders/OBJLoader.js');
+    reader.addEventListener('load', (event) => {
+      const text = event.target.result;
+      const meshObjects = MeshData.fromOBJText(text);
 
-      const object = new OBJLoader().parse(event.target.result);
-      object.name = file.name;
-      this.editor.execute(new AddObjectCommand(this.editor, object));
+      const meshes = meshObjects.map(({ name, meshData }) => {
+        const { geometry, vertexIndexMap } = meshData.toBufferGeometry();
+        const material = new THREE.MeshStandardMaterial({
+          color: 0xcccccc,
+          metalness: 0.5,
+          roughness: 0.2,
+          side: THREE.DoubleSide
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = name || file.name;
+        mesh.userData.meshData = meshData;
+        mesh.userData.vertexIndexMap = vertexIndexMap;
+        mesh.geometry.computeBoundingSphere();
+        mesh.geometry.computeBoundingBox();
+        return mesh;
+      });
+
+      let finalObject;
+      if (meshes.length === 1) {
+        finalObject = meshes[0];
+      } else {
+        finalObject = new THREE.Group();
+        meshes.forEach(m => finalObject.add(m));
+      }
+
+      this.editor.execute(new AddObjectCommand(this.editor, finalObject));
     });
+
     reader.readAsText(file);
   }
 }
