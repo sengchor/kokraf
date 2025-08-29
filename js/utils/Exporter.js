@@ -42,8 +42,14 @@ export class Exporter {
     const { GLTFExporter } = await import('jsm/exporters/GLTFExporter.js');
 
     const exporter = new GLTFExporter();
+
+    const meshData = object.userData.meshData;
+    const geometry = meshData.toSharedVertexGeometry();
+    const mesh = new THREE.Mesh(geometry, object.material);
+    mesh.name = object.name;
+
     const result = await new Promise((resolve, reject) => {
-      exporter.parse(object, resolve, reject, { binary: true });
+      exporter.parse(mesh, resolve, reject, { binary: true });
     });
 
     const blob = new Blob([result], { type: 'model/gltf-binary' });
@@ -55,8 +61,14 @@ export class Exporter {
     const { GLTFExporter } = await import('jsm/exporters/GLTFExporter.js');
 
     const exporter = new GLTFExporter();
+
+    const meshData = object.userData.meshData;
+    const geometry = meshData.toSharedVertexGeometry();
+    const mesh = new THREE.Mesh(geometry, object.material);
+    mesh.name = object.name;
+
     const result = await new Promise((resolve, reject) => {
-      exporter.parse(object, resolve, reject, { binary: false });
+      exporter.parse(mesh, resolve, reject, { binary: false });
     });
 
     const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'model/gltf+json' });
@@ -65,10 +77,22 @@ export class Exporter {
   }
 
   async exportObj(object) {
-    const { OBJExporter } = await import('jsm/exporters/OBJExporter.js');
+    const meshData = object.userData.meshData;
+    let result = '';
 
-    const exporter = new OBJExporter();
-    const result = exporter.parse(object);
+    const format = (n) => Number(n).toFixed(6);
+    const vertexIdToObjIndex = new Map();
+    
+    let index = 1;
+    for (let v of meshData.vertices.values()) {
+      result += `v ${format(v.position.x)} ${format(v.position.y)} ${format(v.position.z)}\n`;
+      vertexIdToObjIndex.set(v.id, index++);
+    }
+
+    for (let f of meshData.faces.values()) { 
+      const faceIndices = f.vertexIds.map(id => vertexIdToObjIndex.get(id));
+      result += `f ${faceIndices.join(' ')}\n`;
+    }
 
     this.saveFile(result, `${object.name || 'object'}.obj`, 'text/plain');
     console.log('Exported OBJ:', object.name || object.uuid);
@@ -78,7 +102,13 @@ export class Exporter {
     const { STLExporter } = await import('jsm/exporters/STLExporter.js');
 
     const exporter = new STLExporter();
-    const result = exporter.parse(object);
+
+    const meshData = object.userData.meshData;
+    const geometry = meshData.toSharedVertexGeometry();
+    const mesh = new THREE.Mesh(geometry, object.material);
+    mesh.name = object.name;
+
+    const result = exporter.parse(mesh);
 
     this.saveFile(result, `${object.name || 'object'}.stl`, 'text/plain');
     console.log('Exported STL:', object.name || object.uuid);
@@ -88,7 +118,13 @@ export class Exporter {
     const { STLExporter } = await import('jsm/exporters/STLExporter.js');
 
     const exporter = new STLExporter();
-    const result = exporter.parse(object, { binary: true });
+
+    const meshData = object.userData.meshData;
+    const geometry = meshData.toSharedVertexGeometry();
+    const mesh = new THREE.Mesh(geometry, object.material);
+    mesh.name = object.name;
+
+    const result = exporter.parse(mesh, { binary: true });
 
     this.saveFile(result, `${object.name || 'object'}.stl`, 'application/octet-stream');
     console.log('Exported Binary STL:', object.name || object.uuid);
@@ -98,7 +134,13 @@ export class Exporter {
     const { USDZExporter } = await import('jsm/exporters/USDZExporter.js');
 
     const exporter = new USDZExporter();
-    const result = await exporter.parseAsync(object);
+
+    const meshData = object.userData.meshData;
+    const geometry = meshData.toSharedVertexGeometry();
+    const mesh = new THREE.Mesh(geometry, object.material);
+    mesh.name = object.name;
+
+    const result = await exporter.parseAsync(mesh);
 
     this.saveFile(result, `${object.name || 'object'}.usdz`, 'model/vnd.usdz+zip');
     console.log('Exported USDZ:', object.name || object.uuid);

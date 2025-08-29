@@ -36,7 +36,7 @@ export class ObjectFactory {
       default: return null;
     }
 
-    ({ geometry, vertexIndexMap } = meshData.toBufferGeometry());
+    ({ geometry, vertexIndexMap } = meshData.toDuplicatedVertexGeometry());
     
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);

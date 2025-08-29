@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GridHelper } from '../helpers/GridHelper.js';
 import { Storage } from './Storage.js';
+import { MeshData } from './MeshData.js';
 
 export default class SceneManager {
   constructor(editor) {
@@ -54,6 +55,10 @@ export default class SceneManager {
   }
 
   setScene(scene) {
+    scene.traverse(obj => {
+      MeshData.rehydrateMeshData(obj);
+    });
+
     this.mainScene.uuid = scene.uuid;
     this.mainScene.name = scene.name;
 
