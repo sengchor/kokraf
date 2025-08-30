@@ -32,6 +32,7 @@ export class MeshData {
     this.vertices = new Map();
     this.edges = new Map();
     this.faces = new Map();
+    this.vertexIndexMap = new Map();
     this.nextVertexId = 0;
     this.nextEdgeId = 0;
     this.nextFaceId = 0;
@@ -80,14 +81,87 @@ export class MeshData {
     return f;
   }
 
+  toJSON() {
+    return {
+      vertices: Array.from(this.vertices.entries()).map(([id, v]) => [
+        id,
+        {
+          id: v.id,
+          position: v.position,
+          edgeIds: Array.from(v.edgeIds),
+          faceIds: Array.from(v.faceIds)
+        }
+      ]),
+      edges: Array.from(this.edges.entries()).map(([id, e]) => [
+        id,
+        {
+          id: e.id,
+          v1Id: e.v1Id,
+          v2Id: e.v2Id,
+          faceIds: Array.from(e.faceIds)
+        }
+      ]),
+      faces: Array.from(this.faces.entries()).map(([id, f]) => [
+        id,
+        {
+          id: f.id,
+          vertexIds: f.vertexIds,
+          edgeIds: Array.from(f.edgeIds)
+        }
+      ]),
+      vertexIndexMap: Array.from(this.vertexIndexMap.entries()),
+      nextVertexId: this.nextVertexId,
+      nextEdgeId: this.nextEdgeId,
+      nextFaceId: this.nextFaceId
+    };
+  }
+
   static rehydrateMeshData(object) {
     if (object.userData.meshData && !(object.userData.meshData instanceof MeshData)) {
       const raw = object.userData.meshData;
       const meshData = Object.assign(new MeshData(), raw);
 
-      meshData.vertices = new Map(raw.vertices);
-      meshData.edges = new Map(raw.edges);
-      meshData.faces = new Map(raw.faces);
+      if (raw.vertices instanceof Map) {
+        meshData.vertices = raw.vertices;
+      } else if (Array.isArray(raw.vertices)) {
+        meshData.vertices = new Map(
+          raw.vertices.map(([id, v]) => {
+            const vertex = Object.assign(new Vertex(v.id, v.position), v);
+            vertex.edgeIds = new Set(v.edgeIds || []);
+            vertex.faceIds = new Set(v.faceIds || []);
+            return [id, vertex];
+          })
+        );
+      }
+
+      if (raw.edges instanceof Map) {
+        meshData.edges = raw.edges;
+      } else if (Array.isArray(raw.edges)) {
+        meshData.edges = new Map(
+          raw.edges.map(([id, e]) => {
+            const edge = Object.assign(new Edge(e.id, e.v1Id, e.v2Id), e);
+            edge.faceIds = new Set(e.faceIds || []);
+            return [id, edge];
+          })
+        );
+      }
+
+      if (raw.faces instanceof Map) {
+        meshData.faces = raw.faces;
+      } else if (Array.isArray(raw.faces)) {
+        meshData.faces = new Map(
+          raw.faces.map(([id, f]) => {
+            const face = Object.assign(new Face(f.id, f.vertexIds), f);
+            face.edgeIds = new Set(f.edgeIds || []);
+            return [id, face];
+          })
+        );
+      }
+
+      meshData.vertexIndexMap = new Map(raw.vertexIndexMap);
+      meshData.nextVertexId = raw.nextVertexId;
+      meshData.nextEdgeId = raw.nextEdgeId;
+      meshData.nextFaceId = raw.nextFaceId;
 
       object.userData.meshData = meshData;
     }
@@ -102,7 +176,8 @@ export class MeshData {
     const positions = [];
     const indices = [];
     let currentIndex = 0;
-    const vertexIndexMap = new Map();
+    
+    this.vertexIndexMap.clear();
 
     for (let f of this.faces.values()) {
       const verts = f.vertexIds.map(id => this.vertices.get(id));
@@ -111,8 +186,8 @@ export class MeshData {
       for (let v of verts) {
         positions.push(v.position.x, v.position.y, v.position.z);
 
-        if (!vertexIndexMap.has(v.id)) vertexIndexMap.set(v.id, []);
-        vertexIndexMap.get(v.id).push(currentIndex);
+        if (!this.vertexIndexMap.has(v.id)) this.vertexIndexMap.set(v.id, []);
+        this.vertexIndexMap.get(v.id).push(currentIndex);
 
         currentIndex++;
       }
@@ -128,7 +203,7 @@ export class MeshData {
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 
-    return { geometry, vertexIndexMap };
+    return geometry;
   }
 
   static fromFBXGeometry(geometry) {

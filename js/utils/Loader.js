@@ -60,12 +60,11 @@ export class Loader {
           this.applyTransformToGeometry(child);
 
           const meshData = MeshData.fromFBXGeometry(child.geometry);
-          const { geometry, vertexIndexMap } = meshData.toDuplicatedVertexGeometry();
+          const geometry = meshData.toDuplicatedVertexGeometry();
           child.geometry.dispose();
           child.geometry = geometry;
 
           child.userData.meshData = meshData;
-          child.userData.vertexIndexMap = vertexIndexMap;
           
           child.geometry.computeBoundingSphere();
           child.geometry.computeBoundingBox();
@@ -97,7 +96,7 @@ export class Loader {
       const meshObjects = MeshData.fromOBJText(text);
 
       const meshes = meshObjects.map(({ name, meshData }) => {
-        const { geometry, vertexIndexMap } = meshData.toDuplicatedVertexGeometry();
+        const geometry = meshData.toDuplicatedVertexGeometry();
         const material = new THREE.MeshStandardMaterial({
           color: 0xcccccc,
           metalness: 0.5,
@@ -108,7 +107,6 @@ export class Loader {
         const mesh = new THREE.Mesh(geometry, material);
         mesh.name = name || file.name;
         mesh.userData.meshData = meshData;
-        mesh.userData.vertexIndexMap = vertexIndexMap;
         mesh.geometry.computeBoundingSphere();
         mesh.geometry.computeBoundingBox();
         return mesh;

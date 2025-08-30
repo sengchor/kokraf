@@ -16,7 +16,7 @@ export class VertexEditor {
     if (!this.object || !this.positionAttr) return;
 
     const meshData = this.object.userData.meshData;
-    const vertexIndexMap = this.object.userData.vertexIndexMap;
+    const vertexIndexMap = meshData.vertexIndexMap;
 
     const localPosition = worldPosition.clone().applyMatrix4(
       new THREE.Matrix4().copy(this.object.matrixWorld).invert()
@@ -72,7 +72,8 @@ export class VertexEditor {
   getVertexPosition(logicalVertexId) {
     if (!this.object || !this.positionAttr) return null;
 
-    const vertexIndexMap = this.object.userData.vertexIndexMap;
+    const meshData = this.object.userData.meshData;
+    const vertexIndexMap = meshData.vertexIndexMap;
     const indices = vertexIndexMap.get(logicalVertexId);
     if (!indices || indices.length === 0) return null;
 

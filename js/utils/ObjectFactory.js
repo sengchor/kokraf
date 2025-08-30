@@ -9,7 +9,6 @@ export class ObjectFactory {
   createGeometry(type) {
     let geometry;
     let meshData;
-    let vertexIndexMap;
 
     switch (type) {
       case 'Plane':
@@ -36,12 +35,11 @@ export class ObjectFactory {
       default: return null;
     }
 
-    ({ geometry, vertexIndexMap } = meshData.toDuplicatedVertexGeometry());
+    geometry = meshData.toDuplicatedVertexGeometry();
     
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.userData.meshData = meshData;
-    mesh.userData.vertexIndexMap = vertexIndexMap;
     mesh.position.set(0, 0, 0);
     mesh.name = type;
     return mesh;
