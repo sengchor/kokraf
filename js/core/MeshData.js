@@ -261,11 +261,15 @@ export class MeshData {
           break;
 
         case 'v':
-          current.positions.push([
-            parseFloat(parts[1]),
-            parseFloat(parts[2]),
-            parseFloat(parts[3])
-          ]);
+          const x = parseFloat(parts[1]);
+          const y = parseFloat(parts[2]);
+          const z = parseFloat(parts[3]);
+
+          if (!isFinite(x) || !isFinite(y) || !isFinite(z)) {
+            current.positions.push(null);
+          } else {
+            current.positions.push([x, y, z]);
+          }
           break;
 
         case 'f':
@@ -283,9 +287,10 @@ export class MeshData {
     return objects.map(obj => {
       const { positions, faces, name } = obj;
       const meshData = new MeshData();
-      const verts = positions.map(p => meshData.addVertex(new THREE.Vector3(...p)));
+      const verts = positions.map(p => p ? meshData.addVertex(new THREE.Vector3(...p)) : null);
       for (const face of faces) {
-        meshData.addFace(face.map(i => verts[i]));
+        const vertexArray = face.map(i => verts[i]).filter(v => v !== null);
+        if (vertexArray.length >= 3) meshData.addFace(vertexArray);
       }
       return { name, meshData };
     });

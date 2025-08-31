@@ -39,6 +39,7 @@ export default class Editor {
       objectChanged: new Signal(),
 
       historyChanged: new Signal(),
+      emptyScene: new Signal(),
 
       sceneGraphChanged: new Signal(),
       modeChanged: new Signal(),

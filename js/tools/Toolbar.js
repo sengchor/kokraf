@@ -31,6 +31,10 @@ export default class Toolbar {
     this.signals.modeChanged.add((newMode) => {
       this.updateTools();
     });
+
+    this.signals.emptyScene.add(() => {
+      this.disableTools();
+    });
   }
 
   setupToolbarButtons(container) {
@@ -101,9 +105,13 @@ export default class Toolbar {
       this.moveTool.disable();
       this.rotateTool.disable();
     } else {
-      this.moveTool.disable();
-      this.rotateTool.disable();
-      this.scaleTool.disable();
+      this.disableTools();
     }
+  }
+
+  disableTools() {
+    this.moveTool.disable();
+    this.rotateTool.disable();
+    this.scaleTool.disable();
   }
 }

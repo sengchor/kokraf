@@ -49,4 +49,9 @@ export default class CameraManager {
     this.cameras = this.cameras || {};
     this.cameras[newUuid] = this.camera;
   }
+
+  resetCamera() {
+    const defaultCam = this.createDefaultCamera();
+    this.setCamera(defaultCam);
+  }
 }

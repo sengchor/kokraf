@@ -48,6 +48,9 @@ export default class SceneManager {
   }
 
   async emptyAllScenes() {
+    this.cameraManager.resetCamera();
+    this.signals.emptyScene.dispatch();
+
     this.emptyScene(this.mainScene);
     this.emptyScene(this.sceneHelpers);
     await Storage.remove('scene');

@@ -1,5 +1,6 @@
 export default class PanelResizer {
   constructor(editor) {
+    this.signals = editor.signals;
     this.renderer = editor.renderer;
     this.cameraManager = editor.cameraManager;
     this.viewportViewHelper = editor.viewportViewHelper;
@@ -8,6 +9,13 @@ export default class PanelResizer {
     this.isOutlinerResizing = false;
 
     window.addEventListener('resize', this.onWindowResize.bind(this));
+    this.setupListeners();
+  }
+
+  setupListeners() {
+    this.signals.emptyScene.add(() => {
+      this.onWindowResize();
+    });
   }
 
   initRightPanelResizer() {

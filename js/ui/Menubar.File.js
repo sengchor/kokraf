@@ -98,6 +98,7 @@ export class MenubarFile {
         const json = JSON.parse(text);
 
         editor.fromJSON(json);
+        requestAnimationFrame(() => editor.panelResizer.onWindowResize());
 
         console.log(`Project loaded: ${file.name}`);
       } catch (e) {

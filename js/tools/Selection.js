@@ -20,6 +20,14 @@ export default class Selection {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.enable = true;
+
+    this.setupListeners();
+  }
+
+  setupListeners() {
+    this.signals.emptyScene.add(() => {
+      this.deselect();
+    });
   }
 
   onMouseSelect(event, renderer, camera) {
