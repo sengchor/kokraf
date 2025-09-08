@@ -18,6 +18,7 @@ import Sidebar from './ui/Sidebar.js';
 import Config from './core/Config.js';
 import { Storage } from './core/Storage.js';
 import EditSelection from './tools/EditSelection.js';
+import ContextMenu from './ui/ContextMenu.js';
 
 export default class Editor {
   constructor() {
@@ -65,6 +66,7 @@ export default class Editor {
     // UI
     this.uiLoader = new UIComponentsLoader();
     this.panelResizer = new PanelResizer(this);
+    this.contextMenu = new ContextMenu(this);
 
     this.clock = new THREE.Clock();
 
