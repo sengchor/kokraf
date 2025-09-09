@@ -40,6 +40,7 @@ export class ObjectFactory {
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.userData.meshData = meshData;
+    mesh.userData.shading = 'flat';
     mesh.position.set(0, 0, 0);
     mesh.name = type;
     return mesh;

@@ -149,13 +149,12 @@ export default class Editor {
   async fromJSON(json) {
     const loader = new THREE.ObjectLoader();
 
-    this.sceneManager.emptyAllScenes();
     const scene = await loader.parseAsync(json.scene);
     this.sceneManager.setScene(scene);
 
     const camera = await loader.parseAsync(json.camera);
     this.cameraManager.setCamera(camera);
-
+    
     if (this.config.get('history')) {
       this.history.fromJSON(json.history);
     }

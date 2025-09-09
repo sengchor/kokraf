@@ -85,6 +85,10 @@ export default class SceneManager {
   addObject(object, parent, index) {
     if (!object) return;
 
+    if (object.userData.meshData && !(object.userData.meshData instanceof MeshData)) {
+      MeshData.rehydrateMeshData(object);
+    }
+
     if (parent === undefined) {
       this.mainScene.add(object);
     } else {

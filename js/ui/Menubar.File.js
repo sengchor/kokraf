@@ -97,6 +97,7 @@ export class MenubarFile {
         const text = await file.text();
         const json = JSON.parse(text);
 
+        this.sceneManager.emptyAllScenes();
         editor.fromJSON(json);
         requestAnimationFrame(() => editor.panelResizer.onWindowResize());
 

@@ -206,6 +206,47 @@ export class MeshData {
     return geometry;
   }
 
+  toSharedVertexGeometry() {
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const indices = [];
+
+    const vertexIdToIndex = new Map();
+    let currentIndex = 0;
+
+    for (let v of this.vertices.values()) {
+      positions.push(v.position.x, v.position.y, v.position.z);
+      vertexIdToIndex.set(v.id, currentIndex++);
+    }
+
+    for (let f of this.faces.values()) {
+      const vIds = f.vertexIds;
+      if (vIds.length === 3) {
+        indices.push(
+          vertexIdToIndex.get(vIds[0]),
+          vertexIdToIndex.get(vIds[1]),
+          vertexIdToIndex.get(vIds[2])
+        );
+      } else {
+        for (let i = 1; i < vIds.length - 1; i++) {
+          indices.push(
+            vertexIdToIndex.get(vIds[0]),
+            vertexIdToIndex.get(vIds[i]),
+            vertexIdToIndex.get(vIds[i + 1])
+          );
+        }
+      }
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(indices);
+    geometry.deleteAttribute('normal');
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+
+    return geometry;
+  }
+
   static fromFBXGeometry(geometry) {
     geometry = weldVertices(geometry);
 
@@ -294,46 +335,5 @@ export class MeshData {
       }
       return { name, meshData };
     });
-  }
-
-  toSharedVertexGeometry() {
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const indices = [];
-
-    const vertexIdToIndex = new Map();
-    let currentIndex = 0;
-
-    for (let v of this.vertices.values()) {
-      positions.push(v.position.x, v.position.y, v.position.z);
-      vertexIdToIndex.set(v.id, currentIndex++);
-    }
-
-    for (let f of this.faces.values()) {
-      const vIds = f.vertexIds;
-      if (vIds.length === 3) {
-        indices.push(
-          vertexIdToIndex.get(vIds[0]),
-          vertexIdToIndex.get(vIds[1]),
-          vertexIdToIndex.get(vIds[2])
-        );
-      } else {
-        for (let i = 1; i < vIds.length - 1; i++) {
-          indices.push(
-            vertexIdToIndex.get(vIds[0]),
-            vertexIdToIndex.get(vIds[i]),
-            vertexIdToIndex.get(vIds[i + 1])
-          );
-        }
-      }
-    }
-    
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setIndex(indices);
-    geometry.deleteAttribute('normal');
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-
-    return geometry;
   }
 }

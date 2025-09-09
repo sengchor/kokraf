@@ -1,7 +1,12 @@
+import * as THREE from 'three';
+import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
+import { SetShadingCommand } from "../commands/SetShadingCommand.js";
+
 export default class ContextMenu {
   constructor( editor ) {
     this.editor = editor;
     this.uiLoader = editor.uiLoader;
+    this.selection = editor.selection;
     this.menuEl = null;
 
     this.load();
@@ -63,14 +68,28 @@ export default class ContextMenu {
   }
 
   handleAction(action) {
-    if (action === 'shade-smooth') {
-      console.log('Smooth shading applied');
-    } else if (action === 'shade-flat') {
-      console.log('Flat shading applied');
-    } else if (action === 'delete') {
-      console.log('Delete applied');
-    } else {
-      console.log('Unknown action:', action);
+    const object = this.selection.selectedObject;
+    if (!object) return;
+
+    if (action === 'delete') {
+      this.editor.execute(new RemoveObjectCommand(this.editor, object));
+      return;
     }
+
+    if (action === 'shade-smooth' || action === 'shade-flat') {
+      if (!(object instanceof THREE.Mesh)) {
+        return;
+      }
+
+      const currentShading = object.userData.shading;
+      if (action === 'shade-smooth' && currentShading !== 'smooth') {
+        this.editor.execute(new SetShadingCommand(this.editor, object, 'smooth', currentShading));
+      } else if (action === 'shade-flat' && currentShading !== 'flat') {
+        this.editor.execute(new SetShadingCommand(this.editor, object, 'flat', currentShading));
+      }
+      return;
+    }
+
+    console.log('Invalid action:', action);
   }
 }
