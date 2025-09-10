@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ShadingUtils } from "../utils/ShadingUtils.js";
 
 export class Exporter {
   constructor(editor) {
@@ -44,7 +45,8 @@ export class Exporter {
     const exporter = new GLTFExporter();
 
     const meshData = object.userData.meshData;
-    const geometry = meshData.toSharedVertexGeometry();
+    const shading = object.userData.shading;
+    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
     const mesh = new THREE.Mesh(geometry, object.material);
     mesh.name = object.name;
 
@@ -63,7 +65,8 @@ export class Exporter {
     const exporter = new GLTFExporter();
 
     const meshData = object.userData.meshData;
-    const geometry = meshData.toSharedVertexGeometry();
+    const shading = object.userData.shading;
+    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
     const mesh = new THREE.Mesh(geometry, object.material);
     mesh.name = object.name;
 
@@ -78,20 +81,65 @@ export class Exporter {
 
   async exportObj(object) {
     const meshData = object.userData.meshData;
+    const shading = object.userData.shading;
     let result = '';
 
     const format = (n) => Number(n).toFixed(6);
     const vertexIdToObjIndex = new Map();
+    const normalIndexMap = new Map();
     
     let index = 1;
+    let normalIndex = 1;
+
+    // Write vertex positions
     for (let v of meshData.vertices.values()) {
       result += `v ${format(v.position.x)} ${format(v.position.y)} ${format(v.position.z)}\n`;
       vertexIdToObjIndex.set(v.id, index++);
     }
 
+    // Compute normals depending on shading mode
+    if (shading === "smooth") {
+      const vertNormals = meshData.computePerVertexNormals();
+
+      for (const [vid, n] of vertNormals) {
+        result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
+        normalIndexMap.set(vid, normalIndex++);
+      }
+    } else if (shading === "flat") {
+      const faceNormals = meshData.computeFaceNormals();
+
+      for (let [fid, n] of faceNormals) {
+        result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
+        normalIndexMap.set(fid, normalIndex++);
+      }
+    }
+
+    // Add smoothing group flag
+    if (shading === "smooth") {
+      result += "s 1\n";
+    } else if (shading === "flat") {
+      result += "s off\n";
+    }
+
+    // Write faces
     for (let f of meshData.faces.values()) { 
-      const faceIndices = f.vertexIds.map(id => vertexIdToObjIndex.get(id));
-      result += `f ${faceIndices.join(' ')}\n`;
+      let faceLine = "f";
+
+      if (shading === "smooth") {
+        for (let vId of f.vertexIds) {
+          const vIdx = vertexIdToObjIndex.get(vId);
+          const nIdx = normalIndexMap.get(vId);
+          faceLine += ` ${vIdx}//${nIdx}`;
+        }
+      } else if (shading === "flat") {
+        const nIdx = normalIndexMap.get(f.id);
+        for (let vId of f.vertexIds) {
+          const vIdx = vertexIdToObjIndex.get(vId);
+          faceLine += ` ${vIdx}//${nIdx}`;
+        }
+      }
+
+      result += faceLine + "\n";
     }
 
     this.saveFile(result, `${object.name || 'object'}.obj`, 'text/plain');
@@ -104,7 +152,8 @@ export class Exporter {
     const exporter = new STLExporter();
 
     const meshData = object.userData.meshData;
-    const geometry = meshData.toSharedVertexGeometry();
+    const shading = object.userData.shading;
+    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
     const mesh = new THREE.Mesh(geometry, object.material);
     mesh.name = object.name;
 
@@ -120,7 +169,8 @@ export class Exporter {
     const exporter = new STLExporter();
 
     const meshData = object.userData.meshData;
-    const geometry = meshData.toSharedVertexGeometry();
+    const shading = object.userData.shading;
+    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
     const mesh = new THREE.Mesh(geometry, object.material);
     mesh.name = object.name;
 
@@ -136,7 +186,8 @@ export class Exporter {
     const exporter = new USDZExporter();
 
     const meshData = object.userData.meshData;
-    const geometry = meshData.toSharedVertexGeometry();
+    const shading = object.userData.shading;
+    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
     const mesh = new THREE.Mesh(geometry, object.material);
     mesh.name = object.name;
 

@@ -132,7 +132,7 @@ export class MenubarFile {
   importObject(editor) {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.fbx,.obj';
+    input.accept = '.obj';
     input.addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;

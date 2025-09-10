@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { weldVertices } from '../utils/WeldVertices.js';
 
 class Vertex {
   constructor(id, position) {
@@ -211,12 +210,16 @@ export class MeshData {
     const positions = [];
     const indices = [];
 
+    this.vertexIndexMap.clear();
     const vertexIdToIndex = new Map();
     let currentIndex = 0;
 
     for (let v of this.vertices.values()) {
       positions.push(v.position.x, v.position.y, v.position.z);
-      vertexIdToIndex.set(v.id, currentIndex++);
+      vertexIdToIndex.set(v.id, currentIndex);
+
+      this.vertexIndexMap.set(v.id, [currentIndex]);
+      currentIndex++;
     }
 
     for (let f of this.faces.values()) {
@@ -240,41 +243,11 @@ export class MeshData {
     
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(indices);
-    geometry.deleteAttribute('normal');
+    geometry.computeVertexNormals();
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 
     return geometry;
-  }
-
-  static fromFBXGeometry(geometry) {
-    geometry = weldVertices(geometry);
-
-    if (!geometry.index) {
-      const count = geometry.getAttribute('position').count;
-      const idx = new Uint32Array(count);
-      for (let i = 0; i < count; i++) idx[i] = i;
-      geometry.setIndex(new THREE.BufferAttribute(idx, 1));
-    }
-
-    const meshData = new MeshData();
-    const posAttr = geometry.getAttribute('position');
-    const index = geometry.index.array;
-
-    const verts = [];
-    for (let i = 0; i < posAttr.count; i++) {
-      const p = new THREE.Vector3().fromBufferAttribute(posAttr, i);
-      verts.push(meshData.addVertex(p));
-    }
-
-    for (let i = 0; i < index.length; i += 3) {
-      const v0 = verts[index[i]];
-      const v1 = verts[index[i + 1]];
-      const v2 = verts[index[i + 2]];
-      meshData.addFace([v0, v1, v2]);
-    }
-
-    return meshData;
   }
 
   static fromOBJText(objText) {
@@ -335,5 +308,66 @@ export class MeshData {
       }
       return { name, meshData };
     });
+  }
+
+  computePerVertexNormals() {
+    const normals = new Map();
+
+    for (const [vid, v] of this.vertices) {
+      normals.set(vid, new THREE.Vector3(0, 0, 0));
+    }
+
+    for (const [, f] of this.faces) {
+      const vIds = f.vertexIds;
+      if (vIds.length < 3) continue;
+
+      const p0 = this.vertices.get(vIds[0]).position;
+      const p1 = this.vertices.get(vIds[1]).position;
+      const p2 = this.vertices.get(vIds[2]).position;
+
+      const e1 = new THREE.Vector3().subVectors(p1, p0);
+      const e2 = new THREE.Vector3().subVectors(p2, p0);
+      const faceNormal = new THREE.Vector3().crossVectors(e1, e2);
+
+      if (faceNormal.lengthSq() === 0) continue;
+      faceNormal.normalize();
+
+      for (const vid of vIds) {
+        normals.get(vid).add(faceNormal);
+      }
+    }
+
+    for (const [vid, n] of normals) {
+      if (n.lengthSq() === 0) n.set(0, 0, 1);
+      else n.normalize();
+    }
+
+    return normals;
+  }
+
+  computeFaceNormals() {
+    const faceNormals = new Map();
+
+    for (let [fid, f] of this.faces) {
+      if (f.vertexIds.length < 3) continue;
+
+      const v0 = this.vertices.get(f.vertexIds[0]).position;
+      const v1 = this.vertices.get(f.vertexIds[1]).position;
+      const v2 = this.vertices.get(f.vertexIds[2]).position;
+
+      const edge1 = new THREE.Vector3().subVectors(v1, v0);
+      const edge2 = new THREE.Vector3().subVectors(v2, v0);
+      const normal = new THREE.Vector3().crossVectors(edge1, edge2);
+
+      if (normal.lengthSq() === 0) {
+        normal.set(0, 0, 1);
+      } else {
+        normal.normalize();
+      }
+
+      faceNormals.set(fid, normal);
+    }
+
+    return faceNormals;
   }
 }
