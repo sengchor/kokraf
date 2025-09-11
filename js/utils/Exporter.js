@@ -112,14 +112,21 @@ export class Exporter {
         result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
         normalIndexMap.set(fid, normalIndex++);
       }
+    } else if (shading === "auto") {
+      const fvNormals = meshData.computeVertexNormalsWithAngle();
+
+      for (const [key, n] of fvNormals) {
+        result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
+        normalIndexMap.set(key, normalIndex++);
+      }
     }
 
     // Add smoothing group flag
-    if (shading === "smooth") {
+    if (shading === "smooth" || shading === "auto") {
       result += "s 1\n";
     } else if (shading === "flat") {
       result += "s off\n";
-    }
+    } 
 
     // Write faces
     for (let f of meshData.faces.values()) { 
@@ -135,6 +142,12 @@ export class Exporter {
         const nIdx = normalIndexMap.get(f.id);
         for (let vId of f.vertexIds) {
           const vIdx = vertexIdToObjIndex.get(vId);
+          faceLine += ` ${vIdx}//${nIdx}`;
+        }
+      } else if (shading === "auto") {
+        for (let vId of f.vertexIds) {
+          const vIdx = vertexIdToObjIndex.get(vId);
+          const nIdx = normalIndexMap.get(`${f.id}_${vId}`);
           faceLine += ` ${vIdx}//${nIdx}`;
         }
       }

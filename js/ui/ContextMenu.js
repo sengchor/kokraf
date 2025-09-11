@@ -76,7 +76,7 @@ export default class ContextMenu {
       return;
     }
 
-    if (action === 'shade-smooth' || action === 'shade-flat') {
+    if (action === 'shade-smooth' || action === 'shade-flat' || action === 'shade-auto') {
       if (!(object instanceof THREE.Mesh)) {
         return;
       }
@@ -86,6 +86,8 @@ export default class ContextMenu {
         this.editor.execute(new SetShadingCommand(this.editor, object, 'smooth', currentShading));
       } else if (action === 'shade-flat' && currentShading !== 'flat') {
         this.editor.execute(new SetShadingCommand(this.editor, object, 'flat', currentShading));
+      } else if (action === 'shade-auto' && currentShading !== 'auto') {
+        this.editor.execute(new SetShadingCommand(this.editor, object, 'auto', currentShading));
       }
       return;
     }

@@ -6,8 +6,8 @@ export class SetShadingCommand {
   /**
    * @param {Editor} editor
    * @param {THREE.Object3D|null} object
-   * @param {"flat"|"smooth"|"null"} newMode
-   * @param {"flat"|"smooth"|null} optionalOldMode
+   * @param {"flat"|"smooth"|"auto"|"null"} newMode
+   * @param {"flat"|"smooth"|"auto"|"null"} optionalOldMode
    * @constructor 
    */
   constructor(editor, object = null, newMode = null, optionalOldMode = null) {

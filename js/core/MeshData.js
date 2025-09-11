@@ -250,6 +250,56 @@ export class MeshData {
     return geometry;
   }
 
+  toAngleBasedGeometry(angleDegree = 60) {
+    const threshold = Math.cos(THREE.MathUtils.degToRad(angleDegree));
+
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const indices = [];
+    this.vertexIndexMap.clear();
+
+    const faceNormals = this.computeFaceNormals();
+
+    const vertexGroups = new Map();
+    let currentIndex = 0;
+
+    for (let f of this.faces.values()) {
+      const faceVerts = f.vertexIds.map(id => this.vertices.get(id));
+      const faceNormal = faceNormals.get(f.id);
+
+      const faceIndices = [];
+
+      for (let v of faceVerts) {
+        if (!vertexGroups.has(v.id)) vertexGroups.set(v.id, []);
+
+        let group = vertexGroups.get(v.id).find(g => g.normal.dot(faceNormal) >= threshold);
+
+        if (!group) {
+          positions.push(v.position.x, v.position.y, v.position.z);
+          group = { normal: faceNormal.clone(), index: currentIndex++ };
+          vertexGroups.get(v.id).push(group);
+        }
+
+        if (!this.vertexIndexMap.has(v.id)) this.vertexIndexMap.set(v.id, []);
+        this.vertexIndexMap.get(v.id).push(group.index);
+
+        faceIndices.push(group.index);
+      }
+
+      for (let i = 1; i < faceIndices.length - 1; i++) {
+        indices.push(faceIndices[0], faceIndices[i], faceIndices[i + 1]);
+      }
+    }
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+
+    return geometry;
+  }
+
   static fromOBJText(objText) {
     const lines = objText.split('\n');
     const objects = [];
@@ -369,5 +419,50 @@ export class MeshData {
     }
 
     return faceNormals;
+  }
+
+  computeVertexNormalsWithAngle(angleDeg = 60) {
+    const angleLimit = THREE.MathUtils.degToRad(angleDeg);
+    const cosLimit = Math.cos(angleLimit);
+
+    const faceNormals = this.computeFaceNormals();
+    const result = new Map();
+
+    // Build adjacency: vertex → faces
+    const vertexToFaces = new Map();
+    for (const [fid, f] of this.faces) {
+      for (const vid of f.vertexIds) {
+        if (!vertexToFaces.has(vid)) vertexToFaces.set(vid, []);
+        vertexToFaces.get(vid).push(fid);
+      }
+    }
+
+    // For each vertex, check connected faces
+    for (const [vid, faceIds] of vertexToFaces) {
+      for (const fid of faceIds) {
+        const baseNormal = faceNormals.get(fid);
+        const avgNormal = new THREE.Vector3();
+        let count = 0;
+
+        // Compare this face normal with all other faces at the vertex
+        for (const otherFid of faceIds) {
+          const otherNormal = faceNormals.get(otherFid);
+          if (!otherNormal) continue;
+
+          const dot = baseNormal.dot(otherNormal);
+          if (dot >= cosLimit) {
+            avgNormal.add(otherNormal);
+            count++;
+          }
+        }
+
+        if (count > 0) avgNormal.divideScalar(count).normalize();
+        else avgNormal.copy(baseNormal);
+
+        result.set(`${fid}_${vid}`, avgNormal);
+      }
+    }
+
+    return result;
   }
 }
