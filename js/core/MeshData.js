@@ -224,20 +224,12 @@ export class MeshData {
 
     for (let f of this.faces.values()) {
       const vIds = f.vertexIds;
-      if (vIds.length === 3) {
+      for (let i = 1; i < vIds.length - 1; i++) {
         indices.push(
           vertexIdToIndex.get(vIds[0]),
-          vertexIdToIndex.get(vIds[1]),
-          vertexIdToIndex.get(vIds[2])
+          vertexIdToIndex.get(vIds[i]),
+          vertexIdToIndex.get(vIds[i + 1])
         );
-      } else {
-        for (let i = 1; i < vIds.length - 1; i++) {
-          indices.push(
-            vertexIdToIndex.get(vIds[0]),
-            vertexIdToIndex.get(vIds[i]),
-            vertexIdToIndex.get(vIds[i + 1])
-          );
-        }
       }
     }
     
@@ -260,32 +252,90 @@ export class MeshData {
 
     const faceNormals = this.computeFaceNormals();
 
+    // --- 1. Build edgeKey -> faceIds from existing edges ---
+    const edgeToFaces = new Map();
+    for (let e of this.edges.values()) {
+      const edgeKey = e.v1Id < e.v2Id ? `${e.v1Id}_${e.v2Id}` : `${e.v2Id}_${e.v1Id}`;
+      edgeToFaces.set(edgeKey, Array.from(e.faceIds));
+    }
+
+    // --- 2. Mark smooth vs sharp edges ---
+    const smoothEdges = new Set();
+    for (let [edgeKey, faces] of edgeToFaces) {
+      if (faces.length === 2) {
+        const [f1, f2] = faces;
+        const n1 = faceNormals.get(f1);
+        const n2 = faceNormals.get(f2);
+        if (n1.dot(n2) >= threshold) {
+          smoothEdges.add(edgeKey);
+        }
+      }
+    }
+
+    // --- 3. Build smoothing groups per vertex ---
     const vertexGroups = new Map();
     let currentIndex = 0;
 
-    for (let f of this.faces.values()) {
-      const faceVerts = f.vertexIds.map(id => this.vertices.get(id));
-      const faceNormal = faceNormals.get(f.id);
+    const getOrCreateGroup = (vId, faceId) => {
+      if (!vertexGroups.has(vId)) vertexGroups.set(vId, []);
 
+      for (let g of vertexGroups.get(vId)) {
+        if (g.connectedFaces.has(faceId)) return g;
+      }
+
+      const v = this.vertices.get(vId);
+      positions.push(v.position.x, v.position.y, v.position.z);
+
+      const group = {
+        index: currentIndex++,
+        faces: new Set([faceId]),
+        connectedFaces: new Set([faceId])
+      };
+      vertexGroups.get(vId).push(group);
+
+      return group;
+    };
+
+    // --- 4. Assign vertex indices using smoothing groups ---
+    for (let f of this.faces.values()) {
+      const verts = f.vertexIds;
       const faceIndices = [];
 
-      for (let v of faceVerts) {
-        if (!vertexGroups.has(v.id)) vertexGroups.set(v.id, []);
+      for (let vId of verts) {
+        let group = null;
 
-        let group = vertexGroups.get(v.id).find(g => g.normal.dot(faceNormal) >= threshold);
+        // Check adjacent faces via smooth edges
+        for (let i = 0; i < verts.length; i++) {
+          const v1 = verts[i];
+          const v2 = verts[(i + 1) % verts.length];
+          if (v1 !== vId && v2 !== vId) continue;
 
-        if (!group) {
-          positions.push(v.position.x, v.position.y, v.position.z);
-          group = { normal: faceNormal.clone(), index: currentIndex++ };
-          vertexGroups.get(v.id).push(group);
+          const edgeKey = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
+          if (smoothEdges.has(edgeKey)) {
+            const neighborFaces = edgeToFaces.get(edgeKey);
+            for (let nf of neighborFaces) {
+              if (nf !== f.id) {
+                const groups = vertexGroups.get(vId) || [];
+                group = groups.find(g => g.faces.has(nf));
+                if (group) break;
+              }
+            }
+          }
+          if (group) break;
         }
 
-        if (!this.vertexIndexMap.has(v.id)) this.vertexIndexMap.set(v.id, []);
-        this.vertexIndexMap.get(v.id).push(group.index);
+        if (!group) group = getOrCreateGroup(vId, f.id);
+
+        group.faces.add(f.id);
+        group.connectedFaces.add(f.id);
+
+        if (!this.vertexIndexMap.has(vId)) this.vertexIndexMap.set(vId, []);
+        this.vertexIndexMap.get(vId).push(group.index);
 
         faceIndices.push(group.index);
       }
 
+      // Triangulate face
       for (let i = 1; i < faceIndices.length - 1; i++) {
         indices.push(faceIndices[0], faceIndices[i], faceIndices[i + 1]);
       }
@@ -437,29 +487,53 @@ export class MeshData {
       }
     }
 
-    // For each vertex, check connected faces
+    // Build face adjacency through edges
+    const edgeToFaces = new Map();
+    for (let e of this.edges.values()) {
+      const edgeKey = e.v1Id < e.v2Id ? `${e.v1Id}_${e.v2Id}` : `${e.v2Id}_${e.v1Id}`;
+      edgeToFaces.set(edgeKey, Array.from(e.faceIds));
+    }
+
+    // For each vertex, flood-fill connected faces into smoothing groups
     for (const [vid, faceIds] of vertexToFaces) {
-      for (const fid of faceIds) {
-        const baseNormal = faceNormals.get(fid);
+      const unvisited = new Set(faceIds);
+      while (unvisited.size > 0) {
+        const groupFaces = [];
+        const stack = [unvisited.values().next().value];
         const avgNormal = new THREE.Vector3();
-        let count = 0;
 
-        // Compare this face normal with all other faces at the vertex
-        for (const otherFid of faceIds) {
-          const otherNormal = faceNormals.get(otherFid);
-          if (!otherNormal) continue;
+        while (stack.length > 0) {
+          const fid = stack.pop();
+          if (!unvisited.has(fid)) continue;
+          unvisited.delete(fid);
 
-          const dot = baseNormal.dot(otherNormal);
-          if (dot >= cosLimit) {
-            avgNormal.add(otherNormal);
-            count++;
+          const fn = faceNormals.get(fid);
+          groupFaces.push(fid);
+          avgNormal.add(fn);
+
+          // Explore neighbors of fid around vid
+          const face = this.faces.get(fid);
+          for (let i = 0; i < face.vertexIds.length; i++) {
+            const v1 = face.vertexIds[i];
+            const v2 = face.vertexIds[(i + 1) % face.vertexIds.length];
+            if (v1 !== vid && v2 !== vid) continue;
+
+            const edgeKey = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
+            const neighbors = edgeToFaces.get(edgeKey) || [];
+            for (const nf of neighbors) {
+              if (unvisited.has(nf)) {
+                const dot = fn.dot(faceNormals.get(nf));
+                if (dot >= cosLimit) stack.push(nf);
+              }
+            }
           }
         }
 
-        if (count > 0) avgNormal.divideScalar(count).normalize();
-        else avgNormal.copy(baseNormal);
-
-        result.set(`${fid}_${vid}`, avgNormal);
+        // Finalize average normal for this group
+        avgNormal.normalize();
+        for (const fid of groupFaces) {
+          result.set(`${fid}_${vid}`, avgNormal.clone());
+        }
       }
     }
 

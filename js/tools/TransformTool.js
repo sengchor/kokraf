@@ -5,6 +5,7 @@ import { SetRotationCommand } from "../commands/SetRotationCommand.js";
 import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 import { VertexEditor } from './VertexEditor.js';
 import { SetVertexPositionCommand } from '../commands/SetVertexPositionCommand.js';
+import { ShadingUtils } from '../utils/ShadingUtils.js';
 
 export class TransformTool {
   constructor(mode, editor) {
@@ -128,9 +129,14 @@ export class TransformTool {
         switch (this.mode) {
           case 'translate':
             const index = object.userData.vertexIndex;
+            const editedObject = this.editSelection.editedObject;
+            if (editedObject.userData.shading === 'auto') {
+              ShadingUtils.applyShading(editedObject, 'auto');
+            }
+            
             const objectPosition = object.getWorldPosition(this._worldPosHelper).clone();
             if (!objectPosition.equals(this.objectPositionOnDown)) {
-              this.editor.execute(new SetVertexPositionCommand(this.editor, this.editSelection.editedObject, index, objectPosition, this.objectPositionOnDown));
+              this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, index, objectPosition, this.objectPositionOnDown));
               break;
             }
         }
