@@ -7,42 +7,42 @@ export class SetVertexPositionCommand {
   /**
    * @param {Editor} editor
    * @param {THREE.Object3D|null} object
-   * @param {number|null} vertexIndex
-   * @param {THREE.Vector3|null} newPosition
-   * @param {THREE.Vector3|null} oldPosition
+   * @param {number|null} vertexIndices
+   * @param {THREE.Vector3|null} newPositions
+   * @param {THREE.Vector3|null} oldPositions
    */
-  constructor(editor, object = null, vertexIndex = null, newPosition = null, oldPosition = null) {
+  constructor(editor, object = null, vertexIndices = null, newPositions = null, oldPositions = null) {
     this.editor = editor;
     this.name = 'Set Vertex Position';
 
     this.objectUuid = object ? object.uuid : null;
-    this.vertexIndex = vertexIndex;
+    this.vertexIndices = Array.isArray(vertexIndices) ? vertexIndices : [];
 
-    this.newPosition = newPosition ? newPosition.clone() : new THREE.Vector3();
-    this.oldPosition = oldPosition ? oldPosition.clone() : new THREE.Vector3();
+    this.newPositions = Array.isArray(newPositions) ? newPositions.map(p => p.clone()) : [];
+    this.oldPositions = Array.isArray(oldPositions) ? oldPositions.map(p => p.clone()) : [];
   }
 
   execute() {
     const object = this.editor.objectByUuid(this.objectUuid);
 
     const vertexEditor = new VertexEditor(this.editor, object);
-    vertexEditor.setVertexWorldPosition(this.vertexIndex, this.newPosition);
+    vertexEditor.setVerticesWorldPositions(this.vertexIndices, this.newPositions);
   }
 
   undo() {
     const object = this.editor.objectByUuid(this.objectUuid);
     
     const vertexEditor = new VertexEditor(this.editor, object);
-    vertexEditor.setVertexWorldPosition(this.vertexIndex, this.oldPosition);
+    vertexEditor.setVerticesWorldPositions(this.vertexIndices, this.oldPositions);
   }
 
   toJSON() {
     return {
       type: SetVertexPositionCommand.type,
       objectUuid: this.objectUuid,
-      vertexIndex: this.vertexIndex,
-      newPosition: this.newPosition.toArray(),
-      oldPosition: this.oldPosition.toArray()
+      vertexIndices: this.vertexIndices,
+      newPositions: this.newPositions.map(p => p.toArray()),
+      oldPositions: this.oldPositions.map(p => p.toArray())
     };
   }
 
@@ -52,9 +52,9 @@ export class SetVertexPositionCommand {
     const command = new SetVertexPositionCommand(editor);
 
     command.objectUuid = json.objectUuid;
-    command.vertexIndex = json.vertexIndex;
-    command.newPosition = new THREE.Vector3().fromArray(json.newPosition);
-    command.oldPosition = new THREE.Vector3().fromArray(json.oldPosition);
+    command.vertexIndices = json.vertexIndices || [];
+    command.newPositions = (json.newPositions || []).map(arr => new THREE.Vector3().fromArray(arr));
+    command.oldPositions = (json.oldPositions || []).map(arr => new THREE.Vector3().fromArray(arr));
 
     return command;
   }

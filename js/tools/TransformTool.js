@@ -85,6 +85,14 @@ export class TransformTool {
         this.objectScaleOnDown = object.scale.clone();
       } else if (this.interactionMode === 'edit') {
         this.objectPositionOnDown = object.getWorldPosition(this._worldPosHelper).clone();
+
+        // Save old vertex positions
+        const indices = object.userData.vertexIndices || [];
+        const editedObject = this.editSelection.editedObject;
+        if (editedObject) {
+          const vertexEditor = new VertexEditor(this.editor, editedObject);
+          this.oldPositions = vertexEditor.getVertexPositions(indices);
+        }
       }
     });
 
@@ -93,13 +101,19 @@ export class TransformTool {
       if (!handle) return;
 
       if (this.interactionMode === 'edit' && this.transformControls.dragging) {
-        const vertexIndex = handle.userData.vertexIndex;
-        if (vertexIndex === undefined) return;
+        const indices = handle.userData.vertexIndices;
+        if (!indices || indices.length === 0) return;
+        if (!this.objectPositionOnDown || !this.oldPositions) return;
 
-        const newWorldPos = handle.getWorldPosition(new THREE.Vector3());
+        const currentPosition = handle.getWorldPosition(new THREE.Vector3());
+        const offset = new THREE.Vector3().subVectors(currentPosition, this.objectPositionOnDown);
+        
+        if (!this.vertexEditor) {
+          this.vertexEditor = new VertexEditor(this.editor, this.editSelection.editedObject);
+        }
 
-        if (!this.vertexEditor) this.vertexEditor = new VertexEditor(this.editor, this.editSelection.editedObject);
-        this.vertexEditor.setVertexWorldPosition(vertexIndex, newWorldPos);
+        const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
+        this.vertexEditor.setVerticesWorldPositions(indices, newPositions);
       }
     });
 
@@ -128,19 +142,24 @@ export class TransformTool {
       } else if (this.interactionMode === 'edit') {
         switch (this.mode) {
           case 'translate':
-            const index = object.userData.vertexIndex;
+            const indices = object.userData.vertexIndices;
             const editedObject = this.editSelection.editedObject;
             if (editedObject.userData.shading === 'auto') {
               ShadingUtils.applyShading(editedObject, 'auto');
             }
             
-            const objectPosition = object.getWorldPosition(this._worldPosHelper).clone();
-            if (!objectPosition.equals(this.objectPositionOnDown)) {
-              this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, index, objectPosition, this.objectPositionOnDown));
-              break;
+            const currentPosition = object.getWorldPosition(this._worldPosHelper).clone();
+            const offset = new THREE.Vector3().subVectors(currentPosition, this.objectPositionOnDown);
+            
+            if (!offset.equals(new THREE.Vector3(0, 0, 0))) {
+              const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
+
+              this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, indices, newPositions, this.oldPositions));
             }
+            break;
         }
         this.vertexEditor = null;
+        this.oldPositions = null;
       }
     });
   }

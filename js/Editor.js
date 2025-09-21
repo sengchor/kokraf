@@ -44,6 +44,7 @@ export default class Editor {
 
       sceneGraphChanged: new Signal(),
       modeChanged: new Signal(),
+      multiSelectChanged: new Signal(),
     }
 
     this.helpers = {};

@@ -15,6 +15,16 @@ export default class EditSelection {
     this.vertexHandle.name = '__VertexHandle';
     this.vertexHandle.visible = false;
     this.sceneManager.sceneEditorHelpers.add(this.vertexHandle);
+
+    this.multiSelectEnabled = false;
+    this.selectedVertexIds = new Set();
+    this.setupListeners();
+  }
+
+  setupListeners() {
+    this.signals.multiSelectChanged.add((shiftChanged) => {
+      this.multiSelectEnabled = shiftChanged;
+    });
   }
 
   onMouseSelect(event, renderer, camera) {
@@ -40,7 +50,7 @@ export default class EditSelection {
     if (!bestHit) return this.clearSelection();
 
     this.highlightSelectedVertex(bestHit.logicalVertexId);
-    this.moveVertexHandle(vertexPoints, bestHit.pointIndex, bestHit.logicalVertexId);
+    this.moveVertexHandle(vertexPoints);
   }
 
   highlightSelectedVertex(vertexId) {
@@ -50,14 +60,22 @@ export default class EditSelection {
     const colors = vertexPoints.geometry.getAttribute('color');
     const ids = vertexPoints.geometry.getAttribute('vertexId');
 
-    for (let i = 0; i < colors.count; i++) {
-      colors.setXYZ(i, 0, 0, 0);
+    if (this.multiSelectEnabled) {
+      if (this.selectedVertexIds.has(vertexId)) {
+        this.selectedVertexIds.delete(vertexId);
+      } else {
+        this.selectedVertexIds.add(vertexId);
+      }
+    } else {
+      this.selectedVertexIds.clear();
+      this.selectedVertexIds.add(vertexId);
     }
 
     for (let i = 0; i < ids.count; i++) {
-      if (ids.getX(i) === vertexId) {
+      if (this.selectedVertexIds.has(ids.getX(i))) {
         colors.setXYZ(i, 1, 1, 1);
-        break;
+      } else {
+        colors.setXYZ(i, 0, 0, 0);
       }
     }
 
@@ -69,32 +87,50 @@ export default class EditSelection {
     if (!vertexPoints) return;
 
     const colors = vertexPoints.geometry.attributes.color;
-    const count = colors.count;
-
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < colors.count; i++) {
       colors.setXYZ(i, 0, 0, 0);
     }
-
     colors.needsUpdate = true;
-    this.selectedVertexId = null;
+
+    this.selectedVertexIds.clear();
     this.vertexHandle.visible = false;
   }
 
-  moveVertexHandle(vertexPoints, pointIndex, logicalVertexId) {
+  moveVertexHandle(vertexPoints) {
     if (!this.vertexHandle) return;
 
     const posAttr = vertexPoints.geometry.getAttribute('position');
-    const localPos = new THREE.Vector3(
-      posAttr.getX(pointIndex),
-      posAttr.getY(pointIndex),
-      posAttr.getZ(pointIndex)
-    );
+    const ids = vertexPoints.geometry.getAttribute('vertexId');
 
-    const worldPos = localPos.clone().applyMatrix4(vertexPoints.matrixWorld);
+    const worldPos = new THREE.Vector3();
+    const sum = new THREE.Vector3();
+    let count = 0;
+    const selectedIndices = [];
 
-    this.vertexHandle.position.copy(worldPos);
-    this.vertexHandle.userData.vertexIndex = logicalVertexId;
-    this.vertexHandle.visible = true;
+    for (let i = 0; i < ids.count; i++) {
+      const vId = ids.getX(i);
+      if (this.selectedVertexIds.has(vId)) {
+        const localPos = new THREE.Vector3(
+          posAttr.getX(i),
+          posAttr.getY(i),
+          posAttr.getZ(i)
+        );
+        worldPos.copy(localPos).applyMatrix4(vertexPoints.matrixWorld);
+        sum.add(worldPos);
+        count++;
+        selectedIndices.push(vId);
+      }
+    }
+    
+    if (count > 0) {
+      sum.divideScalar(count);
+      this.vertexHandle.position.copy(sum);
+      this.vertexHandle.visible = true;
+      this.vertexHandle.userData.vertexIndices = selectedIndices;
+    } else {
+      this.vertexHandle.visible = false;
+      this.vertexHandle.userData.vertexIndices = [];
+    }
   }
 
   filterVisibleVertices(vertexHits, vertexPoints, camera) {

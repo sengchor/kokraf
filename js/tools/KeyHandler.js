@@ -16,7 +16,9 @@ export class KeyHandler {
     this.shortcuts = this.config.get('shortcuts');
 
     this.onKeyDown = this.onKeyDown.bind(this);
+    this.onKeyUp = this.onKeyUp.bind(this);
     window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('keyup', this.onKeyUp);
   }
 
   onKeyDown(event) {
@@ -40,6 +42,14 @@ export class KeyHandler {
       const object = this.selection.selectedObject;
       if (!object) return;
       this.editor.execute(new RemoveObjectCommand(this.editor, object));
+    } else if (event.key === 'Shift') {
+      this.signals.multiSelectChanged.dispatch(true);
+    }
+  }
+
+  onKeyUp(event) {
+    if (event.key === 'Shift') {
+      this.signals.multiSelectChanged.dispatch(false);
     }
   }
 

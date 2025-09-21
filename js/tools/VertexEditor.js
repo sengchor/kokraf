@@ -69,6 +69,14 @@ export class VertexEditor {
     }
   }
 
+  setVerticesWorldPositions(logicalVertexIds, worldPositions) {
+    if (!this.object || !this.positionAttr) return;
+
+    for (let i = 0; i < logicalVertexIds.length; i++) {
+      this.setVertexWorldPosition(logicalVertexIds[i], worldPositions[i]);
+    }
+  }
+
   getVertexPosition(logicalVertexId) {
     if (!this.object || !this.positionAttr) return null;
 
@@ -83,6 +91,21 @@ export class VertexEditor {
 
     const worldPos = localPos.clone().applyMatrix4(this.object.matrixWorld);
     return worldPos;
+  }
+
+  getVertexPositions(vertexIds) {
+    const positions = [];
+
+    if (!this.object || !this.positionAttr || !vertexIds || vertexIds.length === 0) {
+      return positions;
+    }
+
+    for (let vId of vertexIds) {
+      const pos = this.getVertexPosition(vId);
+      if (pos) positions.push(pos.clone());
+    }
+
+    return positions;
   }
 
   addVertexPoints(selectedObject) {
