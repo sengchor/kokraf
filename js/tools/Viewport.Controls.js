@@ -13,6 +13,7 @@ export default class ViewportControls {
     this.vertexEditor = null;
 
     this.load();
+    this.setupBeforeUnload();
   }
 
   load() {
@@ -20,6 +21,18 @@ export default class ViewportControls {
       this.setupViewportControls();
       this.setupListeners();
       this.resetCameraOption(this.cameraManager.cameras)
+    });
+  }
+
+  setupBeforeUnload() {
+    window.addEventListener('beforeunload', () => {
+      this.interactionDropdown= document.getElementById('interaction-modes');
+      if (this.interactionDropdown && this.interactionDropdown.value === 'edit') {
+        const object = this.editSelection.editedObject;
+        const newMode = 'object';
+        const previousMode = 'edit';
+        this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
+      }
     });
   }
 
