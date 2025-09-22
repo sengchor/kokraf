@@ -76,6 +76,6 @@ export class History {
     }).filter(Boolean);
     
     this.undos = revive(json.undos);
-    this.redos = [];
+    this.redos = revive(json.redos);
   }
 }

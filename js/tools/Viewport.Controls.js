@@ -11,9 +11,9 @@ export default class ViewportControls {
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
     this.vertexEditor = null;
+    this.currentMode = 'object';
 
     this.load();
-    this.setupBeforeUnload();
   }
 
   load() {
@@ -21,18 +21,6 @@ export default class ViewportControls {
       this.setupViewportControls();
       this.setupListeners();
       this.resetCameraOption(this.cameraManager.cameras)
-    });
-  }
-
-  setupBeforeUnload() {
-    window.addEventListener('beforeunload', () => {
-      this.interactionDropdown= document.getElementById('interaction-modes');
-      if (this.interactionDropdown && this.interactionDropdown.value === 'edit') {
-        const object = this.editSelection.editedObject;
-        const newMode = 'object';
-        const previousMode = 'edit';
-        this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
-      }
     });
   }
 
@@ -62,22 +50,24 @@ export default class ViewportControls {
     }
 
     if (this.interactionDropdown) {
-      let previousMode = this.interactionDropdown.value;
+      this.currentMode = this.interactionDropdown.value;
       
       this.interactionDropdown.addEventListener('change', (e) => {
         const newMode = e.target.value;
+        const previousMode = this.currentMode;
+
         const object = previousMode === 'object'
           ? this.selection.selectedObject
           : this.editSelection.editedObject;
         
         if (newMode === 'edit' && !(object && object.isMesh)) {
           alert('No mesh selected. Please select a mesh object.');
-          e.target.value = previousMode;
+          e.target.value = this.currentMode;
           return;
         }
 
         this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
-        previousMode = newMode;
+        this.currentMode = newMode;
       });
     }
   }
@@ -117,8 +107,10 @@ export default class ViewportControls {
   enterObjectMode() {
     this.selection.enable = true;
 
-    this.vertexEditor.removeVertexPoints();
-    this.vertexEditor.removeEdgeLines();
+    if (this.vertexEditor) {
+      this.vertexEditor.removeVertexPoints();
+      this.vertexEditor.removeEdgeLines();
+    }
 
     if (this.editSelection.editedObject) {
       this.editSelection.clearSelection();
@@ -140,11 +132,36 @@ export default class ViewportControls {
   }
 
   updateModeUI(mode) {
+    this.currentMode = mode;
+
     if (this.interactionDropdown) {
       this.interactionDropdown.value = mode;
     }
     if (this.selectionModeBar) {
       this.selectionModeBar.classList.toggle('hidden', mode === 'object');
+    }
+  }
+
+  toJSON() {
+    return {
+      mode: this.interactionDropdown?.value || 'object',
+      editedObjectUuid: this.editSelection.editedObject?.uuid || null
+    };
+  }
+
+  fromJSON(json) {
+    const mode = json.mode;
+    const uuid = json.editedObjectUuid;
+
+    if (mode === 'edit' && uuid) {
+      const object = this.editor.objectByUuid(uuid);
+
+      if (object && object.isMesh) {
+        this.selection.select(object);
+        this.enterEditMode(object);
+        this.updateModeUI('edit');
+        this.signals.modeChanged.dispatch('edit');
+      }
     }
   }
 }

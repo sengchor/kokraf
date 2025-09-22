@@ -75,18 +75,19 @@ export default class Editor {
   }
 
   async init() {
+    this.viewportControls = new ViewportControls(this);  
+    this.toolbar = new Toolbar(this);
+    this.menubar = new Menubar(this);
+
     const saved = await Storage.get('scene');
     if (saved) {
-      await this.fromJSON(saved);
+      this.fromJSON(saved);
     } else {
       this.sceneManager.addAmbientLight(0xffffff, 0.5);
       this.sceneManager.addDemoObjects();
     }
     this.sceneManager.sceneEditorHelpers.add(this.sceneManager.gridHelper);
-    
-    this.viewportControls = new ViewportControls(this);
-    this.toolbar = new Toolbar(this);
-    this.menubar = new Menubar(this);
+
     this.sidebar = new Sidebar(this);
     
     this.setupListeners();
@@ -155,7 +156,8 @@ export default class Editor {
 
     const camera = await loader.parseAsync(json.camera);
     this.cameraManager.setCamera(camera);
-    
+
+    this.viewportControls.fromJSON(json.viewportControls);
     if (this.config.get('history')) {
       this.history.fromJSON(json.history);
     }
@@ -170,6 +172,7 @@ export default class Editor {
       },
       scene: this.sceneManager.mainScene.toJSON(),
       camera: this.cameraManager.camera.toJSON(),
+      viewportControls: this.viewportControls.toJSON(),
     };
 
     if (this.config.get('history')) {
