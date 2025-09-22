@@ -48,6 +48,10 @@ export class VertexEditor {
       posAttr.setXYZ(logicalVertexId, localPosition.x, localPosition.y, localPosition.z);
       posAttr.needsUpdate = true;
     }
+    if (vertexPoints && vertexPoints.geometry) {
+      vertexPoints.geometry.computeBoundingBox();
+      vertexPoints.geometry.computeBoundingSphere();
+    }
 
     // Update helper __EdgeLines
     const edgeLines = this.getEdgeLineObjects();

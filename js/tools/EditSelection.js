@@ -80,17 +80,49 @@ export default class EditSelection {
     }
 
     colors.needsUpdate = true;
+
+    this.highlightSelectedEdges();
+  }
+
+  highlightSelectedEdges() {
+    const edges = [];
+    this.sceneManager.sceneHelpers.traverse(obj => {
+      if (obj.name === '__EdgeLines' && obj.userData.edge) {
+        edges.push(obj);
+      }
+    });
+
+    for (let edgeLine of edges) {
+      const { edge } = edgeLine.userData;
+      const bothSelected = this.selectedVertexIds.has(edge.v1Id) && this.selectedVertexIds.has(edge.v2Id);
+
+      const material = edgeLine.material;
+      if (bothSelected) {
+        material.color.set(0xffffff);
+      } else {
+        material.color.set(0x000000);
+      }
+      material.needsUpdate = true;
+    }
   }
 
   clearSelection() {
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (!vertexPoints) return;
-
-    const colors = vertexPoints.geometry.attributes.color;
-    for (let i = 0; i < colors.count; i++) {
-      colors.setXYZ(i, 0, 0, 0);
+    if (vertexPoints) {
+      const colors = vertexPoints.geometry.attributes.color;
+      for (let i = 0; i < colors.count; i++) {
+        colors.setXYZ(i, 0, 0, 0);
+      }
+      colors.needsUpdate = true;
     }
-    colors.needsUpdate = true;
+
+    this.sceneManager.sceneHelpers.traverse(obj => {
+      if (obj.name === '__EdgeLines' && obj.userData.edge) {
+        const material = obj.material;
+        material.color.set(0x000000);
+        material.needsUpdate = true;
+      }
+    });
 
     this.selectedVertexIds.clear();
     this.vertexHandle.visible = false;
