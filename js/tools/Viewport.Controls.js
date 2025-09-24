@@ -80,6 +80,17 @@ export default class ViewportControls {
     this.signals.cameraRemoved.add((cameras) => {
       this.resetCameraOption(cameras);
     });
+
+    this.signals.modeChanged.add((newMode) => {
+      this.currentMode = newMode;
+
+      if (this.interactionDropdown) {
+        this.interactionDropdown.value = newMode;
+      }
+      if (this.selectionModeBar) {
+        this.selectionModeBar.classList.toggle('hidden', newMode === 'object');
+      }
+    });
   }
 
   resetCameraOption(cameras) {
@@ -131,17 +142,6 @@ export default class ViewportControls {
     this.selection.deselect();
   }
 
-  updateModeUI(mode) {
-    this.currentMode = mode;
-
-    if (this.interactionDropdown) {
-      this.interactionDropdown.value = mode;
-    }
-    if (this.selectionModeBar) {
-      this.selectionModeBar.classList.toggle('hidden', mode === 'object');
-    }
-  }
-
   toJSON() {
     return {
       mode: this.interactionDropdown?.value || 'object',
@@ -159,7 +159,6 @@ export default class ViewportControls {
       if (object && object.isMesh) {
         this.selection.select(object);
         this.enterEditMode(object);
-        this.updateModeUI('edit');
         this.signals.modeChanged.dispatch('edit');
       }
     }

@@ -8,8 +8,8 @@
 }
 
 .toolbar-button img {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   object-fit: contain;
   opacity: 0.5;
 }
@@ -29,4 +29,25 @@
 
 .toolbar-button.active {
   background-color: #f8f8f8;
+}
+
+.toolbar-spacer {
+  height: 8px;
+  width: 100%;
+}
+
+.toolbar-button[data-tool="extrude"] img,
+.toolbar-button[data-tool="loopcut"] img,
+.toolbar-button[data-tool="knife"] img {
+  width: 20px;
+  height: 20px;
+}
+
+.mesh-tools {
+  display: flex;
+  flex-direction: column;
+}
+
+.mesh-tools.hidden {
+  display: none;
 }

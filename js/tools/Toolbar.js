@@ -10,7 +10,9 @@ export default class Toolbar {
     this.camera = editor.cameraManager.camera;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
-    this.activeTool = 'select';
+    this.activeToolObjectMode = 'select';
+    this.activeToolEditMode = 'select';
+    this.currentMode = 'object';
 
     this.moveTool = new TransformTool('translate', this.editor);
     this.rotateTool = new TransformTool('rotate', this.editor);
@@ -21,15 +23,21 @@ export default class Toolbar {
   }
 
   load() {
-    this.uiLoader.loadComponent('#toolbar-container', 'components/toolbar.html', (container) => {
-      this.setupToolbarButtons(container);
+    this.uiLoader.loadComponent('#toolbar-container', 'components/toolbar.html', () => {
+      this.buttons = document.querySelectorAll('.toolbar-button');
+      this.setupToolbarButtons();
       this.setupListeners();
     });
   }
 
   setupListeners() {
     this.signals.modeChanged.add((newMode) => {
+      this.currentMode = newMode;
       this.updateTools();
+
+      if (this.meshToolContainer) {
+        this.meshToolContainer.classList.toggle('hidden', newMode === 'object');
+      }
     });
 
     this.signals.emptyScene.add(() => {
@@ -37,29 +45,30 @@ export default class Toolbar {
     });
   }
 
-  setupToolbarButtons(container) {
-    const buttons = container.querySelectorAll('.toolbar-button');
+  setupToolbarButtons() {
+    this.meshToolContainer = document.querySelector('.mesh-tools');
 
-    buttons.forEach(button => {
+    this.buttons.forEach(button => {
       button.addEventListener('click', () => {
-        buttons.forEach(b => b.classList.remove('active'));
-        button.classList.add('active');
-
-        this.activeTool = button.getAttribute('data-tool');
-
-        this.updateTools();
+        const toolName = button.getAttribute('data-tool');
+        this.setActiveTool(toolName);
       });
     });
   }
 
-  setActiveTool(toolName) {
-    this.activeTool = toolName;
-    this.updateTools();
+  getActiveTool() {
+    return this.currentMode === 'object' 
+      ? this.activeToolObjectMode 
+      : this.activeToolEditMode;
+  }
 
-    const buttons = document.querySelectorAll('.toolbar-button');
-    buttons.forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-tool') === toolName);
-    });
+  setActiveTool(toolName) {
+    if (this.currentMode === 'object') {
+      this.activeToolObjectMode = toolName;
+    } else {
+      this.activeToolEditMode = toolName;
+    }
+    this.updateTools();
   }
 
   handlePointerDown() {
@@ -67,8 +76,7 @@ export default class Toolbar {
       if (event.button !== 0) return;
       if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging) return;
 
-      this.interactionDropdown = document.getElementById('interaction-modes');
-      if (this.interactionDropdown.value === 'object') {
+      if (this.currentMode === 'object') {
         this.selection.onMouseSelect(event, this.renderer, this.camera);
       } else {
         this.editSelection.onMouseSelect(event, this.renderer, this.camera);
@@ -78,12 +86,10 @@ export default class Toolbar {
   }
 
   updateTools() {
-    this.interactionDropdown = document.getElementById('interaction-modes');
-    const interactionMode = this.interactionDropdown.value;
-
+    let activeTool = this.getActiveTool();
     let attachObject = null;
 
-    if (interactionMode === 'object') {
+    if (this.currentMode === 'object') {
       attachObject = this.selection.selectedObject;
     } else {
       attachObject = this.editSelection.vertexHandle;
@@ -92,26 +98,26 @@ export default class Toolbar {
       }
     }
 
-    if (attachObject && this.activeTool === 'move') {
-      this.moveTool.enableFor(attachObject);
-      this.rotateTool.disable();
-      this.scaleTool.disable();
-    } else if (attachObject && this.activeTool === 'rotate') {
-      this.rotateTool.enableFor(attachObject);
-      this.moveTool.disable();
-      this.scaleTool.disable();
-    } else if (attachObject && this.activeTool == 'scale') {
-      this.scaleTool.enableFor(attachObject);
-      this.moveTool.disable();
-      this.rotateTool.disable();
-    } else {
-      this.disableTools();
-    }
+    this.updateTransformTools(activeTool, attachObject);
+    this.buttons.forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-tool') === activeTool);
+    });
   }
 
   disableTools() {
     this.moveTool.disable();
     this.rotateTool.disable();
     this.scaleTool.disable();
+  }
+
+  updateTransformTools(activeTool, attachObject) {
+    this.disableTools();
+    if (!attachObject) return;
+
+    switch (activeTool) {
+      case 'move':   this.moveTool.enableFor(attachObject); break;
+      case 'rotate': this.rotateTool.enableFor(attachObject); break;
+      case 'scale':  this.scaleTool.enableFor(attachObject); break;
+    }
   }
 }

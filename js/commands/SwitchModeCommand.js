@@ -30,16 +30,13 @@ export class SwitchModeCommand {
 
   _switch(object, mode) {
     const viewportControls = this.editor.viewportControls;
-    if (viewportControls) viewportControls.updateModeUI(mode);
 
     if (mode === 'object') {
       viewportControls.enterObjectMode();
-      viewportControls.updateModeUI('object');
       this.editor.signals.modeChanged.dispatch('object');
     } else if (mode === 'edit') {
       this.editor.selection.select(object);
       viewportControls.enterEditMode(object);
-      viewportControls.updateModeUI('edit');
       this.editor.signals.modeChanged.dispatch('edit');
     }
   }
