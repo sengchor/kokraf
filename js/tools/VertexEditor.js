@@ -7,9 +7,19 @@ export class VertexEditor {
   constructor(editor, object3D) {
     this.editor = editor;
     this.object = object3D;
-    this.geometry = object3D.geometry;
-    this.positionAttr = this.geometry.attributes.position;
     this.sceneManager = this.editor.sceneManager;
+  }
+
+  get geometry() {
+    return this.object.geometry;
+  }
+
+  set geometry(value) {
+    this.object.geometry = value;
+  }
+
+  get positionAttr() {
+    return this.object.geometry.attributes.position;
   }
 
   setVertexWorldPosition(logicalVertexId, worldPosition) {
@@ -209,6 +219,13 @@ export class VertexEditor {
     }
   }
 
+  refreshHelpers() {
+    this.removeVertexPoints();
+    this.removeEdgeLines();
+    this.addVertexPoints(this.object);
+    this.addEdgeLines(this.object);
+  }
+
   getEdgeLineObjects() {
     const sceneHelpers = this.sceneManager.sceneHelpers;
 
@@ -219,5 +236,32 @@ export class VertexEditor {
       }
     });
     return edgeLines;
+  }
+
+  duplicateFace(faceId) {
+    const meshData = this.object.userData.meshData;
+    const oldFace = meshData.faces.get(faceId);
+    if (!oldFace) return null;
+
+    const newVertices = [];
+    const newVertexIds = [];
+
+    for (let vid of oldFace.vertexIds) {
+      const oldVertex = meshData.vertices.get(vid);
+      const newPos = { x: oldVertex.position.x, y: oldVertex.position.y, z: oldVertex.position.z };
+      const newVertex = meshData.addVertex(newPos);
+      newVertices.push(newVertex);
+      newVertexIds.push(newVertex.id);
+    }
+    meshData.addFace(newVertices);
+
+    this.geometry = meshData.toDuplicatedVertexGeometry();
+    this.geometry.computeVertexNormals();
+    this.geometry.computeBoundingSphere();
+    this.geometry.computeBoundingBox();
+
+    this.refreshHelpers();
+
+    return newVertexIds;
   }
 }

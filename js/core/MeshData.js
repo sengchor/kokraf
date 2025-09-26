@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import earcut from 'earcut';
 
 class Vertex {
   constructor(id, position) {
@@ -175,13 +176,12 @@ export class MeshData {
     const positions = [];
     const indices = [];
     let currentIndex = 0;
-    
+
     this.vertexIndexMap.clear();
 
     for (let f of this.faces.values()) {
       const verts = f.vertexIds.map(id => this.vertices.get(id));
 
-      const baseIndex = currentIndex;
       for (let v of verts) {
         positions.push(v.position.x, v.position.y, v.position.z);
 
@@ -191,8 +191,17 @@ export class MeshData {
         currentIndex++;
       }
 
-      for (let i = 1; i < verts.length - 1; i++) {
-        indices.push(baseIndex, baseIndex + i, baseIndex + i + 1);
+      const normal = this.computePlaneNormal(verts);
+      const flatVertices = this.projectTo2D(verts, normal);
+      const triangulated = earcut(flatVertices);
+
+      const baseIndex = currentIndex - verts.length;
+      for (let i = 0; i < triangulated.length; i += 3) {
+        indices.push(
+          baseIndex + triangulated[i],
+          baseIndex + triangulated[i + 1],
+          baseIndex + triangulated[i + 2]
+        );
       }
     }
 
@@ -223,13 +232,19 @@ export class MeshData {
     }
 
     for (let f of this.faces.values()) {
-      const vIds = f.vertexIds;
-      for (let i = 1; i < vIds.length - 1; i++) {
-        indices.push(
-          vertexIdToIndex.get(vIds[0]),
-          vertexIdToIndex.get(vIds[i]),
-          vertexIdToIndex.get(vIds[i + 1])
-        );
+      const verts = f.vertexIds.map(id => this.vertices.get(id));
+
+      const normal = this.computePlaneNormal(verts);
+      const flatVertices = this.projectTo2D(verts, normal);
+
+      const triangulated = earcut(flatVertices);
+
+      for (let i = 0; i < triangulated.length; i += 3) {
+        const a = vertexIdToIndex.get(verts[triangulated[i]].id);
+        const b = vertexIdToIndex.get(verts[triangulated[i + 1]].id);
+        const c = vertexIdToIndex.get(verts[triangulated[i + 2]].id);
+
+        indices.push(a, b, c);
       }
     }
     
@@ -335,9 +350,17 @@ export class MeshData {
         faceIndices.push(group.index);
       }
 
-      // Triangulate face
-      for (let i = 1; i < faceIndices.length - 1; i++) {
-        indices.push(faceIndices[0], faceIndices[i], faceIndices[i + 1]);
+      const vertsObjs = verts.map(id => this.vertices.get(id));
+      const normal = this.computePlaneNormal(vertsObjs);
+      const flatVertices2D = this.projectTo2D(vertsObjs, normal);
+
+      const triangulated = earcut(flatVertices2D);
+
+      for (let i = 0; i < triangulated.length; i += 3) {
+        const a = faceIndices[triangulated[i]];
+        const b = faceIndices[triangulated[i + 1]];
+        const c = faceIndices[triangulated[i + 2]];
+        indices.push(a, b, c);
       }
     }
 
@@ -538,5 +561,36 @@ export class MeshData {
     }
 
     return result;
+  }
+
+  computePlaneNormal(verts) {
+    if (verts.length < 3) return new THREE.Vector3(0, 0, 1);
+    const v0 = verts[0].position;
+    const v1 = verts[1].position;
+    const v2 = verts[2].position;
+
+    const edge1 = new THREE.Vector3().subVectors(v1, v0);
+    const edge2 = new THREE.Vector3().subVectors(v2, v0);
+
+    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+    return normal;
+  }
+
+  projectTo2D(verts, normal) {
+    let tangent = new THREE.Vector3(1, 0, 0);
+    if (Math.abs(normal.dot(tangent)) > 0.99) tangent.set(0, 1, 0);
+
+    const u = new THREE.Vector3().crossVectors(normal, tangent).normalize();
+    const v = new THREE.Vector3().crossVectors(normal, u).normalize();
+
+    const origin = verts[0].position;
+    const flat = [];
+
+    for (let vert of verts) {
+        const p = new THREE.Vector3().subVectors(vert.position, origin);
+        flat.push(p.dot(u), p.dot(v));
+    }
+
+    return flat;
   }
 }

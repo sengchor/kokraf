@@ -18,6 +18,8 @@ export default class EditSelection {
 
     this.multiSelectEnabled = false;
     this.selectedVertexIds = new Set();
+    this.selectedEdgeIds = new Set();
+    this.selectedFaceIds = new Set();
     this.setupListeners();
   }
 
@@ -84,6 +86,26 @@ export default class EditSelection {
     this.highlightSelectedEdges();
   }
 
+  highlightSelectedVertices() {
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
+    if (!vertexPoints) return;
+
+    const colors = vertexPoints.geometry.getAttribute('color');
+    const ids = vertexPoints.geometry.getAttribute('vertexId');
+
+    for (let i = 0; i < ids.count; i++) {
+      if (this.selectedVertexIds.has(ids.getX(i))) {
+        colors.setXYZ(i, 1, 1, 1);
+      } else {
+        colors.setXYZ(i, 0, 0, 0);
+      }
+    }
+
+    colors.needsUpdate = true;
+
+    this.highlightSelectedEdges();
+  }
+
   highlightSelectedEdges() {
     const edges = [];
     this.sceneManager.sceneHelpers.traverse(obj => {
@@ -92,6 +114,8 @@ export default class EditSelection {
       }
     });
 
+    this.selectedEdgeIds.clear();
+
     for (let edgeLine of edges) {
       const { edge } = edgeLine.userData;
       const bothSelected = this.selectedVertexIds.has(edge.v1Id) && this.selectedVertexIds.has(edge.v2Id);
@@ -99,11 +123,51 @@ export default class EditSelection {
       const material = edgeLine.material;
       if (bothSelected) {
         material.color.set(0xffffff);
+        this.selectedEdgeIds.add(edge.id);
       } else {
         material.color.set(0x000000);
       }
       material.needsUpdate = true;
     }
+  }
+
+  selectVertices(vertexIds) {
+    this.clearSelection();
+
+    for (let id of vertexIds) {
+      this.selectedVertexIds.add(id);
+    }
+
+    this.highlightSelectedVertices();
+
+    if (vertexIds.length > 0) {
+      this.vertexHandle.visible = true;
+      this.vertexHandle.userData.vertexIndices = vertexIds;
+    } else {
+      this.vertexHandle.visible = false;
+      this.vertexHandle.userData.vertexIndices = [];
+    }
+  }
+
+  getSelectedFacesFromVertices(vertexIds) {
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return [];
+
+    const selectedVertexSet = new Set(vertexIds);
+    const selectedFaces = [];
+
+    for (let face of meshData.faces.values()) {
+      const allVertsSelected = face.vertexIds.every(vid => selectedVertexSet.has(vid));
+      if (allVertsSelected) {
+        selectedFaces.push(face.id);
+      }
+    }
+
+    // Update internal selectedFaceIds set
+    this.selectedFaceIds.clear();
+    selectedFaces.forEach(fid => this.selectedFaceIds.add(fid));
+
+    return selectedFaces;
   }
 
   clearSelection() {

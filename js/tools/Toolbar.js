@@ -1,4 +1,5 @@
 import { TransformTool } from '../tools/TransformTool.js';
+import { ExtrudeTool } from '../tools/ExtrudeTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
@@ -17,6 +18,7 @@ export default class Toolbar {
     this.moveTool = new TransformTool('translate', this.editor);
     this.rotateTool = new TransformTool('rotate', this.editor);
     this.scaleTool = new TransformTool('scale', this.editor);
+    this.extrudeTool = new ExtrudeTool(this.editor);
 
     this.load();
     this.handlePointerDown();
@@ -74,8 +76,7 @@ export default class Toolbar {
   handlePointerDown() {
     this.canvas.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
-      if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging) return;
-
+      if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging || this.extrudeTool.transformControls.dragging) return;
       if (this.currentMode === 'object') {
         this.selection.onMouseSelect(event, this.renderer, this.camera);
       } else {
@@ -108,6 +109,7 @@ export default class Toolbar {
     this.moveTool.disable();
     this.rotateTool.disable();
     this.scaleTool.disable();
+    this.extrudeTool.disable();
   }
 
   updateTransformTools(activeTool, attachObject) {
@@ -118,6 +120,7 @@ export default class Toolbar {
       case 'move':   this.moveTool.enableFor(attachObject); break;
       case 'rotate': this.rotateTool.enableFor(attachObject); break;
       case 'scale':  this.scaleTool.enableFor(attachObject); break;
+      case 'extrude': this.extrudeTool.enableFor(attachObject); break;
     }
   }
 }
