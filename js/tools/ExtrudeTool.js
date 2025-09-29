@@ -31,7 +31,28 @@ export class ExtrudeTool {
 
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
+    this.changeTransformControlsColor();
+
     this.setupTransformListeners();
+  }
+
+  changeTransformControlsColor() {
+    const xColor = new THREE.Color(0xff0000);
+    const yColor = new THREE.Color(0x00ff00);
+    const zColor = new THREE.Color(0x0000ff);
+
+    const helper = this.transformControls.getHelper();
+
+    helper.traverse(child => {
+      if (!child.isMesh || !child.name) return;
+            if (child.name === 'Z' || child.name === 'XY') {
+        child.material.color.set(xColor);
+      } else if (child.name === 'Y' || child.name === 'XZ') {
+        child.material.color.set(zColor);
+      } else if (child.name === 'X' || child.name === 'YZ') {
+        child.material.color.set(yColor);
+      }
+    });
   }
 
   setupTransformListeners() {
@@ -53,10 +74,9 @@ export class ExtrudeTool {
       const object = this.transformControls.object;
       const selectedVertexIds = object.userData.vertexIndices;
       const editedObject = this.editSelection.editedObject;
-      const selectedFaceIds = this.editSelection.getSelectedFacesFromVertices(selectedVertexIds);
 
       const vertexEditor = new VertexEditor(this.editor, editedObject);
-      const newVertexIds = vertexEditor.duplicateFace(selectedFaceIds[0]);
+      const { newVertexIds, newEdgeIds, newFaceIds} = vertexEditor.duplicateSelection(selectedVertexIds);
       this.duplicatedVertices = vertexEditor.getVertexPositions(newVertexIds);
 
       const currentPosition = object.getWorldPosition(this._worldPosHelper).clone();
@@ -69,6 +89,8 @@ export class ExtrudeTool {
 
       // Select the new duplicated vertices
       this.editSelection.selectVertices(newVertexIds);
+
+      vertexEditor.deleteSelection(selectedVertexIds);
     });
   }
 

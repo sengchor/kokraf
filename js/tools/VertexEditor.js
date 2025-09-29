@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { LineSegmentsGeometry } from 'jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
+import { ShadingUtils } from "../utils/ShadingUtils.js";
 
 export class VertexEditor {
   constructor(editor, object3D) {
@@ -45,9 +46,8 @@ export class VertexEditor {
     this.geometry.computeBoundingSphere();
 
     // Update logical meshData vertex
-    let vertex;
-    if (meshData && meshData.vertices.has(logicalVertexId)) {
-      vertex = meshData.vertices.get(logicalVertexId);
+    const vertex = meshData.getVertex(logicalVertexId);
+    if (vertex) {
       vertex.position = { x: localPosition.x, y: localPosition.y, z: localPosition.z };
     }
 
@@ -70,8 +70,8 @@ export class VertexEditor {
       const line = edgeLines.find(line => line.userData.edge === edge);
       if (!line || !line.geometry) continue;
 
-      const v1 = meshData.vertices.get(edge.v1Id);
-      const v2 = meshData.vertices.get(edge.v2Id);
+      const v1 = meshData.getVertex(edge.v1Id);
+      const v2 = meshData.getVertex(edge.v2Id);
       if (!v1 || !v2) continue;
 
       const positions = [
@@ -173,8 +173,8 @@ export class VertexEditor {
     const meshData = selectedObject.userData.meshData;
 
     for (let edge of meshData.edges.values()) {
-      const v1 = meshData.vertices.get(edge.v1Id);
-      const v2 = meshData.vertices.get(edge.v2Id);
+      const v1 = meshData.getVertex(edge.v1Id);
+      const v2 = meshData.getVertex(edge.v2Id);
 
       const positions = [
         v1.position.x, v1.position.y, v1.position.z,
@@ -238,30 +238,163 @@ export class VertexEditor {
     return edgeLines;
   }
 
-  duplicateFace(faceId) {
+  updateGeometryAndHelpers() {
+    if (!this.object || !this.object.userData.meshData) return;
+
     const meshData = this.object.userData.meshData;
-    const oldFace = meshData.faces.get(faceId);
-    if (!oldFace) return null;
 
-    const newVertices = [];
-    const newVertexIds = [];
-
-    for (let vid of oldFace.vertexIds) {
-      const oldVertex = meshData.vertices.get(vid);
-      const newPos = { x: oldVertex.position.x, y: oldVertex.position.y, z: oldVertex.position.z };
-      const newVertex = meshData.addVertex(newPos);
-      newVertices.push(newVertex);
-      newVertexIds.push(newVertex.id);
-    }
-    meshData.addFace(newVertices);
-
-    this.geometry = meshData.toDuplicatedVertexGeometry();
+    const shading = this.object.userData.shading;
+    this.geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
     this.geometry.computeVertexNormals();
-    this.geometry.computeBoundingSphere();
     this.geometry.computeBoundingBox();
+    this.geometry.computeBoundingSphere();
 
     this.refreshHelpers();
+  }
 
-    return newVertexIds;
+  duplicateSelection(vertexIds) {
+    const meshData = this.object.userData.meshData;
+
+    const selectedVertices = new Set(vertexIds);
+    const duplicatedVertices = new Map();
+    const duplicatedEdges = new Map();
+    const duplicatedFaces = new Map();
+
+    // Duplicate vertices
+    for (let vid of selectedVertices) {
+      const oldVertex = meshData.getVertex(vid);
+      if (!oldVertex) continue;
+
+      const newPos = {
+        x: oldVertex.position.x,
+        y: oldVertex.position.y,
+        z: oldVertex.position.z
+      };
+
+      const newVertex = meshData.addVertex(newPos);
+      duplicatedVertices.set(vid, newVertex.id);
+    }
+
+    // Find faces inside selection
+    const facesToDuplicate = [];
+    for (let face of meshData.faces.values()) {
+      const faceVertices = new Set(face.vertexIds);
+      const isInside = Array.from(faceVertices).every(vId => selectedVertices.has(vId));
+      if (isInside) facesToDuplicate.push(face);
+    }
+
+    // Duplicate faces
+    for (let oldFace of facesToDuplicate) {
+      const newVertices = oldFace.vertexIds.map(vId => meshData.vertices.get(duplicatedVertices.get(vId)));
+      const newFace = meshData.addFace(newVertices);
+      duplicatedFaces.set(oldFace.id, newFace);
+    }
+
+    // Handle Leftover edges
+    for (let edge of meshData.edges.values()) {
+      const v1Selected = selectedVertices.has(edge.v1Id);
+      const v2Selected = selectedVertices.has(edge.v2Id);
+
+      if (v1Selected && v2Selected) {
+        const allFacesDuplicated = Array.from(edge.faceIds).every(fid =>
+          duplicatedFaces.has(fid)
+        );
+
+        if (!allFacesDuplicated) {
+          const v1 = meshData.getVertex(duplicatedVertices.get(edge.v1Id));
+          const v2 = meshData.getVertex(duplicatedVertices.get(edge.v2Id));
+
+          if (v1 && v2) {
+            const newEdge = meshData.addEdge(v1, v2);
+            duplicatedEdges.set(edge.id, newEdge);
+          }
+        }
+      }
+    }
+
+    this.updateGeometryAndHelpers();
+
+    return {
+      newVertexIds: Array.from(duplicatedVertices.values()),
+      newEdgeIds: Array.from(duplicatedEdges.values()).map(e => e.id),
+      newFaceIds: Array.from(duplicatedFaces.values()).map(f => f.id)
+    };
+  }
+
+  deleteSelection(vertexIds) {
+    const meshData = this.object.userData.meshData;
+    const selected = new Set(vertexIds);
+
+    const deletedFaces = new Set();
+    const deletedEdges = new Set();
+    const deletedVertices = new Set();
+
+    // Remove faces
+    for (let face of meshData.faces.values()) {
+      const allInside = face.vertexIds.every(vId => selected.has(vId));
+      if (allInside) {
+        for (let i = 0; i < face.vertexIds.length; i++) {
+          const v1 = face.vertexIds[i];
+          const v2 = face.vertexIds[(i + 1) % face.vertexIds.length];
+          const edge = meshData.getEdge(v1, v2);
+          if (edge) edge.faceIds.delete(face.id);
+        }
+        meshData.faces.delete(face.id);
+        deletedFaces.add(face.id);
+      }
+    }
+
+    // Remove edges
+    for (let edge of meshData.edges.values()) {
+      const v1Inside = selected.has(edge.v1Id);
+      const v2Inside = selected.has(edge.v2Id);
+
+      if (v1Inside && v2Inside && edge.faceIds.size === 0) {
+        const v1 = meshData.getVertex(edge.v1Id);
+        const v2 = meshData.getVertex(edge.v2Id);
+        if (v1) v1.edgeIds.delete(edge.id);
+        if (v2) v2.edgeIds.delete(edge.id);
+
+        meshData.edges.delete(edge.id);
+        deletedEdges.add(edge.id);
+      }
+    }
+
+    // Remove vertices
+    for (let vid of selected) {
+      const v = meshData.getVertex(vid);
+      if (!v) continue;
+
+      const stillConnected = (v.edgeIds && v.edgeIds.size > 0) ||
+        Array.from(meshData.faces.values()).some(f => f.vertexIds.includes(vid));
+      if (!stillConnected) {
+        meshData.vertices.delete(vid);
+        deletedVertices.add(vid);
+      }
+    }
+
+    this.updateGeometryAndHelpers();
+
+    return {
+      deletedFaces: Array.from(deletedFaces),
+      deletedEdges: Array.from(deletedEdges),
+      deletedVertices: Array.from(deletedVertices)
+    };
+  }
+
+  createFaceFromVertices(vertexIds) {
+    const meshData = this.object.userData.meshData;
+    if (!meshData || !vertexIds || vertexIds.length < 3) {
+      return null;
+    }
+
+    const vertices = vertexIds.map(id => meshData.getVertex(id)).filter(v => v !== undefined);
+    if (vertices.length < 3) return null;
+
+    const newFace = meshData.addFace(vertices);
+
+    this.updateGeometryAndHelpers();
+
+    return newFace ? newFace.id : null;
   }
 }

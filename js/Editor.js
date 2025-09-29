@@ -19,6 +19,7 @@ import Config from './core/Config.js';
 import { Storage } from './core/Storage.js';
 import EditSelection from './tools/EditSelection.js';
 import ContextMenu from './ui/ContextMenu.js';
+import { MeshEditDispatcher } from './tools/MeshEditDispatcher.js';
 
 export default class Editor {
   constructor() {
@@ -45,6 +46,8 @@ export default class Editor {
       sceneGraphChanged: new Signal(),
       modeChanged: new Signal(),
       multiSelectChanged: new Signal(),
+
+      createFaceFromVertices: new Signal(),
     }
 
     this.helpers = {};
@@ -78,6 +81,7 @@ export default class Editor {
     this.viewportControls = new ViewportControls(this);  
     this.toolbar = new Toolbar(this);
     this.menubar = new Menubar(this);
+    this.meshEditDispatcher = new MeshEditDispatcher(this);
 
     const saved = await Storage.get('scene');
     if (saved) {

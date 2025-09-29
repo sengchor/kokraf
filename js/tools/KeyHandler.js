@@ -36,7 +36,7 @@ export class KeyHandler {
       this.editor.toolbar.setActiveTool('rotate');
     } else if (event.key === this.shortcuts['scale']) {
       this.editor.toolbar.setActiveTool('scale');
-    } else if (event.key === this.shortcuts['focus']) {
+    } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
       this.signals.objectFocused.dispatch();
     } else if (event.key === 'Delete') {
       const object = this.selection.selectedObject;
@@ -44,6 +44,8 @@ export class KeyHandler {
       this.editor.execute(new RemoveObjectCommand(this.editor, object));
     } else if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(true);
+    } else if (event.key === 'f') {
+      this.signals.createFaceFromVertices.dispatch();
     }
   }
 

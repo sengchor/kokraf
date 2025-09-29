@@ -67,11 +67,14 @@ export class MeshData {
     for (let i = 0; i < len; i++) {
       const v1Id = vIds[i];
       const v2Id = vIds[(i + 1) % len];
-      const v1 = this.vertices.get(v1Id);
-      const v2 = this.vertices.get(v2Id);
-      const e = this.addEdge(v1, v2);
-      f.edgeIds.add(e.id);
-      e.faceIds.add(f.id);
+      let edge = this.getEdge(v1Id, v2Id);
+      if (!edge) {
+        const v1 = this.vertices.get(v1Id);
+        const v2 = this.vertices.get(v2Id);
+        edge = this.addEdge(v1, v2);
+      }
+      f.edgeIds.add(edge.id);
+      edge.faceIds.add(f.id);
     }
 
     for (let vId of vIds) {
@@ -79,6 +82,43 @@ export class MeshData {
     }
 
     return f;
+  }
+
+  getVertex(vId) {
+    return this.vertices.get(vId) || null;
+  }
+
+  getEdge(v1Id, v2Id) {
+    for (let edge of this.edges.values()) {
+      if (
+        (edge.v1Id === v1Id && edge.v2Id === v2Id) ||
+        (edge.v1Id === v2Id && edge.v2Id === v1Id)
+      ) {
+        return edge;
+      }
+    }
+    return null;
+  }
+
+  getFace(vertexIds) {
+    const vSet = new Set(vertexIds);
+
+    for (let face of this.faces.values()) {
+      if (face.vertexIds.length !== vertexIds.length) continue;
+
+      const faceSet = new Set(face.vertexIds);
+      let allMatch = true;
+
+      for (let vId of vSet) {
+        if (!faceSet.has(vId)) {
+          allMatch = false;
+          break;
+        }
+      }
+
+      if (allMatch) return face;
+    }
+    return null;
   }
 
   toJSON() {
@@ -181,6 +221,7 @@ export class MeshData {
 
     for (let f of this.faces.values()) {
       const verts = f.vertexIds.map(id => this.vertices.get(id));
+      const baseIndex = currentIndex;
 
       for (let v of verts) {
         positions.push(v.position.x, v.position.y, v.position.z);
@@ -195,13 +236,23 @@ export class MeshData {
       const flatVertices = this.projectTo2D(verts, normal);
       const triangulated = earcut(flatVertices);
 
-      const baseIndex = currentIndex - verts.length;
       for (let i = 0; i < triangulated.length; i += 3) {
         indices.push(
           baseIndex + triangulated[i],
           baseIndex + triangulated[i + 1],
           baseIndex + triangulated[i + 2]
         );
+      }
+    }
+
+    for (let v of this.vertices.values()) {
+      if (v.faceIds.size === 0) {
+        positions.push(v.position.x, v.position.y, v.position.z);
+
+        if (!this.vertexIndexMap.has(v.id)) this.vertexIndexMap.set(v.id, []);
+        this.vertexIndexMap.get(v.id).push(currentIndex);
+
+        currentIndex++
       }
     }
 
@@ -319,7 +370,6 @@ export class MeshData {
       for (let vId of verts) {
         let group = null;
 
-        // Check adjacent faces via smooth edges
         for (let i = 0; i < verts.length; i++) {
           const v1 = verts[i];
           const v2 = verts[(i + 1) % verts.length];
@@ -361,6 +411,19 @@ export class MeshData {
         const b = faceIndices[triangulated[i + 1]];
         const c = faceIndices[triangulated[i + 2]];
         indices.push(a, b, c);
+      }
+    }
+
+    // --- 5. Add isolated vertices (not in any face) ---
+    for (let v of this.vertices.values()) {
+      if (v.faceIds.size === 0) {
+        positions.push(v.position.x, v.position.y, v.position.z);
+
+        if (!this.vertexIndexMap.has(v.id)) this.vertexIndexMap.set(v.id, []);
+        this.vertexIndexMap.get(v.id).push(currentIndex);
+
+        indices.push(currentIndex, currentIndex, currentIndex);
+        currentIndex++;
       }
     }
 
