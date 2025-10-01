@@ -52,6 +52,7 @@ export default class EditSelection {
     if (!bestHit) return this.clearSelection();
 
     this.highlightSelectedVertex(bestHit.logicalVertexId);
+    this.getSelectedFacesFromVertices(this.selectedVertexIds);
     this.moveVertexHandle(vertexPoints);
   }
 
@@ -139,6 +140,7 @@ export default class EditSelection {
     }
 
     this.highlightSelectedVertices();
+    this.getSelectedFacesFromVertices(this.selectedVertexIds);
 
     if (vertexIds.length > 0) {
       this.vertexHandle.visible = true;

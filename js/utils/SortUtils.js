@@ -9,7 +9,7 @@ export function getSortedVertexIds(meshData, vertexIds) {
 
   const normal = computeBestFitPlaneNormal(positions);
   const sortedVertexIds = sortVerticesCCW(positions, vertexIds, normal);
-  return sortedVertexIds;
+  return { sortedVertexIds, normal };
 }
 
 export function computeBestFitPlaneNormal(positions) {

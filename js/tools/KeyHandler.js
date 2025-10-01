@@ -7,8 +7,10 @@ export class KeyHandler {
     this.config = editor.config;
     this.selection = editor.selection;
     this.shortcuts = null;
+    this.currentMode = 'object';
     
     this.init();
+    this.setupListeners();
   }
 
   async init() {
@@ -19,6 +21,12 @@ export class KeyHandler {
     this.onKeyUp = this.onKeyUp.bind(this);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+  }
+
+  setupListeners() {
+    this.signals.modeChanged.add((newMode) => {
+      this.currentMode = newMode;
+    });
   }
 
   onKeyDown(event) {
@@ -36,17 +44,25 @@ export class KeyHandler {
       this.editor.toolbar.setActiveTool('rotate');
     } else if (event.key === this.shortcuts['scale']) {
       this.editor.toolbar.setActiveTool('scale');
-    } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
-      this.signals.objectFocused.dispatch();
-    } else if (event.key === 'Delete') {
-      const object = this.selection.selectedObject;
-      if (!object) return;
-      this.editor.execute(new RemoveObjectCommand(this.editor, object));
     } else if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(true);
-    } else if (event.key === 'f') {
-      this.signals.createFaceFromVertices.dispatch();
     }
+
+    if (this.currentMode === 'object') {
+      if (event.key === 'Delete') {
+        this.signals.objectDeleted.dispatch();
+      } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
+        this.signals.objectFocused.dispatch();
+      }
+    } else if (this.currentMode === 'edit') {
+      if (event.key === 'f') {
+        this.signals.createFaceFromVertices.dispatch();
+      } else if (event.key === 'Delete') {
+        this.signals.deleteSelectedFaces.dispatch();
+      } else if (event.key === 'p') {
+        this.signals.separateSelection.dispatch();
+      }
+    } 
   }
 
   onKeyUp(event) {

@@ -27,6 +27,7 @@ export class SetVertexPositionCommand {
 
     const vertexEditor = new VertexEditor(this.editor, object);
     vertexEditor.setVerticesWorldPositions(this.vertexIndices, this.newPositions);
+    vertexEditor.updateGeometryAndHelpers();
   }
 
   undo() {
@@ -34,6 +35,7 @@ export class SetVertexPositionCommand {
     
     const vertexEditor = new VertexEditor(this.editor, object);
     vertexEditor.setVerticesWorldPositions(this.vertexIndices, this.oldPositions);
+    vertexEditor.updateGeometryAndHelpers();
   }
 
   toJSON() {

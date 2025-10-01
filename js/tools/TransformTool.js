@@ -155,6 +155,7 @@ export class TransformTool {
               const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
 
               this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, indices, newPositions, this.oldPositions));
+              this.editSelection.selectVertices(indices);
             }
             break;
         }

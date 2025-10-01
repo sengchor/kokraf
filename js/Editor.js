@@ -20,6 +20,7 @@ import { Storage } from './core/Storage.js';
 import EditSelection from './tools/EditSelection.js';
 import ContextMenu from './ui/ContextMenu.js';
 import { MeshEditDispatcher } from './tools/MeshEditDispatcher.js';
+import { ObjectEditDispatcher } from './tools/ObjectEditDispatcher.js';
 
 export default class Editor {
   constructor() {
@@ -39,6 +40,7 @@ export default class Editor {
       objectSelected: new Signal(),
       objectFocused: new Signal(),
       objectChanged: new Signal(),
+      objectDeleted: new Signal(),
 
       historyChanged: new Signal(),
       emptyScene: new Signal(),
@@ -48,6 +50,8 @@ export default class Editor {
       multiSelectChanged: new Signal(),
 
       createFaceFromVertices: new Signal(),
+      deleteSelectedFaces: new Signal(),
+      separateSelection: new Signal(),
     }
 
     this.helpers = {};
@@ -82,6 +86,7 @@ export default class Editor {
     this.toolbar = new Toolbar(this);
     this.menubar = new Menubar(this);
     this.meshEditDispatcher = new MeshEditDispatcher(this);
+    this.objectEditDispatcher = new ObjectEditDispatcher(this);
 
     const saved = await Storage.get('scene');
     if (saved) {
@@ -107,13 +112,6 @@ export default class Editor {
 
       this.selection.deselect();
       this.toolbar.updateTools();
-    });
-    
-    this.signals.objectFocused.add(() => {
-      const object = this.selection.selectedObject;
-      if (object !== null && this.controlsManager?.focus) {
-        this.controlsManager.focus(object);
-      }
     });
 
     this.signals.historyChanged.add(async () => {
