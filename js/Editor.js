@@ -47,6 +47,7 @@ export default class Editor {
 
       sceneGraphChanged: new Signal(),
       modeChanged: new Signal(),
+      switchMode: new Signal(),
       multiSelectChanged: new Signal(),
 
       createFaceFromVertices: new Signal(),

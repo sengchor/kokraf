@@ -1,5 +1,3 @@
-import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
-
 export class KeyHandler {
   constructor(editor) {
     this.editor = editor;
@@ -53,6 +51,12 @@ export class KeyHandler {
         this.signals.objectDeleted.dispatch();
       } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
         this.signals.objectFocused.dispatch();
+      } else if (event.key === 'Tab') {
+        event.preventDefault();
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        } 
+        this.signals.switchMode.dispatch('edit');
       }
     } else if (this.currentMode === 'edit') {
       if (event.key === 'f') {
@@ -61,6 +65,12 @@ export class KeyHandler {
         this.signals.deleteSelectedFaces.dispatch();
       } else if (event.key === 'p') {
         this.signals.separateSelection.dispatch();
+      } else if (event.key === 'Tab') {
+        event.preventDefault();
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        }
+        this.signals.switchMode.dispatch('object');
       }
     } 
   }

@@ -53,21 +53,7 @@ export default class ViewportControls {
       this.currentMode = this.interactionDropdown.value;
       
       this.interactionDropdown.addEventListener('change', (e) => {
-        const newMode = e.target.value;
-        const previousMode = this.currentMode;
-
-        const object = previousMode === 'object'
-          ? this.selection.selectedObject
-          : this.editSelection.editedObject;
-        
-        if (newMode === 'edit' && !(object && object.isMesh)) {
-          alert('No mesh selected. Please select a mesh object.');
-          e.target.value = this.currentMode;
-          return;
-        }
-
-        this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
-        this.currentMode = newMode;
+        this.switchMode(e.target.value);
       });
     }
   }
@@ -91,6 +77,10 @@ export default class ViewportControls {
         this.selectionModeBar.classList.toggle('hidden', newMode === 'object');
       }
     });
+
+    this.signals.switchMode.add((newMode) => {
+      this.switchMode(newMode);
+    });
   }
 
   resetCameraOption(cameras) {
@@ -113,6 +103,25 @@ export default class ViewportControls {
     });
 
     this.cameraDropdown.value = this.cameraManager.camera.uuid;
+  }
+
+  switchMode(newMode) {
+    const previousMode = this.currentMode;
+
+    const object = previousMode === 'object'
+      ? this.selection.selectedObject
+      : this.editSelection.editedObject;
+
+    if (newMode === 'edit' && !(object && object.isMesh)) {
+      alert('No mesh selected. Please select a mesh object.');
+      if (this.interactionDropdown) {
+        this.interactionDropdown.value = previousMode;
+      }
+      return;
+    }
+
+    this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
+    this.currentMode = newMode;
   }
 
   enterObjectMode() {

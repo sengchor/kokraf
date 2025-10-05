@@ -118,6 +118,7 @@ export class ExtrudeTool {
     const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
     const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
 
+    // Duplicate the selected vertices
     const { mappedVertexIds, newVertexIds } = vertexEditor.duplicateSelection(selectedVertexIds);
     this.newVertexIds = newVertexIds;
     this.mappedVertexIds = mappedVertexIds;
@@ -128,9 +129,6 @@ export class ExtrudeTool {
     });
 
     this.boundaryEdges = vertexEditor.getBoundaryEdges(meshData, selectedVertexIds, selectedEdgeIds, selectedFaceIds);
-
-    // Delete old selection
-    vertexEditor.deleteSelection(selectedVertexIds);
 
     // Recreate side faces
     for (let i = 0; i < this.boundaryEdges.length; i++) {
@@ -161,14 +159,22 @@ export class ExtrudeTool {
     }
 
     // Handle isolated vertices
-    const leftoverVertexIds = selectedVertexIds.filter(vId => {
-      return !this.boundaryEdges.some(e => e.v1Id === vId || e.v2Id === vId);
-    });
+    const connectedVertexIds = new Set();
+    for (let edgeId of selectedEdgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+      connectedVertexIds.add(edge.v1Id);
+      connectedVertexIds.add(edge.v2Id);
+    }
+    const leftoverVertexIds = selectedVertexIds.filter(vId => !connectedVertexIds.has(vId));
 
     for (let vId of leftoverVertexIds) {
       const newVId = this.mappedVertexIds[vId];
       meshData.addEdge(meshData.getVertex(vId), meshData.getVertex(newVId));
     }
+
+    // Delete old selection
+    vertexEditor.deleteSelection(selectedVertexIds);
 
     vertexEditor.updateGeometryAndHelpers(false);
 
