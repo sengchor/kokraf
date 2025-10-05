@@ -24,7 +24,13 @@ export function calculateFaceNormal(meshData, face) {
   if (!face || !face.vertexIds || face.vertexIds.length < 3) return new THREE.Vector3(0, 0, 0);
 
   const vIds = face.vertexIds;
-  const positions = vIds.map(id => meshData.getVertex(id).position);
+  const normal = calculateVertexIdsNormal(meshData, vIds);
+
+  return normal;
+}
+
+export function calculateVertexIdsNormal(meshData, vertexIds) {
+  const positions = vertexIds.map(id => meshData.getVertex(id).position);
 
   const normal = new THREE.Vector3(0, 0, 0);
   for (let i = 0; i < positions.length; i++) {

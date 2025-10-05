@@ -211,7 +211,7 @@ export class MeshData {
     }
   }
 
-  toDuplicatedVertexGeometry() {
+  toDuplicatedVertexGeometry(useEarcut = true) {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
     const indices = [];
@@ -232,16 +232,22 @@ export class MeshData {
         currentIndex++;
       }
 
-      const normal = this.computePlaneNormal(verts);
-      const flatVertices = this.projectTo2D(verts, normal);
-      const triangulated = earcut(flatVertices);
+      if (useEarcut) {
+        const normal = this.computePlaneNormal(verts);
+        const flatVertices = this.projectTo2D(verts, normal);
+        const triangulated = earcut(flatVertices);
 
-      for (let i = 0; i < triangulated.length; i += 3) {
-        indices.push(
-          baseIndex + triangulated[i],
-          baseIndex + triangulated[i + 1],
-          baseIndex + triangulated[i + 2]
-        );
+        for (let i = 0; i < triangulated.length; i += 3) {
+          indices.push(
+            baseIndex + triangulated[i],
+            baseIndex + triangulated[i + 1],
+            baseIndex + triangulated[i + 2]
+          );
+        }
+      } else {
+        for (let i = 1; i < verts.length - 1; i++) {
+          indices.push(baseIndex, baseIndex + i, baseIndex + i + 1);
+        }
       }
     }
 
@@ -265,7 +271,7 @@ export class MeshData {
     return geometry;
   }
 
-  toSharedVertexGeometry() {
+  toSharedVertexGeometry(useEarcut = true) {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
     const indices = [];
@@ -285,17 +291,25 @@ export class MeshData {
     for (let f of this.faces.values()) {
       const verts = f.vertexIds.map(id => this.vertices.get(id));
 
-      const normal = this.computePlaneNormal(verts);
-      const flatVertices = this.projectTo2D(verts, normal);
+      if (useEarcut) {
+        const normal = this.computePlaneNormal(verts);
+        const flatVertices = this.projectTo2D(verts, normal);
+        const triangulated = earcut(flatVertices);
 
-      const triangulated = earcut(flatVertices);
+        for (let i = 0; i < triangulated.length; i += 3) {
+          const a = vertexIdToIndex.get(verts[triangulated[i]].id);
+          const b = vertexIdToIndex.get(verts[triangulated[i + 1]].id);
+          const c = vertexIdToIndex.get(verts[triangulated[i + 2]].id);
 
-      for (let i = 0; i < triangulated.length; i += 3) {
-        const a = vertexIdToIndex.get(verts[triangulated[i]].id);
-        const b = vertexIdToIndex.get(verts[triangulated[i + 1]].id);
-        const c = vertexIdToIndex.get(verts[triangulated[i + 2]].id);
-
-        indices.push(a, b, c);
+          indices.push(a, b, c);
+        }
+      } else {
+        const base = vertexIdToIndex.get(verts[0].id);
+        for (let i = 1; i < verts.length - 1; i++) {
+          const b = vertexIdToIndex.get(verts[i].id);
+          const c = vertexIdToIndex.get(verts[i + 1].id);
+          indices.push(base, b, c);
+        }
       }
     }
     
@@ -308,7 +322,7 @@ export class MeshData {
     return geometry;
   }
 
-  toAngleBasedGeometry(angleDegree = 60) {
+  toAngleBasedGeometry(angleDegree = 60, useEarcut = true) {
     const threshold = Math.cos(THREE.MathUtils.degToRad(angleDegree));
 
     const geometry = new THREE.BufferGeometry();
@@ -400,17 +414,29 @@ export class MeshData {
         faceIndices.push(group.index);
       }
 
+      // --- 4.5 Triangulate (Earcut or Fan) ---
       const vertsObjs = verts.map(id => this.vertices.get(id));
-      const normal = this.computePlaneNormal(vertsObjs);
-      const flatVertices2D = this.projectTo2D(vertsObjs, normal);
 
-      const triangulated = earcut(flatVertices2D);
+      if (useEarcut) {
+        const normal = this.computePlaneNormal(vertsObjs);
+        const flatVertices2D = this.projectTo2D(vertsObjs, normal);
+        const triangulated = earcut(flatVertices2D);
 
-      for (let i = 0; i < triangulated.length; i += 3) {
-        const a = faceIndices[triangulated[i]];
-        const b = faceIndices[triangulated[i + 1]];
-        const c = faceIndices[triangulated[i + 2]];
-        indices.push(a, b, c);
+        for (let i = 0; i < triangulated.length; i += 3) {
+          const a = faceIndices[triangulated[i]];
+          const b = faceIndices[triangulated[i + 1]];
+          const c = faceIndices[triangulated[i + 2]];
+          indices.push(a, b, c);
+        }
+
+      } else {
+        // --- Simple fan triangulation ---
+        if (faceIndices.length >= 3) {
+          const base = faceIndices[0];
+          for (let i = 1; i < faceIndices.length - 1; i++) {
+            indices.push(base, faceIndices[i], faceIndices[i + 1]);
+          }
+        }
       }
     }
 

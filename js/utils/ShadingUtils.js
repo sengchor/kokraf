@@ -8,14 +8,14 @@ export class ShadingUtils {
     object.userData.shading = mode;
   }
 
-  static createGeometryWithShading(meshData, mode) {
+  static createGeometryWithShading(meshData, mode, useEarcut = true) {
     let geometry;
     if (mode === 'smooth') {
-      geometry = meshData.toSharedVertexGeometry();
+      geometry = meshData.toSharedVertexGeometry(useEarcut);
     } else if (mode === 'flat') {
-      geometry = meshData.toDuplicatedVertexGeometry();
+      geometry = meshData.toDuplicatedVertexGeometry(useEarcut);
     } else if (mode === 'auto') {
-      geometry = meshData.toAngleBasedGeometry();
+      geometry = meshData.toAngleBasedGeometry(undefined, useEarcut);
     }
     geometry.computeVertexNormals();
     return geometry;

@@ -238,13 +238,13 @@ export class VertexEditor {
     return edgeLines;
   }
 
-  updateGeometryAndHelpers() {
+  updateGeometryAndHelpers(useEarcut = true) {
     if (!this.object || !this.object.userData.meshData) return;
 
     const meshData = this.object.userData.meshData;
 
     const shading = this.object.userData.shading;
-    this.geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+    this.geometry = ShadingUtils.createGeometryWithShading(meshData, shading, useEarcut);
     this.geometry.computeVertexNormals();
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
@@ -272,7 +272,7 @@ export class VertexEditor {
       };
 
       const newVertex = meshData.addVertex(newPos);
-      duplicatedVertices.set(vid, newVertex.id);
+      duplicatedVertices.set(oldVertex.id, newVertex);
     }
 
     // Find faces inside selection
@@ -285,7 +285,7 @@ export class VertexEditor {
 
     // Duplicate faces
     for (let oldFace of facesToDuplicate) {
-      const newVertices = oldFace.vertexIds.map(vId => meshData.vertices.get(duplicatedVertices.get(vId)));
+      const newVertices = oldFace.vertexIds.map(vId => duplicatedVertices.get(vId));
       const newFace = meshData.addFace(newVertices);
       duplicatedFaces.set(oldFace.id, newFace);
     }
@@ -301,8 +301,8 @@ export class VertexEditor {
         );
 
         if (!allFacesDuplicated) {
-          const v1 = meshData.getVertex(duplicatedVertices.get(edge.v1Id));
-          const v2 = meshData.getVertex(duplicatedVertices.get(edge.v2Id));
+          const v1 = duplicatedVertices.get(edge.v1Id);
+          const v2 = duplicatedVertices.get(edge.v2Id);
 
           if (v1 && v2) {
             const newEdge = meshData.addEdge(v1, v2);
@@ -312,10 +312,14 @@ export class VertexEditor {
       }
     }
 
+    const mappedVertexIds = {};
+    for (let [oldId, newVertex] of duplicatedVertices.entries()) {
+      mappedVertexIds[oldId] = newVertex.id;
+    }
+
     return {
-      newVertexIds: Array.from(duplicatedVertices.values()),
-      newEdgeIds: Array.from(duplicatedEdges.values()).map(e => e.id),
-      newFaceIds: Array.from(duplicatedFaces.values()).map(f => f.id)
+      mappedVertexIds,
+      newVertexIds: Array.from(duplicatedVertices.values().map(v => v.id))
     };
   }
 
@@ -400,42 +404,42 @@ export class VertexEditor {
     const edgeCount = new Map();
 
     for (const faceId of selectedFaceSet) {
-        const face = meshData.faces.get(faceId);
-        if (!face) continue;
-        const vIds = face.vertexIds;
+      const face = meshData.faces.get(faceId);
+      if (!face) continue;
+      const vIds = face.vertexIds;
 
-        for (let i = 0; i < vIds.length; i++) {
-            const v1 = vIds[i];
-            const v2 = vIds[(i + 1) % vIds.length];
+      for (let i = 0; i < vIds.length; i++) {
+        const v1 = vIds[i];
+        const v2 = vIds[(i + 1) % vIds.length];
 
-            if (selectedVertexSet.has(v1) && selectedVertexSet.has(v2)) {
-                const key = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
-                edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
-            }
+        if (selectedVertexSet.has(v1) && selectedVertexSet.has(v2)) {
+          const key = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
+          edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
         }
+      }
     }
 
     // Boundary edges from faces
     const boundaryEdges = [];
     for (const [key, count] of edgeCount) {
-        if (count === 1) {
-            const [a, b] = key.split("_").map(Number);
-            const edge = meshData.getEdge(a, b);
-            if (edge) boundaryEdges.push(edge);
-        }
+      if (count === 1) {
+        const [a, b] = key.split("_").map(Number);
+        const edge = meshData.getEdge(a, b);
+        if (edge) boundaryEdges.push(edge);
+      }
     }
 
     // Add remaining selected edges not part of any selected face
     if (edgeIds && edgeIds.length > 0) {
-        for (const eId of edgeIds) {
-            const edge = meshData.edges.get(eId);
-            if (!edge) continue;
+      for (const eId of edgeIds) {
+        const edge = meshData.edges.get(eId);
+        if (!edge) continue;
 
-            const key = edge.v1Id < edge.v2Id ? `${edge.v1Id}_${edge.v2Id}` : `${edge.v2Id}_${edge.v1Id}`;
-            if (!edgeCount.has(key)) {
-                boundaryEdges.push(edge);
-            }
+        const key = edge.v1Id < edge.v2Id ? `${edge.v1Id}_${edge.v2Id}` : `${edge.v2Id}_${edge.v1Id}`;
+        if (!edgeCount.has(key)) {
+          boundaryEdges.push(edge);
         }
+      }
     }
 
     return boundaryEdges; // Array of Edge objects

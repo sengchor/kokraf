@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { VertexEditor } from './VertexEditor.js';
-import { getSortedVertexIds } from '../utils/SortUtils.js';
-import { getNeighborFaces, shouldFlipNormal } from '../utils/AlignedNormalUtils.js';
+import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint } from '../utils/AlignedNormalUtils.js';
 
 export class ExtrudeTool {
   constructor(editor) {
@@ -92,20 +91,10 @@ export class ExtrudeTool {
       const editedObject = this.editSelection.editedObject;
       const vertexEditor = new VertexEditor(this.editor, editedObject);
 
-      // Recreate side faces
-      for (let i = 0; i < this.boundaryEdges.length; i++) {
-        const edge = this.boundaryEdges[i];
-        const newEdge = this.newBoundaryEdges[i];
-
-        const sideFaceVertexIds = [edge.v1Id, edge.v2Id, newEdge.v1Id, newEdge.v2Id];
-        const { sortedVertexIds, normal } = getSortedVertexIds(editedObject.userData.meshData, sideFaceVertexIds);
-        const neighbors = getNeighborFaces(editedObject.userData.meshData, [edge.id, newEdge.id]);
-        const shouldFlip = shouldFlipNormal(editedObject.userData.meshData, sortedVertexIds, normal, neighbors);
-
-        if (shouldFlip) sortedVertexIds.reverse();
-        vertexEditor.createFaceFromVertices(sortedVertexIds);
-      }
       vertexEditor.updateGeometryAndHelpers();
+
+      // Keep selection on the new vertices
+      this.editSelection.selectVertices(this.newVertexIds);
     });
   }
 
@@ -129,8 +118,9 @@ export class ExtrudeTool {
     const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
     const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
 
-    const { newVertexIds, newEdgeIds, newFaceIds } = vertexEditor.duplicateSelection(selectedVertexIds);
+    const { mappedVertexIds, newVertexIds } = vertexEditor.duplicateSelection(selectedVertexIds);
     this.newVertexIds = newVertexIds;
+    this.mappedVertexIds = mappedVertexIds;
 
     this.initialDuplicatedPositions = newVertexIds.map(id => {
       const pos = meshData.getVertex(id).position;
@@ -138,12 +128,51 @@ export class ExtrudeTool {
     });
 
     this.boundaryEdges = vertexEditor.getBoundaryEdges(meshData, selectedVertexIds, selectedEdgeIds, selectedFaceIds);
-    this.newBoundaryEdges = vertexEditor.getBoundaryEdges(meshData, newVertexIds, newEdgeIds, newFaceIds);
 
     // Delete old selection
     vertexEditor.deleteSelection(selectedVertexIds);
 
-    vertexEditor.updateGeometryAndHelpers();
+    // Recreate side faces
+    for (let i = 0; i < this.boundaryEdges.length; i++) {
+      const edge = this.boundaryEdges[i];
+      const newEdge = meshData.getEdge(this.mappedVertexIds[edge.v1Id], this.mappedVertexIds[edge.v2Id]);
+
+      const sideFaceVertexIds = [edge.v1Id, edge.v2Id, this.mappedVertexIds[edge.v2Id], this.mappedVertexIds[edge.v1Id]];
+
+      const faceId = Array.from(newEdge.faceIds)[0];
+
+      if (faceId !== undefined) {
+        const face = meshData.faces.get(faceId);
+        const faceCentroid = getCentroidFromVertices(face.vertexIds, meshData);
+        const newEdgeMidpoint = getEdgeMidpoint(newEdge, meshData);
+
+        const sideFaceNormal = new THREE.Vector3().subVectors(newEdgeMidpoint, faceCentroid).normalize();
+        const faceNormal = calculateVertexIdsNormal(meshData, face.vertexIds);
+        const edgeVector = new THREE.Vector3().subVectors(meshData.getVertex(edge.v2Id).position, meshData.getVertex(edge.v1Id).position).normalize();
+
+        const testNormal = new THREE.Vector3().crossVectors(edgeVector, faceNormal).normalize();
+
+        if (testNormal.dot(sideFaceNormal) < 0) {
+          sideFaceVertexIds.reverse();
+        }
+      }
+
+      vertexEditor.createFaceFromVertices(sideFaceVertexIds);
+    }
+
+    // Handle isolated vertices
+    const leftoverVertexIds = selectedVertexIds.filter(vId => {
+      return !this.boundaryEdges.some(e => e.v1Id === vId || e.v2Id === vId);
+    });
+
+    for (let vId of leftoverVertexIds) {
+      const newVId = this.mappedVertexIds[vId];
+      meshData.addEdge(meshData.getVertex(vId), meshData.getVertex(newVId));
+    }
+
+    vertexEditor.updateGeometryAndHelpers(false);
+
+    this.editSelection.selectVertices(this.newVertexIds);
   }
 
   updateExtrude() {
@@ -157,8 +186,5 @@ export class ExtrudeTool {
     // Move duplicated vertices
     const newPositions = this.initialDuplicatedPositions.map(pos => pos.clone().add(offset));
     vertexEditor.setVerticesWorldPositions(this.newVertexIds, newPositions);
-
-    // Keep selection on the new vertices
-    this.editSelection.selectVertices(this.newVertexIds);
   }
 }
