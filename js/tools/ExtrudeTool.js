@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { VertexEditor } from './VertexEditor.js';
 import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint } from '../utils/AlignedNormalUtils.js';
+import { ExtrudeCommand } from '../commands/ExtrudeCommand.js';
 
 export class ExtrudeTool {
   constructor(editor) {
@@ -90,8 +91,11 @@ export class ExtrudeTool {
 
       const editedObject = this.editSelection.editedObject;
       const vertexEditor = new VertexEditor(this.editor, editedObject);
-
       vertexEditor.updateGeometryAndHelpers();
+      const meshData = editedObject.userData.meshData;
+      this.afterMeshData = structuredClone(meshData);
+
+      this.editor.execute(new ExtrudeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
 
       // Keep selection on the new vertices
       this.editSelection.selectVertices(this.newVertexIds);
@@ -113,6 +117,7 @@ export class ExtrudeTool {
     const editedObject = this.editSelection.editedObject;
     const vertexEditor = new VertexEditor(this.editor, editedObject);
     const meshData = editedObject.userData.meshData;
+    this.beforeMeshData = structuredClone(meshData);
 
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
@@ -123,10 +128,8 @@ export class ExtrudeTool {
     this.newVertexIds = newVertexIds;
     this.mappedVertexIds = mappedVertexIds;
 
-    this.initialDuplicatedPositions = newVertexIds.map(id => {
-      const pos = meshData.getVertex(id).position;
-      return new THREE.Vector3(pos.x, pos.y, pos.z);
-    });
+    vertexEditor.updateGeometryAndHelpers();
+    this.initialDuplicatedPositions = vertexEditor.getVertexPositions(newVertexIds);
 
     this.boundaryEdges = vertexEditor.getBoundaryEdges(meshData, selectedVertexIds, selectedEdgeIds, selectedFaceIds);
 

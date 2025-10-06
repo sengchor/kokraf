@@ -10,9 +10,9 @@ export default class Config {
       shadowType: 1, // PCF
       tonemapping: 0, // NoToneMapping
       shortcuts: {
-        translate: 'w',
-        rotate: 'e',
-        scale: 'r',
+        translate: 'g',
+        rotate: 'r',
+        scale: 's',
         undo: 'z',
         focus: 'f'
       },

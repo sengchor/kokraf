@@ -3,6 +3,7 @@ import { LineSegmentsGeometry } from 'jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
+import { MeshData } from "../core/MeshData.js";
 
 export class VertexEditor {
   constructor(editor, object3D) {
@@ -250,6 +251,15 @@ export class VertexEditor {
     this.geometry.computeBoundingSphere();
 
     this.refreshHelpers();
+  }
+
+  applyMeshData(newMeshData) {
+    if (!this.object) return false;
+
+    const cloned = structuredClone(newMeshData);
+    this.object.userData.meshData = cloned;
+
+    MeshData.rehydrateMeshData(this.object);
   }
 
   duplicateSelection(vertexIds) {

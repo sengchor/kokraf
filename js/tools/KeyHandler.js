@@ -36,6 +36,8 @@ export class KeyHandler {
       this.editor.undo();
     } else if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === this.shortcuts['undo']) {
       this.editor.redo();
+    } else if (event.key === 'w') {
+      this.editor.toolbar.setActiveTool('select');
     } else if (event.key === this.shortcuts['translate']) {
       this.editor.toolbar.setActiveTool('move');
     } else if (event.key === this.shortcuts['rotate']) {
@@ -71,6 +73,8 @@ export class KeyHandler {
           document.activeElement.blur();
         }
         this.signals.switchMode.dispatch('object');
+      } else if (event.key === 'e') {
+        this.editor.toolbar.setActiveTool('extrude');
       }
     } 
   }
