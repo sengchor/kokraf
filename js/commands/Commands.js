@@ -13,6 +13,9 @@ import { SetVertexPositionCommand } from './SetVertexPositionCommand.js';
 import { SwitchModeCommand } from './SwitchModeCommand.js';
 import { SetShadingCommand } from './SetShadingCommand.js';
 import { ExtrudeCommand } from './ExtrudeCommand.js';
+import { CreateFaceCommand } from './CreateFaceCommand.js';
+import { DeleteSelectionCommand } from './DeleteSelectionCommand.js';
+import { SeparateSelectionCommand } from './SeparateSelectionCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -30,4 +33,7 @@ export const commands = new Map([
   [SwitchModeCommand.type, SwitchModeCommand],
   [SetShadingCommand.type, SetShadingCommand],
   [ExtrudeCommand.type, ExtrudeCommand],
+  [CreateFaceCommand.type, CreateFaceCommand],
+  [DeleteSelectionCommand.type, DeleteSelectionCommand],
+  [SeparateSelectionCommand.type, SeparateSelectionCommand],
 ]);
