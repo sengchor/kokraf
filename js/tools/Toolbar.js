@@ -1,5 +1,6 @@
 import { TransformTool } from '../tools/TransformTool.js';
 import { ExtrudeTool } from '../tools/ExtrudeTool.js';
+import { LoopCutTool } from '../tools/LoopCutTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
@@ -19,6 +20,7 @@ export default class Toolbar {
     this.rotateTool = new TransformTool('rotate', this.editor);
     this.scaleTool = new TransformTool('scale', this.editor);
     this.extrudeTool = new ExtrudeTool(this.editor);
+    this.loopCutTool = new LoopCutTool(this.editor);
 
     this.load();
     this.handlePointerDown();
@@ -99,7 +101,7 @@ export default class Toolbar {
       }
     }
 
-    this.updateTransformTools(activeTool, attachObject);
+    this.updateActiveTools(activeTool, attachObject);
     this.buttons.forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-tool') === activeTool);
     });
@@ -110,17 +112,18 @@ export default class Toolbar {
     this.rotateTool.disable();
     this.scaleTool.disable();
     this.extrudeTool.disable();
+    this.loopCutTool.disable();
   }
 
-  updateTransformTools(activeTool, attachObject) {
+  updateActiveTools(activeTool, attachObject) {
     this.disableTools();
-    if (!attachObject) return;
 
     switch (activeTool) {
       case 'move':   this.moveTool.enableFor(attachObject); break;
       case 'rotate': this.rotateTool.enableFor(attachObject); break;
       case 'scale':  this.scaleTool.enableFor(attachObject); break;
       case 'extrude': this.extrudeTool.enableFor(attachObject); break;
+      case 'loopcut' : this.loopCutTool.enable(); break;
     }
   }
 }

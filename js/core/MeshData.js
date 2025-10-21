@@ -199,6 +199,7 @@ export class MeshData {
       }
 
       meshData.vertexIndexMap = new Map(raw.vertexIndexMap);
+      meshData.bufferIndexToVertexId = new Map(raw.bufferIndexToVertexId);
       meshData.nextVertexId = raw.nextVertexId;
       meshData.nextEdgeId = raw.nextEdgeId;
       meshData.nextFaceId = raw.nextFaceId;
@@ -220,9 +221,10 @@ export class MeshData {
     this.vertexIndexMap.clear();
 
     for (let f of this.faces.values()) {
-      const verts = f.vertexIds.map(id => this.vertices.get(id));
-      const baseIndex = currentIndex;
+      let verts = f.vertexIds.map(id => this.vertices.get(id));
+      if (useEarcut) { verts = this.removeCollinearVertices(verts); }
 
+      const baseIndex = currentIndex;
       for (let v of verts) {
         positions.push(v.position.x, v.position.y, v.position.z);
 
@@ -262,6 +264,11 @@ export class MeshData {
       }
     }
 
+    this.bufferIndexToVertexId = new Map();
+    for (let [logicalId, indices] of this.vertexIndexMap) {
+      for (let i of indices) this.bufferIndexToVertexId.set(i, logicalId);
+    }
+
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
@@ -289,7 +296,8 @@ export class MeshData {
     }
 
     for (let f of this.faces.values()) {
-      const verts = f.vertexIds.map(id => this.vertices.get(id));
+      let verts = f.vertexIds.map(id => this.vertices.get(id));
+      if (useEarcut) { verts = this.removeCollinearVertices(verts); }
 
       if (useEarcut) {
         const normal = this.computePlaneNormal(verts);
@@ -310,6 +318,13 @@ export class MeshData {
           const c = vertexIdToIndex.get(verts[i + 1].id);
           indices.push(base, b, c);
         }
+      }
+    }
+
+    this.bufferIndexToVertexId = new Map();
+    for (let [logicalId, indexArr] of this.vertexIndexMap) {
+      for (let i of indexArr) {
+        this.bufferIndexToVertexId.set(i, logicalId);
       }
     }
     
@@ -378,15 +393,18 @@ export class MeshData {
 
     // --- 4. Assign vertex indices using smoothing groups ---
     for (let f of this.faces.values()) {
-      const verts = f.vertexIds;
+      let verts = f.vertexIds.map(id => this.vertices.get(id));
+      if (useEarcut) { verts = this.removeCollinearVertices(verts); }
+      const vertexIds = verts.map(v => v.id);
+
       const faceIndices = [];
 
-      for (let vId of verts) {
+      for (let vId of vertexIds) {
         let group = null;
 
-        for (let i = 0; i < verts.length; i++) {
-          const v1 = verts[i];
-          const v2 = verts[(i + 1) % verts.length];
+        for (let i = 0; i < vertexIds.length; i++) {
+          const v1 = vertexIds[i];
+          const v2 = vertexIds[(i + 1) % vertexIds.length];
           if (v1 !== vId && v2 !== vId) continue;
 
           const edgeKey = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
@@ -415,7 +433,7 @@ export class MeshData {
       }
 
       // --- 4.5 Triangulate (Earcut or Fan) ---
-      const vertsObjs = verts.map(id => this.vertices.get(id));
+      const vertsObjs = vertexIds.map(id => this.vertices.get(id));
 
       if (useEarcut) {
         const normal = this.computePlaneNormal(vertsObjs);
@@ -450,6 +468,13 @@ export class MeshData {
 
         indices.push(currentIndex, currentIndex, currentIndex);
         currentIndex++;
+      }
+    }
+
+    this.bufferIndexToVertexId = new Map();
+    for (let [logicalId, indicesArr] of this.vertexIndexMap) {
+      for (let i of indicesArr) {
+        this.bufferIndexToVertexId.set(i, logicalId);
       }
     }
 
@@ -681,5 +706,27 @@ export class MeshData {
     }
 
     return flat;
+  }
+
+  removeCollinearVertices(verts, epsilon = 1e-6) {
+    if (verts.length <= 3) return verts.slice();
+
+    const toVec3 = v => new THREE.Vector3(v.position.x, v.position.y, v.position.z);
+    const filtered = [];
+
+    for (let i = 0; i < verts.length; i++) {
+      const prev = toVec3(verts[(i - 1 + verts.length) % verts.length]);
+      const curr = toVec3(verts[i]);
+      const next = toVec3(verts[(i + 1) % verts.length]);
+
+      const v1 = curr.clone().sub(prev);
+      const v2 = next.clone().sub(curr);
+
+      if (v1.clone().cross(v2).lengthSq() > epsilon) {
+        filtered.push(verts[i]);
+      }
+    }
+
+    return filtered;
   }
 }

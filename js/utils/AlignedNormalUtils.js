@@ -44,6 +44,21 @@ export function calculateVertexIdsNormal(meshData, vertexIds) {
   return normal.normalize();
 }
 
+export function calculateVerticesNormal(vertices) {
+  const normal = new THREE.Vector3(0, 0, 0);
+
+  for (let i = 0; i < vertices.length; i++) {
+    const current = vertices[i].position;
+    const next = vertices[(i + 1) % vertices.length].position;
+
+    normal.x += (current.y - next.y) * (current.z + next.z);
+    normal.y += (current.z - next.z) * (current.x + next.x);
+    normal.z += (current.x - next.x) * (current.y + next.y);
+  }
+
+  return normal.normalize();
+}
+
 export function getCentroidFromVertices(vertexIds, meshData) {
   if (!vertexIds || vertexIds.length === 0) return new THREE.Vector3();
 
