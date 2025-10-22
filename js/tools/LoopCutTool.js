@@ -232,7 +232,7 @@ export class LoopCutTool {
       const originalFaceNormal = calculateFaceNormal(meshData, face);
 
       if (face) {
-        this.removeFaceSafely(meshData, face);
+        meshData.deleteFace(face);
       }
 
       const midVertex = newVertices[i];
@@ -272,7 +272,7 @@ export class LoopCutTool {
     }
 
     for (const edge of loopEdges) {
-      meshData.edges.delete(edge.id);
+      meshData.deleteEdge(edge);
     }
   }
 
@@ -303,21 +303,8 @@ export class LoopCutTool {
         }
       }
 
-      this.removeFaceSafely(meshData, face);
+      meshData.deleteFace(face);
       meshData.addFace(newVertexIds.map(id => meshData.getVertex(id)));
     }
-  }
-
-  removeFaceSafely(meshData, face) {
-    if (!face || !meshData.faces.has(face.id)) return;
-
-    for (let i = 0; i < face.vertexIds.length; i++) {
-      const v1Id = face.vertexIds[i];
-      const v2Id = face.vertexIds[(i + 1) % face.vertexIds.length];
-      const edge = meshData.getEdge(v1Id, v2Id);
-      if (edge) edge.faceIds.delete(face.id);
-    }
-
-    meshData.faces.delete(face.id);
   }
 }

@@ -341,47 +341,38 @@ export class VertexEditor {
     const deletedEdges = new Set();
     const deletedVertices = new Set();
 
-    // Remove faces
-    for (let face of meshData.faces.values()) {
+    // Delete faces fully contained in the selection
+    for (const face of [...meshData.faces.values()]) {
       const allInside = face.vertexIds.every(vId => selected.has(vId));
       if (allInside) {
-        for (let i = 0; i < face.vertexIds.length; i++) {
-          const v1 = face.vertexIds[i];
-          const v2 = face.vertexIds[(i + 1) % face.vertexIds.length];
-          const edge = meshData.getEdge(v1, v2);
-          if (edge) edge.faceIds.delete(face.id);
-        }
-        meshData.faces.delete(face.id);
+        meshData.deleteFace(face);
         deletedFaces.add(face.id);
       }
     }
 
-    // Remove edges
-    for (let edge of meshData.edges.values()) {
+    // Delete edges fully contained in the selection
+    for (const edge of [...meshData.edges.values()]) {
       const v1Inside = selected.has(edge.v1Id);
       const v2Inside = selected.has(edge.v2Id);
 
       if (v1Inside && v2Inside && edge.faceIds.size === 0) {
-        const v1 = meshData.getVertex(edge.v1Id);
-        const v2 = meshData.getVertex(edge.v2Id);
-        if (v1) v1.edgeIds.delete(edge.id);
-        if (v2) v2.edgeIds.delete(edge.id);
-
-        meshData.edges.delete(edge.id);
+        meshData.deleteEdge(edge);
         deletedEdges.add(edge.id);
       }
     }
 
-    // Remove vertices
-    for (let vid of selected) {
-      const v = meshData.getVertex(vid);
+    // Delete isolated vertices (no remaining edge or face)
+    for (const vId of selected) {
+      const v = meshData.getVertex(vId);
       if (!v) continue;
 
-      const stillConnected = (v.edgeIds && v.edgeIds.size > 0) ||
-        Array.from(meshData.faces.values()).some(f => f.vertexIds.includes(vid));
+      const stillConnected =
+        (v.edgeIds && v.edgeIds.size > 0) ||
+        Array.from(meshData.faces.values()).some(f => f.vertexIds.includes(vId));
+
       if (!stillConnected) {
-        meshData.vertices.delete(vid);
-        deletedVertices.add(vid);
+        meshData.deleteVertex(v);
+        deletedVertices.add(v.id);
       }
     }
 

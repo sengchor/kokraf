@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
-import { MeshData } from '../core/MeshData.js';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
+import OBJLoader from './OBJLoader.js';
 
 export class Loader {
   constructor(editor) {
@@ -32,7 +32,7 @@ export class Loader {
   async loadObj(file, reader) {
     reader.addEventListener('load', (event) => {
       const text = event.target.result;
-      const meshObjects = MeshData.fromOBJText(text);
+      const meshObjects = OBJLoader.fromOBJText(text);
       const shadingObjects = ShadingUtils.getShadingFromOBJ(text);
 
       const meshes = meshObjects.map(({ name, meshData }, i) => {

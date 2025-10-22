@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import earcut from 'earcut';
+import { generateDuplicatedVertexGeometry, generateSharedVertexGeometry, generateAngleBasedGeometry
+} from '../geometry/GeometryGenerator.js';
 
 class Vertex {
   constructor(id, position) {
@@ -33,6 +34,7 @@ export class MeshData {
     this.edges = new Map();
     this.faces = new Map();
     this.vertexIndexMap = new Map();
+    this.bufferIndexToVertexId = new Map();
     this.nextVertexId = 0;
     this.nextEdgeId = 0;
     this.nextFaceId = 0;
@@ -45,41 +47,36 @@ export class MeshData {
   }
 
   addEdge(v1, v2) {
-    for (let edge of this.edges.values()) {
-      if ((edge.v1Id === v1.id && edge.v2Id === v2.id) ||
-          (edge.v1Id === v2.id && edge.v2Id === v1.id)) {
-        return edge;
-      }
-    }
+    const existingEdge = this.getEdge(v1.id, v2.id);
+    if (existingEdge) return existingEdge;
+
     const e = new Edge(this.nextEdgeId++, v1.id, v2.id);
     this.edges.set(e.id, e);
     v1.edgeIds.add(e.id);
     v2.edgeIds.add(e.id);
+
     return e;
   }
 
-  addFace(vertexArray) {
-    const vIds = vertexArray.map(v => v.id);
+  addFace(vertices) {
+    const vIds = vertices.map(v => v.id);
+
+    const existingFace = this.getFace(vIds);
+    if (existingFace) return existingFace;
+
     const f = new Face(this.nextFaceId++, vIds);
     this.faces.set(f.id, f);
 
     const len = vIds.length;
     for (let i = 0; i < len; i++) {
-      const v1Id = vIds[i];
-      const v2Id = vIds[(i + 1) % len];
-      let edge = this.getEdge(v1Id, v2Id);
-      if (!edge) {
-        const v1 = this.vertices.get(v1Id);
-        const v2 = this.vertices.get(v2Id);
-        edge = this.addEdge(v1, v2);
-      }
-      f.edgeIds.add(edge.id);
-      edge.faceIds.add(f.id);
+      const v1 = vertices[i];
+      const v2 = vertices[(i + 1) % len];
+      let e = this.getEdge(v1.id, v2.id);
+      if (!e) e = this.addEdge(v1, v2);
+      f.edgeIds.add(e.id);
+      e.faceIds.add(f.id);
     }
-
-    for (let vId of vIds) {
-      this.vertices.get(vId).faceIds.add(f.id);
-    }
+    for (let v of vertices) v.faceIds.add(f.id);
 
     return f;
   }
@@ -89,36 +86,108 @@ export class MeshData {
   }
 
   getEdge(v1Id, v2Id) {
-    for (let edge of this.edges.values()) {
-      if (
-        (edge.v1Id === v1Id && edge.v2Id === v2Id) ||
-        (edge.v1Id === v2Id && edge.v2Id === v1Id)
-      ) {
+    const v1 = this.vertices.get(v1Id);
+    if (!v1) return null;
+
+    for (let edgeId of v1.edgeIds) {
+      const edge = this.edges.get(edgeId);
+      if (!edge) continue;
+
+      if ((edge.v1Id === v1Id && edge.v2Id === v2Id) ||
+          (edge.v1Id === v2Id && edge.v2Id === v1Id)) {
         return edge;
       }
     }
+
     return null;
   }
 
   getFace(vertexIds) {
-    const vSet = new Set(vertexIds);
+    if (!vertexIds || vertexIds.length === 0) return null;
 
-    for (let face of this.faces.values()) {
-      if (face.vertexIds.length !== vertexIds.length) continue;
+    const firstVertex = this.getVertex(vertexIds[0]);
+    if (!firstVertex) return null;
+
+    let candidateFaceIds = new Set(firstVertex.faceIds);
+
+    for (let i = 1; i < vertexIds.length; i++) {
+      const v = this.getVertex(vertexIds[i]);
+      if (!v) return null;
+
+      candidateFaceIds = new Set(
+        [...candidateFaceIds].filter(fid => v.faceIds.has(fid))
+      );
+
+      if (candidateFaceIds.size === 0) return null;
+    }
+
+    for (let fid of candidateFaceIds) {
+      const face = this.faces.get(fid);
+      if (!face || face.vertexIds.length !== vertexIds.length) continue;
 
       const faceSet = new Set(face.vertexIds);
-      let allMatch = true;
-
-      for (let vId of vSet) {
-        if (!faceSet.has(vId)) {
-          allMatch = false;
-          break;
-        }
+      if (vertexIds.every(vId => faceSet.has(vId))) {
+        return face;
       }
-
-      if (allMatch) return face;
     }
+
     return null;
+  }
+
+  deleteVertex(vertex) {
+    if (!vertex || !this.vertices.has(vertex.id)) return;
+
+    for (const faceId of [...vertex.faceIds]) {
+      const face = this.faces.get(faceId);
+      if (face && face.vertexIds.includes(vertex.id)) {
+        this.deleteFace(face);
+      }
+    }
+
+    for (const edgeId of [...vertex.edgeIds]) {
+      const edge = this.edges.get(edgeId);
+      if (edge && (edge.v1Id === vertex.id || edge.v2Id === vertex.id)) {
+        this.deleteEdge(edge);
+      }
+    }
+
+    this.vertices.delete(vertex.id);
+  }
+
+  deleteEdge(edge) {
+    if (!edge || !this.edges.has(edge.id)) return;
+
+    for (let faceId of edge.faceIds) {
+      const face = this.faces.get(faceId);
+      if (face) {
+        face.edgeIds.delete(edge.id);
+      }
+    }
+
+    const v1 = this.getVertex(edge.v1Id);
+    const v2 = this.getVertex(edge.v2Id);
+    if (v1) v1.edgeIds.delete(edge.id);
+    if (v2) v2.edgeIds.delete(edge.id);
+
+    this.edges.delete(edge.id);
+  }
+
+  deleteFace(face) {
+    if (!face || !this.faces.has(face.id)) return;
+
+    for (let i = 0; i < face.vertexIds.length; i++) {
+      const v1Id = face.vertexIds[i];
+      const v2Id = face.vertexIds[(i + 1) % face.vertexIds.length];
+      const edge = this.getEdge(v1Id, v2Id);
+      if (edge) edge.faceIds.delete(face.id);
+    }
+
+    for (let vId of face.vertexIds) {
+      const vertex = this.vertices.get(vId);
+      if (vertex) vertex.faceIds.delete(face.id);
+    }
+
+    this.faces.delete(face.id);
   }
 
   toJSON() {
@@ -213,520 +282,14 @@ export class MeshData {
   }
 
   toDuplicatedVertexGeometry(useEarcut = true) {
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const indices = [];
-    let currentIndex = 0;
-
-    this.vertexIndexMap.clear();
-
-    for (let f of this.faces.values()) {
-      let verts = f.vertexIds.map(id => this.vertices.get(id));
-      if (useEarcut) { verts = this.removeCollinearVertices(verts); }
-
-      const baseIndex = currentIndex;
-      for (let v of verts) {
-        positions.push(v.position.x, v.position.y, v.position.z);
-
-        if (!this.vertexIndexMap.has(v.id)) this.vertexIndexMap.set(v.id, []);
-        this.vertexIndexMap.get(v.id).push(currentIndex);
-
-        currentIndex++;
-      }
-
-      if (useEarcut) {
-        const normal = this.computePlaneNormal(verts);
-        const flatVertices = this.projectTo2D(verts, normal);
-        const triangulated = earcut(flatVertices);
-
-        for (let i = 0; i < triangulated.length; i += 3) {
-          indices.push(
-            baseIndex + triangulated[i],
-            baseIndex + triangulated[i + 1],
-            baseIndex + triangulated[i + 2]
-          );
-        }
-      } else {
-        for (let i = 1; i < verts.length - 1; i++) {
-          indices.push(baseIndex, baseIndex + i, baseIndex + i + 1);
-        }
-      }
-    }
-
-    for (let v of this.vertices.values()) {
-      if (v.faceIds.size === 0) {
-        positions.push(v.position.x, v.position.y, v.position.z);
-
-        if (!this.vertexIndexMap.has(v.id)) this.vertexIndexMap.set(v.id, []);
-        this.vertexIndexMap.get(v.id).push(currentIndex);
-
-        currentIndex++
-      }
-    }
-
-    this.bufferIndexToVertexId = new Map();
-    for (let [logicalId, indices] of this.vertexIndexMap) {
-      for (let i of indices) this.bufferIndexToVertexId.set(i, logicalId);
-    }
-
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-
-    return geometry;
+    return generateDuplicatedVertexGeometry(this, useEarcut);
   }
 
   toSharedVertexGeometry(useEarcut = true) {
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const indices = [];
-
-    this.vertexIndexMap.clear();
-    const vertexIdToIndex = new Map();
-    let currentIndex = 0;
-
-    for (let v of this.vertices.values()) {
-      positions.push(v.position.x, v.position.y, v.position.z);
-      vertexIdToIndex.set(v.id, currentIndex);
-
-      this.vertexIndexMap.set(v.id, [currentIndex]);
-      currentIndex++;
-    }
-
-    for (let f of this.faces.values()) {
-      let verts = f.vertexIds.map(id => this.vertices.get(id));
-      if (useEarcut) { verts = this.removeCollinearVertices(verts); }
-
-      if (useEarcut) {
-        const normal = this.computePlaneNormal(verts);
-        const flatVertices = this.projectTo2D(verts, normal);
-        const triangulated = earcut(flatVertices);
-
-        for (let i = 0; i < triangulated.length; i += 3) {
-          const a = vertexIdToIndex.get(verts[triangulated[i]].id);
-          const b = vertexIdToIndex.get(verts[triangulated[i + 1]].id);
-          const c = vertexIdToIndex.get(verts[triangulated[i + 2]].id);
-
-          indices.push(a, b, c);
-        }
-      } else {
-        const base = vertexIdToIndex.get(verts[0].id);
-        for (let i = 1; i < verts.length - 1; i++) {
-          const b = vertexIdToIndex.get(verts[i].id);
-          const c = vertexIdToIndex.get(verts[i + 1].id);
-          indices.push(base, b, c);
-        }
-      }
-    }
-
-    this.bufferIndexToVertexId = new Map();
-    for (let [logicalId, indexArr] of this.vertexIndexMap) {
-      for (let i of indexArr) {
-        this.bufferIndexToVertexId.set(i, logicalId);
-      }
-    }
-    
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-
-    return geometry;
+    return generateSharedVertexGeometry(this, useEarcut);
   }
 
   toAngleBasedGeometry(angleDegree = 60, useEarcut = true) {
-    const threshold = Math.cos(THREE.MathUtils.degToRad(angleDegree));
-
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const indices = [];
-    this.vertexIndexMap.clear();
-
-    const faceNormals = this.computeFaceNormals();
-
-    // --- 1. Build edgeKey -> faceIds from existing edges ---
-    const edgeToFaces = new Map();
-    for (let e of this.edges.values()) {
-      const edgeKey = e.v1Id < e.v2Id ? `${e.v1Id}_${e.v2Id}` : `${e.v2Id}_${e.v1Id}`;
-      edgeToFaces.set(edgeKey, Array.from(e.faceIds));
-    }
-
-    // --- 2. Mark smooth vs sharp edges ---
-    const smoothEdges = new Set();
-    for (let [edgeKey, faces] of edgeToFaces) {
-      if (faces.length === 2) {
-        const [f1, f2] = faces;
-        const n1 = faceNormals.get(f1);
-        const n2 = faceNormals.get(f2);
-        if (n1.dot(n2) >= threshold) {
-          smoothEdges.add(edgeKey);
-        }
-      }
-    }
-
-    // --- 3. Build smoothing groups per vertex ---
-    const vertexGroups = new Map();
-    let currentIndex = 0;
-
-    const getOrCreateGroup = (vId, faceId) => {
-      if (!vertexGroups.has(vId)) vertexGroups.set(vId, []);
-
-      for (let g of vertexGroups.get(vId)) {
-        if (g.connectedFaces.has(faceId)) return g;
-      }
-
-      const v = this.vertices.get(vId);
-      positions.push(v.position.x, v.position.y, v.position.z);
-
-      const group = {
-        index: currentIndex++,
-        faces: new Set([faceId]),
-        connectedFaces: new Set([faceId])
-      };
-      vertexGroups.get(vId).push(group);
-
-      return group;
-    };
-
-    // --- 4. Assign vertex indices using smoothing groups ---
-    for (let f of this.faces.values()) {
-      let verts = f.vertexIds.map(id => this.vertices.get(id));
-      if (useEarcut) { verts = this.removeCollinearVertices(verts); }
-      const vertexIds = verts.map(v => v.id);
-
-      const faceIndices = [];
-
-      for (let vId of vertexIds) {
-        let group = null;
-
-        for (let i = 0; i < vertexIds.length; i++) {
-          const v1 = vertexIds[i];
-          const v2 = vertexIds[(i + 1) % vertexIds.length];
-          if (v1 !== vId && v2 !== vId) continue;
-
-          const edgeKey = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
-          if (smoothEdges.has(edgeKey)) {
-            const neighborFaces = edgeToFaces.get(edgeKey);
-            for (let nf of neighborFaces) {
-              if (nf !== f.id) {
-                const groups = vertexGroups.get(vId) || [];
-                group = groups.find(g => g.faces.has(nf));
-                if (group) break;
-              }
-            }
-          }
-          if (group) break;
-        }
-
-        if (!group) group = getOrCreateGroup(vId, f.id);
-
-        group.faces.add(f.id);
-        group.connectedFaces.add(f.id);
-
-        if (!this.vertexIndexMap.has(vId)) this.vertexIndexMap.set(vId, []);
-        this.vertexIndexMap.get(vId).push(group.index);
-
-        faceIndices.push(group.index);
-      }
-
-      // --- 4.5 Triangulate (Earcut or Fan) ---
-      const vertsObjs = vertexIds.map(id => this.vertices.get(id));
-
-      if (useEarcut) {
-        const normal = this.computePlaneNormal(vertsObjs);
-        const flatVertices2D = this.projectTo2D(vertsObjs, normal);
-        const triangulated = earcut(flatVertices2D);
-
-        for (let i = 0; i < triangulated.length; i += 3) {
-          const a = faceIndices[triangulated[i]];
-          const b = faceIndices[triangulated[i + 1]];
-          const c = faceIndices[triangulated[i + 2]];
-          indices.push(a, b, c);
-        }
-
-      } else {
-        // --- Simple fan triangulation ---
-        if (faceIndices.length >= 3) {
-          const base = faceIndices[0];
-          for (let i = 1; i < faceIndices.length - 1; i++) {
-            indices.push(base, faceIndices[i], faceIndices[i + 1]);
-          }
-        }
-      }
-    }
-
-    // --- 5. Add isolated vertices (not in any face) ---
-    for (let v of this.vertices.values()) {
-      if (v.faceIds.size === 0) {
-        positions.push(v.position.x, v.position.y, v.position.z);
-
-        if (!this.vertexIndexMap.has(v.id)) this.vertexIndexMap.set(v.id, []);
-        this.vertexIndexMap.get(v.id).push(currentIndex);
-
-        indices.push(currentIndex, currentIndex, currentIndex);
-        currentIndex++;
-      }
-    }
-
-    this.bufferIndexToVertexId = new Map();
-    for (let [logicalId, indicesArr] of this.vertexIndexMap) {
-      for (let i of indicesArr) {
-        this.bufferIndexToVertexId.set(i, logicalId);
-      }
-    }
-
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-
-    return geometry;
-  }
-
-  static fromOBJText(objText) {
-    const lines = objText.split('\n');
-    const objects = [];
-    let current = { name: '', positions: [], faces: [], vertexOffset: 0 };
-
-    for (const line of lines) {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length === 0) continue;
-
-      switch (parts[0]) {
-        case 'o':
-        case 'g':
-          if (current.faces.length > 0) {
-            objects.push(current);
-            current.vertexOffset += current.positions.length;
-          }
-          current = { 
-            name: parts.slice(1).join(' '), 
-            positions: [], 
-            faces: [], 
-            vertexOffset: current.vertexOffset 
-          };
-          break;
-
-        case 'v':
-          const x = parseFloat(parts[1]);
-          const y = parseFloat(parts[2]);
-          const z = parseFloat(parts[3]);
-
-          if (!isFinite(x) || !isFinite(y) || !isFinite(z)) {
-            current.positions.push(null);
-          } else {
-            current.positions.push([x, y, z]);
-          }
-          break;
-
-        case 'f':
-          const faceIndices = parts.slice(1).map(token => {
-            const idx = parseInt(token.split('/')[0], 10) - 1 - current.vertexOffset;
-            return idx;
-          });
-          current.faces.push(faceIndices);
-          break;
-      }
-    }
-    
-    if (current.faces.length > 0) objects.push(current);
-
-    return objects.map(obj => {
-      const { positions, faces, name } = obj;
-      const meshData = new MeshData();
-      const verts = positions.map(p => p ? meshData.addVertex(new THREE.Vector3(...p)) : null);
-      for (const face of faces) {
-        const vertexArray = face.map(i => verts[i]).filter(v => v !== null);
-        if (vertexArray.length >= 3) meshData.addFace(vertexArray);
-      }
-      return { name, meshData };
-    });
-  }
-
-  computePerVertexNormals() {
-    const normals = new Map();
-
-    for (const [vid, v] of this.vertices) {
-      normals.set(vid, new THREE.Vector3(0, 0, 0));
-    }
-
-    for (const [, f] of this.faces) {
-      const vIds = f.vertexIds;
-      if (vIds.length < 3) continue;
-
-      const p0 = this.vertices.get(vIds[0]).position;
-      const p1 = this.vertices.get(vIds[1]).position;
-      const p2 = this.vertices.get(vIds[2]).position;
-
-      const e1 = new THREE.Vector3().subVectors(p1, p0);
-      const e2 = new THREE.Vector3().subVectors(p2, p0);
-      const faceNormal = new THREE.Vector3().crossVectors(e1, e2);
-
-      if (faceNormal.lengthSq() === 0) continue;
-      faceNormal.normalize();
-
-      for (const vid of vIds) {
-        normals.get(vid).add(faceNormal);
-      }
-    }
-
-    for (const [vid, n] of normals) {
-      if (n.lengthSq() === 0) n.set(0, 0, 1);
-      else n.normalize();
-    }
-
-    return normals;
-  }
-
-  computeFaceNormals() {
-    const faceNormals = new Map();
-
-    for (let [fid, f] of this.faces) {
-      if (f.vertexIds.length < 3) continue;
-
-      const v0 = this.vertices.get(f.vertexIds[0]).position;
-      const v1 = this.vertices.get(f.vertexIds[1]).position;
-      const v2 = this.vertices.get(f.vertexIds[2]).position;
-
-      const edge1 = new THREE.Vector3().subVectors(v1, v0);
-      const edge2 = new THREE.Vector3().subVectors(v2, v0);
-      const normal = new THREE.Vector3().crossVectors(edge1, edge2);
-
-      if (normal.lengthSq() === 0) {
-        normal.set(0, 0, 1);
-      } else {
-        normal.normalize();
-      }
-
-      faceNormals.set(fid, normal);
-    }
-
-    return faceNormals;
-  }
-
-  computeVertexNormalsWithAngle(angleDeg = 60) {
-    const angleLimit = THREE.MathUtils.degToRad(angleDeg);
-    const cosLimit = Math.cos(angleLimit);
-
-    const faceNormals = this.computeFaceNormals();
-    const result = new Map();
-
-    // Build adjacency: vertex → faces
-    const vertexToFaces = new Map();
-    for (const [fid, f] of this.faces) {
-      for (const vid of f.vertexIds) {
-        if (!vertexToFaces.has(vid)) vertexToFaces.set(vid, []);
-        vertexToFaces.get(vid).push(fid);
-      }
-    }
-
-    // Build face adjacency through edges
-    const edgeToFaces = new Map();
-    for (let e of this.edges.values()) {
-      const edgeKey = e.v1Id < e.v2Id ? `${e.v1Id}_${e.v2Id}` : `${e.v2Id}_${e.v1Id}`;
-      edgeToFaces.set(edgeKey, Array.from(e.faceIds));
-    }
-
-    // For each vertex, flood-fill connected faces into smoothing groups
-    for (const [vid, faceIds] of vertexToFaces) {
-      const unvisited = new Set(faceIds);
-      while (unvisited.size > 0) {
-        const groupFaces = [];
-        const stack = [unvisited.values().next().value];
-        const avgNormal = new THREE.Vector3();
-
-        while (stack.length > 0) {
-          const fid = stack.pop();
-          if (!unvisited.has(fid)) continue;
-          unvisited.delete(fid);
-
-          const fn = faceNormals.get(fid);
-          groupFaces.push(fid);
-          avgNormal.add(fn);
-
-          // Explore neighbors of fid around vid
-          const face = this.faces.get(fid);
-          for (let i = 0; i < face.vertexIds.length; i++) {
-            const v1 = face.vertexIds[i];
-            const v2 = face.vertexIds[(i + 1) % face.vertexIds.length];
-            if (v1 !== vid && v2 !== vid) continue;
-
-            const edgeKey = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
-            const neighbors = edgeToFaces.get(edgeKey) || [];
-            for (const nf of neighbors) {
-              if (unvisited.has(nf)) {
-                const dot = fn.dot(faceNormals.get(nf));
-                if (dot >= cosLimit) stack.push(nf);
-              }
-            }
-          }
-        }
-
-        // Finalize average normal for this group
-        avgNormal.normalize();
-        for (const fid of groupFaces) {
-          result.set(`${fid}_${vid}`, avgNormal.clone());
-        }
-      }
-    }
-
-    return result;
-  }
-
-  computePlaneNormal(verts) {
-    if (verts.length < 3) return new THREE.Vector3(0, 0, 1);
-    const v0 = verts[0].position;
-    const v1 = verts[1].position;
-    const v2 = verts[2].position;
-
-    const edge1 = new THREE.Vector3().subVectors(v1, v0);
-    const edge2 = new THREE.Vector3().subVectors(v2, v0);
-
-    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
-    return normal;
-  }
-
-  projectTo2D(verts, normal) {
-    let tangent = new THREE.Vector3(1, 0, 0);
-    if (Math.abs(normal.dot(tangent)) > 0.99) tangent.set(0, 1, 0);
-
-    const u = new THREE.Vector3().crossVectors(normal, tangent).normalize();
-    const v = new THREE.Vector3().crossVectors(normal, u).normalize();
-
-    const origin = verts[0].position;
-    const flat = [];
-
-    for (let vert of verts) {
-        const p = new THREE.Vector3().subVectors(vert.position, origin);
-        flat.push(p.dot(u), p.dot(v));
-    }
-
-    return flat;
-  }
-
-  removeCollinearVertices(verts, epsilon = 1e-6) {
-    if (verts.length <= 3) return verts.slice();
-
-    const toVec3 = v => new THREE.Vector3(v.position.x, v.position.y, v.position.z);
-    const filtered = [];
-
-    for (let i = 0; i < verts.length; i++) {
-      const prev = toVec3(verts[(i - 1 + verts.length) % verts.length]);
-      const curr = toVec3(verts[i]);
-      const next = toVec3(verts[(i + 1) % verts.length]);
-
-      const v1 = curr.clone().sub(prev);
-      const v2 = next.clone().sub(curr);
-
-      if (v1.clone().cross(v2).lengthSq() > epsilon) {
-        filtered.push(verts[i]);
-      }
-    }
-
-    return filtered;
+    return generateAngleBasedGeometry(this, angleDegree, useEarcut);
   }
 }

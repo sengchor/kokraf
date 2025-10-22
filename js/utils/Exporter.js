@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
+import { computePerVertexNormals, computeFaceNormals, computeVertexNormalsWithAngle } from '../geometry/NormalCalculator.js';
 
 export class Exporter {
   constructor(editor) {
@@ -99,21 +100,21 @@ export class Exporter {
 
     // Compute normals depending on shading mode
     if (shading === "smooth") {
-      const vertNormals = meshData.computePerVertexNormals();
+      const vertNormals = computePerVertexNormals(meshData);
 
       for (const [vid, n] of vertNormals) {
         result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
         normalIndexMap.set(vid, normalIndex++);
       }
     } else if (shading === "flat") {
-      const faceNormals = meshData.computeFaceNormals();
+      const faceNormals = computeFaceNormals(meshData);
 
       for (let [fid, n] of faceNormals) {
         result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
         normalIndexMap.set(fid, normalIndex++);
       }
     } else if (shading === "auto") {
-      const fvNormals = meshData.computeVertexNormalsWithAngle();
+      const fvNormals = computeVertexNormalsWithAngle(meshData, 45);
 
       for (const [key, n] of fvNormals) {
         result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;

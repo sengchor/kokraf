@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Loader } from '../utils/Loader.js';
+import { Loader } from '../loaders/Loader.js';
 import { Exporter } from '../utils/Exporter.js';
 
 export class MenubarFile {
