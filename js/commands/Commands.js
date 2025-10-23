@@ -16,6 +16,7 @@ import { ExtrudeCommand } from './ExtrudeCommand.js';
 import { CreateFaceCommand } from './CreateFaceCommand.js';
 import { DeleteSelectionCommand } from './DeleteSelectionCommand.js';
 import { SeparateSelectionCommand } from './SeparateSelectionCommand.js';
+import { LoopCutCommand } from './LoopCutCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -36,4 +37,5 @@ export const commands = new Map([
   [CreateFaceCommand.type, CreateFaceCommand],
   [DeleteSelectionCommand.type, DeleteSelectionCommand],
   [SeparateSelectionCommand.type, SeparateSelectionCommand],
+  [LoopCutCommand.type, LoopCutCommand],
 ]);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { getNeighborFaces, calculateFaceNormal, calculateVerticesNormal} from '../utils/AlignedNormalUtils.js';
-import { VertexEditor } from './VertexEditor.js';
+import { LoopCutCommand } from '../commands/LoopCutCommand.js';
 
 export class LoopCutTool {
   constructor(editor) {
@@ -44,6 +44,7 @@ export class LoopCutTool {
     if (intersects.length === 0) return;
 
     const meshData = this.editedObject.userData.meshData;
+    this.beforeMeshData = structuredClone(meshData);
     const startEdge = this.getStartEdgeFromIntersect(meshData, intersects[0]);
     const loopEdges = this.getLoopEdges(meshData, startEdge);
 
@@ -63,8 +64,8 @@ export class LoopCutTool {
 
     this.applyLoopCut(meshData, loopEdges, newVertices, isClosedLoop);
 
-    const vertexEditor = new VertexEditor(this.editor, this.editedObject);
-    vertexEditor.updateGeometryAndHelpers();
+    this.afterMeshData = structuredClone(meshData);
+    this.editor.execute(new LoopCutCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
 
     this.editSelection.selectVertices(newVertices.map(v => v.id));
   }
