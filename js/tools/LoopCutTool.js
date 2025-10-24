@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { getNeighborFaces, calculateFaceNormal, calculateVerticesNormal} from '../utils/AlignedNormalUtils.js';
 import { LoopCutCommand } from '../commands/LoopCutCommand.js';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 
 export class LoopCutTool {
   constructor(editor) {
@@ -16,17 +19,20 @@ export class LoopCutTool {
     this.editedObject = null;
 
     this._onPointerDown = this.onPointerDown.bind(this);
+    this._onPointerMove = this.onPointerMove.bind(this);
   }
 
   enable() {
     if (this.active) return;
     this.active = true;
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
+    this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
   }
 
   disable() {
     if (!this.active) return;
     this.active = false;
+    this.clearPreview();
   }
 
   onPointerDown(event) {
@@ -38,6 +44,7 @@ export class LoopCutTool {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.editedObject = this.editSelection.editedObject;
+    if (!this.editedObject) return;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObject(this.editedObject, false);
@@ -68,6 +75,39 @@ export class LoopCutTool {
     this.editor.execute(new LoopCutCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
 
     this.editSelection.selectVertices(newVertices.map(v => v.id));
+  }
+
+  onPointerMove(event) {
+    if (!this.active) return;
+
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.editedObject = this.editSelection.editedObject;
+    if (!this.editedObject) return;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObject(this.editedObject, false);
+    if (intersects.length === 0) {
+      this.clearPreview();
+      return;
+    }
+
+    const meshData = this.editedObject.userData.meshData;
+    const startEdge = this.getStartEdgeFromIntersect(meshData, intersects[0]);
+    if (!startEdge) {
+      this.clearPreview();
+      return;
+    }
+
+    const loopEdges = this.getLoopEdges(meshData, startEdge);
+    if (!loopEdges || loopEdges.length < 2) {
+      this.clearPreview();
+      return;
+    }
+
+    this.showPreview(meshData, loopEdges);
   }
 
   findNearestEdge(meshData, edges, point) {
@@ -307,5 +347,48 @@ export class LoopCutTool {
       meshData.deleteFace(face);
       meshData.addFace(newVertexIds.map(id => meshData.getVertex(id)));
     }
+  }
+
+  showPreview(meshData, loopEdges) {
+    if (this.previewLine) this.scene.remove(this.previewLine);
+
+    const points = [];
+    for (const edge of loopEdges) {
+      const v1 = meshData.getVertex(edge.v1Id).position;
+      const v2 = meshData.getVertex(edge.v2Id).position;
+      const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+      points.push(mid.x, mid.y, mid.z);
+    }
+
+    const geometry = new LineGeometry();
+    geometry.setPositions(points);
+
+    const material = new LineMaterial({
+      color: 0xffff00,
+      linewidth: 1,
+      transparent: false,
+      opacity: 0.9,
+      depthTest: false,
+    });
+    material.resolution.set(window.innerWidth, window.innerHeight);
+
+    this.previewLine = new Line2(geometry, material);
+    this.previewLine.computeLineDistances();
+    this.previewLine.matrix.copy(this.editedObject.matrixWorld);
+    this.previewLine.matrix.decompose(
+      this.previewLine.position,
+      this.previewLine.quaternion,
+      this.previewLine.scale
+    );
+    this.scene.add(this.previewLine);
+  }
+
+  clearPreview() {
+    if (!this.previewLine) return;
+
+    this.scene.remove(this.previewLine);
+    this.previewLine.geometry.dispose();
+    this.previewLine.material.dispose();
+    this.previewLine = null;
   }
 }
