@@ -133,6 +133,9 @@ export default class EditSelection {
   }
 
   selectVertices(vertexIds) {
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
+    if (!vertexPoints) return;
+
     this.clearSelection();
 
     for (let id of vertexIds) {
@@ -149,6 +152,8 @@ export default class EditSelection {
       this.vertexHandle.visible = false;
       this.vertexHandle.userData.vertexIndices = [];
     }
+
+    this.moveVertexHandle(vertexPoints);
   }
 
   getSelectedFacesFromVertices(vertexIds) {
@@ -213,7 +218,7 @@ export default class EditSelection {
           posAttr.getY(i),
           posAttr.getZ(i)
         );
-        worldPos.copy(localPos).applyMatrix4(vertexPoints.matrixWorld);
+        worldPos.copy(localPos).applyMatrix4(this.editedObject.matrixWorld);
         sum.add(worldPos);
         count++;
         selectedIndices.push(vId);

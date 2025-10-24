@@ -61,7 +61,9 @@ export class KeyHandler {
         this.signals.switchMode.dispatch('edit');
       }
     } else if (this.currentMode === 'edit') {
-      if (event.key === 'f') {
+      if (event.key === 'w') {
+        this.editor.toolbar.setActiveTool('select');
+      } else if (event.key === 'f') {
         this.signals.createFaceFromVertices.dispatch();
       } else if (event.key === 'Delete') {
         this.signals.deleteSelectedFaces.dispatch();
@@ -75,6 +77,9 @@ export class KeyHandler {
         this.signals.switchMode.dispatch('object');
       } else if (event.key === 'e') {
         this.editor.toolbar.setActiveTool('extrude');
+      } else if (event.ctrlKey && event.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        this.editor.toolbar.setActiveTool('loopcut');
       }
     } 
   }
