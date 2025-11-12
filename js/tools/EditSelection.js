@@ -10,6 +10,7 @@ export default class EditSelection {
     this.mouse = new THREE.Vector2();
     this.editedObject = null;
     this.sceneManager = editor.sceneManager;
+    this.enable = true;
 
     this.vertexHandle = new THREE.Object3D();
     this.vertexHandle.name = '__VertexHandle';
@@ -30,6 +31,7 @@ export default class EditSelection {
   }
 
   onMouseSelect(event, renderer, camera) {
+    if (!this.enable) return;
     const rect = renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;

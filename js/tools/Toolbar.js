@@ -1,6 +1,7 @@
 import { TransformTool } from '../tools/TransformTool.js';
 import { ExtrudeTool } from '../tools/ExtrudeTool.js';
 import { LoopCutTool } from '../tools/LoopCutTool.js';
+import { KnifeTool } from '../tools/KnifeTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
@@ -21,6 +22,7 @@ export default class Toolbar {
     this.scaleTool = new TransformTool('scale', this.editor);
     this.extrudeTool = new ExtrudeTool(this.editor);
     this.loopCutTool = new LoopCutTool(this.editor);
+    this.knifeTool = new KnifeTool(this.editor);
 
     this.load();
     this.handlePointerDown();
@@ -79,12 +81,18 @@ export default class Toolbar {
     this.canvas.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
       if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging || this.extrudeTool.transformControls.dragging) return;
+
       if (this.currentMode === 'object') {
         this.selection.onMouseSelect(event, this.renderer, this.camera);
       } else {
         this.editSelection.onMouseSelect(event, this.renderer, this.camera);
       }
-      this.updateTools();
+
+      // Only refresh transform-based tools after selecting
+      const activeTool = this.getActiveTool();
+      if (['move', 'rotate', 'scale', 'extrude'].includes(activeTool)) {
+        this.updateTools();
+      }
     });
   }
 
@@ -113,6 +121,7 @@ export default class Toolbar {
     this.scaleTool.disable();
     this.extrudeTool.disable();
     this.loopCutTool.disable();
+    this.knifeTool.disable();
   }
 
   updateActiveTools(activeTool, attachObject) {
@@ -124,6 +133,7 @@ export default class Toolbar {
       case 'scale':  this.scaleTool.enableFor(attachObject); break;
       case 'extrude': this.extrudeTool.enableFor(attachObject); break;
       case 'loopcut' : this.loopCutTool.enable(); break;
+      case 'knife' : this.knifeTool.enable(); break;
     }
   }
 }

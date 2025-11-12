@@ -219,6 +219,7 @@ export class MeshData {
         }
       ]),
       vertexIndexMap: Array.from(this.vertexIndexMap.entries()),
+      bufferIndexToVertexId: Array.from(this.bufferIndexToVertexId.entries()),
       nextVertexId: this.nextVertexId,
       nextEdgeId: this.nextEdgeId,
       nextFaceId: this.nextFaceId
