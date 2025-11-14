@@ -49,12 +49,9 @@ export function generateDuplicatedVertexGeometry(meshData, useEarcut = true) {
   }
 
   for (let v of meshData.vertices.values()) {
-    if (v.faceIds.size === 0) {
+    if (!meshData.vertexIndexMap.has(v.id)) {
       positions.push(v.position.x, v.position.y, v.position.z);
-
-      if (!meshData.vertexIndexMap.has(v.id)) meshData.vertexIndexMap.set(v.id, []);
-      meshData.vertexIndexMap.get(v.id).push(currentIndex);
-
+      meshData.vertexIndexMap.set(v.id, [currentIndex]);
       currentIndex++;
     }
   }
@@ -254,12 +251,9 @@ export function generateAngleBasedGeometry(meshData, angleDegree = 60, useEarcut
 
   // --- 5. Add isolated vertices (not in any face) ---
   for (let v of meshData.vertices.values()) {
-    if (v.faceIds.size === 0) {
+    if (!meshData.vertexIndexMap.has(v.id)) {
       positions.push(v.position.x, v.position.y, v.position.z);
-
-      if (!meshData.vertexIndexMap.has(v.id)) meshData.vertexIndexMap.set(v.id, []);
-      meshData.vertexIndexMap.get(v.id).push(currentIndex);
-
+      meshData.vertexIndexMap.set(v.id, [currentIndex]);
       indices.push(currentIndex, currentIndex, currentIndex);
       currentIndex++;
     }
