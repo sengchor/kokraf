@@ -32,30 +32,40 @@ export default class EditSelection {
 
   onMouseSelect(event, renderer, camera) {
     if (!this.enable) return;
+    
+    const nearestVertexId = this.pickNearestVertexAtMouse(event, renderer, camera);
+    if (nearestVertexId === null) {
+      this.clearSelection();
+      return;
+    }
+
+    this.highlightSelectedVertex(nearestVertexId);
+    this.getSelectedFacesFromVertices(this.selectedVertexIds);
+
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
+    if (vertexPoints) this.moveVertexHandle(vertexPoints);
+  }
+
+  pickNearestVertexAtMouse(event, renderer, camera, threshold = 0.1) {
     const rect = renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    // raycast in helper scene to find candidate vertices
-    this.raycaster.setFromCamera(this.mouse, camera);
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (!vertexPoints) return;
+    if (!vertexPoints) return null;
 
-    this.raycaster.params.Points.threshold = 0.15;
+    this.raycaster.setFromCamera(this.mouse, camera);
+    this.raycaster.params.Points.threshold = threshold;
+
     const vertexHits = this.raycaster.intersectObject(vertexPoints);
-    if (vertexHits.length === 0) return this.clearSelection();
+    if (vertexHits.length === 0) return null;
 
-    // reverse ray trace for occlusion
     const frontVertices = this.filterVisibleVertices(vertexHits, vertexPoints, camera);
-    if (frontVertices.length === 0) return this.clearSelection();
+    if (frontVertices.length === 0) return null;
 
-    // choose nearest visible vertex in 2D to the click
-    const bestHit = this.pickNearestVertex(frontVertices, camera, rect, vertexPoints);
-    if (!bestHit) return this.clearSelection();
+    const nearestVertexId  = this.pickNearestVertex(frontVertices, camera, rect, vertexPoints);
 
-    this.highlightSelectedVertex(bestHit.logicalVertexId);
-    this.getSelectedFacesFromVertices(this.selectedVertexIds);
-    this.moveVertexHandle(vertexPoints);
+    return nearestVertexId;
   }
 
   highlightSelectedVertex(vertexId) {
@@ -270,15 +280,11 @@ export default class EditSelection {
       }
     }
 
-    if (frontVertices.length === 0) {
-      this.clearSelection();
-      return frontVertices;
-    }
     return frontVertices;
   }
 
   pickNearestVertex(frontVertices, camera, rect, vertexPoints) {
-    let bestHit = null;
+    let nearestVertexId = null;
     let minScreenDistSq = Infinity;
 
     const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
@@ -298,12 +304,10 @@ export default class EditSelection {
 
       if (distPxSq < minScreenDistSq) {
         minScreenDistSq = distPxSq;
-        bestHit = {
-          pointIndex: hit.index,
-          logicalVertexId: vertexIdAttr.getX(hit.index)
-        };
+        nearestVertexId = vertexIdAttr.getX(hit.index);
       }
     });
-    return bestHit;
+    
+    return nearestVertexId;
   }
 }
