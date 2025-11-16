@@ -13,6 +13,7 @@ export default class Toolbar {
     this.camera = editor.cameraManager.camera;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
+    this.viewportControls = editor.viewportControls;
     this.activeToolObjectMode = 'select';
     this.activeToolEditMode = 'select';
     this.currentMode = 'object';
@@ -33,6 +34,12 @@ export default class Toolbar {
       this.buttons = document.querySelectorAll('.toolbar-button');
       this.setupToolbarButtons();
       this.setupListeners();
+
+      this.currentMode = this.viewportControls.currentMode;
+      this.updateTools();
+      if (this.meshToolContainer) {
+        this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object');
+      }
     });
   }
 

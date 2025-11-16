@@ -18,6 +18,7 @@
   width: 32px;
   height: 32px;
   padding: 0px;
+  position: relative;
   border: none;
   cursor: pointer;
   background-color: #ddd;
@@ -29,6 +30,28 @@
 
 .toolbar-button.active {
   background-color: #f8f8f8;
+}
+
+.toolbar-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 4px;
+  left: 0px;
+  transform: translateX(40px);
+
+  background: #ddd;
+  color: #444;
+  padding: 4px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+}
+
+.toolbar-button:hover::after {
+  opacity: 1;
 }
 
 .toolbar-spacer {
