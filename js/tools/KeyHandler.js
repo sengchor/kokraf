@@ -80,6 +80,8 @@ export class KeyHandler {
       } else if (event.ctrlKey && event.key.toLowerCase() === 'r') {
         event.preventDefault();
         this.editor.toolbar.setActiveTool('loopcut');
+      } else if (event.key === 'k') {
+        this.editor.toolbar.setActiveTool('knife');
       }
     } 
   }

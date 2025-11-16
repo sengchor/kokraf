@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { VertexEditor } from '../tools/VertexEditor.js';
+import { KnifeCommand } from '../commands/KnifeCommand.js';
 
 export class KnifeTool {
   constructor(editor) {
@@ -18,6 +18,7 @@ export class KnifeTool {
     this.cutPoints = [];
     this.intersections = [];
     this.edgeIntersections = [];
+    this.newVertices = [];
 
     this.previewLine = null;
     this.lineMaterial = new LineMaterial({
@@ -106,10 +107,15 @@ export class KnifeTool {
       return;
     }
     this.updatePreview(aCut.position, bCut.position);
-
+    this.beforeMeshData = structuredClone(meshData);
+    
     this.applyCut();
 
-    this.cutPoints.length = 0;
+    this.afterMeshData = structuredClone(meshData);
+    this.editor.execute(new KnifeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+
+    this.editSelection.selectVertices(this.newVertices.map(v => v.id));
+    this.cancelCut();
   }
 
   onPointerMove(event) {
@@ -283,18 +289,18 @@ export class KnifeTool {
     const meshData = editedObject.userData.meshData;
     const worldToLocal = new THREE.Matrix4().copy(editedObject.matrixWorld).invert();
 
-    const newVertices = [];
+    this.newVertices = [];
     for (let i = 0; i < this.edgeIntersections.length; i++) {
       const edge = this.edgeIntersections[i];
       if (edge === null) {
         const cutPointData = this.cutPoints.find(cp => cp.position.equals(this.intersections[i]));
-        newVertices.push(meshData.getVertex(cutPointData.snapVertexId));
+        this.newVertices.push(meshData.getVertex(cutPointData.snapVertexId));
         continue;
       }
 
       const pos = this.intersections[i];
       const localPos = pos.clone().applyMatrix4(worldToLocal);
-      newVertices.push(meshData.addVertex({ x: localPos.x, y: localPos.y, z: localPos.z }));
+      this.newVertices.push(meshData.addVertex({ x: localPos.x, y: localPos.y, z: localPos.z }));
     }
 
     // Collect affected faces
@@ -326,7 +332,7 @@ export class KnifeTool {
 
         const intersectionIndex = this.edgeIntersections.findIndex(e => e && e.id === edge?.id);
         if (intersectionIndex !== -1) {
-          cutPoints.push({ edgeIndex: i, newVertex: newVertices[intersectionIndex] });
+          cutPoints.push({ edgeIndex: i, newVertex: this.newVertices[intersectionIndex] });
         }
 
         const snapCut = this.cutPoints.find(cp => cp.snapVertexId === v1);
@@ -368,13 +374,6 @@ export class KnifeTool {
     for (const edge of this.edgeIntersections) {
       meshData.deleteEdge(edge);
     }
-
-    const vertexEditor = new VertexEditor(this.editor, editedObject);
-    vertexEditor.applyMeshData(meshData);
-    vertexEditor.updateGeometryAndHelpers();
-
-    this.editSelection.selectVertices(newVertices.map(v => v.id));
-    this.cancelCut();
   }
 
   cancelCut() {
@@ -383,6 +382,7 @@ export class KnifeTool {
     this.cutPoints = [];
     this.intersections = [];
     this.edgeIntersections = [];
+    this.newVertices = [];
   }
 
   updatePreview(aPos, bPos = null) {
