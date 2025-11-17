@@ -18,7 +18,6 @@ export class TransformTool {
     this.sceneEditorHelpers = this.sceneManager.sceneEditorHelpers;
     this.controls = editor.controlsManager;
     this.interactionMode = 'object';
-    this._worldPosHelper = new THREE.Vector3();
     this.editSelection = editor.editSelection;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
@@ -71,23 +70,27 @@ export class TransformTool {
   }
 
   setupTransformListeners() {
-    this.objectPositionOnDown = null;
-    this.objectRotationOnDown = null;
-    this.objectScaleOnDown = null;
+    this.startObjectPosition = null;
+    this.startObjectRotation = null;
+    this.startObjectScale = null;
+
+    this.startPivotPosition = null;
+    this.startPivotQuaternion = null;
 
     this.transformControls.addEventListener('mouseDown', () => {
-      const object = this.transformControls.object;
-      if (!object) return;
+      const handle = this.transformControls.object;
+      if (!handle) return;
 
       if (this.interactionMode === 'object') {
-        this.objectPositionOnDown = object.position.clone();
-        this.objectRotationOnDown = object.rotation.clone();
-        this.objectScaleOnDown = object.scale.clone();
+        this.startObjectPosition = handle.position.clone();
+        this.startObjectRotation = handle.rotation.clone();
+        this.startObjectScale = handle.scale.clone();
       } else if (this.interactionMode === 'edit') {
-        this.objectPositionOnDown = object.getWorldPosition(this._worldPosHelper).clone();
+        this.startPivotPosition = handle.getWorldPosition(new THREE.Vector3());
+        this.startPivotQuaternion = handle.getWorldQuaternion(new THREE.Quaternion());
 
         // Save old vertex positions
-        const indices = object.userData.vertexIndices || [];
+        const indices = handle.userData.vertexIndices || [];
         const editedObject = this.editSelection.editedObject;
         if (editedObject) {
           const vertexEditor = new VertexEditor(this.editor, editedObject);
@@ -103,62 +106,96 @@ export class TransformTool {
       if (this.interactionMode === 'edit' && this.transformControls.dragging) {
         const indices = handle.userData.vertexIndices;
         if (!indices || indices.length === 0) return;
-        if (!this.objectPositionOnDown || !this.oldPositions) return;
+        if (!this.startPivotPosition || !this.oldPositions) return;
 
-        const currentPosition = handle.getWorldPosition(new THREE.Vector3());
-        const offset = new THREE.Vector3().subVectors(currentPosition, this.objectPositionOnDown);
-        
         if (!this.vertexEditor) {
           this.vertexEditor = new VertexEditor(this.editor, this.editSelection.editedObject);
         }
 
-        const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
-        this.vertexEditor.setVerticesWorldPositions(indices, newPositions);
+        if (this.mode === 'translate') {
+          const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
+          const offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
+
+          const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
+          this.vertexEditor.setVerticesWorldPositions(indices, newPositions);
+        }
+
+        if (this.mode === 'rotate') {
+          const pivot = this.startPivotPosition.clone();
+          const currentPivotQuaternion = handle.getWorldQuaternion(new THREE.Quaternion());
+          const deltaQuat = currentPivotQuaternion.clone().multiply(this.startPivotQuaternion.clone().invert());
+
+          const newPositions = this.oldPositions.map(pos => {
+            const local = pos.clone().sub(pivot);
+            local.applyQuaternion(deltaQuat);
+            return local.add(pivot);
+          });
+
+          this.vertexEditor.setVerticesWorldPositions(indices, newPositions);
+        }
       }
     });
 
     this.transformControls.addEventListener('mouseUp', () => {
-      const object = this.transformControls.object;
-      if (!object) return;
+      const handle = this.transformControls.object;
+      if (!handle) return;
 
       if (this.interactionMode === 'object') {
-        switch (this.mode) {
-          case 'translate':
-            if (!object.position.equals(this.objectPositionOnDown)) {
-              this.editor.execute(new SetPositionCommand(this.editor, object, object.position, this.objectPositionOnDown));
-              break;
-            }
-          case 'rotate':
-            if (!object.rotation.equals(this.objectRotationOnDown)) {
-              this.editor.execute(new SetRotationCommand(this.editor, object, object.rotation, this.objectRotationOnDown));
-              break;
-            }
-          case 'scale':
-            if (!object.scale.equals(this.objectScaleOnDown)) {
-              this.editor.execute(new SetScaleCommand(this.editor, object, object.scale, this.objectScaleOnDown));
-              break;
-            }
+        if (this.mode === 'translate') {
+          if (!handle.position.equals(this.startObjectPosition)) {
+            this.editor.execute(new SetPositionCommand(this.editor, handle, handle.position, this.startObjectPosition));
+          }
+        }
+        else if (this.mode === 'rotate') {
+          if (!handle.rotation.equals(this.startObjectRotation)) {
+            this.editor.execute(new SetRotationCommand(this.editor, handle, handle.rotation, this.startObjectRotation));
+          }
+        }
+        else if (this.mode === 'scale') {
+          if (!handle.scale.equals(this.startObjectScale)) {
+            this.editor.execute(new SetScaleCommand(this.editor, handle, handle.scale, this.startObjectScale));
+          }
         }
       } else if (this.interactionMode === 'edit') {
-        switch (this.mode) {
-          case 'translate':
-            const indices = object.userData.vertexIndices;
-            const editedObject = this.editSelection.editedObject;
-            if (editedObject.userData.shading === 'auto') {
-              ShadingUtils.applyShading(editedObject, 'auto');
-            }
-            
-            const currentPosition = object.getWorldPosition(this._worldPosHelper).clone();
-            const offset = new THREE.Vector3().subVectors(currentPosition, this.objectPositionOnDown);
-            
-            if (!offset.equals(new THREE.Vector3(0, 0, 0))) {
-              const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
+        const editedObject = this.editSelection.editedObject;
+        const indices = handle.userData.vertexIndices;
 
-              this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, indices, newPositions, this.oldPositions));
-              this.editSelection.selectVertices(indices);
-            }
-            break;
+        if (this.mode === 'translate') {
+          if (editedObject.userData.shading === 'auto') {
+            ShadingUtils.applyShading(editedObject, 'auto');
+          }
+          
+          const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
+          const offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
+
+          if (offset.equals(new THREE.Vector3(0, 0, 0))) return;
+          
+          const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
+
+          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, indices, newPositions, this.oldPositions));
+          this.editSelection.selectVertices(indices);
         }
+        else if (this.mode === 'rotate') {
+          const currentPivotQuaternion = handle.getWorldQuaternion(new THREE.Quaternion());
+          const deltaQuat = currentPivotQuaternion.clone().multiply(this.startPivotQuaternion.clone().invert());
+          const pivot = this.startPivotPosition.clone();
+
+          if (currentPivotQuaternion.equals(this.startPivotQuaternion)) return;
+
+          const newPositions = this.oldPositions.map(pos => {
+            const local = pos.clone().sub(pivot);
+            local.applyQuaternion(deltaQuat);
+            return local.add(pivot);
+          });
+
+          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, indices, newPositions, this.oldPositions));
+          this.editSelection.selectVertices(indices);
+        }
+
+        if (editedObject.userData.shading === 'auto') {
+          ShadingUtils.applyShading(editedObject, 'auto');
+        }
+
         this.vertexEditor = null;
         this.oldPositions = null;
       }
