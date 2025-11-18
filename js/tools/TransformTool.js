@@ -88,6 +88,7 @@ export class TransformTool {
       } else if (this.interactionMode === 'edit') {
         this.startPivotPosition = handle.getWorldPosition(new THREE.Vector3());
         this.startPivotQuaternion = handle.getWorldQuaternion(new THREE.Quaternion());
+        this.startPivotScale = handle.getWorldScale(new THREE.Vector3());
 
         // Save old vertex positions
         const indices = handle.userData.vertexIndices || [];
@@ -128,6 +129,24 @@ export class TransformTool {
           const newPositions = this.oldPositions.map(pos => {
             const local = pos.clone().sub(pivot);
             local.applyQuaternion(deltaQuat);
+            return local.add(pivot);
+          });
+
+          this.vertexEditor.setVerticesWorldPositions(indices, newPositions);
+        }
+
+        if (this.mode === 'scale') {
+          const pivot = this.startPivotPosition.clone();
+          const currentScale = handle.getWorldScale(new THREE.Vector3());
+          const scaleFactor = new THREE.Vector3(
+            currentScale.x / this.startPivotScale.x,
+            currentScale.y / this.startPivotScale.y,
+            currentScale.z / this.startPivotScale.z
+          );
+
+          const newPositions = this.oldPositions.map(pos => {
+            const local = pos.clone().sub(pivot);
+            local.multiply(scaleFactor);
             return local.add(pivot);
           });
 
@@ -191,6 +210,26 @@ export class TransformTool {
           this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, indices, newPositions, this.oldPositions));
           this.editSelection.selectVertices(indices);
         }
+        else if (this.mode === 'scale') {
+          const pivot = this.startPivotPosition.clone();
+          const currentScale = handle.getWorldScale(new THREE.Vector3());
+          const scaleFactor = new THREE.Vector3(
+            currentScale.x / this.startPivotScale.x,
+            currentScale.y / this.startPivotScale.y,
+            currentScale.z / this.startPivotScale.z
+          );
+
+          if (scaleFactor.equals(new THREE.Vector3(1, 1, 1))) return;
+
+          const newPositions = this.oldPositions.map(pos => {
+            const local = pos.clone().sub(pivot);
+            local.multiply(scaleFactor);
+            return local.add(pivot);
+          });
+
+          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, indices, newPositions, this.oldPositions));
+          this.editSelection.selectVertices(indices);
+        }
 
         if (editedObject.userData.shading === 'auto') {
           ShadingUtils.applyShading(editedObject, 'auto');
@@ -206,6 +245,11 @@ export class TransformTool {
     if (!object) return;
     this.transformControls.attach(object);
     this.transformControls.visible = true;
+
+    // Keep scale gizmo aligned to world axes
+    if (this.transformControls.mode === 'scale') {
+      this.editSelection.vertexHandle.rotation.set(0, 0, 0);
+    }
   }
 
   disable() {
