@@ -11,6 +11,7 @@ export default class EditSelection {
     this.editedObject = null;
     this.sceneManager = editor.sceneManager;
     this.enable = true;
+    this.subSelectionMode = 'vertex';
 
     this.vertexHandle = new THREE.Object3D();
     this.vertexHandle.name = '__VertexHandle';
@@ -30,20 +31,35 @@ export default class EditSelection {
     });
   }
 
+  setSubSelectionMode(mode) {
+    this.subSelectionMode = mode.split('-')[0];
+    this.clearSelection();
+  }
+
   onMouseSelect(event, renderer, camera) {
     if (!this.enable) return;
-    
-    const nearestVertexId = this.pickNearestVertexAtMouse(event, renderer, camera);
-    if (nearestVertexId === null) {
-      this.clearSelection();
-      return;
+
+    if (this.subSelectionMode === 'vertex') {
+      const nearestVertexId = this.pickNearestVertexAtMouse(event, renderer, camera);
+      if (nearestVertexId === null) {
+        this.clearSelection();
+        return;
+      }
+
+      this.highlightSelectedVertex(nearestVertexId);
+      this.getSelectedFacesFromVertices(this.selectedVertexIds);
+
+      const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
+      if (vertexPoints) this.moveVertexHandle(vertexPoints);
+    } else if (this.subSelectionMode === 'edge') {
+      const nearestEdgeId = this.pickNearestEdgeOnMouse(event, renderer, camera);
+      if (nearestEdgeId === null) {
+        this.clearSelection();
+        return;
+      }
+
+      this.highlightSelectedEdge(nearestEdgeId);
     }
-
-    this.highlightSelectedVertex(nearestVertexId);
-    this.getSelectedFacesFromVertices(this.selectedVertexIds);
-
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (vertexPoints) this.moveVertexHandle(vertexPoints);
   }
 
   pickNearestVertexAtMouse(event, renderer, camera, threshold = 0.1) {
@@ -60,12 +76,37 @@ export default class EditSelection {
     const vertexHits = this.raycaster.intersectObject(vertexPoints);
     if (vertexHits.length === 0) return null;
 
-    const frontVertices = this.filterVisibleVertices(vertexHits, vertexPoints, camera);
-    if (frontVertices.length === 0) return null;
+    const visibleVertices = this.filterVisibleVertices(vertexHits, vertexPoints, camera);
+    if (visibleVertices.length === 0) return null;
 
-    const nearestVertexId  = this.pickNearestVertex(frontVertices, camera, rect, vertexPoints);
-
+    const nearestVertexId = this.pickNearestVertex(visibleVertices, camera, rect, vertexPoints);
     return nearestVertexId;
+  }
+
+  pickNearestEdgeOnMouse(event, renderer, camera, threshold = 0.05) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    const edges = [];
+    this.sceneManager.sceneHelpers.traverse(obj => {
+      if (obj.name === '__EdgeLines' && obj.userData.edge) {
+        edges.push(obj);
+      }
+    });
+
+    this.raycaster.setFromCamera(this.mouse, camera);
+    this.raycaster.params.Line.threshold = threshold;
+    
+    const edgeHits = this.raycaster.intersectObjects(edges, false);
+    if (edgeHits.length === 0) return null;
+
+    const visibleEdges = this.filterVisibleEdges(edgeHits, camera);
+    if (visibleEdges.length === 0) return null;
+
+    const nearestEdgeId = this.pickNearestEdge(visibleEdges, camera, rect);
+
+    return nearestEdgeId;
   }
 
   highlightSelectedVertex(vertexId) {
@@ -119,10 +160,35 @@ export default class EditSelection {
     this.highlightSelectedEdges();
   }
 
+  highlightSelectedEdge(edgeId) {
+    this.selectedEdgeIds.clear();
+
+    const edges = [];
+    this.sceneManager.sceneHelpers.traverse(obj => {
+      if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
+        edges.push(obj);
+      }
+    });
+
+    for (let edgeLine of edges) {
+      const { edge } = edgeLine.userData;
+      const material = edgeLine.material;
+
+      if (edge.id === edgeId) {
+        material.color.set(0xffffff);
+        this.selectedEdgeIds.add(edgeId);
+      } else {
+        material.color.set(0x000000);
+      }
+
+      material.needsUpdate = true;
+    }
+  }
+
   highlightSelectedEdges() {
     const edges = [];
     this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLines' && obj.userData.edge) {
+      if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
         edges.push(obj);
       }
     });
@@ -200,7 +266,7 @@ export default class EditSelection {
     }
 
     this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLines' && obj.userData.edge) {
+      if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
         const material = obj.material;
         material.color.set(0x000000);
         material.needsUpdate = true;
@@ -248,23 +314,23 @@ export default class EditSelection {
     }
   }
 
-  filterVisibleVertices(vertexHits, vertexPoints, camera) {
+  filterVisibleVertices(vertices, vertexPoints, camera) {
     const mainObjects = this.sceneManager.mainScene.children;
     const cameraPos = new THREE.Vector3();
     camera.getWorldPosition(cameraPos);
 
     const reverseRay = new THREE.Raycaster();
-    const frontVertices = [];
+    const visibleVertices = [];
 
     const posAttr = vertexPoints.geometry.getAttribute('position');
     const epsilon = 0.001;
     const occluders = mainObjects.filter(obj => obj !== vertexPoints);
 
-    for (const vh of vertexHits) {
+    for (const vertex of vertices) {
       const vertexPos = new THREE.Vector3(
-        posAttr.getX(vh.index),
-        posAttr.getY(vh.index),
-        posAttr.getZ(vh.index)
+        posAttr.getX(vertex.index),
+        posAttr.getY(vertex.index),
+        posAttr.getZ(vertex.index)
       ).applyMatrix4(vertexPoints.matrixWorld);
 
       const dirToCamera = new THREE.Vector3().subVectors(cameraPos, vertexPos).normalize();
@@ -276,14 +342,70 @@ export default class EditSelection {
       const blocked = hits.some(h => h.distance < maxDist - epsilon);
 
       if (!blocked) {
-        frontVertices.push({ ...vh, point: vertexPos });
+        visibleVertices.push({ ...vertex, point: vertexPos });
       }
     }
 
-    return frontVertices;
+    return visibleVertices;
   }
 
-  pickNearestVertex(frontVertices, camera, rect, vertexPoints) {
+  filterVisibleEdges(edges, camera) {
+    if (edges.length === 0) return [];
+
+    const mainObjects = this.sceneManager.mainScene.children;
+    const cameraPos = new THREE.Vector3();
+    camera.getWorldPosition(cameraPos);
+
+    const epsilon = 0.001;
+    const reverseRay = new THREE.Raycaster();
+    const visibleEdges = [];
+
+    // occluders: everything in the scene except the edge helper lines
+    const occluders = mainObjects.filter(obj => obj.name !== '__EdgeLines');
+
+    for (const edge of edges) {
+      const thinLine = edge.object;
+      const geo = thinLine.geometry;
+      const pos = geo.getAttribute('position');
+
+      // world-space endpoints
+      const vA = new THREE.Vector3(pos.getX(0), pos.getY(0), pos.getZ(0))
+        .applyMatrix4(thinLine.matrixWorld);
+
+      const vB = new THREE.Vector3(pos.getX(1), pos.getY(1), pos.getZ(1))
+        .applyMatrix4(thinLine.matrixWorld);
+
+      // midpoint visibility test
+      const mid = new THREE.Vector3().addVectors(vA, vB).multiplyScalar(0.5);
+
+      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, mid).normalize();
+      const rayOrigin = mid.clone().addScaledVector(dirToCamera, epsilon);
+
+      reverseRay.set(rayOrigin, dirToCamera);
+
+      const hits = reverseRay.intersectObjects(occluders, true);
+      const maxDist = mid.distanceTo(cameraPos);
+
+      // If any hit is closer than the camera, the edge is occluded.
+      const blocked = hits.some(h => h.distance < maxDist - epsilon);
+
+      if (!blocked) {
+        visibleEdges.push({
+          thinLine,
+          visualLine: thinLine.userData.visualLine,
+          edge: thinLine.userData.edge,
+          vA,
+          vB,
+          mid,
+          screenDist: edge.distance,
+        });
+      }
+    }
+
+    return visibleEdges;
+  }
+
+  pickNearestVertex(vertices, camera, rect, vertexPoints) {
     let nearestVertexId = null;
     let minScreenDistSq = Infinity;
 
@@ -293,7 +415,7 @@ export default class EditSelection {
     const clickY = (-this.mouse.y * 0.5 + 0.5) * rect.height;
 
     const screenPos = new THREE.Vector3();
-    frontVertices.forEach(hit => {
+    vertices.forEach(hit => {
       screenPos.copy(hit.point).project(camera);
       const sx = (screenPos.x * 0.5 + 0.5) * rect.width;
       const sy = (-screenPos.y * 0.5 + 0.5) * rect.height;
@@ -309,5 +431,74 @@ export default class EditSelection {
     });
     
     return nearestVertexId;
+  }
+
+  pickNearestEdge(edges, camera, rect) {
+    if (!edges || edges.length === 0) return null;
+
+    let nearestEdgeId = null;
+    let minDistSq = Infinity;
+
+    edges.forEach(edge => {
+      const result = this.getClosestPointOnScreenLine(edge, camera, rect);
+
+      if (result.distSq < minDistSq) {
+        minDistSq = result.distSq;
+        nearestEdgeId = result.edgeId;
+      }
+    });
+
+    return nearestEdgeId;
+  }
+
+  getClosestPointOnScreenLine(edge, camera, rect) {
+    // Mouse in pixel coordinates
+    const clickX = (this.mouse.x * 0.5 + 0.5) * rect.width;
+    const clickY = (-this.mouse.y * 0.5 + 0.5) * rect.height;
+
+    const pA = new THREE.Vector3();
+    const pB = new THREE.Vector3();
+
+    // Project both endpoints to NDC → screen
+    pA.copy(edge.vA).project(camera);
+    pB.copy(edge.vB).project(camera);
+
+    const x1 = (pA.x * 0.5 + 0.5) * rect.width;
+    const y1 = (-pA.y * 0.5 + 0.5) * rect.height;
+
+    const x2 = (pB.x * 0.5 + 0.5) * rect.width;
+    const y2 = (-pB.y * 0.5 + 0.5) * rect.height;
+
+    // Vector AB and AP
+    const ABx = x2 - x1;
+    const ABy = y2 - y1;
+    const APx = clickX - x1;
+    const APy = clickY - y1;
+
+    const abLenSq = ABx * ABx + ABy * ABy;
+
+    // Handle zero-length (rare but safe)
+    let t = 0;
+    if (abLenSq > 0) {
+      t = (APx * ABx + APy * ABy) / abLenSq;
+    }
+
+    // Clamp to segment
+    t = Math.max(0, Math.min(1, t));
+
+    // Closest point
+    const cx = x1 + ABx * t;
+    const cy = y1 + ABy * t;
+
+    const dx = cx - clickX;
+    const dy = cy - clickY;
+
+    return {
+      cx,
+      cy,
+      distSq: dx * dx + dy * dy,
+      t,
+      edgeId: edge.edge.id
+    };
   }
 }

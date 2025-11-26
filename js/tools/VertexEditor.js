@@ -68,8 +68,8 @@ export class VertexEditor {
     const edgeLines = this.getEdgeLineObjects();
     for (let edgeId of vertex.edgeIds) {
       const edge = meshData.edges.get(edgeId);
-      const line = edgeLines.find(line => line.userData.edge === edge);
-      if (!line || !line.geometry) continue;
+      const thinLine = edgeLines.find(line => line.userData.edge === edge);
+      if (!thinLine) continue;
 
       const v1 = meshData.getVertex(edge.v1Id);
       const v2 = meshData.getVertex(edge.v2Id);
@@ -80,7 +80,18 @@ export class VertexEditor {
         v2.position.x, v2.position.y, v2.position.z
       ];
 
-      line.geometry.setPositions(positions);
+      // Update Invisible Raycast Line
+      const posAttr = thinLine.geometry.getAttribute('position');
+      posAttr.setXYZ(0, positions[0], positions[1], positions[2]);
+      posAttr.setXYZ(1, positions[3], positions[4], positions[5]);
+      posAttr.needsUpdate = true;
+      thinLine.geometry.computeBoundingSphere();
+
+      // Update Visible Fat Line
+      const fatLine = thinLine.userData.visualLine;
+      if (fatLine && fatLine.geometry) {
+        fatLine.geometry.setPositions(positions);
+      }
     }
   }
 
@@ -152,11 +163,7 @@ export class VertexEditor {
     vertexPoints.name = '__VertexPoints';
     this.sceneManager.sceneHelpers.add(vertexPoints);
     vertexPoints.matrix.copy(selectedObject.matrixWorld);
-    vertexPoints.matrix.decompose(
-      vertexPoints.position,
-      vertexPoints.quaternion,
-      vertexPoints.scale
-    );
+    vertexPoints.matrix.decompose(vertexPoints.position, vertexPoints.quaternion, vertexPoints.scale);
   }
 
   removeVertexPoints() {
@@ -182,38 +189,56 @@ export class VertexEditor {
         v2.position.x, v2.position.y, v2.position.z
       ];
 
-      const linegeometry = new LineSegmentsGeometry().setPositions(positions);
-
-      const material = new LineMaterial({
+      // Visible Line
+      const fatGeo = new LineSegmentsGeometry().setPositions(positions);
+      const fatMat = new LineMaterial({
         color: 0x000000,
         linewidth: 1,
         dashed: false,
         depthTest: true,
       });
-      material.resolution.set(window.innerWidth, window.innerHeight);
+      fatMat.resolution.set(window.innerWidth, window.innerHeight);
 
-      const line = new LineSegments2(linegeometry, material);
-      line.computeLineDistances();
-      line.renderOrder = 10;
+      const fatLine = new LineSegments2(fatGeo, fatMat);
+      fatLine.computeLineDistances();
+      fatLine.renderOrder = 10;
+      fatLine.userData.isEditorOnly = true;
+      fatLine.userData.edge = edge;
+      fatLine.name = '__EdgeLinesVisual';
+      this.sceneManager.sceneHelpers.add(fatLine);
 
-      line.userData.isEditorOnly = true;
-      line.userData.edge = edge;
-      line.name = '__EdgeLines';
+      // Invisible Raycast Line
+      const thinGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      const thinMat = new THREE.LineBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0,
+        depthTest: false
+      });
 
-      this.sceneManager.sceneHelpers.add(line);
-      line.matrix.copy(selectedObject.matrixWorld);
-      line.matrix.decompose(
-        line.position,
-        line.quaternion,
-        line.scale
-      );
+      const thinLine = new THREE.Line(thinGeo, thinMat);
+      thinLine.userData.edge = edge;
+      thinLine.userData.isEditorOnly = true;
+      thinLine.name = '__EdgeLines';
+      thinLine.userData.visualLine = fatLine;
+      this.sceneManager.sceneHelpers.add(thinLine);
+
+      [fatLine, thinLine].forEach(line => {
+        line.matrix.copy(selectedObject.matrixWorld);
+        line.matrix.decompose(line.position, line.quaternion, line.scale);
+      })
     }
   }
 
   removeEdgeLines() {
-    const edgeLines = this.getEdgeLineObjects();
+    const toRemove = [];
+    this.sceneManager.sceneHelpers.traverse((obj) => {
+      if (obj.userData.isEditorOnly && (obj.name === '__EdgeLines' || obj.name === '__EdgeLinesVisual')) {
+        toRemove.push(obj);
+      }
+    });
 
-    for (let obj of edgeLines) {
+    for (let obj of toRemove) {
       if (obj.parent) obj.parent.remove(obj);
       if (obj.geometry) obj.geometry.dispose();
       if (obj.material) obj.material.dispose();
@@ -232,6 +257,7 @@ export class VertexEditor {
 
     const edgeLines = [];
     sceneHelpers.traverse((obj) => {
+      // Only return the thin ones for raycasting logic
       if (obj.userData.isEditorOnly && obj.name === '__EdgeLines') {
         edgeLines.push(obj);
       }

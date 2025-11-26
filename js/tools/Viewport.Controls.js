@@ -56,6 +56,22 @@ export default class ViewportControls {
         this.switchMode(e.target.value);
       });
     }
+
+    if (this.selectionModeBar) {
+      const selectionButtons = this.selectionModeBar.querySelectorAll('.selection-button');
+      selectionButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          selectionButtons.forEach(b => b.classList.remove('active'));
+          button.classList.add('active');
+
+          const mode = button.dataset.tool;
+
+          if (this.editSelection) {
+            this.editSelection.setSubSelectionMode(mode);
+          }
+        })
+      })
+    }
   }
 
   setupListeners() {
