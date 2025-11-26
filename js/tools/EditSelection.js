@@ -29,10 +29,14 @@ export default class EditSelection {
     this.signals.multiSelectChanged.add((shiftChanged) => {
       this.multiSelectEnabled = shiftChanged;
     });
+
+    this.signals.emptyScene.add(() => {
+      this.editedObject = null;
+    });
   }
 
   setSubSelectionMode(mode) {
-    this.subSelectionMode = mode.split('-')[0];
+    this.subSelectionMode = mode;
     this.clearSelection();
   }
 
@@ -83,7 +87,7 @@ export default class EditSelection {
     return nearestVertexId;
   }
 
-  pickNearestEdgeOnMouse(event, renderer, camera, threshold = 0.05) {
+  pickNearestEdgeOnMouse(event, renderer, camera, threshold = 0.1) {
     const rect = renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -161,8 +165,6 @@ export default class EditSelection {
   }
 
   highlightSelectedEdge(edgeId) {
-    this.selectedEdgeIds.clear();
-
     const edges = [];
     this.sceneManager.sceneHelpers.traverse(obj => {
       if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
@@ -170,13 +172,23 @@ export default class EditSelection {
       }
     });
 
+    if (this.multiSelectEnabled) {
+      if (this.selectedEdgeIds.has(edgeId)) {
+        this.selectedEdgeIds.delete(edgeId);
+      } else {
+        this.selectedEdgeIds.add(edgeId);
+      }
+    } else {
+      this.selectedEdgeIds.clear();
+      this.selectedEdgeIds.add(edgeId);
+    }
+
     for (let edgeLine of edges) {
       const { edge } = edgeLine.userData;
       const material = edgeLine.material;
 
-      if (edge.id === edgeId) {
+      if (this.selectedEdgeIds.has(edge.id)) {
         material.color.set(0xffffff);
-        this.selectedEdgeIds.add(edgeId);
       } else {
         material.color.set(0x000000);
       }
@@ -274,6 +286,7 @@ export default class EditSelection {
     });
 
     this.selectedVertexIds.clear();
+    this.selectedEdgeIds.clear();
     this.vertexHandle.visible = false;
   }
 

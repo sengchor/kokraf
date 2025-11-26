@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { VertexEditor } from './VertexEditor.js';
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
+import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -58,17 +59,17 @@ export default class ViewportControls {
     }
 
     if (this.selectionModeBar) {
-      const selectionButtons = this.selectionModeBar.querySelectorAll('.selection-button');
-      selectionButtons.forEach(button => {
+      this.selectionButtons = this.selectionModeBar.querySelectorAll('.selection-button');
+      this.selectionButtons.forEach(button => {
         button.addEventListener('click', () => {
-          selectionButtons.forEach(b => b.classList.remove('active'));
+          this.selectionButtons.forEach(b => b.classList.remove('active'));
           button.classList.add('active');
 
-          const mode = button.dataset.tool;
+          const newMode = button.dataset.tool;
+          const currentMode = this.editSelection.subSelectionMode;
+          if (newMode === currentMode) return;
 
-          if (this.editSelection) {
-            this.editSelection.setSubSelectionMode(mode);
-          }
+          this.editor.execute(new SwitchSubModeCommand(this.editor, newMode, currentMode));
         })
       })
     }
@@ -96,6 +97,26 @@ export default class ViewportControls {
 
     this.signals.switchMode.add((newMode) => {
       this.switchMode(newMode);
+    });
+
+    this.signals.subSelectionModeChanged.add((newMode) => {
+      if (this.selectionButtons) {
+        this.selectionButtons.forEach(button => {
+          button.classList.toggle('active', button.dataset.tool === newMode);
+        });
+      }
+
+      if (this.vertexEditor) {
+        this.vertexEditor.refreshHelpers();
+      }
+    });
+
+    this.signals.emptyScene.add(() => {
+      this.editSelection.setSubSelectionMode('vertex');
+      this.signals.subSelectionModeChanged.dispatch('vertex');
+
+      this.enterObjectMode();
+      this.signals.modeChanged.dispatch('object');
     });
   }
 
@@ -159,8 +180,7 @@ export default class ViewportControls {
     this.selection.enable = false;
 
     this.vertexEditor = new VertexEditor(this.editor, selectedObject);
-    this.vertexEditor.addVertexPoints(selectedObject);
-    this.vertexEditor.addEdgeLines(selectedObject);
+    this.vertexEditor.refreshHelpers();
 
     this.editSelection.editedObject = selectedObject;
     this.editSelection.clearSelection();
@@ -170,13 +190,18 @@ export default class ViewportControls {
   toJSON() {
     return {
       mode: this.interactionDropdown?.value || 'object',
-      editedObjectUuid: this.editSelection.editedObject?.uuid || null
+      editedObjectUuid: this.editSelection.editedObject?.uuid || null,
+      subSelectionMode: this.editSelection.subSelectionMode || 'vertex'
     };
   }
 
   fromJSON(json) {
     const mode = json.mode;
     const uuid = json.editedObjectUuid;
+    const subMode = json.subSelectionMode || 'vertex';
+
+    this.editSelection.setSubSelectionMode(subMode);
+    this.signals.subSelectionModeChanged.dispatch(subMode);
 
     if (mode === 'edit' && uuid) {
       const object = this.editor.objectByUuid(uuid);

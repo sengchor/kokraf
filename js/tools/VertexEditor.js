@@ -246,10 +246,18 @@ export class VertexEditor {
   }
 
   refreshHelpers() {
+    if (!this.object) return;
     this.removeVertexPoints();
     this.removeEdgeLines();
-    this.addVertexPoints(this.object);
-    this.addEdgeLines(this.object);
+
+    const mode = this.editor.editSelection.subSelectionMode;
+
+    if (mode === 'vertex') {
+      this.addVertexPoints(this.object);
+      this.addEdgeLines(this.object);
+    } else if (mode === 'edge') {
+      this.addEdgeLines(this.object);
+    }
   }
 
   getEdgeLineObjects() {

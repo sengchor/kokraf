@@ -18,6 +18,7 @@ import { DeleteSelectionCommand } from './DeleteSelectionCommand.js';
 import { SeparateSelectionCommand } from './SeparateSelectionCommand.js';
 import { LoopCutCommand } from './LoopCutCommand.js';
 import { KnifeCommand } from './KnifeCommand.js';
+import { SwitchSubModeCommand } from './SwitchSubModeCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -40,4 +41,5 @@ export const commands = new Map([
   [SeparateSelectionCommand.type, SeparateSelectionCommand],
   [LoopCutCommand.type, LoopCutCommand],
   [KnifeCommand.type, KnifeCommand],
+  [SwitchSubModeCommand.type, SwitchSubModeCommand],
 ]);
