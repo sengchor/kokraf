@@ -37,7 +37,6 @@ export default class EditSelection {
 
   setSubSelectionMode(mode) {
     this.subSelectionMode = mode;
-    this.clearSelection();
   }
 
   onMouseSelect(event, renderer, camera) {
@@ -50,11 +49,7 @@ export default class EditSelection {
         return;
       }
 
-      this.highlightSelectedVertex(nearestVertexId);
-      this.getSelectedFacesFromVertices(this.selectedVertexIds);
-
-      const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-      if (vertexPoints) this.moveVertexHandle(vertexPoints);
+      this.selectVertices(nearestVertexId);
     } else if (this.subSelectionMode === 'edge') {
       const nearestEdgeId = this.pickNearestEdgeOnMouse(event, renderer, camera);
       if (nearestEdgeId === null) {
@@ -62,7 +57,7 @@ export default class EditSelection {
         return;
       }
 
-      this.highlightSelectedEdge(nearestEdgeId);
+      this.selectEdges(nearestEdgeId);
     }
   }
 
@@ -113,38 +108,7 @@ export default class EditSelection {
     return nearestEdgeId;
   }
 
-  highlightSelectedVertex(vertexId) {
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (!vertexPoints) return;
-
-    const colors = vertexPoints.geometry.getAttribute('color');
-    const ids = vertexPoints.geometry.getAttribute('vertexId');
-
-    if (this.multiSelectEnabled) {
-      if (this.selectedVertexIds.has(vertexId)) {
-        this.selectedVertexIds.delete(vertexId);
-      } else {
-        this.selectedVertexIds.add(vertexId);
-      }
-    } else {
-      this.selectedVertexIds.clear();
-      this.selectedVertexIds.add(vertexId);
-    }
-
-    for (let i = 0; i < ids.count; i++) {
-      if (this.selectedVertexIds.has(ids.getX(i))) {
-        colors.setXYZ(i, 1, 1, 1);
-      } else {
-        colors.setXYZ(i, 0, 0, 0);
-      }
-    }
-
-    colors.needsUpdate = true;
-
-    this.highlightSelectedEdges();
-  }
-
-  highlightSelectedVertices() {
+  highlightSelectedVertex() {
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (!vertexPoints) return;
 
@@ -161,27 +125,16 @@ export default class EditSelection {
 
     colors.needsUpdate = true;
 
-    this.highlightSelectedEdges();
+    this.highlightEdgesFromVertices();
   }
 
-  highlightSelectedEdge(edgeId) {
+  highlightSelectedEdge() {
     const edges = [];
     this.sceneManager.sceneHelpers.traverse(obj => {
       if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
         edges.push(obj);
       }
     });
-
-    if (this.multiSelectEnabled) {
-      if (this.selectedEdgeIds.has(edgeId)) {
-        this.selectedEdgeIds.delete(edgeId);
-      } else {
-        this.selectedEdgeIds.add(edgeId);
-      }
-    } else {
-      this.selectedEdgeIds.clear();
-      this.selectedEdgeIds.add(edgeId);
-    }
 
     for (let edgeLine of edges) {
       const { edge } = edgeLine.userData;
@@ -197,7 +150,7 @@ export default class EditSelection {
     }
   }
 
-  highlightSelectedEdges() {
+  highlightEdgesFromVertices() {
     const edges = [];
     this.sceneManager.sceneHelpers.traverse(obj => {
       if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
@@ -223,27 +176,67 @@ export default class EditSelection {
   }
 
   selectVertices(vertexIds) {
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (!vertexPoints) return;
+    const isArray = Array.isArray(vertexIds);
+    if (!isArray) vertexIds = [vertexIds];
 
-    this.clearSelection();
-
-    for (let id of vertexIds) {
-      this.selectedVertexIds.add(id);
-    }
-
-    this.highlightSelectedVertices();
-    this.getSelectedFacesFromVertices(this.selectedVertexIds);
-
-    if (vertexIds.length > 0) {
-      this.vertexHandle.visible = true;
-      this.vertexHandle.userData.vertexIndices = vertexIds;
+    if (isArray) {
+      // Replace current vertex selection
+      this.clearSelection();
+      vertexIds.forEach(id => this.selectedVertexIds.add(id));
     } else {
-      this.vertexHandle.visible = false;
-      this.vertexHandle.userData.vertexIndices = [];
+      const vertexId = vertexIds[0];
+
+      if (this.multiSelectEnabled) {
+        // Toggle selection
+        if (this.selectedVertexIds.has(vertexId)) {
+          this.selectedVertexIds.delete(vertexId);
+        } else {
+          this.selectedVertexIds.add(vertexId);
+        }
+      } else {
+        // Single selection
+        this.selectedVertexIds.clear();
+        this.selectedVertexIds.add(vertexId);
+      }
     }
 
-    this.moveVertexHandle(vertexPoints);
+    this.highlightSelectedVertex();
+    this.getSelectedFacesFromVertices(this.selectedVertexIds);
+    this.updateVertexHandle();
+  }
+
+  selectEdges(edgeIds) {
+    const isArray = Array.isArray(edgeIds);
+    if (!isArray) edgeIds = [edgeIds];
+
+    if (isArray) {
+      // Replace current edge selection
+      this.clearSelection();
+      edgeIds.forEach(id => this.selectedEdgeIds.add(id));
+    } else {
+      const edgeId = edgeIds[0];
+
+      if (this.multiSelectEnabled) {
+        // Toggle selection
+        if (this.selectedEdgeIds.has(edgeId)) {
+          this.selectedEdgeIds.delete(edgeId);
+        } else {
+          this.selectedEdgeIds.add(edgeId);
+        }
+      } else {
+        // Single selection
+        this.selectedEdgeIds.clear();
+        this.selectedEdgeIds.add(edgeId);
+      }
+    }
+
+    const vIds = this.getSelectedEdgeVertexIds();
+    this.selectedVertexIds.clear();
+    vIds.forEach(id => this.selectedVertexIds.add(id));
+
+    this.highlightSelectedEdge();
+    this.getSelectedFacesFromVertices(this.selectedVertexIds);
+    this.updateVertexHandle();
   }
 
   getSelectedFacesFromVertices(vertexIds) {
@@ -290,41 +283,51 @@ export default class EditSelection {
     this.vertexHandle.visible = false;
   }
 
-  moveVertexHandle(vertexPoints) {
-    if (!this.vertexHandle) return;
+  updateVertexHandle() {
+    if (!this.vertexHandle || !this.editedObject) return;
 
-    const posAttr = vertexPoints.geometry.getAttribute('position');
-    const ids = vertexPoints.geometry.getAttribute('vertexId');
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return;
+
+    let vertexIds = [];
+    let edgeIds = [];
+
+    if (this.subSelectionMode === 'vertex') {
+      vertexIds = this.getSelectedVertexIds();
+      edgeIds = [];
+    } else if (this.subSelectionMode === 'edge') {
+      vertexIds = this.getSelectedEdgeVertexIds();
+      edgeIds = Array.from(this.selectedEdgeIds);
+    }
+
+    vertexIds = [...new Set(vertexIds)];
+
+    if (vertexIds.length === 0) {
+      this.vertexHandle.visible = false;
+      this.vertexHandle.userData.vertexIndices = [];
+      this.vertexHandle.userData.edgeIndices = [];
+      return;
+    }
 
     const worldPos = new THREE.Vector3();
     const sum = new THREE.Vector3();
-    let count = 0;
-    const selectedIndices = [];
+    const localPos = new THREE.Vector3();
 
-    for (let i = 0; i < ids.count; i++) {
-      const vId = ids.getX(i);
-      if (this.selectedVertexIds.has(vId)) {
-        const localPos = new THREE.Vector3(
-          posAttr.getX(i),
-          posAttr.getY(i),
-          posAttr.getZ(i)
-        );
-        worldPos.copy(localPos).applyMatrix4(this.editedObject.matrixWorld);
-        sum.add(worldPos);
-        count++;
-        selectedIndices.push(vId);
-      }
+    for (const id of vertexIds) {
+      const v = meshData.getVertex(id);
+      if (!v) continue;
+
+      localPos.set(v.position.x, v.position.y, v.position.z);
+      worldPos.copy(localPos).applyMatrix4(this.editedObject.matrixWorld);
+
+      sum.add(worldPos);
     }
-    
-    if (count > 0) {
-      sum.divideScalar(count);
-      this.vertexHandle.position.copy(sum);
-      this.vertexHandle.visible = true;
-      this.vertexHandle.userData.vertexIndices = selectedIndices;
-    } else {
-      this.vertexHandle.visible = false;
-      this.vertexHandle.userData.vertexIndices = [];
-    }
+    sum.divideScalar(vertexIds.length);
+
+    this.vertexHandle.position.copy(sum);
+    this.vertexHandle.visible = true;
+    this.vertexHandle.userData.vertexIndices = vertexIds;
+    this.vertexHandle.userData.edgeIndices = edgeIds;
   }
 
   filterVisibleVertices(vertices, vertexPoints, camera) {
@@ -513,5 +516,23 @@ export default class EditSelection {
       t,
       edgeId: edge.edge.id
     };
+  }
+
+  getSelectedVertexIds() {
+    return Array.from(this.selectedVertexIds);
+  }
+
+  getSelectedEdgeVertexIds() {
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return [];
+
+    const result = new Set();
+    for (const edgeId of this.selectedEdgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+      result.add(edge.v1Id);
+      result.add(edge.v2Id);
+    }
+    return Array.from(result);
   }
 }

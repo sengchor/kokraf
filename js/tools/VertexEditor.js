@@ -255,8 +255,12 @@ export class VertexEditor {
     if (mode === 'vertex') {
       this.addVertexPoints(this.object);
       this.addEdgeLines(this.object);
+
+      this.editor.editSelection.highlightSelectedVertex();
     } else if (mode === 'edge') {
       this.addEdgeLines(this.object);
+
+      this.editor.editSelection.highlightSelectedEdge();
     }
   }
 

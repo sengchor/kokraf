@@ -108,6 +108,7 @@ export default class ViewportControls {
 
       if (this.vertexEditor) {
         this.vertexEditor.refreshHelpers();
+        this.editSelection.updateVertexHandle();
       }
     });
 
