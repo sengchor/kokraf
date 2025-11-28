@@ -235,7 +235,7 @@ export default class EditSelection {
     vIds.forEach(id => this.selectedVertexIds.add(id));
 
     this.highlightSelectedEdge();
-    this.getSelectedFacesFromVertices(this.selectedVertexIds);
+    this.getSelectedFacesFromEdges(this.selectedEdgeIds);
     this.updateVertexHandle();
   }
 
@@ -249,6 +249,28 @@ export default class EditSelection {
     for (let face of meshData.faces.values()) {
       const allVertsSelected = face.vertexIds.every(vid => selectedVertexSet.has(vid));
       if (allVertsSelected) {
+        selectedFaces.push(face.id);
+      }
+    }
+
+    // Update internal selectedFaceIds set
+    this.selectedFaceIds.clear();
+    selectedFaces.forEach(fid => this.selectedFaceIds.add(fid));
+
+    return selectedFaces;
+  }
+
+  getSelectedFacesFromEdges(edgeIds) {
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return [];
+
+    const selectedEdgeSet = new Set(edgeIds);
+    const selectedFaces = [];
+
+    for (let face of meshData.faces.values()) {
+      // Check if all edges of the face are selected
+      const allEdgesSelected = [...face.edgeIds].every(eid => selectedEdgeSet.has(eid));
+      if (allEdgesSelected) {
         selectedFaces.push(face.id);
       }
     }

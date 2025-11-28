@@ -300,7 +300,7 @@ export class VertexEditor {
     MeshData.rehydrateMeshData(this.object);
   }
 
-  duplicateSelection(vertexIds) {
+  duplicateSelectionVertices(vertexIds) {
     const meshData = this.object.userData.meshData;
 
     const selectedVertices = new Set(vertexIds);
@@ -365,13 +365,79 @@ export class VertexEditor {
       mappedVertexIds[oldId] = newVertex.id;
     }
 
-    return {
-      mappedVertexIds,
-      newVertexIds: Array.from(duplicatedVertices.values().map(v => v.id))
-    };
+    const newVertexIds = Array.from(duplicatedVertices.values()).map(v => v.id);
+    const newEdgeIds = Array.from(duplicatedEdges.values()).map(e => e.id);
+    const newFaceIds = Array.from(duplicatedFaces.values()).map(f => f.id);
+    return { mappedVertexIds, newVertexIds, newEdgeIds, newFaceIds };
   }
 
-  deleteSelection(vertexIds) {
+  duplicateSelectionEdges(edgeIds) {
+    const meshData = this.object.userData.meshData;
+
+    const selectedEdges = new Set(edgeIds);
+    const duplicatedVertices = new Map();
+    const duplicatedEdges = new Map();
+    const duplicatedFaces = new Map();
+
+    // Duplicate vertices at the ends of selected edges
+    for (let edgeId of selectedEdges) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      [edge.v1Id, edge.v2Id].forEach(vId => {
+        if (!duplicatedVertices.has(vId)) {
+          const oldVertex = meshData.getVertex(vId);
+          if (!oldVertex) return;
+
+          const newVertex = meshData.addVertex({
+            x: oldVertex.position.x,
+            y: oldVertex.position.y,
+            z: oldVertex.position.z
+          });
+
+          duplicatedVertices.set(vId, newVertex);
+        }
+      });
+    }
+
+    // Duplicate edges
+    for (let edgeId of selectedEdges) {
+      const oldEdge = meshData.edges.get(edgeId);
+      if (!oldEdge) continue;
+
+      const v1 = duplicatedVertices.get(oldEdge.v1Id);
+      const v2 = duplicatedVertices.get(oldEdge.v2Id);
+      if (!v1 || !v2) continue;
+
+      const newEdge = meshData.addEdge(v1, v2);
+      duplicatedEdges.set(edgeId, newEdge);
+    }
+
+    // Duplicate faces where all edges are selected
+    for (let face of meshData.faces.values()) {
+      const allEdgesSelected = [...face.edgeIds].every(eid => selectedEdges.has(eid));
+      if (allEdgesSelected) {
+        const newVertices = face.vertexIds.map(vId => duplicatedVertices.get(vId));
+        if (newVertices.every(v => v)) {
+          const newFace = meshData.addFace(newVertices);
+          duplicatedFaces.set(face.id, newFace);
+        }
+      }
+    }
+
+    // Map old vertex IDs to new ones
+    const mappedVertexIds = {};
+    for (let [oldId, newVertex] of duplicatedVertices.entries()) {
+      mappedVertexIds[oldId] = newVertex.id;
+    }
+
+    const newVertexIds = Array.from(duplicatedVertices.values()).map(v => v.id);
+    const newEdgeIds = Array.from(duplicatedEdges.values()).map(e => e.id);
+    const newFaceIds = Array.from(duplicatedFaces.values()).map(f => f.id);
+    return { mappedVertexIds, newVertexIds, newEdgeIds, newFaceIds };
+  }
+
+  deleteSelectionVertices(vertexIds) {
     const meshData = this.object.userData.meshData;
     const selected = new Set(vertexIds);
 
@@ -381,8 +447,9 @@ export class VertexEditor {
 
     // Delete faces fully contained in the selection
     for (const face of [...meshData.faces.values()]) {
-      const allInside = face.vertexIds.every(vId => selected.has(vId));
-      if (allInside) {
+      const allVerticesInside = face.vertexIds.every(vId => selected.has(vId));
+
+      if (allVerticesInside) {
         meshData.deleteFace(face);
         deletedFaces.add(face.id);
       }
@@ -401,16 +468,15 @@ export class VertexEditor {
 
     // Delete isolated vertices (no remaining edge or face)
     for (const vId of selected) {
-      const v = meshData.getVertex(vId);
-      if (!v) continue;
+      const vertex = meshData.getVertex(vId);
+      if (!vertex) continue;
 
-      const stillConnected =
-        (v.edgeIds && v.edgeIds.size > 0) ||
-        Array.from(meshData.faces.values()).some(f => f.vertexIds.includes(vId));
+      const hasEdges = vertex.edgeIds && vertex.edgeIds.size > 0;
+      const hasFaces = vertex.faceIds && vertex.faceIds.size > 0;
 
-      if (!stillConnected) {
-        meshData.deleteVertex(v);
-        deletedVertices.add(v.id);
+      if (!hasEdges && !hasFaces) {
+        meshData.deleteVertex(vertex);
+        deletedVertices.add(vId);
       }
     }
 
@@ -418,6 +484,54 @@ export class VertexEditor {
       deletedFaces: Array.from(deletedFaces),
       deletedEdges: Array.from(deletedEdges),
       deletedVertices: Array.from(deletedVertices)
+    };
+  }
+
+  deleteSelectionEdges(edgeIds) {
+    const meshData = this.object.userData.meshData;
+    const selected = new Set(edgeIds);
+
+    const deletedFaces = new Set();
+    const deletedEdges = new Set();
+    const deletedVertices = new Set();
+
+    // Delete faces fully bounded by the selected edges
+    for (const face of [...meshData.faces.values()]) {
+      const allEdgesInside = [...face.edgeIds].every(eId => selected.has(eId));
+
+      if (allEdgesInside) {
+        meshData.deleteFace(face);
+        deletedFaces.add(face.id);
+      }
+    }
+
+    // Delete the selected edges themselves
+    for (const edgeId of selected) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      // Edge should not be deleted while still attached to a face
+      if (edge.faceIds.size === 0) {
+        meshData.deleteEdge(edge);
+        deletedEdges.add(edgeId);
+      }
+    }
+
+    // Delete vertices that are now isolated (no edges, no faces)
+    for (const [vId, vertex] of meshData.vertices.entries()) {
+      const hasEdges = vertex.edgeIds && vertex.edgeIds.size > 0;
+      const hasFaces = vertex.faceIds && vertex.faceIds.size > 0;
+
+      if (!hasEdges && !hasFaces) {
+        meshData.deleteVertex(vertex);
+        deletedVertices.add(vId);
+      }
+    }
+
+    return {
+      deletedFaces: [...deletedFaces],
+      deletedEdges: [...deletedEdges],
+      deletedVertices: [...deletedVertices]
     };
   }
 

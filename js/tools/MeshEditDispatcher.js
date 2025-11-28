@@ -51,7 +51,7 @@ export class MeshEditDispatcher {
       this.beforeMeshData = structuredClone(meshData);
 
       const vertexEditor = new VertexEditor(this.editor, editedObject);
-      vertexEditor.deleteSelection(selectedVertexIds);
+      vertexEditor.deleteSelectionVertices(selectedVertexIds);
 
       this.afterMeshData = structuredClone(meshData);
       this.editor.execute(new DeleteSelectionCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
@@ -64,8 +64,8 @@ export class MeshEditDispatcher {
       this.beforeMeshData = structuredClone(meshData);
 
       const vertexEditor = new VertexEditor(this.editor, editedObject);
-      const { newVertexIds } = vertexEditor.duplicateSelection(selectedVertexIds);
-      vertexEditor.deleteSelection(selectedVertexIds);
+      const { newVertexIds } = vertexEditor.duplicateSelectionVertices(selectedVertexIds);
+      vertexEditor.deleteSelectionVertices(selectedVertexIds);
 
       this.afterMeshData = structuredClone(meshData);
       this.editor.execute(new SeparateSelectionCommand(this.editor, editedObject, this.afterMeshData, this.afterMeshData));

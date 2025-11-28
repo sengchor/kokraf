@@ -63,14 +63,6 @@ export class ExtrudeTool {
       if (!object) return;
       this.objectPositionOnDown = object.getWorldPosition(this._worldPosHelper).clone();
       this.extrudeStarted = false;
-
-      // Save old vertex positions for undo
-      const indices = object.userData.vertexIndices || [];
-      const editedObject = this.editSelection.editedObject;
-      if (editedObject) {
-        const vertexEditor = new VertexEditor(this.editor, editedObject);
-        this.oldPositions = vertexEditor.getVertexPositions(indices);
-      }
     });
 
     this.transformControls.addEventListener('change', () => {
@@ -89,6 +81,7 @@ export class ExtrudeTool {
       this.objectPositionOnDown = null;
       this.extrudeStarted = false;
 
+      const mode = this.editSelection.subSelectionMode;
       const editedObject = this.editSelection.editedObject;
       const vertexEditor = new VertexEditor(this.editor, editedObject);
       vertexEditor.updateGeometryAndHelpers();
@@ -98,7 +91,11 @@ export class ExtrudeTool {
       this.editor.execute(new ExtrudeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
 
       // Keep selection on the new vertices
-      this.editSelection.selectVertices(this.newVertexIds);
+      if (mode === 'vertex') {
+        this.editSelection.selectVertices(this.newVertexIds);
+      } else if (mode === 'edge') {
+        this.editSelection.selectEdges(this.newEdgeIds);
+      }
     });
   }
 
@@ -119,17 +116,24 @@ export class ExtrudeTool {
     const meshData = editedObject.userData.meshData;
     this.beforeMeshData = structuredClone(meshData);
 
+    const mode = this.editSelection.subSelectionMode;
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
     const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
 
     // Duplicate the selected vertices
-    const { mappedVertexIds, newVertexIds } = vertexEditor.duplicateSelection(selectedVertexIds);
-    this.newVertexIds = newVertexIds;
-    this.mappedVertexIds = mappedVertexIds;
+    let duplicationResult;
+    if (mode === 'vertex') {
+      duplicationResult = vertexEditor.duplicateSelectionVertices(selectedVertexIds);
+    } else if (mode === 'edge') {
+      duplicationResult = vertexEditor.duplicateSelectionEdges(selectedEdgeIds);
+    }
+    this.mappedVertexIds = duplicationResult.mappedVertexIds;
+    this.newVertexIds = duplicationResult.newVertexIds;
+    this.newEdgeIds = duplicationResult.newEdgeIds;
 
     vertexEditor.updateGeometryAndHelpers();
-    this.initialDuplicatedPositions = vertexEditor.getVertexPositions(newVertexIds);
+    this.initialDuplicatedPositions = vertexEditor.getVertexPositions(this.newVertexIds);
 
     this.boundaryEdges = vertexEditor.getBoundaryEdges(meshData, selectedVertexIds, selectedEdgeIds, selectedFaceIds);
 
@@ -177,11 +181,15 @@ export class ExtrudeTool {
     }
 
     // Delete old selection
-    vertexEditor.deleteSelection(selectedVertexIds);
-
-    vertexEditor.updateGeometryAndHelpers(false);
-
-    this.editSelection.selectVertices(this.newVertexIds);
+    if (mode === 'vertex') {
+      vertexEditor.deleteSelectionVertices(selectedVertexIds);
+      vertexEditor.updateGeometryAndHelpers(false);
+      this.editSelection.selectVertices(this.newVertexIds);
+    } else if (mode === 'edge') {
+      vertexEditor.deleteSelectionEdges(selectedEdgeIds);
+      vertexEditor.updateGeometryAndHelpers(false);
+      this.editSelection.selectEdges(this.newEdgeIds);
+    }
   }
 
   updateExtrude() {
