@@ -69,12 +69,18 @@ export class LoopCutTool {
       newVertices.push(meshData.addVertex(newPos));
     }
 
-    this.applyLoopCut(meshData, loopEdges, newVertices, isClosedLoop);
+    const newEdges = this.applyLoopCut(meshData, loopEdges, newVertices, isClosedLoop);
 
     this.afterMeshData = structuredClone(meshData);
     this.editor.execute(new LoopCutCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
+    this.onPointerMove(event);
 
-    this.editSelection.selectVertices(newVertices.map(v => v.id));
+    const mode = this.editSelection.subSelectionMode;
+    if (mode === 'vertex') {
+      this.editSelection.selectVertices(newVertices.map(v => v.id));
+    } else if (mode === 'edge') {
+      this.editSelection.selectEdges(newEdges.map(e => e.id));
+    }
   }
 
   onPointerMove(event) {
@@ -265,6 +271,7 @@ export class LoopCutTool {
   }
 
   applyLoopCut(meshData, loopEdges, newVertices, isClosedLoop) {
+    const newEdges = [];
     for (let i = 0; i < loopEdges.length; i++) {
       const edge = loopEdges[i];
       const nextEdge = loopEdges[(i + 1) % loopEdges.length];
@@ -304,6 +311,9 @@ export class LoopCutTool {
         }
         meshData.addFace(quad);
       });
+
+      const splitEdge = meshData.getEdge(midVertex.id, nextMidVertex.id);
+      if (splitEdge) newEdges.push(splitEdge);
     }
 
     // Handle the first and last edges for open loops
@@ -315,6 +325,8 @@ export class LoopCutTool {
     for (const edge of loopEdges) {
       meshData.deleteEdge(edge);
     }
+
+    return newEdges;
   }
 
   handleEdgeRebuild(meshData, edge, midVertex) {

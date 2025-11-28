@@ -114,7 +114,12 @@ export class KnifeTool {
     this.afterMeshData = structuredClone(meshData);
     this.editor.execute(new KnifeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
 
-    this.editSelection.selectVertices(this.newVertices.map(v => v.id));
+    const mode = this.editSelection.subSelectionMode;
+    if (mode === 'vertex') {
+      this.editSelection.selectVertices(this.newVertices.map(v => v.id));
+    } else if (mode === 'edge') {
+      this.editSelection.selectEdges(this.newEdges.map(e => e.id));
+    }
     this.cancelCut();
   }
 
@@ -290,17 +295,21 @@ export class KnifeTool {
     const worldToLocal = new THREE.Matrix4().copy(editedObject.matrixWorld).invert();
 
     this.newVertices = [];
+    this.newEdges = [];
+
     for (let i = 0; i < this.edgeIntersections.length; i++) {
       const edge = this.edgeIntersections[i];
+      let newVertex;
+
       if (edge === null) {
         const cutPointData = this.cutPoints.find(cp => cp.position.equals(this.intersections[i]));
-        this.newVertices.push(meshData.getVertex(cutPointData.snapVertexId));
-        continue;
+        newVertex = meshData.getVertex(cutPointData.snapVertexId);
+      } else {
+        const pos = this.intersections[i];
+        const localPos = pos.clone().applyMatrix4(worldToLocal);
+        newVertex = meshData.addVertex({ x: localPos.x, y: localPos.y, z: localPos.z });
       }
-
-      const pos = this.intersections[i];
-      const localPos = pos.clone().applyMatrix4(worldToLocal);
-      this.newVertices.push(meshData.addVertex({ x: localPos.x, y: localPos.y, z: localPos.z }));
+      this.newVertices.push(newVertex);
     }
 
     // Collect affected faces
@@ -367,6 +376,9 @@ export class KnifeTool {
 
         meshData.addFace(firstFaceVertices);
         meshData.addFace(secondFaceVertices);
+
+        const newEdge = meshData.getEdge(cutA.newVertex.id, cutB.newVertex.id);
+        this.newEdges.push(newEdge);
       }
     }
 
