@@ -59,15 +59,15 @@ export class ExtrudeTool {
 
   setupTransformListeners() {
     this.transformControls.addEventListener('mouseDown', () => {
-      const object = this.transformControls.object;
-      if (!object) return;
-      this.objectPositionOnDown = object.getWorldPosition(this._worldPosHelper).clone();
+      const handle = this.transformControls.object;
+      if (!handle) return;
+      this.objectPositionOnDown = handle.getWorldPosition(this._worldPosHelper).clone();
       this.extrudeStarted = false;
     });
 
     this.transformControls.addEventListener('change', () => {
-      const object = this.transformControls.object;
-      if (!object || !this.objectPositionOnDown) return;
+      const handle = this.transformControls.object;
+      if (!handle || !this.objectPositionOnDown) return;
 
       if (!this.extrudeStarted) {
         this.startExtrude();
@@ -193,11 +193,11 @@ export class ExtrudeTool {
   }
 
   updateExtrude() {
-    const object = this.transformControls.object;
+    const handle = this.transformControls.object;
     const editedObject = this.editSelection.editedObject;
     const vertexEditor = new VertexEditor(this.editor, editedObject);
 
-    const currentPos = object.getWorldPosition(this._worldPosHelper);
+    const currentPos = handle.getWorldPosition(this._worldPosHelper);
     const offset = new THREE.Vector3().subVectors(currentPos, this.objectPositionOnDown);
 
     // Move duplicated vertices

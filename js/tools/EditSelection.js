@@ -326,8 +326,6 @@ export default class EditSelection {
 
     if (vertexIds.length === 0) {
       this.vertexHandle.visible = false;
-      this.vertexHandle.userData.vertexIndices = [];
-      this.vertexHandle.userData.edgeIndices = [];
       return;
     }
 
@@ -348,8 +346,6 @@ export default class EditSelection {
 
     this.vertexHandle.position.copy(sum);
     this.vertexHandle.visible = true;
-    this.vertexHandle.userData.vertexIndices = vertexIds;
-    this.vertexHandle.userData.edgeIndices = edgeIds;
   }
 
   filterVisibleVertices(vertices, vertexPoints, camera) {

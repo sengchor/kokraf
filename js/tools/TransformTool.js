@@ -91,11 +91,11 @@ export class TransformTool {
         this.startPivotScale = handle.getWorldScale(new THREE.Vector3());
 
         // Save old vertex positions
-        const vertexIndices = handle.userData.vertexIndices || [];
+        const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
         const editedObject = this.editSelection.editedObject;
         if (editedObject) {
           const vertexEditor = new VertexEditor(this.editor, editedObject);
-          this.oldPositions = vertexEditor.getVertexPositions(vertexIndices);
+          this.oldPositions = vertexEditor.getVertexPositions(selectedVertexIds);
         }
       }
     });
@@ -105,8 +105,8 @@ export class TransformTool {
       if (!handle) return;
 
       if (this.interactionMode === 'edit' && this.transformControls.dragging) {
-        const vertexIndices = handle.userData.vertexIndices;
-        if (!vertexIndices || vertexIndices.length === 0) return;
+        const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+        if (!selectedVertexIds || selectedVertexIds.length === 0) return;
         if (!this.startPivotPosition || !this.oldPositions) return;
 
         if (!this.vertexEditor) {
@@ -118,7 +118,7 @@ export class TransformTool {
           const offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
 
           const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
-          this.vertexEditor.setVerticesWorldPositions(vertexIndices, newPositions);
+          this.vertexEditor.setVerticesWorldPositions(selectedVertexIds, newPositions);
         }
 
         if (this.mode === 'rotate') {
@@ -132,7 +132,7 @@ export class TransformTool {
             return local.add(pivot);
           });
 
-          this.vertexEditor.setVerticesWorldPositions(vertexIndices, newPositions);
+          this.vertexEditor.setVerticesWorldPositions(selectedVertexIds, newPositions);
         }
 
         if (this.mode === 'scale') {
@@ -150,7 +150,7 @@ export class TransformTool {
             return local.add(pivot);
           });
 
-          this.vertexEditor.setVerticesWorldPositions(vertexIndices, newPositions);
+          this.vertexEditor.setVerticesWorldPositions(selectedVertexIds, newPositions);
         }
       }
     });
@@ -177,8 +177,8 @@ export class TransformTool {
         }
       } else if (this.interactionMode === 'edit') {
         const editedObject = this.editSelection.editedObject;
-        const vertexIndices = handle.userData.vertexIndices;
-        const edgeIndices = handle.userData.edgeIndices;
+        const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+        const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
 
         if (this.mode === 'translate') {
           if (editedObject.userData.shading === 'auto') {
@@ -192,12 +192,12 @@ export class TransformTool {
           
           const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
 
-          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, vertexIndices, newPositions, this.oldPositions));
+          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, selectedVertexIds, newPositions, this.oldPositions));
 
           if (this.editSelection.subSelectionMode === 'vertex') {
-            this.editSelection.selectVertices(vertexIndices);
+            this.editSelection.selectVertices(selectedVertexIds);
           } else if (this.editSelection.subSelectionMode === 'edge') {
-            this.editSelection.selectEdges(edgeIndices);
+            this.editSelection.selectEdges(selectedEdgeIds);
           }
         }
         else if (this.mode === 'rotate') {
@@ -213,12 +213,12 @@ export class TransformTool {
             return local.add(pivot);
           });
 
-          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, vertexIndices, newPositions, this.oldPositions));
+          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, selectedVertexIds, newPositions, this.oldPositions));
 
           if (this.editSelection.subSelectionMode === 'vertex') {
-            this.editSelection.selectVertices(vertexIndices);
+            this.editSelection.selectVertices(selectedVertexIds);
           } else if (this.editSelection.subSelectionMode === 'edge') {
-            this.editSelection.selectEdges(edgeIndices);
+            this.editSelection.selectEdges(selectedEdgeIds);
           }
         }
         else if (this.mode === 'scale') {
@@ -238,12 +238,12 @@ export class TransformTool {
             return local.add(pivot);
           });
 
-          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, vertexIndices, newPositions, this.oldPositions));
+          this.editor.execute(new SetVertexPositionCommand(this.editor, editedObject, selectedVertexIds, newPositions, this.oldPositions));
 
           if (this.editSelection.subSelectionMode === 'vertex') {
-            this.editSelection.selectVertices(vertexIndices);
+            this.editSelection.selectVertices(selectedVertexIds);
           } else if (this.editSelection.subSelectionMode === 'edge') {
-            this.editSelection.selectEdges(edgeIndices);
+            this.editSelection.selectEdges(selectedEdgeIds);
           }
         }
 
