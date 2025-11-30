@@ -138,23 +138,27 @@ export class VertexEditor {
     const meshData = selectedObject.userData.meshData;
     const positions = [];
     const colors = [];
-    const ids = [];
+    const indices = [];
 
     for (let v of meshData.vertices.values()) {
       positions.push(v.position.x, v.position.y, v.position.z);
       colors.push(0, 0, 0);
-      ids.push(v.id);
+      indices.push(v.id);
     }
     
     const pointGeometry = new THREE.BufferGeometry();
     pointGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     pointGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    pointGeometry.setAttribute('vertexId', new THREE.Uint16BufferAttribute(ids, 1));
+    pointGeometry.setAttribute('vertexId', new THREE.Uint16BufferAttribute(indices, 1));
 
     const pointMaterial = new THREE.PointsMaterial({
       size: 3.5,
       sizeAttenuation: false,
-      vertexColors: true
+      vertexColors: true,
+
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
     });
 
     const vertexPoints = new THREE.Points(pointGeometry, pointMaterial);
@@ -193,9 +197,13 @@ export class VertexEditor {
       const fatGeo = new LineSegmentsGeometry().setPositions(positions);
       const fatMat = new LineMaterial({
         color: 0x000000,
-        linewidth: 1,
+        linewidth: 0.9,
         dashed: false,
         depthTest: true,
+        
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
       });
       fatMat.resolution.set(window.innerWidth, window.innerHeight);
 
@@ -245,20 +253,117 @@ export class VertexEditor {
     }
   }
 
+  addFacePolygons(selectedObject) {
+    const meshData = selectedObject.userData.meshData;
+    const positions = [];
+    const colors = [];
+    const indices = [];
+    const alphas = [];
+
+    const faceRanges = [];
+    let vertexOffset = 0;
+
+    for (let face of meshData.faces.values()) {
+      const verts = face.vertexIds.map(id => meshData.getVertex(id));
+
+      faceRanges.push({
+        faceId: face.id,
+        start: vertexOffset,
+        count: verts.length,
+        vertexIds: [...face.vertexIds],
+        edgeIds: [...face.edgeIds]
+      });
+
+      for (let v of verts) {
+        positions.push(v.position.x, v.position.y, v.position.z);
+        colors.push(1, 1, 1);
+        alphas.push(0.0);
+      }
+
+      for (let i = 1; i < verts.length - 1; i++) {
+        indices.push(vertexOffset, vertexOffset + i, vertexOffset + i + 1);
+      }
+
+      vertexOffset += verts.length;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setAttribute('alpha', new THREE.Float32BufferAttribute(alphas, 1));
+    geometry.setIndex(indices);
+
+    const material = new THREE.ShaderMaterial({
+      vertexColors: true,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+
+      vertexShader: `
+        attribute float alpha;
+
+        varying vec3 vColor;
+        varying float vAlpha;
+
+        void main() {
+          vColor = color;
+          vAlpha = alpha;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vAlpha;
+
+        void main() {
+          gl_FragColor = vec4(vColor, vAlpha);
+        }
+      `,
+    });
+
+    const faceMesh = new THREE.Mesh(geometry, material);
+    faceMesh.renderOrder = 5;
+    faceMesh.userData.faceRanges = faceRanges;
+    faceMesh.userData.isEditorOnly = true;
+    faceMesh.name = '__FacePolygons';
+
+    this.sceneManager.sceneHelpers.add(faceMesh);
+
+    faceMesh.matrix.copy(selectedObject.matrixWorld);
+    faceMesh.matrix.decompose(faceMesh.position, faceMesh.quaternion, faceMesh.scale);
+  }
+
+  removeFacePolygons() {
+    const obj = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
+    if (obj) {
+      if (obj.parent) obj.parent.remove(obj);
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    }
+  }
+
   refreshHelpers() {
     if (!this.object) return;
     this.removeVertexPoints();
     this.removeEdgeLines();
+    this.removeFacePolygons();
 
     const mode = this.editor.editSelection.subSelectionMode;
 
     if (mode === 'vertex') {
       this.addVertexPoints(this.object);
       this.addEdgeLines(this.object);
+      this.addFacePolygons(this.object);
 
       this.editor.editSelection.highlightSelectedVertex();
     } else if (mode === 'edge') {
       this.addEdgeLines(this.object);
+      this.addFacePolygons(this.object);
 
       this.editor.editSelection.highlightSelectedEdge();
     }

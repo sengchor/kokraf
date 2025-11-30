@@ -113,10 +113,10 @@ export default class EditSelection {
     if (!vertexPoints) return;
 
     const colors = vertexPoints.geometry.getAttribute('color');
-    const ids = vertexPoints.geometry.getAttribute('vertexId');
+    const indices = vertexPoints.geometry.getAttribute('vertexId');
 
-    for (let i = 0; i < ids.count; i++) {
-      if (this.selectedVertexIds.has(ids.getX(i))) {
+    for (let i = 0; i < indices.count; i++) {
+      if (this.selectedVertexIds.has(indices.getX(i))) {
         colors.setXYZ(i, 1, 1, 1);
       } else {
         colors.setXYZ(i, 0, 0, 0);
@@ -126,6 +126,7 @@ export default class EditSelection {
     colors.needsUpdate = true;
 
     this.highlightEdgesFromVertices();
+    this.highlightFacesFromVertices();
   }
 
   highlightSelectedEdge() {
@@ -148,6 +149,8 @@ export default class EditSelection {
 
       material.needsUpdate = true;
     }
+
+    this.highlightFacesFromEdges();
   }
 
   highlightEdgesFromVertices() {
@@ -173,6 +176,73 @@ export default class EditSelection {
       }
       material.needsUpdate = true;
     }
+  }
+
+  highlightFacesFromVertices() {
+    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
+    if (!faceMesh) return;
+
+    const faceRanges = faceMesh.userData.faceRanges;
+    const colors = faceMesh.geometry.getAttribute('color');
+    const alphas = faceMesh.geometry.getAttribute('alpha');
+
+    this.selectedFaceIds.clear();
+
+    for (let fr of faceRanges) {
+      const { faceId, start, count, vertexIds } = fr;
+
+      const allSelected = vertexIds.every(v => this.selectedVertexIds.has(v));
+
+      for (let i = 0; i < count; i++) {
+        const idx = start + i;
+
+        if (allSelected) {
+          colors.setXYZ(idx, 1, 1, 0);
+          alphas.setX(idx, 0.15);
+          this.selectedFaceIds.add(faceId);
+        } else {
+          colors.setXYZ(idx, 1, 1, 1);
+          alphas.setX(idx, 0.0);
+        }
+      }
+    }
+    colors.needsUpdate = true;
+    alphas.needsUpdate = true;
+  }
+
+  highlightFacesFromEdges() {
+    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
+    if (!faceMesh) return;
+
+
+    const faceRanges = faceMesh.userData.faceRanges;
+    const colors = faceMesh.geometry.getAttribute('color');
+    const alphas = faceMesh.geometry.getAttribute('alpha');
+
+    this.selectedFaceIds.clear();
+
+    for (let fr of faceRanges) {
+      const { faceId, start, count, edgeIds } = fr;
+
+      const allSelected = edgeIds.every(eid => this.selectedEdgeIds.has(eid));
+
+      if (allSelected) this.selectedFaceIds.add(faceId);
+
+      for (let i = 0; i < count; i++) {
+        const idx = start + i;
+
+        if (allSelected) {
+          colors.setXYZ(idx, 1, 1, 0);
+          alphas.setX(idx, 0.15);
+        } else {
+          colors.setXYZ(idx, 1, 1, 1);
+          alphas.setX(idx, 0.0);
+        }
+      }
+    }
+
+    colors.needsUpdate = true;
+    alphas.needsUpdate = true;
   }
 
   selectVertices(vertexIds) {
@@ -201,7 +271,6 @@ export default class EditSelection {
     }
 
     this.highlightSelectedVertex();
-    this.getSelectedFacesFromVertices(this.selectedVertexIds);
     this.updateVertexHandle();
   }
 
@@ -235,51 +304,7 @@ export default class EditSelection {
     vIds.forEach(id => this.selectedVertexIds.add(id));
 
     this.highlightSelectedEdge();
-    this.getSelectedFacesFromEdges(this.selectedEdgeIds);
     this.updateVertexHandle();
-  }
-
-  getSelectedFacesFromVertices(vertexIds) {
-    const meshData = this.editedObject.userData.meshData;
-    if (!meshData) return [];
-
-    const selectedVertexSet = new Set(vertexIds);
-    const selectedFaces = [];
-
-    for (let face of meshData.faces.values()) {
-      const allVertsSelected = face.vertexIds.every(vid => selectedVertexSet.has(vid));
-      if (allVertsSelected) {
-        selectedFaces.push(face.id);
-      }
-    }
-
-    // Update internal selectedFaceIds set
-    this.selectedFaceIds.clear();
-    selectedFaces.forEach(fid => this.selectedFaceIds.add(fid));
-
-    return selectedFaces;
-  }
-
-  getSelectedFacesFromEdges(edgeIds) {
-    const meshData = this.editedObject.userData.meshData;
-    if (!meshData) return [];
-
-    const selectedEdgeSet = new Set(edgeIds);
-    const selectedFaces = [];
-
-    for (let face of meshData.faces.values()) {
-      // Check if all edges of the face are selected
-      const allEdgesSelected = [...face.edgeIds].every(eid => selectedEdgeSet.has(eid));
-      if (allEdgesSelected) {
-        selectedFaces.push(face.id);
-      }
-    }
-
-    // Update internal selectedFaceIds set
-    this.selectedFaceIds.clear();
-    selectedFaces.forEach(fid => this.selectedFaceIds.add(fid));
-
-    return selectedFaces;
   }
 
   clearSelection() {
@@ -299,6 +324,19 @@ export default class EditSelection {
         material.needsUpdate = true;
       }
     });
+
+    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
+    if (faceMesh) {
+      const colors = faceMesh.geometry.getAttribute('color');
+      const alphas = faceMesh.geometry.getAttribute('alpha');
+      for (let i = 0; i < colors.count; i++) {
+        colors.setXYZ(i, 1, 1, 1);
+        alphas.setX(i, 0.0);
+      }
+
+      colors.needsUpdate = true;
+      alphas.needsUpdate = true;
+    }
 
     this.selectedVertexIds.clear();
     this.selectedEdgeIds.clear();
