@@ -24,82 +24,108 @@ export class VertexEditor {
     return this.object.geometry.attributes.position;
   }
 
-  setVertexWorldPosition(logicalVertexId, worldPosition) {
+  setVerticesWorldPositions(logicalVertexIds, worldPositions) {
     if (!this.object || !this.positionAttr) return;
 
     const meshData = this.object.userData.meshData;
     const vertexIndexMap = meshData.vertexIndexMap;
 
-    const localPosition = worldPosition.clone().applyMatrix4(
-      new THREE.Matrix4().copy(this.object.matrixWorld).invert()
-    );
+    const inverseW = new THREE.Matrix4().copy(this.object.matrixWorld).invert();
 
-    // Update buffer geometry positions
-    const indices = vertexIndexMap.get(logicalVertexId);
-    if (!indices) return;
+    const affectedEdges = new Set();
+    const affectedFaces = new Set();
 
-    for (let bufferIndex of indices) {
-      this.positionAttr.setXYZ(bufferIndex, localPosition.x, localPosition.y, localPosition.z);
+    // Update vertex positions
+    for (let i = 0; i < logicalVertexIds.length; i++) {
+      const logicalId = logicalVertexIds[i];
+      const worldPos = worldPositions[i];
+      const localPos = worldPos.clone().applyMatrix4(inverseW);
+
+      const indices = vertexIndexMap.get(logicalId);
+      if (!indices) continue;
+
+      for (let bufferIndex of indices) {
+        this.positionAttr.setXYZ(bufferIndex, localPos.x, localPos.y, localPos.z);
+      }
+
+      const v = meshData.getVertex(logicalId);
+      if (v) {
+        v.position = { x: localPos.x, y: localPos.y, z: localPos.z };
+      }
+
+      for (let edgeId of v.edgeIds) {
+        affectedEdges.add(edgeId);
+      }
+
+      for (let faceId of v.faceIds) {
+        affectedFaces.add(faceId);
+      }
     }
+
     this.positionAttr.needsUpdate = true;
+
     this.geometry.computeVertexNormals();
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
-    // Update logical meshData vertex
-    const vertex = meshData.getVertex(logicalVertexId);
-    if (vertex) {
-      vertex.position = { x: localPosition.x, y: localPosition.y, z: localPosition.z };
-    }
-
-    // Update helper __VertexPoints
+    // Update vertex helpers
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (vertexPoints) {
       const posAttr = vertexPoints.geometry.getAttribute('position');
-      posAttr.setXYZ(logicalVertexId, localPosition.x, localPosition.y, localPosition.z);
+
+      for (let logicalId of logicalVertexIds) {
+        const v = meshData.getVertex(logicalId);
+        posAttr.setXYZ(logicalId, v.position.x, v.position.y, v.position.z);
+      }
       posAttr.needsUpdate = true;
     }
-    if (vertexPoints && vertexPoints.geometry) {
-      vertexPoints.geometry.computeBoundingBox();
-      vertexPoints.geometry.computeBoundingSphere();
-    }
 
-    // Update helper __EdgeLines
+    // Update only affected edges
     const edgeLines = this.getEdgeLineObjects();
-    for (let edgeId of vertex.edgeIds) {
+    for (let edgeId of affectedEdges) {
       const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
       const thinLine = edgeLines.find(line => line.userData.edge === edge);
       if (!thinLine) continue;
 
       const v1 = meshData.getVertex(edge.v1Id);
       const v2 = meshData.getVertex(edge.v2Id);
-      if (!v1 || !v2) continue;
 
       const positions = [
         v1.position.x, v1.position.y, v1.position.z,
         v2.position.x, v2.position.y, v2.position.z
       ];
 
-      // Update Invisible Raycast Line
-      const posAttr = thinLine.geometry.getAttribute('position');
+      const posAttr = thinLine.geometry.getAttribute("position");
       posAttr.setXYZ(0, positions[0], positions[1], positions[2]);
       posAttr.setXYZ(1, positions[3], positions[4], positions[5]);
       posAttr.needsUpdate = true;
-      thinLine.geometry.computeBoundingSphere();
 
-      // Update Visible Fat Line
       const fatLine = thinLine.userData.visualLine;
       if (fatLine && fatLine.geometry) {
         fatLine.geometry.setPositions(positions);
       }
     }
-  }
 
-  setVerticesWorldPositions(logicalVertexIds, worldPositions) {
-    if (!this.object || !this.positionAttr) return;
+    // Update only affected faces
+    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
+    if (faceMesh) {
+      const facePosAttr = faceMesh.geometry.getAttribute('position');
+      const faceRanges = faceMesh.userData.faceRanges;
 
-    for (let i = 0; i < logicalVertexIds.length; i++) {
-      this.setVertexWorldPosition(logicalVertexIds[i], worldPositions[i]);
+      for (let fr of faceRanges) {
+        if (!affectedFaces.has(fr.faceId)) continue;
+
+        const { start, vertexIds } = fr;
+        for (let i = 0; i < vertexIds.length; i++) {
+          const v = meshData.getVertex(vertexIds[i]);
+          facePosAttr.setXYZ(start + i, v.position.x, v.position.y, v.position.z);
+        }
+      }
+
+      facePosAttr.needsUpdate = true;
+      faceMesh.geometry.computeBoundingSphere();
     }
   }
 
@@ -262,14 +288,18 @@ export class VertexEditor {
 
     const faceRanges = [];
     let vertexOffset = 0;
+    let triangleOffset = 0;
 
     for (let face of meshData.faces.values()) {
       const verts = face.vertexIds.map(id => meshData.getVertex(id));
+      const triCount = verts.length - 2;
 
       faceRanges.push({
         faceId: face.id,
         start: vertexOffset,
         count: verts.length,
+        triStart: triangleOffset,
+        triCount: triCount,
         vertexIds: [...face.vertexIds],
         edgeIds: [...face.edgeIds]
       });
@@ -285,6 +315,7 @@ export class VertexEditor {
       }
 
       vertexOffset += verts.length;
+      triangleOffset += triCount;
     }
 
     const geometry = new THREE.BufferGeometry();
@@ -366,6 +397,11 @@ export class VertexEditor {
       this.addFacePolygons(this.object);
 
       this.editor.editSelection.highlightSelectedEdge();
+    } else if (mode === 'face') {
+      this.addEdgeLines(this.object);
+      this.addFacePolygons(this.object);
+
+      this.editor.editSelection.highlightSelectedFace();
     }
   }
 
