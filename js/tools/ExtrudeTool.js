@@ -95,6 +95,8 @@ export class ExtrudeTool {
         this.editSelection.selectVertices(this.newVertexIds);
       } else if (mode === 'edge') {
         this.editSelection.selectEdges(this.newEdgeIds);
+      } else if (mode === 'face') {
+        this.editSelection.selectFaces(this.newFaceIds);
       }
     });
   }
@@ -127,10 +129,13 @@ export class ExtrudeTool {
       duplicationResult = vertexEditor.duplicateSelectionVertices(selectedVertexIds);
     } else if (mode === 'edge') {
       duplicationResult = vertexEditor.duplicateSelectionEdges(selectedEdgeIds);
+    } else if (mode === 'face') {
+      duplicationResult = vertexEditor.duplicateSelectionFaces(selectedFaceIds);
     }
     this.mappedVertexIds = duplicationResult.mappedVertexIds;
     this.newVertexIds = duplicationResult.newVertexIds;
     this.newEdgeIds = duplicationResult.newEdgeIds;
+    this.newFaceIds = duplicationResult.newFaceIds;
 
     vertexEditor.updateGeometryAndHelpers();
     this.initialDuplicatedPositions = vertexEditor.getVertexPositions(this.newVertexIds);
@@ -189,6 +194,10 @@ export class ExtrudeTool {
       vertexEditor.deleteSelectionEdges(selectedEdgeIds);
       vertexEditor.updateGeometryAndHelpers(false);
       this.editSelection.selectEdges(this.newEdgeIds);
+    } else if (mode === 'face') {
+      vertexEditor.deleteSelectionFaces(selectedFaceIds);
+      vertexEditor.updateGeometryAndHelpers(false);
+      this.editSelection.selectFaces(this.newFaceIds);
     }
   }
 

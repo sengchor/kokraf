@@ -179,6 +179,7 @@ export class TransformTool {
         const editedObject = this.editSelection.editedObject;
         const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
         const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
+        const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
 
         if (this.mode === 'translate') {
           if (editedObject.userData.shading === 'auto') {
@@ -198,6 +199,8 @@ export class TransformTool {
             this.editSelection.selectVertices(selectedVertexIds);
           } else if (this.editSelection.subSelectionMode === 'edge') {
             this.editSelection.selectEdges(selectedEdgeIds);
+          } else if (this.editSelection.subSelectionMode === 'face') {
+            this.editSelection.selectFaces(selectedFaceIds);
           }
         }
         else if (this.mode === 'rotate') {
@@ -219,6 +222,8 @@ export class TransformTool {
             this.editSelection.selectVertices(selectedVertexIds);
           } else if (this.editSelection.subSelectionMode === 'edge') {
             this.editSelection.selectEdges(selectedEdgeIds);
+          } else if (this.editSelection.subSelectionMode === 'face') {
+            this.editSelection.selectFaces(selectedFaceIds);
           }
         }
         else if (this.mode === 'scale') {
@@ -244,6 +249,8 @@ export class TransformTool {
             this.editSelection.selectVertices(selectedVertexIds);
           } else if (this.editSelection.subSelectionMode === 'edge') {
             this.editSelection.selectEdges(selectedEdgeIds);
+          } else if (this.editSelection.subSelectionMode === 'face') {
+            this.editSelection.selectFaces(selectedFaceIds);
           }
         }
 

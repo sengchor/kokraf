@@ -578,6 +578,81 @@ export class VertexEditor {
     return { mappedVertexIds, newVertexIds, newEdgeIds, newFaceIds };
   }
 
+  duplicateSelectionFaces(faceIds) {
+    const meshData = this.object.userData.meshData;
+
+    const selectedFaces = new Set(faceIds);
+    const duplicatedVertices = new Map();
+    const duplicatedEdges = new Map();
+    const duplicatedFaces = new Map();
+
+    // Duplicate all vertices belonging to selected faces
+    for (let faceId of selectedFaces) {
+      const face = meshData.faces.get(faceId);
+      if (!face) continue;
+
+      for (let vId of face.vertexIds) {
+        if (!duplicatedVertices.has(vId)) {
+          const oldVertex = meshData.getVertex(vId);
+          if (!oldVertex) continue;
+
+          const newVertex = meshData.addVertex({
+            x: oldVertex.position.x,
+            y: oldVertex.position.y,
+            z: oldVertex.position.z
+          });
+
+          duplicatedVertices.set(vId, newVertex);
+        }
+      }
+    }
+
+    // Duplicate edges belonging only to selected faces
+    for (let faceId of selectedFaces) {
+      const face = meshData.faces.get(faceId);
+      if (!face) continue;
+
+      for (let eId of face.edgeIds) {
+        if (duplicatedEdges.has(eId)) continue;
+
+        const oldEdge = meshData.edges.get(eId);
+        if (!oldEdge) continue;
+
+        const v1 = duplicatedVertices.get(oldEdge.v1Id);
+        const v2 = duplicatedVertices.get(oldEdge.v2Id);
+
+        if (!v1 || !v2) continue;
+
+        const newEdge = meshData.addEdge(v1, v2);
+        duplicatedEdges.set(eId, newEdge);
+      }
+    }
+
+    // Duplicate the faces
+    for (let faceId of selectedFaces) {
+      const oldFace = meshData.faces.get(faceId);
+      if (!oldFace) continue;
+
+      const newVertices = oldFace.vertexIds.map(vId => duplicatedVertices.get(vId));
+
+      if (!newVertices.every(v => v)) continue;
+
+      const newFace = meshData.addFace(newVertices);
+      duplicatedFaces.set(faceId, newFace);
+    }
+
+    // Map old vertex IDs to new ones
+    const mappedVertexIds = {};
+    for (let [oldId, newVertex] of duplicatedVertices.entries()) {
+      mappedVertexIds[oldId] = newVertex.id;
+    }
+
+    const newVertexIds = Array.from(duplicatedVertices.values()).map(v => v.id);
+    const newEdgeIds = Array.from(duplicatedEdges.values()).map(e => e.id);
+    const newFaceIds = Array.from(duplicatedFaces.values()).map(f => f.id);
+    return { mappedVertexIds, newVertexIds, newEdgeIds, newFaceIds };
+  }
+
   deleteSelectionVertices(vertexIds) {
     const meshData = this.object.userData.meshData;
     const selected = new Set(vertexIds);
@@ -673,6 +748,49 @@ export class VertexEditor {
       deletedFaces: [...deletedFaces],
       deletedEdges: [...deletedEdges],
       deletedVertices: [...deletedVertices]
+    };
+  }
+
+  deleteSelectionFaces(faceIds) {
+    const meshData = this.object.userData.meshData;
+    const selected = new Set(faceIds);
+
+    const deletedFaces = new Set();
+    const deletedEdges = new Set();
+    const deletedVertices = new Set();
+
+    // Delete the selected faces
+    for (const faceId of selected) {
+      const face = meshData.faces.get(faceId);
+      if (!face) continue;
+
+      meshData.deleteFace(face);
+      deletedFaces.add(faceId);
+    }
+
+    // Delete edges no longer used by any face
+    for (const [edgeId, edge] of [...meshData.edges.entries()]) {
+      if (edge.faceIds.size === 0) {
+        meshData.deleteEdge(edge);
+        deletedEdges.add(edgeId);
+      }
+    }
+
+    // Delete vertices now isolated (no edges, no faces)
+    for (const [vId, vertex] of [...meshData.vertices.entries()]) {
+      const hasEdges = vertex.edgeIds && vertex.edgeIds.size > 0;
+      const hasFaces = vertex.faceIds && vertex.faceIds.size > 0;
+
+      if (!hasEdges && !hasFaces) {
+        meshData.deleteVertex(vertex);
+        deletedVertices.add(vId);
+      }
+    }
+
+    return {
+      deletedFaces: Array.from(deletedFaces),
+      deletedEdges: Array.from(deletedEdges),
+      deletedVertices: Array.from(deletedVertices)
     };
   }
 
