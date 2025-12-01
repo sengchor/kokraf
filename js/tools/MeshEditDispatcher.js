@@ -18,13 +18,25 @@ export class MeshEditDispatcher {
   setupListeners() {
     this.signals.createFaceFromVertices.add(() => {
       const editedObject = this.editSelection.editedObject;
+      const mode = this.editSelection.subSelectionMode;
+      if (mode === 'face') return null;
+
       const meshData = editedObject.userData.meshData;
       if (!editedObject || !meshData) return null;
       this.beforeMeshData = structuredClone(meshData);
 
       const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
       const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
-      if (!selectedVertexIds) return null;
+      const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
+      if (!selectedVertexIds || selectedVertexIds.length < 3) return null;
+
+      // Prevent creating a face identical to the selected face
+      if (selectedFaceIds.length === 1) {
+        const face = meshData.faces.get(selectedFaceIds[0]);
+        if (face && selectedVertexIds.length === face.vertexIds.length) {
+          return null;
+        }
+      }
       
       const vertexEditor = new VertexEditor(this.editor, editedObject);
       
@@ -44,7 +56,6 @@ export class MeshEditDispatcher {
       this.afterMeshData = structuredClone(meshData);
       this.editor.execute(new CreateFaceCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
 
-      const mode = this.editSelection.subSelectionMode;
       if (mode === 'vertex') {
         this.editSelection.selectVertices(newVertices);
       } else if (mode === 'edge') {
@@ -58,6 +69,8 @@ export class MeshEditDispatcher {
 
       const selectedVertexIds = this.editSelection.selectedVertexIds;
       const selectedEdgeIds = this.editSelection.selectedEdgeIds;
+      const selectedFaceIds = this.editSelection.selectedFaceIds;
+
       const meshData = editedObject.userData.meshData;
       this.beforeMeshData = structuredClone(meshData);
 
@@ -66,6 +79,8 @@ export class MeshEditDispatcher {
         vertexEditor.deleteSelectionVertices(selectedVertexIds);
       } else if (mode === 'edge') {
         vertexEditor.deleteSelectionEdges(selectedEdgeIds);
+      } else if (mode === 'face') {
+        vertexEditor.deleteSelectionFaces(selectedFaceIds);
       }
 
       this.afterMeshData = structuredClone(meshData);
@@ -78,29 +93,37 @@ export class MeshEditDispatcher {
 
       const selectedVertexIds = this.editSelection.selectedVertexIds;
       const selectedEdgeIds = this.editSelection.selectedEdgeIds;
+      const selectedFaceIds = this.editSelection.selectedFaceIds;
+
       const meshData = editedObject.userData.meshData;
       this.beforeMeshData = structuredClone(meshData);
 
       let newVertexIds = [];
       let newEdgeIds = [];
+      let newFaceIds = [];
 
       const vertexEditor = new VertexEditor(this.editor, editedObject);
       if (mode === 'vertex') {
-        ({ newVertexIds, newEdgeIds } = vertexEditor.duplicateSelectionVertices(selectedVertexIds));
+        ({ newVertexIds } = vertexEditor.duplicateSelectionVertices(selectedVertexIds));
         vertexEditor.deleteSelectionVertices(selectedVertexIds);
       } else if (mode === 'edge') {
-        ({ newVertexIds, newEdgeIds } = vertexEditor.duplicateSelectionEdges(selectedEdgeIds));
+        ({ newEdgeIds } = vertexEditor.duplicateSelectionEdges(selectedEdgeIds));
         vertexEditor.deleteSelectionEdges(selectedEdgeIds);
+      } else if (mode === 'face') {
+        ({ newFaceIds } = vertexEditor.duplicateSelectionFaces(selectedFaceIds));
+        vertexEditor.deleteSelectionFaces(selectedFaceIds);
       }
 
       this.afterMeshData = structuredClone(meshData);
-      this.editor.execute(new SeparateSelectionCommand(this.editor, editedObject, this.afterMeshData, this.afterMeshData));
+      this.editor.execute(new SeparateSelectionCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
 
       if (mode === 'vertex') {
         this.editSelection.selectVertices(newVertexIds);
       } else if (mode === 'edge') {
         this.editSelection.selectEdges(newEdgeIds);
+      } else if (mode === 'face') {
+        this.editSelection.selectFaces(newFaceIds);
       }
-    })
+    });
   }
 }

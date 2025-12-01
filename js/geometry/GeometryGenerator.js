@@ -273,7 +273,7 @@ export function generateAngleBasedGeometry(meshData, angleDegree = 60, useEarcut
   return geometry;
 }
 
-function computePlaneNormal(verts) {
+export function computePlaneNormal(verts) {
   if (verts.length < 3) return new THREE.Vector3(0, 0, 1);
   const v0 = verts[0].position;
   const v1 = verts[1].position;
@@ -286,7 +286,7 @@ function computePlaneNormal(verts) {
   return normal;
 }
 
-function projectTo2D(verts, normal) {
+export function projectTo2D(verts, normal) {
   verts = verts.filter(v => v !== undefined && v !== null);
   if (verts.length === 0) return [];
 
@@ -307,7 +307,7 @@ function projectTo2D(verts, normal) {
   return flat;
 }
 
-function removeCollinearVertices(verts, epsilon = 1e-6) {
+export function removeCollinearVertices(verts, epsilon = 1e-6) {
   if (verts.length <= 3) return verts.slice();
 
   const toVec3 = v => new THREE.Vector3(v.position.x, v.position.y, v.position.z);

@@ -4,6 +4,8 @@ import { LineMaterial } from 'jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { MeshData } from "../core/MeshData.js";
+import earcut from 'earcut';
+import { computePlaneNormal, projectTo2D, removeCollinearVertices } from "../geometry/GeometryGenerator.js";
 
 export class VertexEditor {
   constructor(editor, object3D) {
@@ -291,8 +293,12 @@ export class VertexEditor {
     let triangleOffset = 0;
 
     for (let face of meshData.faces.values()) {
-      const verts = face.vertexIds.map(id => meshData.getVertex(id));
-      const triCount = verts.length - 2;
+      let verts = face.vertexIds.map(id => meshData.getVertex(id));
+      verts = removeCollinearVertices(verts);
+      const normal = computePlaneNormal(verts);
+      const flatVertices2D = projectTo2D(verts, normal);
+      const triangulated = earcut(flatVertices2D);
+      const triCount = triangulated.length / 3;
 
       faceRanges.push({
         faceId: face.id,
@@ -310,8 +316,12 @@ export class VertexEditor {
         alphas.push(0.0);
       }
 
-      for (let i = 1; i < verts.length - 1; i++) {
-        indices.push(vertexOffset, vertexOffset + i, vertexOffset + i + 1);
+      for (let i = 0; i < triangulated.length; i += 3) {
+        indices.push(
+          vertexOffset + triangulated[i],
+          vertexOffset + triangulated[i + 1],
+          vertexOffset + triangulated[i + 2]
+        );
       }
 
       vertexOffset += verts.length;

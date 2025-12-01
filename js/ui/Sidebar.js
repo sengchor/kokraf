@@ -36,7 +36,7 @@ export default class Sidebar {
       this.sidebarSetting = new SidebarSetting(editor);
 
       this.panelResizer.initRightPanelResizer();
-      setTimeout(() => this.panelResizer.onWindowResize(), 0);
+      requestAnimationFrame(() => this.panelResizer.onWindowResize());
     });
   }
 }
