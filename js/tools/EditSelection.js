@@ -43,7 +43,7 @@ export default class EditSelection {
     if (!this.enable) return;
 
     if (this.subSelectionMode === 'vertex') {
-      const nearestVertexId = this.pickNearestVertexAtMouse(event, renderer, camera);
+      const nearestVertexId = this.pickNearestVertexOnMouse(event, renderer, camera);
       if (nearestVertexId === null) {
         this.clearSelection();
         return;
@@ -69,7 +69,7 @@ export default class EditSelection {
     }
   }
 
-  pickNearestVertexAtMouse(event, renderer, camera, threshold = 0.1) {
+  pickNearestVertexOnMouse(event, renderer, camera, threshold = 0.1) {
     const rect = renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -138,218 +138,6 @@ export default class EditSelection {
     return nearestFaceId;
   }
 
-  highlightSelectedVertex() {
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (!vertexPoints) return;
-
-    const colors = vertexPoints.geometry.getAttribute('color');
-    const indices = vertexPoints.geometry.getAttribute('vertexId');
-
-    for (let i = 0; i < indices.count; i++) {
-      if (this.selectedVertexIds.has(indices.getX(i))) {
-        colors.setXYZ(i, 1, 1, 1);
-      } else {
-        colors.setXYZ(i, 0, 0, 0);
-      }
-    }
-
-    colors.needsUpdate = true;
-
-    this.highlightEdgesFromVertices();
-    this.highlightFacesFromVertices();
-  }
-
-  highlightSelectedEdge() {
-    const edgeLines = [];
-    this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
-        edgeLines.push(obj);
-      }
-    });
-
-    for (let edgeLine of edgeLines) {
-      const { edge } = edgeLine.userData;
-      const material = edgeLine.material;
-
-      if (this.selectedEdgeIds.has(edge.id)) {
-        material.color.set(0xffffff);
-      } else {
-        material.color.set(0x000000);
-      }
-
-      material.needsUpdate = true;
-    }
-
-    this.highlightFacesFromEdges();
-  }
-
-  highlightSelectedFace() {
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (!faceMesh) return;
-
-    const faceRanges = faceMesh.userData.faceRanges;
-    if (!faceRanges) return;
-
-    const colors = faceMesh.geometry.getAttribute('color');
-    const alphas = faceMesh.geometry.getAttribute('alpha');
-
-    for (let fr of faceRanges) {
-      const { faceId, start, count } = fr;
-
-      for (let i = 0; i < count; i++) {
-        const idx = start + i;
-
-        if (this.selectedFaceIds.has(faceId)) {
-          colors.setXYZ(idx, 1, 1, 0);
-          alphas.setX(idx, 0.15);
-        } else {
-          colors.setXYZ(idx, 1, 1, 1);
-          alphas.setX(idx, 0.0);
-        }
-      }
-    }
-
-    colors.needsUpdate = true;
-    alphas.needsUpdate = true;
-
-    this.highlightEdgesFromFaces();
-  }
-
-  highlightEdgesFromVertices() {
-    const edgeLines = [];
-    this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
-        edgeLines.push(obj);
-      }
-    });
-
-    this.selectedEdgeIds.clear();
-
-    for (let edgeLine of edgeLines) {
-      const { edge } = edgeLine.userData;
-      const bothSelected = this.selectedVertexIds.has(edge.v1Id) && this.selectedVertexIds.has(edge.v2Id);
-
-      const material = edgeLine.material;
-      if (bothSelected) {
-        material.color.set(0xffffff);
-        this.selectedEdgeIds.add(edge.id);
-      } else {
-        material.color.set(0x000000);
-      }
-      material.needsUpdate = true;
-    }
-  }
-
-  highlightFacesFromVertices() {
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (!faceMesh) return;
-
-    const faceRanges = faceMesh.userData.faceRanges;
-    const colors = faceMesh.geometry.getAttribute('color');
-    const alphas = faceMesh.geometry.getAttribute('alpha');
-
-    this.selectedFaceIds.clear();
-
-    for (let fr of faceRanges) {
-      const { faceId, start, count, vertexIds } = fr;
-
-      const allSelected = vertexIds.every(v => this.selectedVertexIds.has(v));
-
-      for (let i = 0; i < count; i++) {
-        const idx = start + i;
-
-        if (allSelected) {
-          colors.setXYZ(idx, 1, 1, 0);
-          alphas.setX(idx, 0.15);
-          this.selectedFaceIds.add(faceId);
-        } else {
-          colors.setXYZ(idx, 1, 1, 1);
-          alphas.setX(idx, 0.0);
-        }
-      }
-    }
-    colors.needsUpdate = true;
-    alphas.needsUpdate = true;
-  }
-
-  highlightFacesFromEdges() {
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (!faceMesh) return;
-
-
-    const faceRanges = faceMesh.userData.faceRanges;
-    const colors = faceMesh.geometry.getAttribute('color');
-    const alphas = faceMesh.geometry.getAttribute('alpha');
-
-    this.selectedFaceIds.clear();
-
-    for (let fr of faceRanges) {
-      const { faceId, start, count, edgeIds } = fr;
-
-      const allSelected = edgeIds.every(eid => this.selectedEdgeIds.has(eid));
-
-      if (allSelected) this.selectedFaceIds.add(faceId);
-
-      for (let i = 0; i < count; i++) {
-        const idx = start + i;
-
-        if (allSelected) {
-          colors.setXYZ(idx, 1, 1, 0);
-          alphas.setX(idx, 0.15);
-        } else {
-          colors.setXYZ(idx, 1, 1, 1);
-          alphas.setX(idx, 0.0);
-        }
-      }
-    }
-
-    colors.needsUpdate = true;
-    alphas.needsUpdate = true;
-  }
-
-  highlightEdgesFromFaces() {
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (!faceMesh) return;
-
-    const faceRanges = faceMesh.userData.faceRanges;
-
-    // Collect all edges belonging to selected faces
-    const selectedFaceVertexIds = new Set();
-    const selectedFaceEdgeIds = new Set();
-
-    for (let fr of faceRanges) {
-      if (this.selectedFaceIds.has(fr.faceId)) {
-        for (const vid of fr.vertexIds) {
-          selectedFaceVertexIds.add(vid);
-        }
-
-        for (const eid of fr.edgeIds) {
-          selectedFaceEdgeIds.add(eid);
-        }
-      }
-    }
-
-    // Now highlight those edges
-    this.selectedVertexIds = selectedFaceVertexIds;
-    this.selectedEdgeIds.clear();
-
-    this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name !== '__EdgeLinesVisual' || !obj.userData.edge) return;
-
-      const edge = obj.userData.edge;
-      const material = obj.material;
-
-      if (selectedFaceEdgeIds.has(edge.id)) {
-        material.color.set(0xffffff);
-        this.selectedEdgeIds.add(edge.id);
-      } else {
-        material.color.set(0x000000);
-      }
-
-      material.needsUpdate = true;
-    });
-  }
-
   selectVertices(vertexIds) {
     const isArray = Array.isArray(vertexIds);
     if (!isArray) vertexIds = [vertexIds];
@@ -375,7 +163,7 @@ export default class EditSelection {
       }
     }
 
-    this.highlightSelectedVertex();
+    this.signals.editSelectionChanged.dispatch('vertex');
     this.updateVertexHandle();
   }
 
@@ -408,7 +196,7 @@ export default class EditSelection {
     this.selectedVertexIds.clear();
     vIds.forEach(id => this.selectedVertexIds.add(id));
 
-    this.highlightSelectedEdge();
+    this.signals.editSelectionChanged.dispatch('edge');
     this.updateVertexHandle();
   }
 
@@ -440,45 +228,17 @@ export default class EditSelection {
     this.selectedVertexIds.clear();
     vIds.forEach(id => this.selectedVertexIds.add(id));
 
-    this.highlightSelectedFace();
+    this.signals.editSelectionChanged.dispatch('face');
     this.updateVertexHandle();
   }
 
   clearSelection() {
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (vertexPoints) {
-      const colors = vertexPoints.geometry.attributes.color;
-      for (let i = 0; i < colors.count; i++) {
-        colors.setXYZ(i, 0, 0, 0);
-      }
-      colors.needsUpdate = true;
-    }
-
-    this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
-        const material = obj.material;
-        material.color.set(0x000000);
-        material.needsUpdate = true;
-      }
-    });
-
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (faceMesh) {
-      const colors = faceMesh.geometry.getAttribute('color');
-      const alphas = faceMesh.geometry.getAttribute('alpha');
-      for (let i = 0; i < colors.count; i++) {
-        colors.setXYZ(i, 1, 1, 1);
-        alphas.setX(i, 0.0);
-      }
-
-      colors.needsUpdate = true;
-      alphas.needsUpdate = true;
-    }
-
     this.selectedVertexIds.clear();
     this.selectedEdgeIds.clear();
     this.selectedFaceIds.clear();
     this.vertexHandle.visible = false;
+
+    this.signals.editSelectionCleared.dispatch();
   }
 
   updateVertexHandle() {
@@ -584,16 +344,13 @@ export default class EditSelection {
       const vB = new THREE.Vector3(pos.getX(1), pos.getY(1), pos.getZ(1))
         .applyMatrix4(thinLine.matrixWorld);
 
-      // midpoint visibility test
-      const mid = new THREE.Vector3().addVectors(vA, vB).multiplyScalar(0.5);
-
-      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, mid).normalize();
-      const rayOrigin = mid.clone().addScaledVector(dirToCamera, epsilon);
+      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, hit.point).normalize();
+      const rayOrigin = (hit.point).clone().addScaledVector(dirToCamera, epsilon);
 
       reverseRay.set(rayOrigin, dirToCamera);
 
       const hits = reverseRay.intersectObjects(occluders, true);
-      const maxDist = mid.distanceTo(cameraPos);
+      const maxDist = (hit.point).distanceTo(cameraPos);
 
       // If any hit is closer than the camera, the edge is occluded.
       const blocked = hits.some(h => h.distance < maxDist - epsilon);
@@ -605,7 +362,6 @@ export default class EditSelection {
           edge: thinLine.userData.edge,
           vA,
           vB,
-          mid,
           screenDist: hit.distance,
         });
       }

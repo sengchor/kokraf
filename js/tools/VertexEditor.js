@@ -1,17 +1,13 @@
 import * as THREE from 'three';
-import { LineSegmentsGeometry } from 'jsm/lines/LineSegmentsGeometry.js';
-import { LineMaterial } from 'jsm/lines/LineMaterial.js';
-import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { MeshData } from "../core/MeshData.js";
-import earcut from 'earcut';
-import { computePlaneNormal, projectTo2D, removeCollinearVertices } from "../geometry/GeometryGenerator.js";
 
 export class VertexEditor {
   constructor(editor, object3D) {
     this.editor = editor;
     this.object = object3D;
-    this.sceneManager = this.editor.sceneManager;
+    this.sceneManager = editor.sceneManager;
+    this.editHelpers = editor.editHelpers;
   }
 
   get geometry() {
@@ -34,6 +30,7 @@ export class VertexEditor {
 
     const inverseW = new THREE.Matrix4().copy(this.object.matrixWorld).invert();
 
+    const affectedVertices = new Set();
     const affectedEdges = new Set();
     const affectedFaces = new Set();
 
@@ -53,14 +50,16 @@ export class VertexEditor {
       const v = meshData.getVertex(logicalId);
       if (v) {
         v.position = { x: localPos.x, y: localPos.y, z: localPos.z };
-      }
 
-      for (let edgeId of v.edgeIds) {
-        affectedEdges.add(edgeId);
-      }
+        affectedVertices.add(v.id);
 
-      for (let faceId of v.faceIds) {
-        affectedFaces.add(faceId);
+        for (let edgeId of v.edgeIds) {
+          affectedEdges.add(edgeId);
+        }
+
+        for (let faceId of v.faceIds) {
+          affectedFaces.add(faceId);
+        }
       }
     }
 
@@ -70,65 +69,7 @@ export class VertexEditor {
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
-    // Update vertex helpers
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (vertexPoints) {
-      const posAttr = vertexPoints.geometry.getAttribute('position');
-
-      for (let logicalId of logicalVertexIds) {
-        const v = meshData.getVertex(logicalId);
-        posAttr.setXYZ(logicalId, v.position.x, v.position.y, v.position.z);
-      }
-      posAttr.needsUpdate = true;
-    }
-
-    // Update only affected edges
-    const edgeLines = this.getEdgeLineObjects();
-    for (let edgeId of affectedEdges) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      const thinLine = edgeLines.find(line => line.userData.edge === edge);
-      if (!thinLine) continue;
-
-      const v1 = meshData.getVertex(edge.v1Id);
-      const v2 = meshData.getVertex(edge.v2Id);
-
-      const positions = [
-        v1.position.x, v1.position.y, v1.position.z,
-        v2.position.x, v2.position.y, v2.position.z
-      ];
-
-      const posAttr = thinLine.geometry.getAttribute("position");
-      posAttr.setXYZ(0, positions[0], positions[1], positions[2]);
-      posAttr.setXYZ(1, positions[3], positions[4], positions[5]);
-      posAttr.needsUpdate = true;
-
-      const fatLine = thinLine.userData.visualLine;
-      if (fatLine && fatLine.geometry) {
-        fatLine.geometry.setPositions(positions);
-      }
-    }
-
-    // Update only affected faces
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (faceMesh) {
-      const facePosAttr = faceMesh.geometry.getAttribute('position');
-      const faceRanges = faceMesh.userData.faceRanges;
-
-      for (let fr of faceRanges) {
-        if (!affectedFaces.has(fr.faceId)) continue;
-
-        const { start, vertexIds } = fr;
-        for (let i = 0; i < vertexIds.length; i++) {
-          const v = meshData.getVertex(vertexIds[i]);
-          facePosAttr.setXYZ(start + i, v.position.x, v.position.y, v.position.z);
-        }
-      }
-
-      facePosAttr.needsUpdate = true;
-      faceMesh.geometry.computeBoundingSphere();
-    }
+    this.editHelpers.updateHelpersAfterMeshEdit(affectedVertices, affectedEdges, affectedFaces, meshData);
   }
 
   getVertexPosition(logicalVertexId) {
@@ -162,272 +103,6 @@ export class VertexEditor {
     return positions;
   }
 
-  addVertexPoints(selectedObject) {
-    const meshData = selectedObject.userData.meshData;
-    const positions = [];
-    const colors = [];
-    const indices = [];
-
-    for (let v of meshData.vertices.values()) {
-      positions.push(v.position.x, v.position.y, v.position.z);
-      colors.push(0, 0, 0);
-      indices.push(v.id);
-    }
-    
-    const pointGeometry = new THREE.BufferGeometry();
-    pointGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    pointGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    pointGeometry.setAttribute('vertexId', new THREE.Uint16BufferAttribute(indices, 1));
-
-    const pointMaterial = new THREE.PointsMaterial({
-      size: 3.5,
-      sizeAttenuation: false,
-      vertexColors: true,
-
-      polygonOffset: true,
-      polygonOffsetFactor: -3,
-      polygonOffsetUnits: -3,
-    });
-
-    const vertexPoints = new THREE.Points(pointGeometry, pointMaterial);
-    vertexPoints.renderOrder = 11;
-    vertexPoints.userData.isEditorOnly = true;
-    vertexPoints.name = '__VertexPoints';
-    this.sceneManager.sceneHelpers.add(vertexPoints);
-    vertexPoints.matrix.copy(selectedObject.matrixWorld);
-    vertexPoints.matrix.decompose(vertexPoints.position, vertexPoints.quaternion, vertexPoints.scale);
-  }
-
-  removeVertexPoints() {
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (vertexPoints) {
-      if (vertexPoints.parent) vertexPoints.parent.remove(vertexPoints);
-      if (vertexPoints.geometry) vertexPoints.geometry.dispose();
-      if (vertexPoints.material) vertexPoints.material.dispose();
-    }
-  }
-  
-  addEdgeLines(selectedObject) {
-    if (!selectedObject.isMesh || !selectedObject.userData.meshData) return;
-
-    const meshData = selectedObject.userData.meshData;
-
-    for (let edge of meshData.edges.values()) {
-      const v1 = meshData.getVertex(edge.v1Id);
-      const v2 = meshData.getVertex(edge.v2Id);
-
-      const positions = [
-        v1.position.x, v1.position.y, v1.position.z,
-        v2.position.x, v2.position.y, v2.position.z
-      ];
-
-      // Visible Line
-      const fatGeo = new LineSegmentsGeometry().setPositions(positions);
-      const fatMat = new LineMaterial({
-        color: 0x000000,
-        linewidth: 0.9,
-        dashed: false,
-        depthTest: true,
-        
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-        polygonOffsetUnits: -2,
-      });
-      fatMat.resolution.set(window.innerWidth, window.innerHeight);
-
-      const fatLine = new LineSegments2(fatGeo, fatMat);
-      fatLine.computeLineDistances();
-      fatLine.renderOrder = 10;
-      fatLine.userData.isEditorOnly = true;
-      fatLine.userData.edge = edge;
-      fatLine.name = '__EdgeLinesVisual';
-      this.sceneManager.sceneHelpers.add(fatLine);
-
-      // Invisible Raycast Line
-      const thinGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      const thinMat = new THREE.LineBasicMaterial({
-        color: 0x000000,
-        transparent: true,
-        opacity: 0,
-        depthTest: false
-      });
-
-      const thinLine = new THREE.Line(thinGeo, thinMat);
-      thinLine.userData.edge = edge;
-      thinLine.userData.isEditorOnly = true;
-      thinLine.name = '__EdgeLines';
-      thinLine.userData.visualLine = fatLine;
-      this.sceneManager.sceneHelpers.add(thinLine);
-
-      [fatLine, thinLine].forEach(line => {
-        line.matrix.copy(selectedObject.matrixWorld);
-        line.matrix.decompose(line.position, line.quaternion, line.scale);
-      })
-    }
-  }
-
-  removeEdgeLines() {
-    const toRemove = [];
-    this.sceneManager.sceneHelpers.traverse((obj) => {
-      if (obj.userData.isEditorOnly && (obj.name === '__EdgeLines' || obj.name === '__EdgeLinesVisual')) {
-        toRemove.push(obj);
-      }
-    });
-
-    for (let obj of toRemove) {
-      if (obj.parent) obj.parent.remove(obj);
-      if (obj.geometry) obj.geometry.dispose();
-      if (obj.material) obj.material.dispose();
-    }
-  }
-
-  addFacePolygons(selectedObject) {
-    const meshData = selectedObject.userData.meshData;
-    const positions = [];
-    const colors = [];
-    const indices = [];
-    const alphas = [];
-
-    const faceRanges = [];
-    let vertexOffset = 0;
-    let triangleOffset = 0;
-
-    for (let face of meshData.faces.values()) {
-      let verts = face.vertexIds.map(id => meshData.getVertex(id));
-      verts = removeCollinearVertices(verts);
-      const normal = computePlaneNormal(verts);
-      const flatVertices2D = projectTo2D(verts, normal);
-      const triangulated = earcut(flatVertices2D);
-      const triCount = triangulated.length / 3;
-
-      faceRanges.push({
-        faceId: face.id,
-        start: vertexOffset,
-        count: verts.length,
-        triStart: triangleOffset,
-        triCount: triCount,
-        vertexIds: [...face.vertexIds],
-        edgeIds: [...face.edgeIds]
-      });
-
-      for (let v of verts) {
-        positions.push(v.position.x, v.position.y, v.position.z);
-        colors.push(1, 1, 1);
-        alphas.push(0.0);
-      }
-
-      for (let i = 0; i < triangulated.length; i += 3) {
-        indices.push(
-          vertexOffset + triangulated[i],
-          vertexOffset + triangulated[i + 1],
-          vertexOffset + triangulated[i + 2]
-        );
-      }
-
-      vertexOffset += verts.length;
-      triangleOffset += triCount;
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setAttribute('alpha', new THREE.Float32BufferAttribute(alphas, 1));
-    geometry.setIndex(indices);
-
-    const material = new THREE.ShaderMaterial({
-      vertexColors: true,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1,
-
-      vertexShader: `
-        attribute float alpha;
-
-        varying vec3 vColor;
-        varying float vAlpha;
-
-        void main() {
-          vColor = color;
-          vAlpha = alpha;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        varying vec3 vColor;
-        varying float vAlpha;
-
-        void main() {
-          gl_FragColor = vec4(vColor, vAlpha);
-        }
-      `,
-    });
-
-    const faceMesh = new THREE.Mesh(geometry, material);
-    faceMesh.renderOrder = 5;
-    faceMesh.userData.faceRanges = faceRanges;
-    faceMesh.userData.isEditorOnly = true;
-    faceMesh.name = '__FacePolygons';
-
-    this.sceneManager.sceneHelpers.add(faceMesh);
-
-    faceMesh.matrix.copy(selectedObject.matrixWorld);
-    faceMesh.matrix.decompose(faceMesh.position, faceMesh.quaternion, faceMesh.scale);
-  }
-
-  removeFacePolygons() {
-    const obj = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (obj) {
-      if (obj.parent) obj.parent.remove(obj);
-      if (obj.geometry) obj.geometry.dispose();
-      if (obj.material) obj.material.dispose();
-    }
-  }
-
-  refreshHelpers() {
-    if (!this.object) return;
-    this.removeVertexPoints();
-    this.removeEdgeLines();
-    this.removeFacePolygons();
-
-    const mode = this.editor.editSelection.subSelectionMode;
-
-    if (mode === 'vertex') {
-      this.addVertexPoints(this.object);
-      this.addEdgeLines(this.object);
-      this.addFacePolygons(this.object);
-
-      this.editor.editSelection.highlightSelectedVertex();
-    } else if (mode === 'edge') {
-      this.addEdgeLines(this.object);
-      this.addFacePolygons(this.object);
-
-      this.editor.editSelection.highlightSelectedEdge();
-    } else if (mode === 'face') {
-      this.addEdgeLines(this.object);
-      this.addFacePolygons(this.object);
-
-      this.editor.editSelection.highlightSelectedFace();
-    }
-  }
-
-  getEdgeLineObjects() {
-    const sceneHelpers = this.sceneManager.sceneHelpers;
-
-    const edgeLines = [];
-    sceneHelpers.traverse((obj) => {
-      // Only return the thin ones for raycasting logic
-      if (obj.userData.isEditorOnly && obj.name === '__EdgeLines') {
-        edgeLines.push(obj);
-      }
-    });
-    return edgeLines;
-  }
-
   updateGeometryAndHelpers(useEarcut = true) {
     if (!this.object || !this.object.userData.meshData) return;
 
@@ -439,7 +114,7 @@ export class VertexEditor {
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
-    this.refreshHelpers();
+    this.editHelpers.refreshHelpers();
   }
 
   applyMeshData(newMeshData) {

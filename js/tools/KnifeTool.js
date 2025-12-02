@@ -71,7 +71,7 @@ export class KnifeTool {
     const objectMatrix = editedObject.matrixWorld;
     const meshData = editedObject.userData.meshData;
 
-    const nearestVertexId = this.editSelection.pickNearestVertexAtMouse(event, this.renderer, this.camera, 0.02);
+    const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(event, this.renderer, this.camera, 0.02);
 
     let cutPointData;
     if (nearestVertexId !== null) {
@@ -133,7 +133,7 @@ export class KnifeTool {
     const objectMatrix = editedObject.matrixWorld;
     const meshData = editedObject.userData.meshData;
 
-    const nearestVertexId = this.editSelection.pickNearestVertexAtMouse(event, this.renderer, this.camera, 0.02);
+    const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(event, this.renderer, this.camera, 0.02);
 
     // No aCut selected yet → preview hover vertex
     if (this.cutPoints.length === 0) {

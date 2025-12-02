@@ -11,7 +11,7 @@ export default class ViewportControls {
     this.cameraManager = editor.cameraManager;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
-    this.vertexEditor = null;
+    this.editHelpers = editor.editHelpers;
     this.currentMode = 'object';
 
     this.load();
@@ -106,10 +106,8 @@ export default class ViewportControls {
         });
       }
 
-      if (this.vertexEditor) {
-        this.vertexEditor.refreshHelpers();
-        this.editSelection.updateVertexHandle();
-      }
+      this.editHelpers.refreshHelpers();
+      this.editSelection.updateVertexHandle();
     });
 
     this.signals.emptyScene.add(() => {
@@ -165,9 +163,9 @@ export default class ViewportControls {
   enterObjectMode() {
     this.selection.enable = true;
 
-    if (this.vertexEditor) {
-      this.vertexEditor.removeVertexPoints();
-      this.vertexEditor.removeEdgeLines();
+    if (this.editHelpers) {
+      this.editHelpers.removeVertexPoints();
+      this.editHelpers.removeEdgeLines();
     }
 
     if (this.editSelection.editedObject) {
@@ -180,10 +178,8 @@ export default class ViewportControls {
   enterEditMode(selectedObject) {
     this.selection.enable = false;
 
-    this.vertexEditor = new VertexEditor(this.editor, selectedObject);
-    this.vertexEditor.refreshHelpers();
-
     this.editSelection.editedObject = selectedObject;
+    this.editHelpers.refreshHelpers();
     this.editSelection.clearSelection();
     this.selection.deselect();
   }

@@ -21,6 +21,7 @@ import EditSelection from './tools/EditSelection.js';
 import ContextMenu from './ui/ContextMenu.js';
 import { MeshEditDispatcher } from './tools/MeshEditDispatcher.js';
 import { ObjectEditDispatcher } from './tools/ObjectEditDispatcher.js';
+import EditHelpers from './helpers/EditHelpers.js';
 
 export default class Editor {
   constructor() {
@@ -54,6 +55,9 @@ export default class Editor {
       createFaceFromVertices: new Signal(),
       deleteSelectedFaces: new Signal(),
       separateSelection: new Signal(),
+
+      editSelectionChanged: new Signal(),
+      editSelectionCleared: new Signal(),
     }
 
     this.helpers = {};
@@ -71,6 +75,7 @@ export default class Editor {
     this.viewportViewHelper = new ViewportViewHelper(this);
     this.selection = new Selection(this);
     this.editSelection = new EditSelection(this);
+    this.editHelpers = new EditHelpers(this);
     this.keyHandler = new KeyHandler(this);
 
     // UI
