@@ -22,6 +22,7 @@ import ContextMenu from './ui/ContextMenu.js';
 import { MeshEditDispatcher } from './tools/MeshEditDispatcher.js';
 import { ObjectEditDispatcher } from './tools/ObjectEditDispatcher.js';
 import EditHelpers from './helpers/EditHelpers.js';
+import { SelectionBox } from './tools/SelectionBox.js';
 
 export default class Editor {
   constructor() {
@@ -73,6 +74,7 @@ export default class Editor {
 
     // Helpers
     this.viewportViewHelper = new ViewportViewHelper(this);
+    this.selectionBox = new SelectionBox(this);
     this.selection = new Selection(this);
     this.editSelection = new EditSelection(this);
     this.editHelpers = new EditHelpers(this);

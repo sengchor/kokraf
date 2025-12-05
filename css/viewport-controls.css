@@ -64,3 +64,11 @@
 .selection-button.active {
   background-color: #f8f8f8;
 }
+
+#selectionBox {
+  position: absolute;
+  border: 1px solid #FFD800;
+  background: rgba(255, 216, 0, 0.18);;
+  pointer-events: none;
+  display: none;
+}

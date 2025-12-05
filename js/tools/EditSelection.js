@@ -18,6 +18,9 @@ export default class EditSelection {
     this.vertexHandle.visible = false;
     this.sceneManager.sceneEditorHelpers.add(this.vertexHandle);
 
+    this.cameraManager = editor.cameraManager;
+    this.selectionBox = editor.selectionBox;
+
     this.multiSelectEnabled = false;
     this.selectedVertexIds = new Set();
     this.selectedEdgeIds = new Set();
@@ -33,6 +36,11 @@ export default class EditSelection {
     this.signals.emptyScene.add(() => {
       this.editedObject = null;
     });
+
+    const dom = this.editor.renderer.domElement;
+    dom.addEventListener("mousedown", this.onMouseDown.bind(this));
+    dom.addEventListener("mousemove", this.onMouseMove.bind(this));
+    dom.addEventListener("mouseup", this.onMouseUp.bind(this));
   }
 
   setSubSelectionMode(mode) {
@@ -67,6 +75,45 @@ export default class EditSelection {
 
       this.selectFaces(nearestFaceId);
     }
+  }
+
+  onMouseDown(event) {
+    if (!this.enable) return;
+    if (event.button !== 0) return;
+
+    this.dragging = true;
+    this.selectionBox.startSelection(event.clientX, event.clientY);
+  }
+
+  onMouseMove(event) {
+    if (!this.enable) return;
+    if (!this.dragging) return;
+
+    this.selectionBox.updateSelection(event.clientX, event.clientY);
+  }
+
+  onMouseUp() {
+    if (!this.enable) return;
+    if (!this.dragging) return;
+    this.dragging = false;
+    
+    this.selectionBox.finishSelection();
+
+    const camera = this.cameraManager.camera;
+    const frustum = this.selectionBox.computeFrustumFromSelection(camera);
+    if (!frustum) return;
+
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
+    if (!vertexPoints) return;
+
+    const vertexHits = this.selectionBox.getVerticesInFrustum(vertexPoints, frustum);
+    if (vertexHits.length === 0) return;
+
+    const visibleVertices = this.filterVisibleVertices(vertexHits, vertexPoints, camera);
+    if (visibleVertices.length === 0) return;
+
+    const vertexIndices = visibleVertices.map(vertex => vertex.index);
+    this.selectVertices(vertexIndices);
   }
 
   pickNearestVertexOnMouse(event, renderer, camera, threshold = 0.1) {

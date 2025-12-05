@@ -162,6 +162,7 @@ export default class ViewportControls {
 
   enterObjectMode() {
     this.selection.enable = true;
+    this.editSelection.enable = false;
 
     if (this.editHelpers) {
       this.editHelpers.removeVertexPoints();
@@ -177,6 +178,7 @@ export default class ViewportControls {
 
   enterEditMode(selectedObject) {
     this.selection.enable = false;
+    this.editSelection.enable = true;
 
     this.editSelection.editedObject = selectedObject;
     this.editHelpers.refreshHelpers();
@@ -208,6 +210,9 @@ export default class ViewportControls {
         this.enterEditMode(object);
         this.signals.modeChanged.dispatch('edit');
       }
+    } else {
+      this.enterObjectMode();
+      this.signals.modeChanged.dispatch('object');
     }
   }
 }
