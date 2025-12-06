@@ -56,6 +56,16 @@ export default class Toolbar {
     this.signals.emptyScene.add(() => {
       this.disableTools();
     });
+
+    const onSelectionUpdate = () => {
+      const activeTool = this.getActiveTool();
+      if (['move', 'rotate', 'scale', 'extrude'].includes(activeTool)) {
+        this.updateTools();
+      }
+    };
+
+    this.signals.editSelectionChanged.add(onSelectionUpdate);
+    this.signals.editSelectionCleared.add(onSelectionUpdate);
   }
 
   setupToolbarButtons() {
@@ -91,8 +101,6 @@ export default class Toolbar {
 
       if (this.currentMode === 'object') {
         this.selection.onMouseSelect(event, this.renderer, this.camera);
-      } else {
-        this.editSelection.onMouseSelect(event, this.renderer, this.camera);
       }
 
       // Only refresh transform-based tools after selecting

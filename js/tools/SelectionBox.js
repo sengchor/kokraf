@@ -3,6 +3,7 @@ import * as THREE from 'three';
 export class SelectionBox {
   constructor(editor) {
     this.renderer = editor.renderer;
+    this.cameraManager = editor.cameraManager;
 
     this.element = document.createElement("div");
     this.element.id = "selectionBox";
@@ -46,9 +47,10 @@ export class SelectionBox {
     return width > 1 && height > 1;
   }
 
-  computeFrustumFromSelection(camera) {
+  computeFrustumFromSelection() {
     if (!this.hasValidArea()) return null;
 
+    const camera = this.cameraManager.camera;
     const rect = this.renderer.domElement.getBoundingClientRect();
 
     const x1 = (this.start.x - rect.left) / rect.width * 2 - 1;
@@ -109,11 +111,11 @@ export class SelectionBox {
     return new THREE.Frustum(...planes);
   }
 
-  getVerticesInFrustum(mesh, frustum) {
+  getVerticesInFrustum(vertexPoints, frustum) {
     const vertexHits = [];
-    const position = mesh.geometry.getAttribute('position');
+    const position = vertexPoints.geometry.getAttribute('position');
 
-    const worldMatrix = mesh.matrixWorld;
+    const worldMatrix = vertexPoints.matrixWorld;
     const vertex = new THREE.Vector3();
 
     for (let i = 0; i < position.count; i++) {
@@ -129,5 +131,91 @@ export class SelectionBox {
     }
     
     return vertexHits;
+  }
+
+  getEdgesInFrustum(edgeLines, frustum) {
+    const edgeHits = [];
+
+    const camera = this.cameraManager.camera;
+    const camPos = new THREE.Vector3();
+    camera.getWorldPosition(camPos);
+
+    for (const edgeLine of edgeLines) {
+      const pos = edgeLine.geometry.attributes.position.array;
+
+      const a = new THREE.Vector3(pos[0], pos[1], pos[2]).applyMatrix4(edgeLine.matrixWorld);
+      const b = new THREE.Vector3(pos[3], pos[4], pos[5]).applyMatrix4(edgeLine.matrixWorld);
+
+      const aInside = frustum.containsPoint(a);
+      const bInside = frustum.containsPoint(b);
+
+      const addEdgeHit = (type) => {
+        const hitPoint = this.getSafePointOnEdge(a, b, camPos);
+        edgeHits.push({
+          type,
+          index: edgeLine.userData.edge?.id ?? null,
+          distance: hitPoint.distanceTo(camPos),
+          object: edgeLine,
+          point: hitPoint,
+        });
+      };
+
+      if (aInside && bInside) {
+        addEdgeHit('endpoint');
+        continue;
+      }
+
+      if (this.edgeClipsFrustum(a, b, frustum)) {
+        addEdgeHit('clipping');
+      }
+    }
+
+    return edgeHits;
+  }
+
+  getSafePointOnEdge(a, b, camPos) {
+    const hitPoint = this.closestPointOnSegmentToPoint(a, b, camPos);
+
+    const ab = new THREE.Vector3().subVectors(b, a);
+    const dotABAB = ab.dot(ab);
+
+    if (dotABAB < 1e-6) {
+      // Edge is degenerate — return its midpoint
+      return new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+    }
+
+    let t = hitPoint.clone().sub(a).dot(ab) / dotABAB;
+
+    // Clamp strictly inside the segment to avoid endpoints
+    t = Math.min(Math.max(t, 0.05), 0.95);
+
+    return new THREE.Vector3().lerpVectors(a, b, t);
+  }
+
+  closestPointOnSegmentToPoint(a, b, p) {
+    const ab = new THREE.Vector3().subVectors(b, a);
+    const ap = new THREE.Vector3().subVectors(p, a);
+
+    const t = THREE.MathUtils.clamp(ap.dot(ab) / ab.lengthSq(), 0, 1);
+
+    return new THREE.Vector3().copy(a).add(ab.multiplyScalar(t));
+  }
+
+  edgeClipsFrustum(a, b, frustum) {
+    for (const plane of frustum.planes) {
+      const da = plane.distanceToPoint(a);
+      const db = plane.distanceToPoint(b);
+
+      // Edge crosses the plane
+      if (da * db < 0) {
+        const t = da / (da - db);
+        const hit = new THREE.Vector3().lerpVectors(a, b, t);
+
+        if (frustum.containsPoint(hit)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

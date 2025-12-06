@@ -18,7 +18,8 @@ export default class EditSelection {
     this.vertexHandle.visible = false;
     this.sceneManager.sceneEditorHelpers.add(this.vertexHandle);
 
-    this.cameraManager = editor.cameraManager;
+    this.camera = editor.cameraManager.camera;
+    this.renderer = editor.renderer;
     this.selectionBox = editor.selectionBox;
 
     this.multiSelectEnabled = false;
@@ -78,42 +79,60 @@ export default class EditSelection {
   }
 
   onMouseDown(event) {
-    if (!this.enable) return;
-    if (event.button !== 0) return;
+    if (!this.enable || event.button !== 0) return;
 
-    this.dragging = true;
-    this.selectionBox.startSelection(event.clientX, event.clientY);
+    this.dragging = false;
+    this.mouseDownPos = { x: event.clientX, y: event.clientY };
   }
 
   onMouseMove(event) {
-    if (!this.enable) return;
-    if (!this.dragging) return;
+    if (!this.enable || !this.mouseDownPos) return;
 
-    this.selectionBox.updateSelection(event.clientX, event.clientY);
+    const dx = event.clientX - this.mouseDownPos.x;
+    const dy = event.clientY - this.mouseDownPos.y;
+    const dragThreshold = 2;
+
+    if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
+      this.dragging = true;
+      this.selectionBox.startSelection(event.clientX, event.clientY);
+    }
+
+    if (this.dragging) {
+      this.selectionBox.updateSelection(event.clientX, event.clientY);
+    }
   }
 
-  onMouseUp() {
-    if (!this.enable) return;
-    if (!this.dragging) return;
-    this.dragging = false;
+  onMouseUp(event) {
+    if (!this.enable || event.button !== 0) return;
     
     this.selectionBox.finishSelection();
 
-    const camera = this.cameraManager.camera;
-    const frustum = this.selectionBox.computeFrustumFromSelection(camera);
-    if (!frustum) return;
+    if (this.dragging) {
+      // Box selection
+      if (this.subSelectionMode === 'vertex') {
+        const vertexIndices = this.getBoxSelectedVertexIds();
+        if (vertexIndices === null) {
+          this.clearSelection();
+          return;
+        }
 
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (!vertexPoints) return;
+        this.selectVertices(vertexIndices);
+      } else if (this.subSelectionMode === 'edge') {
+        const edgeIndices = this.getBoxSelectedEdgeIds();
+        if (edgeIndices === null) {
+          this.clearSelection();
+          return;
+        }
 
-    const vertexHits = this.selectionBox.getVerticesInFrustum(vertexPoints, frustum);
-    if (vertexHits.length === 0) return;
+        this.selectEdges(edgeIndices);
+      }
+    } else {
+      // Single-click selection
+      this.onMouseSelect(event, this.renderer, this.camera);
+    }
 
-    const visibleVertices = this.filterVisibleVertices(vertexHits, vertexPoints, camera);
-    if (visibleVertices.length === 0) return;
-
-    const vertexIndices = visibleVertices.map(vertex => vertex.index);
-    this.selectVertices(vertexIndices);
+    this.dragging = false;
+    this.mouseDownPos = null;
   }
 
   pickNearestVertexOnMouse(event, renderer, camera, threshold = 0.1) {
@@ -185,6 +204,50 @@ export default class EditSelection {
     return nearestFaceId;
   }
 
+  getBoxSelectedVertexIds() {
+    const frustum = this.selectionBox.computeFrustumFromSelection(this.camera);
+    if (!frustum) return null;
+
+    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
+    if (!vertexPoints) return null;
+
+    const vertexHits = this.selectionBox.getVerticesInFrustum(vertexPoints, frustum);
+    if (vertexHits.length === 0) return null;
+
+    const visibleVertices = this.filterVisibleVertices(vertexHits, vertexPoints, this.camera);
+    if (visibleVertices.length === 0) return null;
+
+    const vertexIndices = visibleVertices.map(v => v.index);
+    return vertexIndices;
+  }
+
+  getBoxSelectedEdgeIds() {
+    const frustum = this.selectionBox.computeFrustumFromSelection();
+    if (!frustum) return this.clearSelection();
+
+    const edgeLines = [];
+    this.sceneManager.sceneHelpers.traverse(obj => {
+      if (obj.name === '__EdgeLines' && obj.userData.edge) {
+        edgeLines.push(obj);
+      }
+    });
+
+    const edgeHits = this.selectionBox.getEdgesInFrustum(edgeLines, frustum);
+    if (edgeHits.length === 0) return this.clearSelection();
+
+    const visibleEdges = this.filterVisibleEdges(edgeHits, this.camera);
+    if (visibleEdges.length === 0) return this.clearSelection();
+
+    const insideHits = visibleEdges.filter(e => e.type === "endpoint");
+    const clipHits = visibleEdges.filter(e => e.type === "clipping");
+
+    // Prefer inside hits; if none exist, use clipping hits.
+    const selectedEdges = insideHits.length > 0 ? insideHits : clipHits;
+
+    const edgeIndices = selectedEdges.map(e => e.edge.id);
+    return edgeIndices;
+  }
+
   selectVertices(vertexIds) {
     const isArray = Array.isArray(vertexIds);
     if (!isArray) vertexIds = [vertexIds];
@@ -210,8 +273,8 @@ export default class EditSelection {
       }
     }
 
-    this.signals.editSelectionChanged.dispatch('vertex');
     this.updateVertexHandle();
+    this.signals.editSelectionChanged.dispatch('vertex');
   }
 
   selectEdges(edgeIds) {
@@ -243,8 +306,8 @@ export default class EditSelection {
     this.selectedVertexIds.clear();
     vIds.forEach(id => this.selectedVertexIds.add(id));
 
-    this.signals.editSelectionChanged.dispatch('edge');
     this.updateVertexHandle();
+    this.signals.editSelectionChanged.dispatch('edge');
   }
 
   selectFaces(faceIds) {
@@ -275,8 +338,8 @@ export default class EditSelection {
     this.selectedVertexIds.clear();
     vIds.forEach(id => this.selectedVertexIds.add(id));
 
-    this.signals.editSelectionChanged.dispatch('face');
     this.updateVertexHandle();
+    this.signals.editSelectionChanged.dispatch('face');
   }
 
   clearSelection() {
@@ -410,6 +473,7 @@ export default class EditSelection {
           vA,
           vB,
           screenDist: hit.distance,
+          type: hit.type,
         });
       }
     }
