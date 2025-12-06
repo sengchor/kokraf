@@ -173,6 +173,51 @@ export class SelectionBox {
     return edgeHits;
   }
 
+  getFacesInFrustum(faceMesh, frustum) {
+    if (!faceMesh || !faceMesh.geometry) return [];
+
+    const geom = faceMesh.geometry;
+    const pos = geom.attributes.position.array;
+    const matrixWorld = faceMesh.matrixWorld;
+
+    const faceRanges = faceMesh.userData.faceRanges;
+    const faceHits = [];
+
+    const camera = this.cameraManager.camera;
+    const camPos = new THREE.Vector3();
+    camera.getWorldPosition(camPos);
+
+    const v = new THREE.Vector3();
+
+    for (let range of faceRanges) {
+      const { start, count, faceId } = range;
+      const startIndex = start * 3;
+      const endIndex = (start + count) * 3;
+
+      const worldPoints = [];
+      for (let i = startIndex; i < endIndex; i += 3) {
+        v.fromArray(pos, i).applyMatrix4(matrixWorld);
+        worldPoints.push(v.clone());
+      }
+
+      const clipped = this.faceClipsFrustum(worldPoints, frustum);
+
+      if (clipped && clipped.length > 0) {
+        const centroid = new THREE.Vector3();
+        for (let p of clipped) centroid.add(p);
+        centroid.divideScalar(clipped.length);
+
+        faceHits.push({
+          index: faceId,
+          point: centroid,
+          distance: centroid.distanceTo(camPos),
+        });
+      }
+    }
+
+    return faceHits;
+  }
+
   getSafePointOnEdge(a, b, camPos) {
     const hitPoint = this.closestPointOnSegmentToPoint(a, b, camPos);
 
@@ -202,20 +247,80 @@ export class SelectionBox {
   }
 
   edgeClipsFrustum(a, b, frustum) {
+    const eps = 1e-6;
+
+    if (frustum.containsPoint(a) || frustum.containsPoint(b)) {
+      return true;
+    }
+
     for (const plane of frustum.planes) {
       const da = plane.distanceToPoint(a);
       const db = plane.distanceToPoint(b);
 
-      // Edge crosses the plane
-      if (da * db < 0) {
+      if (da * db < -eps || Math.abs(da) < eps || Math.abs(db) < eps) {
         const t = da / (da - db);
-        const hit = new THREE.Vector3().lerpVectors(a, b, t);
+        if (t >= 0 && t <= 1) {
+          const hit = new THREE.Vector3().lerpVectors(a, b, t);
 
-        if (frustum.containsPoint(hit)) {
-          return true;
+          let inside = true;
+          for (const p of frustum.planes) {
+            if (p.distanceToPoint(hit) < -eps) {
+              inside = false;
+              break;
+            }
+          }
+
+          if (inside) return true;
         }
       }
     }
     return false;
+  }
+
+  clipPolygonWithPlane(points, plane) {
+    const result = [];
+    const len = points.length;
+
+    for (let i = 0; i < len; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % len];
+
+      const da = plane.distanceToPoint(a);
+      const db = plane.distanceToPoint(b);
+
+      const aInside = (da >= 0);
+      const bInside = (db >= 0);
+
+      // A inside, B inside -> keep B
+      if (aInside && bInside) {
+        result.push(b.clone());
+      }
+      // A inside, B outside -> keep intersection
+      else if (aInside && !bInside) {
+        const t = da / (da - db);
+        const hit = a.clone().lerp(b, t);
+        result.push(hit);
+      }
+      // A outside, B inside -> add intersection + B
+      else if (!aInside && bInside) {
+        const t = da / (da -db);
+        const hit = a.clone().lerp(b, t);
+        result.push(hit);
+        result.push(b.clone());
+      }
+    }
+
+    return result;
+  }
+
+  faceClipsFrustum(points, frustum) {
+    let clipped = points.map(p => p.clone());
+
+    for (let plane of frustum.planes) {
+      clipped = this.clipPolygonWithPlane(clipped, plane);
+      if (clipped.length === 0) return null;
+    }
+
+    return clipped;
   }
 }

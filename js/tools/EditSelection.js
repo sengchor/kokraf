@@ -90,7 +90,7 @@ export default class EditSelection {
 
     const dx = event.clientX - this.mouseDownPos.x;
     const dy = event.clientY - this.mouseDownPos.y;
-    const dragThreshold = 2;
+    const dragThreshold = 1;
 
     if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
       this.dragging = true;
@@ -125,6 +125,14 @@ export default class EditSelection {
         }
 
         this.selectEdges(edgeIndices);
+      } else if (this.subSelectionMode === 'face') {
+        const faceIndices = this.getBoxSelectedFaceIds();
+        if (faceIndices === null) {
+          this.clearSelection();
+          return;
+        }
+
+        this.selectFaces(faceIndices);
       }
     } else {
       // Single-click selection
@@ -223,7 +231,7 @@ export default class EditSelection {
 
   getBoxSelectedEdgeIds() {
     const frustum = this.selectionBox.computeFrustumFromSelection();
-    if (!frustum) return this.clearSelection();
+    if (!frustum) return null;
 
     const edgeLines = [];
     this.sceneManager.sceneHelpers.traverse(obj => {
@@ -233,10 +241,10 @@ export default class EditSelection {
     });
 
     const edgeHits = this.selectionBox.getEdgesInFrustum(edgeLines, frustum);
-    if (edgeHits.length === 0) return this.clearSelection();
+    if (edgeHits.length === 0) return null;
 
     const visibleEdges = this.filterVisibleEdges(edgeHits, this.camera);
-    if (visibleEdges.length === 0) return this.clearSelection();
+    if (visibleEdges.length === 0) return null;
 
     const insideHits = visibleEdges.filter(e => e.type === "endpoint");
     const clipHits = visibleEdges.filter(e => e.type === "clipping");
@@ -246,6 +254,23 @@ export default class EditSelection {
 
     const edgeIndices = selectedEdges.map(e => e.edge.id);
     return edgeIndices;
+  }
+
+  getBoxSelectedFaceIds() {
+    const frustum = this.selectionBox.computeFrustumFromSelection();
+    if (!frustum) return null;
+
+    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
+    if (!faceMesh) return null;
+
+    const faceHits = this.selectionBox.getFacesInFrustum(faceMesh, frustum);
+    if (faceHits.length === 0) return null;
+
+    const visibleFaces = this.filterVisibleFaces(faceHits, faceMesh, this.camera);
+    if (visibleFaces.length === 0) return null;
+
+    const faceIndices = visibleFaces.map(f => f.index);
+    return faceIndices;
   }
 
   selectVertices(vertexIds) {
@@ -347,6 +372,8 @@ export default class EditSelection {
     this.selectedEdgeIds.clear();
     this.selectedFaceIds.clear();
     this.vertexHandle.visible = false;
+    this.dragging = false;
+    this.mouseDownPos = null;
 
     this.signals.editSelectionCleared.dispatch();
   }
