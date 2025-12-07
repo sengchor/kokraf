@@ -19,6 +19,9 @@ export class KeyHandler {
     this.onKeyUp = this.onKeyUp.bind(this);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('blur', () => {
+      this.signals.multiSelectChanged.dispatch(false);
+    });
   }
 
   setupListeners() {

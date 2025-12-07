@@ -56,11 +56,11 @@ export default class EditSelection {
     this.subSelectionMode = mode;
   }
 
-  onMouseSelect(event, renderer, camera) {
+  applyClickSelection(event) {
     if (!this.enable) return;
 
     if (this.subSelectionMode === 'vertex') {
-      const nearestVertexId = this.pickNearestVertexOnMouse(event, renderer, camera);
+      const nearestVertexId = this.pickNearestVertexOnMouse(event, this.renderer, this.camera);
       if (nearestVertexId === null) {
         this.clearSelection();
         return;
@@ -68,7 +68,7 @@ export default class EditSelection {
 
       this.selectVertices(nearestVertexId);
     } else if (this.subSelectionMode === 'edge') {
-      const nearestEdgeId = this.pickNearestEdgeOnMouse(event, renderer, camera);
+      const nearestEdgeId = this.pickNearestEdgeOnMouse(event, this.renderer, this.camera);
       if (nearestEdgeId === null) {
         this.clearSelection();
         return;
@@ -76,13 +76,43 @@ export default class EditSelection {
 
       this.selectEdges(nearestEdgeId);
     } else if (this.subSelectionMode === 'face') {
-      const nearestFaceId = this.pickNearestFaceOnMouse(event, renderer, camera);
+      const nearestFaceId = this.pickNearestFaceOnMouse(event, this.renderer, this.camera);
       if (nearestFaceId === null) {
         this.clearSelection();
         return;
       }
 
       this.selectFaces(nearestFaceId);
+    }
+  }
+
+  applyBoxSelection() {
+    if (!this.enable) return;
+
+    if (this.subSelectionMode === 'vertex') {
+      const vertexIndices = this.getBoxSelectedVertexIds();
+      if (vertexIndices === null) {
+        this.clearSelection();
+        return;
+      }
+
+      this.selectVertices(vertexIndices, true);
+    } else if (this.subSelectionMode === 'edge') {
+      const edgeIndices = this.getBoxSelectedEdgeIds();
+      if (edgeIndices === null) {
+        this.clearSelection();
+        return;
+      }
+
+      this.selectEdges(edgeIndices, true);
+    } else if (this.subSelectionMode === 'face') {
+      const faceIndices = this.getBoxSelectedFaceIds();
+      if (faceIndices === null) {
+        this.clearSelection();
+        return;
+      }
+
+      this.selectFaces(faceIndices, true);
     }
   }
 
@@ -116,35 +146,9 @@ export default class EditSelection {
     this.selectionBox.finishSelection();
 
     if (this.dragging) {
-      // Box selection
-      if (this.subSelectionMode === 'vertex') {
-        const vertexIndices = this.getBoxSelectedVertexIds();
-        if (vertexIndices === null) {
-          this.clearSelection();
-          return;
-        }
-
-        this.selectVertices(vertexIndices);
-      } else if (this.subSelectionMode === 'edge') {
-        const edgeIndices = this.getBoxSelectedEdgeIds();
-        if (edgeIndices === null) {
-          this.clearSelection();
-          return;
-        }
-
-        this.selectEdges(edgeIndices);
-      } else if (this.subSelectionMode === 'face') {
-        const faceIndices = this.getBoxSelectedFaceIds();
-        if (faceIndices === null) {
-          this.clearSelection();
-          return;
-        }
-
-        this.selectFaces(faceIndices);
-      }
+      this.applyBoxSelection();
     } else {
-      // Single-click selection
-      this.onMouseSelect(event, this.renderer, this.camera);
+      this.applyClickSelection(event);
     }
 
     this.dragging = false;
@@ -281,58 +285,54 @@ export default class EditSelection {
     return faceIndices;
   }
 
-  selectVertices(vertexIds) {
+  selectVertices(vertexIds, isBoxSelection = false) {
     const isArray = Array.isArray(vertexIds);
     if (!isArray) vertexIds = [vertexIds];
 
-    if (isArray) {
-      // Replace current vertex selection
-      this.clearSelection();
-      vertexIds.forEach(id => this.selectedVertexIds.add(id));
-    } else {
-      const vertexId = vertexIds[0];
-
-      if (this.multiSelectEnabled) {
-        // Toggle selection
-        if (this.selectedVertexIds.has(vertexId)) {
-          this.selectedVertexIds.delete(vertexId);
-        } else {
-          this.selectedVertexIds.add(vertexId);
-        }
+    if (this.multiSelectEnabled) {
+      if (isBoxSelection) {
+        // Box selection: add only
+        vertexIds.forEach(id => this.selectedVertexIds.add(id));
       } else {
-        // Single selection
-        this.selectedVertexIds.clear();
-        this.selectedVertexIds.add(vertexId);
+        // Click selection: toggle
+        vertexIds.forEach(id => {
+          if (this.selectedVertexIds.has(id)) {
+            this.selectedVertexIds.delete(id);
+          } else {
+            this.selectedVertexIds.add(id);
+          }
+        });
       }
+    } else {
+      this.selectedVertexIds.clear();
+      vertexIds.forEach(id => this.selectedVertexIds.add(id));
     }
 
     this.updateVertexHandle();
     this.signals.editSelectionChanged.dispatch('vertex');
   }
 
-  selectEdges(edgeIds) {
+  selectEdges(edgeIds, isBoxSelection = false) {
     const isArray = Array.isArray(edgeIds);
     if (!isArray) edgeIds = [edgeIds];
 
-    if (isArray) {
-      // Replace current edge selection
-      this.clearSelection();
-      edgeIds.forEach(id => this.selectedEdgeIds.add(id));
-    } else {
-      const edgeId = edgeIds[0];
-
-      if (this.multiSelectEnabled) {
-        // Toggle selection
-        if (this.selectedEdgeIds.has(edgeId)) {
-          this.selectedEdgeIds.delete(edgeId);
-        } else {
-          this.selectedEdgeIds.add(edgeId);
-        }
+    if (this.multiSelectEnabled) {
+      if (isBoxSelection) {
+        // Box selection: add only
+        edgeIds.forEach(id => this.selectedEdgeIds.add(id));
       } else {
-        // Single selection
-        this.selectedEdgeIds.clear();
-        this.selectedEdgeIds.add(edgeId);
+        // Click selection: toggle
+        edgeIds.forEach(id => {
+          if (this.selectedEdgeIds.has(id)) {
+            this.selectedEdgeIds.delete(id);
+          } else {
+            this.selectedEdgeIds.add(id);
+          }
+        });
       }
+    } else {
+      this.selectedEdgeIds.clear();
+      edgeIds.forEach(id => this.selectedEdgeIds.add(id));
     }
 
     const vIds = this.getSelectedEdgeVertexIds();
@@ -343,28 +343,27 @@ export default class EditSelection {
     this.signals.editSelectionChanged.dispatch('edge');
   }
 
-  selectFaces(faceIds) {
+  selectFaces(faceIds, isBoxSelection = false) {
     const isArray = Array.isArray(faceIds);
     if (!isArray) faceIds = [faceIds];
 
-    if (isArray) {
-      // Replace current face selection
-      this.clearSelection();
-      faceIds.forEach(id => this.selectedFaceIds.add(id));
-    } else {
-      const faceId = faceIds[0];
-
-      if (this.multiSelectEnabled) {
-        if (this.selectedFaceIds.has(faceId)) {
-          this.selectedFaceIds.delete(faceId);
-        } else {
-          this.selectedFaceIds.add(faceId);
-        }
+    if (this.multiSelectEnabled) {
+      if (isBoxSelection) {
+        // Box selection: add only
+        faceIds.forEach(id => this.selectedFaceIds.add(id));
       } else {
-        // Single selection
-        this.selectedFaceIds.clear();
-        this.selectedFaceIds.add(faceId);
+        // Click selection: toggle
+        faceIds.forEach(id => {
+          if (this.selectedFaceIds.has(id)) {
+            this.selectedFaceIds.delete(id);
+          } else {
+            this.selectedFaceIds.add(id);
+          }
+        });
       }
+    } else {
+      this.selectedFaceIds.clear();
+      faceIds.forEach(id => this.selectedFaceIds.add(id));
     }
 
     const vIds = this.getSelectedFaceVertexIds();
