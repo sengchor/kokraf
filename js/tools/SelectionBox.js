@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 export class SelectionBox {
   constructor(editor) {
+    this.editor = editor;
     this.renderer = editor.renderer;
     this.cameraManager = editor.cameraManager;
 
@@ -203,14 +204,21 @@ export class SelectionBox {
       const clipped = this.faceClipsFrustum(worldPoints, frustum);
 
       if (clipped && clipped.length > 0) {
-        const centroid = new THREE.Vector3();
-        for (let p of clipped) centroid.add(p);
-        centroid.divideScalar(clipped.length);
+        let closestVertex = clipped[0];
+        let minDist = clipped[0].distanceTo(camPos);
+
+        for (let p of clipped) {
+          const d = p.distanceTo(camPos);
+          if (d < minDist) {
+            minDist = d;
+            closestVertex = p;
+          }
+        }
 
         faceHits.push({
           index: faceId,
-          point: centroid,
-          distance: centroid.distanceTo(camPos),
+          point: closestVertex,
+          distance: minDist,
         });
       }
     }

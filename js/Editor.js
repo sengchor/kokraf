@@ -59,6 +59,9 @@ export default class Editor {
 
       editSelectionChanged: new Signal(),
       editSelectionCleared: new Signal(),
+
+      transformDragStarted: new Signal(),
+      transformDragEnded: new Signal(),
     }
 
     this.helpers = {};

@@ -25,6 +25,7 @@ export class LoopCutTool {
   enable() {
     if (this.active) return;
     this.active = true;
+    this.editSelection.enable = false;
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
   }
@@ -32,6 +33,7 @@ export class LoopCutTool {
   disable() {
     if (!this.active) return;
     this.active = false;
+    this.editSelection.enable = true;
     this.clearPreview();
   }
 
@@ -80,6 +82,8 @@ export class LoopCutTool {
       this.editSelection.selectVertices(newVertices.map(v => v.id));
     } else if (mode === 'edge') {
       this.editSelection.selectEdges(newEdges.map(e => e.id));
+    } else if (mode === 'face') {
+      this.editSelection.clearSelection();
     }
   }
 

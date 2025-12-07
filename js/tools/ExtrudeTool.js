@@ -21,14 +21,17 @@ export class ExtrudeTool {
 
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.controls.enabled = !event.value;
-      if (this.controls.enabled) {
-        this.signals.objectChanged.dispatch();
-      }
+      if (!event.value) this.signals.objectChanged.dispatch();
     });
-    this.transformControls.addEventListener('change', () => {
-      if (this.transformControls.dragging) {
-        this.signals.objectChanged.dispatch();
-      }
+
+    this.transformControls.addEventListener('mouseDown', () => {
+      this.signals.transformDragStarted.dispatch();
+    });
+
+    this.transformControls.addEventListener('mouseUp', () => {
+      requestAnimationFrame(() => {
+        this.signals.transformDragEnded.dispatch();
+      });
     });
 
     this.sceneEditorHelpers.add(this.transformControls.getHelper());

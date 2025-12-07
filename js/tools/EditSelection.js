@@ -38,6 +38,14 @@ export default class EditSelection {
       this.editedObject = null;
     });
 
+    this.signals.transformDragStarted.add(() => {
+      this.enable = false;
+    });
+
+    this.signals.transformDragEnded.add(() => {
+      this.enable = true;
+    });
+
     const dom = this.editor.renderer.domElement;
     dom.addEventListener("mousedown", this.onMouseDown.bind(this));
     dom.addEventListener("mousemove", this.onMouseMove.bind(this));
@@ -532,7 +540,15 @@ export default class EditSelection {
       const hits = reverseRay.intersectObjects(occluders, true);
       const maxDist = facePoint.distanceTo(cameraPos);
 
-      const blocked = hits.some(h => h.distance < maxDist - epsilon);
+      const blocked = hits.some(h => {
+        //  Skip self-face intersection
+        if (h.object === this.editedObject) {
+          const hitFaceId = this.findFaceIdFromTriIndex(h.faceIndex, faceMesh.userData.faceRanges);
+          if (hitFaceId === hit.index) return false;
+        }
+
+        return h.distance < maxDist - epsilon;
+      });
 
       if (!blocked) {
         visibleFaces.push(hit);
@@ -684,6 +700,8 @@ export default class EditSelection {
   }
 
   getSelectedEdgeVertexIds() {
+    if (!this.editedObject) return;
+    
     const meshData = this.editedObject.userData.meshData;
     if (!meshData) return [];
 
@@ -698,6 +716,8 @@ export default class EditSelection {
   }
 
   getSelectedFaceVertexIds() {
+    if (!this.editedObject) return;
+
     const meshData = this.editedObject.userData.meshData;
     if (!meshData) return [];
 

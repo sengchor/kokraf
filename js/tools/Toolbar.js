@@ -17,6 +17,7 @@ export default class Toolbar {
     this.activeToolObjectMode = 'select';
     this.activeToolEditMode = 'select';
     this.currentMode = 'object';
+    this.isTransformDragging = false;
 
     this.moveTool = new TransformTool('translate', this.editor);
     this.rotateTool = new TransformTool('rotate', this.editor);
@@ -57,7 +58,17 @@ export default class Toolbar {
       this.disableTools();
     });
 
+    this.signals.transformDragStarted.add(() => {
+      this.isTransformDragging = true;
+    });
+
+    this.signals.transformDragEnded.add(() => {
+      this.isTransformDragging = false;
+    });
+
     const onSelectionUpdate = () => {
+      if (this.isTransformDragging) return;
+
       const activeTool = this.getActiveTool();
       if (['move', 'rotate', 'scale', 'extrude'].includes(activeTool)) {
         this.updateTools();

@@ -119,6 +119,8 @@ export class KnifeTool {
       this.editSelection.selectVertices(this.newVertices.map(v => v.id));
     } else if (mode === 'edge') {
       this.editSelection.selectEdges(this.newEdges.map(e => e.id));
+    } else if (mode === 'face') {
+      this.editSelection.clearSelection();
     }
     this.cancelCut();
   }
