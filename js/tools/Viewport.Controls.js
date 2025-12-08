@@ -141,24 +141,39 @@ export default class ViewportControls {
     this.cameraDropdown.value = this.cameraManager.camera.uuid;
   }
 
-  switchMode(newMode) {
-    const previousMode = this.currentMode;
+switchMode(newMode) {
+  const previousMode = this.currentMode;
 
-    const object = previousMode === 'object'
-      ? this.selection.selectedObject
-      : this.editSelection.editedObject;
+  let object = null;
 
-    if (newMode === 'edit' && !(object && object.isMesh)) {
-      alert('No mesh selected. Please select a mesh object.');
-      if (this.interactionDropdown) {
+  if (previousMode === 'object') {
+    const selected = this.selection.selectedObjects;
+
+    if (newMode === 'edit') {
+      if (selected.length !== 1) {
+        alert('Please select one mesh to enter Edit Mode.');
         this.interactionDropdown.value = previousMode;
+        return;
       }
-      return;
-    }
 
-    this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
-    this.currentMode = newMode;
+      object = selected[0];
+    } else {
+      object = this.editSelection.editedObject;
+    }
+  } else {
+    object = this.editSelection.editedObject;
   }
+
+
+  if (newMode === 'edit' && !(object && object.isMesh)) {
+    alert('No mesh selected. Please select a mesh object.');
+    this.interactionDropdown.value = previousMode;
+    return;
+  }
+
+  this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
+  this.currentMode = newMode;
+}
 
   enterObjectMode() {
     this.selection.enable = true;

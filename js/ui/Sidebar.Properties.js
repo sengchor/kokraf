@@ -27,11 +27,11 @@ export default class SidebarProperties {
       new SidebarMaterial(editor);
 
       this.showActiveTab();
-      this.updateTabVisibility();
+      this.updateTabVisibility([]);
     });
 
-    this.signals.objectSelected.add(object => {
-      this.updateTabVisibility(object);
+    this.signals.objectSelected.add(selectedObjects => {
+      this.updateTabVisibility(selectedObjects);
     });
   }
 
@@ -45,7 +45,10 @@ export default class SidebarProperties {
     }
   }
 
-  updateTabVisibility(object) {
+  updateTabVisibility(selectedObjects) {
+    const count = selectedObjects.length;
+    const object = count === 1 ? selectedObjects[0] : null;
+
     this.objectTab = document.querySelector('.tab[data-tab="object"]');
     this.materialTab = document.querySelector('.tab[data-tab="material"]');
 

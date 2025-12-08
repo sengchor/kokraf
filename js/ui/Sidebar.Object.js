@@ -35,7 +35,7 @@ export class SidebarObject {
     this.emptyMessage.style.display = this.lastSelectedObject ? 'none' : 'block';
     this.objectSettingList.style.display = this.lastSelectedObject ? 'block' : 'none';
 
-    this.signals.objectSelected.add(object => {
+    this.signals.objectSelected.add(selectedObjects => {
       const inputs = Array.from(document.querySelectorAll('.properties-content .number-input, .properties-content .text-input, .properties-content .color-input'));
       inputs.forEach(input => {
         if (document.activeElement === input) {
@@ -43,12 +43,21 @@ export class SidebarObject {
         }
       });
 
+      const count = selectedObjects.length;
+      const object = (count === 1) ? selectedObjects[0] : null;
       this.lastSelectedObject = object;
 
-      this.emptyMessage.style.display = object ? 'none' : 'block';
-      this.objectSettingList.style.display = object ? 'block' : 'none';
+      if (count !== 1) {
+        this.emptyMessage.style.display = 'block';
+        this.objectSettingList.style.display = 'none';
+        this.objectSettingList.innerHTML = '';
+        return;
+      }
 
+      this.emptyMessage.style.display = 'none';
+      this.objectSettingList.style.display = 'block';
       this.objectSettingList.innerHTML = '';
+
       this.options = this.getOptionsFor(object);
       this.fields = {};
       this.options.forEach(option => {

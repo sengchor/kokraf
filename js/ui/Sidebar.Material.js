@@ -19,7 +19,7 @@ export class SidebarMaterial {
   }
 
   setupListeners() {
-    this.signals.objectSelected.add(object => {
+    this.signals.objectSelected.add(selectedObjects => {
       const inputs = Array.from(document.querySelectorAll('.properties-content .number-input, .properties-content .text-input, .properties-content .color-input'));
       inputs.forEach(input => {
         if (document.activeElement === input) {
@@ -27,7 +27,14 @@ export class SidebarMaterial {
         }
       });
 
+      const count = selectedObjects.length;
+      const object = (count === 1) ? selectedObjects[0] : null;
       this.lastSelectedObject = object;
+
+      if (count !== 1) {
+        this.materialSettingList.innerHTML = '';
+        return;
+      }
 
       this.materialSettingList.innerHTML = '';
       this.options = this.getOptionsFor(object);

@@ -41,7 +41,7 @@ export class SidebarScene {
     this.signals.objectRemoved.add(() => this.rebuild());
     this.signals.objectChanged.add(() => this.rebuild());
     this.signals.sceneGraphChanged.add(() => this.rebuild());
-    this.signals.objectSelected.add((object) => this.highlightOutlinerItem(object));
+    this.signals.objectSelected.add(selectedObjects => this.highlightOutlinerItem(selectedObjects));
   }
 
   rebuild() {
@@ -89,6 +89,12 @@ export class SidebarScene {
     this.outlinerList.addEventListener('dragstart', (event) => {
       const item = event.target.closest('.outliner-item');
       if (!item) return;
+
+      // Prevent drag if multiple objects are selected
+      if (this.selection.selectedObjects.length > 1) {
+        event.preventDefault();
+        return;
+      }
 
       document.querySelectorAll('.outliner-item').forEach(el => {
         el.classList.remove('selected', 'dragTop', 'dragBottom', 'dragInto');
@@ -181,17 +187,21 @@ export class SidebarScene {
     return false;
   }
 
-  highlightOutlinerItem(object) {
+  highlightOutlinerItem(selectedObjects) {
     document.querySelectorAll('.outliner-item').forEach(el => {
       el.classList.remove('selected');
     });
 
-    if (!object) return;
-    const objectItem = this.outlinerList.querySelector(`[data-uuid="${object.uuid}"]`);
-    if (!objectItem) return;
+    if (!selectedObjects || selectedObjects.length === 0) return;
 
-    objectItem.classList.add('selected');
-    objectItem.scrollIntoView({ block: 'nearest' });
+    selectedObjects.forEach(obj => {
+      const objectItem = this.outlinerList.querySelector(`[data-uuid="${obj.uuid}"]`);
+      if (objectItem) objectItem.classList.add('selected');
+    });
+
+    const firstSelected = selectedObjects[0];
+    const firstItem = this.outlinerList.querySelector(`[data-uuid="${firstSelected.uuid}"]`);
+    if (firstItem) firstItem.scrollIntoView({ block: 'nearest' });
   }
 
   selectObjectFromOutlinerItem(item) {

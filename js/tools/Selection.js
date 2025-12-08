@@ -3,18 +3,11 @@ import * as THREE from 'three';
 export default class Selection {
   constructor(editor) {
     this.signals = editor.signals;
-    this.box = new THREE.Box3();
-    this.selectionBox = new THREE.Box3Helper(this.box, 0xffa500);
-    this.selectionBox.material.depthTest = false;
-    this.selectionBox.material.transparent = true;
-    this.selectionBox.visible = false;
-
+    this.selectionBoxes = new Map();
     this.sceneManager = editor.sceneManager;
-    this.sceneManager.sceneEditorHelpers.add(this.selectionBox);
 
-    this.selectedObject = null;
-    this.lastHighlighted = null;
-    this.helper = null;
+    this.multiSelectEnabled = false;
+    this.selectedObjects = [];
     this.helpers = editor.helpers;
 
     this.raycaster = new THREE.Raycaster();
@@ -27,6 +20,10 @@ export default class Selection {
   setupListeners() {
     this.signals.emptyScene.add(() => {
       this.deselect();
+    });
+
+    this.signals.multiSelectChanged.add((shiftChanged) => {
+      this.multiSelectEnabled = shiftChanged;
     });
   }
 
@@ -63,74 +60,146 @@ export default class Selection {
   }
 
   update() {
-    if (!this.selectedObject) return;
-    this.box.setFromObject(this.selectedObject);
+    if (this.selectedObjects.length === 0) return;
 
-    if (this.helper) {
-      this.helper.update();
+    // Update each selected object
+    for (const object of this.selectedObjects) {
+      const helper = this.helpers[object.id];
+      
+      if (helper) {
+        helper.update();
 
-      if (this.lastHighlighted === this.helper) {
-        this.helper.traverse(child => {
-          if (child.material && child.material.color) {
+        // Highlight helper
+        helper.traverse(child => {
+          if (child.material?.color) {
             child.material.color.set(0xffa500);
           }
         });
+      } else {
+        // Normal mesh selection: update box helper
+        let boxHelper = this.selectionBoxes.get(object.id);
+        if (!boxHelper) {
+          const box = new THREE.Box3();
+          boxHelper = new THREE.Box3Helper(box, 0xffa500);
+          boxHelper.material.depthTest = false;
+          boxHelper.material.transparent = true;
+          this.sceneManager.sceneEditorHelpers.add(boxHelper);
+          this.selectionBoxes.set(object.id, boxHelper);
+        }
+
+        boxHelper.box.setFromObject(object);
+        boxHelper.visible = true;
+        boxHelper.updateMatrixWorld(true);
+      }
+    }
+
+    // Hide any box helpers that are no longer selected
+    for (const [id, boxHelper] of this.selectionBoxes) {
+      if (!this.selectedObjects.find(obj => obj.id === id)) {
+        boxHelper.visible = false;
       }
     }
   }
 
   getSelectedObject() {
-    return this.selectedObject;
+    return this.selectedObjects;
   }
 
   deselect() {
     this.clearHighlight();
-    this.selectedObject = null;
-    this.selectionBox.visible = false;
-    this.signals.objectSelected.dispatch();
+    this.selectedObjects = [];
+    
+    this.signals.objectSelected.dispatch([]);
   }
 
   clearHighlight() {
-    if (this.lastHighlighted) {
-      this.lastHighlighted.traverse(obj => {
-        if (obj.material && obj.material.color) {
-          if (this.selectedObject.isCamera) {
-            obj.material.color.set(0xffffff);
-          } else {
-            obj.material.color.set(this.selectedObject.color);
+    for (const object of this.selectedObjects) {
+      const helper = this.helpers[object.id];
+      if (helper) {
+        helper.traverse(child => {
+          if (child.material && child.material.color) {
+            child.material.color.set(object.userData.originalColor || 0xffffff);
           }
-        }
-      });
-      this.lastHighlighted = null;
+        });
+      }
+
+      const boxHelper = this.selectionBoxes.get(object.id);
+      if (boxHelper) {
+        boxHelper.visible = false;
+      }
     }
   }
 
   select(object) {
+    if (this.multiSelectEnabled) {
+      // If already selected, toggle off
+      const index = this.selectedObjects.indexOf(object);
+      if (index !==  -1) {
+        this.selectedObjects.splice(index, 1);
+        this.unhighlightObject(object);
+
+        if (this.selectedObjects.length === 0) {
+          this.deselect();
+        } else {
+          this.signals.objectSelected.dispatch(this.selectedObjects);
+        }
+        return;
+      }
+
+      // Add new object
+      this.selectedObjects.push(object);
+      this.highlightObject(object);
+      this.signals.objectSelected.dispatch(this.selectedObjects);
+      return;
+    }
+
+    // Single select
     this.clearHighlight();
+    this.selectedObjects = [object];
+    this.highlightObject(object);
+    this.signals.objectSelected.dispatch(this.selectedObjects);
+  }
 
-    this.selectedObject = object;
-    this.signals.objectSelected.dispatch(object);
-    this.helper = this.helpers[object.id];
+  highlightObject(object) {
+    const helper = this.helpers[object.id];
 
-    if (this.helper) {
-      this.helper.update();
-
-      this.helper.traverse(child => {
-        if (child.material && child.material.color) {
+    if (helper) {
+      helper.update();
+      helper.traverse(child => {
+        if (child.material?.color) {
           child.material.color.set(0xffa500);
         }
       });
-      
-      this.selectionBox.visible = false;
-      this.lastHighlighted = this.helper;
-    } else if (object instanceof THREE.Group || object instanceof THREE.AmbientLight) {
-      this.selectionBox.visible = false;
-      this.lastHighlighted = null;
     } else {
-      this.box.setFromObject(object);
-      this.selectionBox.visible = true;
-      this.selectionBox.updateMatrixWorld(true);
-      this.lastHighlighted = null;
+      if (!this.selectionBoxes.has(object.id)) {
+        const box = new THREE.Box3();
+        const boxHelper = new THREE.Box3Helper(box, 0xffa500);
+        boxHelper.material.depthTest = false;
+        boxHelper.material.transparent = true;
+        this.sceneManager.sceneEditorHelpers.add(boxHelper);
+        this.selectionBoxes.set(object.id, boxHelper);
+      }
+
+      const boxHelper = this.selectionBoxes.get(object.id);
+      boxHelper.box.setFromObject(object);
+      boxHelper.visible = true;
+      boxHelper.updateMatrixWorld(true);
+    }
+  }
+
+  unhighlightObject(object) {
+    const helper = this.helpers[object.id];
+    if (helper) {
+      helper.traverse(child => {
+        if (child.material?.color) {
+          child.material.color.set(0xffffff);
+        }
+      });
+    }
+
+    if (this.selectionBoxes.has(object.id)) {
+      const boxHelper = this.selectionBoxes.get(object.id);
+      boxHelper.visible = false;
     }
   }
 }
