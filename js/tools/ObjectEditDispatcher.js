@@ -13,16 +13,17 @@ export class ObjectEditDispatcher {
 
   setupListeners() {
     this.signals.objectDeleted.add(() => {
-      const object = this.selection.selectedObject;
-      if (!object) return;
-      this.editor.execute(new RemoveObjectCommand(this.editor, object));
+      const objects = this.selection.selectedObjects;
+      if (!objects || objects.length === 0) return;
+      objects.forEach(obj => {
+        this.editor.execute(new RemoveObjectCommand(this.editor, obj));
+      })
     });
 
     this.signals.objectFocused.add(() => {
-      const object = this.selection.selectedObject;
-      if (object !== null && this.controlsManager?.focus) {
-        this.controlsManager.focus(object);
-      }
+      const objects = this.selection.selectedObjects;
+      if (!objects || objects.length === 0) return;
+      this.controlsManager.focus(objects);
     });
   }
 }

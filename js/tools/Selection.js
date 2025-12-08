@@ -14,6 +14,11 @@ export default class Selection {
     this.mouse = new THREE.Vector2();
     this.enable = true;
 
+    this.pivotHandle = new THREE.Object3D();
+    this.pivotHandle.name = '__PivotHandle';
+    this.pivotHandle.visible = false;
+    this.sceneManager.sceneEditorHelpers.add(this.pivotHandle);
+
     this.setupListeners();
   }
 
@@ -108,7 +113,7 @@ export default class Selection {
   deselect() {
     this.clearHighlight();
     this.selectedObjects = [];
-    
+    this.updatePivotHandle();
     this.signals.objectSelected.dispatch([]);
   }
 
@@ -141,6 +146,7 @@ export default class Selection {
         if (this.selectedObjects.length === 0) {
           this.deselect();
         } else {
+          this.updatePivotHandle();
           this.signals.objectSelected.dispatch(this.selectedObjects);
         }
         return;
@@ -149,6 +155,7 @@ export default class Selection {
       // Add new object
       this.selectedObjects.push(object);
       this.highlightObject(object);
+      this.updatePivotHandle();
       this.signals.objectSelected.dispatch(this.selectedObjects);
       return;
     }
@@ -157,6 +164,7 @@ export default class Selection {
     this.clearHighlight();
     this.selectedObjects = [object];
     this.highlightObject(object);
+    this.updatePivotHandle();
     this.signals.objectSelected.dispatch(this.selectedObjects);
   }
 
@@ -201,5 +209,24 @@ export default class Selection {
       const boxHelper = this.selectionBoxes.get(object.id);
       boxHelper.visible = false;
     }
+  }
+
+  updatePivotHandle() {
+    if (!this.pivotHandle || this.selectedObjects.length === 0) {
+      this.pivotHandle.visible = false;
+      return;
+    }
+
+    const sum = new THREE.Vector3();
+    const worldPos = new THREE.Vector3();
+
+    for (const obj of this.selectedObjects) {
+      obj.getWorldPosition(worldPos);
+      sum.add(worldPos);
+    }
+
+    sum.divideScalar(this.selectedObjects.length);
+    this.pivotHandle.position.copy(sum);
+    this.pivotHandle.visible = true;
   }
 }

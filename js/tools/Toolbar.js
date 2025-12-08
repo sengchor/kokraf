@@ -127,13 +127,11 @@ export default class Toolbar {
     let attachObject = null;
 
     if (this.currentMode === 'object') {
-      attachObject = this.selection.selectedObject;
+      attachObject = this.selection.pivotHandle;
     } else {
       attachObject = this.editSelection.vertexHandle;
-      if (attachObject.visible === false) {
-        attachObject = null;
-      }
     }
+    if (!attachObject.visible) attachObject = null;
 
     this.updateActiveTools(activeTool, attachObject);
     this.buttons.forEach(btn => {

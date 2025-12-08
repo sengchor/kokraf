@@ -140,9 +140,13 @@ export class QuaternionOrbitControls {
     this.movePrev.copy(this.moveCurr);
 	}
 
-	_focus(targetObject) {
-		const box = new Box3().setFromObject(targetObject);
+	_focus(targetObjects) {
+		const box = new Box3();
 		const sphere = new Sphere();
+
+		const objects = Array.isArray(targetObjects) ? targetObjects : [targetObjects];
+		if (objects.length === 0) return;
+		objects.forEach(obj => {box.expandByObject(obj)});
 
 		let distance;
 
@@ -151,8 +155,8 @@ export class QuaternionOrbitControls {
 			box.getBoundingSphere(sphere);
 			distance = sphere.radius;
 		} else {
-			this.target.setFromMatrixPosition(targetObject.matrixWorld);
-			distance = 0.1;
+			objects[0].getWorldPosition(this.target);
+			distance = 0.5;
 		}
 
 		this.eye.set(0, 0, 1);
