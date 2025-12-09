@@ -5,39 +5,47 @@ export class SetScaleCommand {
 
   /**
    * @param {Editor} editor
-   * @param {THREE.Object3D|null} object
-   * @param {THREE.Vector3|null} newScale
-   * @param {THREE.Vector3|null} optionalOldScale
+   * @param {THREE.Object3D|THREE.Object3D[]} objects
+   * @param {THREE.Vector3|THREE.Vector3[]} newScales
+   * @param {THREE.Vector3|THREE.Vector3[]} oldScales
    * @constructor
    */
-  constructor(editor, object = null, newScale = null, optionalOldScale = null) {
+  constructor(editor, objects = [], newScales = [], oldScales = []) {
     this.editor = editor;
     this.name = 'Set Scale';
 
-    this.objectUuid = object ? object.uuid : null;
+    if (!Array.isArray(objects)) objects = [objects];
+    if (!Array.isArray(newScales)) newScales = [newScales];
+    if (!Array.isArray(oldScales)) oldScales = [oldScales];
 
-    this.newScale = newScale ? newScale.clone() : new THREE.Vector3();
-    this.oldScale = optionalOldScale ? optionalOldScale.clone() : (object ? object.scale.clone() : new THREE.Vector3());
+    this.objectUuids = objects.map(o => o.uuid);
+
+    this.newScales = newScales.map(s => s.clone());
+    this.oldScales = oldScales.map(s => s.clone());
   }
 
   execute() {
-    this.object = this.editor.objectByUuid(this.objectUuid);
-    this.object.scale.copy(this.newScale);
-    this.object.updateMatrixWorld(true);
+    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
+    for (let i = 0; i < objects.length; i++) {
+      objects[i].scale.copy(this.newScales[i]);
+      objects[i].updateMatrixWorld(true);
+    }
   }
 
   undo() {
-    this.object = this.editor.objectByUuid(this.objectUuid);
-    this.object.scale.copy(this.oldScale);
-    this.object.updateMatrixWorld(true);
+    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
+    for (let i = 0; i < objects.length; i++) {
+      objects[i].scale.copy(this.oldScales[i]);
+      objects[i].updateMatrixWorld(true);
+    }
   }
 
   toJSON() {
     return {
       type: SetScaleCommand.type,
-      objectUuid: this.objectUuid,
-      oldScale: this.oldScale.toArray(),
-      newScale: this.newScale.toArray()
+      objectUuids: this.objectUuids,
+      oldScales: this.oldScales.map(s => s.toArray()),
+      newScales: this.newScales.map(s => s.toArray())
     };
   }
 
@@ -46,9 +54,9 @@ export class SetScaleCommand {
 
     const command = new SetScaleCommand(editor);
 
-    command.objectUuid = json.objectUuid;
-    command.newScale = new THREE.Euler().fromArray(json.newScale);
-    command.oldScale = new THREE.Euler().fromArray(json.oldScale);
+    command.objectUuids = json.objectUuids;
+    command.newScales = json.newScales.map(arr => new THREE.Vector3().fromArray(arr));
+    command.oldScales = json.oldScales.map(arr => new THREE.Vector3().fromArray(arr));
 
     return command;
   }

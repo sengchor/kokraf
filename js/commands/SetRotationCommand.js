@@ -5,39 +5,47 @@ export class SetRotationCommand {
 
   /**
    * @param {Editor} editor
-   * @param {THREE.Object3D|null} object
-   * @param {THREE.Euler|null} newRotation
-   * @param {THREE.Euler|null} optionalOldRotation
+   * @param {THREE.Object3D|THREE.Object3D[]} objects
+   * @param {THREE.Euler|THREE.Euler[]} newRotations
+   * @param {THREE.Euler|THREE.Euler[]} oldRotations
    * @constructor
    */
-  constructor(editor, object = null, newRotation = null, optionalOldRotation = null) {
+  constructor(editor, objects = [], newRotations = [], oldRotations = []) {
     this.editor = editor;
     this.name = 'Set Rotation';
 
-    this.objectUuid = object ? object.uuid : null;
+    if (!Array.isArray(objects)) objects = [objects];
+    if (!Array.isArray(newRotations)) newRotations = [newRotations];
+    if (!Array.isArray(oldRotations)) oldRotations = [oldRotations];
 
-    this.newRotation = newRotation ? newRotation.clone() : new THREE.Euler();
-    this.oldRotation = optionalOldRotation ? optionalOldRotation.clone() : (object ? object.rotation.clone() : new THREE.Euler());
+    this.objectUuids = objects.map(o => o.uuid);
+
+    this.oldRotations = oldRotations.map(r => r.clone());
+    this.newRotations = newRotations.map(r => r.clone());
   }
 
   execute() {
-    this.object = this.editor.objectByUuid(this.objectUuid);
-    this.object.rotation.copy(this.newRotation);
-    this.object.updateMatrixWorld(true);
+    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
+    for (let i = 0; i < objects.length; i++) {
+      objects[i].rotation.copy(this.newRotations[i]);
+      objects[i].updateMatrixWorld(true);
+    }
   }
 
   undo() {
-    this.object = this.editor.objectByUuid(this.objectUuid);
-    this.object.rotation.copy(this.oldRotation);
-    this.object.updateMatrixWorld(true);
+    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
+    for (let i = 0; i < objects.length; i++) {
+      objects[i].rotation.copy(this.oldRotations[i]);
+      objects[i].updateMatrixWorld(true);
+    }
   }
 
   toJSON() {
     return {
       type: SetRotationCommand.type,
-      objectUuid: this.objectUuid,
-      oldRotation: this.oldRotation.toArray(),
-      newRotation: this.newRotation.toArray()
+      objectUuids: this.objectUuids,
+      oldRotations: this.oldRotations.map(r => r.toArray()),
+      newRotations: this.newRotations.map(r => r.toArray())
     };
   }
 
@@ -46,9 +54,9 @@ export class SetRotationCommand {
 
     const command = new SetRotationCommand(editor);
 
-    command.objectUuid = json.objectUuid;
-    command.newRotation = new THREE.Euler().fromArray(json.newRotation);
-    command.oldRotation = new THREE.Euler().fromArray(json.oldRotation);
+    command.objectUuids = json.objectUuids;
+    command.newRotations = json.newRotations.map(arr => new THREE.Euler().fromArray(arr));
+    command.oldRotations = json.oldRotations.map(arr => new THREE.Euler().fromArray(arr));
 
     return command;
   }

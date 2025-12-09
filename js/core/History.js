@@ -72,7 +72,12 @@ export class History {
         console.warn(`Unknown command: ${data.type}`);
         return null;
       }
-      return CommandClass.fromJSON(this.editor, data);
+
+      if (CommandClass.fromJSON.length === 3) {
+        return CommandClass.fromJSON(this.editor, data, commands);
+      } else {
+        return CommandClass.fromJSON(this.editor, data);
+      }
     }).filter(Boolean);
     
     this.undos = revive(json.undos);

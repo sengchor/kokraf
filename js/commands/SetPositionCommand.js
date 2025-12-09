@@ -5,40 +5,48 @@ export class SetPositionCommand {
 
   /**
    * @param {Editor} editor 
-   * @param {THREE.Object3D|null} object 
-   * @param {THREE.Vector3|null} newPosition 
-   * @param {THREE.Vector3|null} optionalOldPosition
-   * @constructor 
+   * @param {THREE.Object3D|THREE.Object3D[]} objects 
+   * @param {THREE.Vector3|THREE.Vector3[]} newPositions
+   * @param {THREE.Vector3|THREE.Vector3[]} oldPositions
+   * @constructor
    */
-  constructor(editor, object = null, newPosition = null, optionalOldPosition = null) {
+  constructor(editor, objects = [], newPositions = [], oldPositions = []) {
     this.editor = editor;
     this.name = 'Set Position';
 
-    this.objectUuid = object ? object.uuid : null;
+    if (!Array.isArray(objects)) objects = [objects];
+    if (!Array.isArray(newPositions)) newPositions = [newPositions];
+    if (!Array.isArray(oldPositions)) oldPositions = [oldPositions];
 
-    this.newPosition = newPosition ? newPosition.clone() : new THREE.Vector3();
-    this.oldPosition = optionalOldPosition ? optionalOldPosition.clone() : (object ? object.position.clone() : new THREE.Vector3());
+    this.objectUuids = objects.map(o => o.uuid);
+
+    this.oldPositions = oldPositions.map(p => p.clone());
+    this.newPositions = newPositions.map(p => p.clone());
   }
 
   execute() {
-    this.object = this.editor.objectByUuid(this.objectUuid);
-    this.object.position.copy(this.newPosition);
-    this.object.updateMatrixWorld(true);
+    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
+    for (let i = 0; i < objects.length; i++) {
+      objects[i].position.copy(this.newPositions[i]);
+      objects[i].updateMatrixWorld(true);
+    }
   }
 
   undo() {
-    this.object = this.editor.objectByUuid(this.objectUuid);
-    this.object.position.copy(this.oldPosition);
-    this.object.updateMatrixWorld(true);
+    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
+    for (let i = 0; i < objects.length; i++) {
+      objects[i].position.copy(this.oldPositions[i]);
+      objects[i].updateMatrixWorld(true);
+    }
   }
 
   toJSON() {
     return {
       type: SetPositionCommand.type,
-      objectUuid: this.objectUuid,
-      newPosition: this.newPosition.toArray(),
-      oldPosition: this.oldPosition.toArray()
-    }
+      objectUuids: this.objectUuids,
+      oldPositions: this.oldPositions.map(v => v.toArray()),
+      newPositions: this.newPositions.map(v => v.toArray())
+    };
   }
 
   static fromJSON(editor, json) {
@@ -46,9 +54,10 @@ export class SetPositionCommand {
 
     const command = new SetPositionCommand(editor);
 
-    command.objectUuid = json.objectUuid;
-    command.newPosition = new THREE.Vector3().fromArray(json.newPosition);
-    command.oldPosition =  new THREE.Vector3().fromArray(json.oldPosition);
+    command.objectUuids = json.objectUuids;
+
+    command.oldPositions = json.oldPositions.map(arr => new THREE.Vector3().fromArray(arr));
+    command.newPositions = json.newPositions.map(arr => new THREE.Vector3().fromArray(arr));
 
     return command;
   }
