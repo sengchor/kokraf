@@ -68,27 +68,29 @@ export default class ContextMenu {
   }
 
   handleAction(action) {
-    const object = this.selection.selectedObject;
-    if (!object) return;
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
 
     if (action === 'delete') {
-      this.editor.execute(new RemoveObjectCommand(this.editor, object));
+      objects.forEach(obj => {
+        this.editor.execute(new RemoveObjectCommand(this.editor, obj));
+      })
       return;
     }
 
     if (action === 'shade-smooth' || action === 'shade-flat' || action === 'shade-auto') {
-      if (!(object instanceof THREE.Mesh)) {
-        return;
-      }
+      objects.forEach(obj => {
+        if (!(obj instanceof THREE.Mesh)) return;
 
-      const currentShading = object.userData.shading;
-      if (action === 'shade-smooth' && currentShading !== 'smooth') {
-        this.editor.execute(new SetShadingCommand(this.editor, object, 'smooth', currentShading));
-      } else if (action === 'shade-flat' && currentShading !== 'flat') {
-        this.editor.execute(new SetShadingCommand(this.editor, object, 'flat', currentShading));
-      } else if (action === 'shade-auto' && currentShading !== 'auto') {
-        this.editor.execute(new SetShadingCommand(this.editor, object, 'auto', currentShading));
-      }
+        const currentShading = obj.userData.shading;
+        if (action === 'shade-smooth' && currentShading !== 'smooth') {
+          this.editor.execute(new SetShadingCommand(this.editor, obj, 'smooth', currentShading));
+        } else if (action === 'shade-flat' && currentShading !== 'flat') {
+          this.editor.execute(new SetShadingCommand(this.editor, obj, 'flat', currentShading));
+        } else if (action === 'shade-auto' && currentShading !== 'auto') {
+          this.editor.execute(new SetShadingCommand(this.editor, obj, 'auto', currentShading));
+        }
+      });
       return;
     }
 

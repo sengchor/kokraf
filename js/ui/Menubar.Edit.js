@@ -23,21 +23,32 @@ export class MenubarEdit {
 
     document.querySelector('.center').addEventListener('click', () => {
       const newPos = new THREE.Vector3(0, 0, 0);
-      const object = this.selection.selectedObject;
-      this.editor.execute(new SetPositionCommand(this.editor, object, newPos));
+      const objects = this.selection.selectedObjects;
+      if (!objects || objects.length === 0) return;
+
+      objects.forEach(object => {
+        this.editor.execute(new SetPositionCommand(this.editor, object, newPos));
+        this.selection.updatePivotHandle();
+      });
     });
 
     document.querySelector('.clone').addEventListener('click', () => {
-      const object = this.selection.selectedObject;
-      if (object) {
+      const objects = this.selection.selectedObjects;
+      if (!objects || objects.length === 0) return;
+
+      objects.forEach(object => {
         const clone = object.clone(true);
         this.editor.execute(new AddObjectCommand(this.editor, clone));
-      }
+      });
     });
 
     document.querySelector('.delete').addEventListener('click', () => {
-      const object = this.selection.selectedObject;
-      this.editor.execute(new RemoveObjectCommand(this.editor, object));
+      const objects = this.selection.selectedObjects;
+      if (!objects || objects.length === 0) return;
+
+      objects.forEach(object => {
+        this.editor.execute(new RemoveObjectCommand(this.editor, object));
+      });
     });
   }
 }

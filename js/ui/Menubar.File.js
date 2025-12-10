@@ -145,13 +145,13 @@ export class MenubarFile {
   }
 
   exportObject(editor, format) {
-    const object = this.selection.selectedObject;
+    const objects = this.selection.selectedObjects;
     const exporter = new Exporter(editor);
 
-    if (!object) {
+    if (!objects || objects.length === 0) {
       alert('Please select an object to export.');
       return;
     }
-    exporter.export(object, format);
+    exporter.export(objects, format);
   }
 }

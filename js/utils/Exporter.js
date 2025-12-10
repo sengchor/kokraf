@@ -7,14 +7,14 @@ export class Exporter {
     this.editor = editor;
   }
 
-  async export(object, format) {
+  async export(objects, format) {
     const handlers = {
-      'glb': () => this.exportGlb(object),
-      'gltf': () => this.exportGltf(object),
-      'obj': () => this.exportObj(object),
-      'stl': () => this.exportStl(object),
-      'stl-binary': () => this.exportStlBinary(object),
-      'usdz': () => this.exportUsdz(object),
+      'glb': () => this.exportGlb(objects),
+      'gltf': () => this.exportGltf(objects),
+      'obj': () => this.exportObj(objects),
+      'stl': () => this.exportStl(objects),
+      'stl-binary': () => this.exportStlBinary(objects),
+      'usdz': () => this.exportUsdz(objects),
     };
 
     const handler = handlers[format.toLowerCase()];
@@ -40,174 +40,233 @@ export class Exporter {
     URL.revokeObjectURL(link.href);
   }
 
-  async exportGlb(object) {
+  async exportGlb(objects) {
     const { GLTFExporter } = await import('jsm/exporters/GLTFExporter.js');
 
     const exporter = new GLTFExporter();
 
-    const meshData = object.userData.meshData;
-    const shading = object.userData.shading;
-    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
-    const mesh = new THREE.Mesh(geometry, object.material);
-    mesh.name = object.name;
+    const group = new THREE.Group();
+
+    objects.forEach(object => {
+      const meshData = object.userData.meshData;
+      const shading = object.userData.shading;
+      const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+      const mesh = new THREE.Mesh(geometry, object.material);
+      mesh.name = object.name;
+
+      object.updateWorldMatrix(true, false);
+      mesh.applyMatrix4(object.matrixWorld);
+
+      group.add(mesh);
+    });
 
     const result = await new Promise((resolve, reject) => {
-      exporter.parse(mesh, resolve, reject, { binary: true });
+      exporter.parse(group, resolve, reject, { binary: true });
     });
 
     const blob = new Blob([result], { type: 'model/gltf-binary' });
-    this.saveFile(blob, `${object.name || 'object'}.glb`, 'model/gltf-binary');
-    console.log('Exported GLB:', object.name || object.uuid);
+    this.saveFile(blob, `object.glb`, 'model/gltf-binary');
+    console.log('Exported GLB with multiple objects:', objects.map(o => o.name).join(', '));
   }
 
-  async exportGltf(object) {
+  async exportGltf(objects) {
     const { GLTFExporter } = await import('jsm/exporters/GLTFExporter.js');
 
     const exporter = new GLTFExporter();
 
-    const meshData = object.userData.meshData;
-    const shading = object.userData.shading;
-    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
-    const mesh = new THREE.Mesh(geometry, object.material);
-    mesh.name = object.name;
+    const group = new THREE.Group();
+
+    objects.forEach(object => {
+      const meshData = object.userData.meshData;
+      const shading = object.userData.shading;
+      const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+      const mesh = new THREE.Mesh(geometry, object.material);
+      mesh.name = object.name;
+
+      object.updateWorldMatrix(true, false);
+      mesh.applyMatrix4(object.matrixWorld);
+
+      group.add(mesh);
+    });
+
 
     const result = await new Promise((resolve, reject) => {
-      exporter.parse(mesh, resolve, reject, { binary: false });
+      exporter.parse(group, resolve, reject, { binary: false });
     });
 
     const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'model/gltf+json' });
-    this.saveFile(blob, `${object.name || 'object'}.gltf`, 'model/gltf+json');
-    console.log('Exported GLTF:', object.name || object.uuid);
+    this.saveFile(blob, `object.gltf`, 'model/gltf+json');
+    console.log('Exported GLTF with multiple objects:', objects.map(o => o.name).join(', '));
   }
 
-  async exportObj(object) {
-    const meshData = object.userData.meshData;
-    const shading = object.userData.shading;
+  async exportObj(objects) {
     let result = '';
-
     const format = (n) => Number(n).toFixed(6);
-    const vertexIdToObjIndex = new Map();
-    const normalIndexMap = new Map();
-    
-    let index = 1;
-    let normalIndex = 1;
 
-    // Write vertex positions
-    for (let v of meshData.vertices.values()) {
-      result += `v ${format(v.position.x)} ${format(v.position.y)} ${format(v.position.z)}\n`;
-      vertexIdToObjIndex.set(v.id, index++);
-    }
+    let globalVertexIndex = 1;
+    let globalNormalIndex = 1;
 
-    // Compute normals depending on shading mode
-    if (shading === "smooth") {
-      const vertNormals = computePerVertexNormals(meshData);
+    for (const object of objects) {
+      result += `\no ${object.name || object.uuid}\n`;
 
-      for (const [vid, n] of vertNormals) {
-        result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
-        normalIndexMap.set(vid, normalIndex++);
+      const meshData = object.userData.meshData;
+      const shading = object.userData.shading;
+
+      const vertexIdToObjIndex = new Map();
+      const normalIndexMap = new Map();
+      
+      object.updateWorldMatrix(true, false);
+      const normalMatrix = new THREE.Matrix3().setFromMatrix4(object.matrixWorld).invert().transpose();
+
+      // Write vertex positions
+      for (let v of meshData.vertices.values()) {
+        const pos = new THREE.Vector3(v.position.x, v.position.y, v.position.z)
+    .applyMatrix4(object.matrixWorld);
+        result += `v ${format(pos.x)} ${format(pos.y)} ${format(pos.z)}\n`;
+        vertexIdToObjIndex.set(v.id, globalVertexIndex++);
       }
-    } else if (shading === "flat") {
-      const faceNormals = computeFaceNormals(meshData);
 
-      for (let [fid, n] of faceNormals) {
-        result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
-        normalIndexMap.set(fid, normalIndex++);
-      }
-    } else if (shading === "auto") {
-      const fvNormals = computeVertexNormalsWithAngle(meshData, 45);
-
-      for (const [key, n] of fvNormals) {
-        result += `vn ${format(n.x)} ${format(n.y)} ${format(n.z)}\n`;
-        normalIndexMap.set(key, normalIndex++);
-      }
-    }
-
-    // Add smoothing group flag
-    if (shading === "smooth" || shading === "auto") {
-      result += "s 1\n";
-    } else if (shading === "flat") {
-      result += "s off\n";
-    } 
-
-    // Write faces
-    for (let f of meshData.faces.values()) { 
-      let faceLine = "f";
-
+      // Compute normals depending on shading mode
       if (shading === "smooth") {
-        for (let vId of f.vertexIds) {
-          const vIdx = vertexIdToObjIndex.get(vId);
-          const nIdx = normalIndexMap.get(vId);
-          faceLine += ` ${vIdx}//${nIdx}`;
+        const vertNormals = computePerVertexNormals(meshData);
+
+        for (const [vid, n] of vertNormals) {
+          const normal = n.clone().applyMatrix3(normalMatrix).normalize();
+          result += `vn ${format(normal.x)} ${format(normal.y)} ${format(normal.z)}\n`;
+          normalIndexMap.set(vid, globalNormalIndex++);
         }
       } else if (shading === "flat") {
-        const nIdx = normalIndexMap.get(f.id);
-        for (let vId of f.vertexIds) {
-          const vIdx = vertexIdToObjIndex.get(vId);
-          faceLine += ` ${vIdx}//${nIdx}`;
+        const faceNormals = computeFaceNormals(meshData);
+
+        for (let [fid, n] of faceNormals) {
+          const normal = n.clone().applyMatrix3(normalMatrix).normalize();
+          result += `vn ${format(normal.x)} ${format(normal.y)} ${format(normal.z)}\n`;
+          normalIndexMap.set(fid, globalNormalIndex++);
         }
       } else if (shading === "auto") {
-        for (let vId of f.vertexIds) {
-          const vIdx = vertexIdToObjIndex.get(vId);
-          const nIdx = normalIndexMap.get(`${f.id}_${vId}`);
-          faceLine += ` ${vIdx}//${nIdx}`;
+        const fvNormals = computeVertexNormalsWithAngle(meshData, 45);
+
+        for (const [key, n] of fvNormals) {
+          const normal = n.clone().applyMatrix3(normalMatrix).normalize();
+          result += `vn ${format(normal.x)} ${format(normal.y)} ${format(normal.z)}\n`;
+          normalIndexMap.set(key, globalNormalIndex++);
         }
       }
 
-      result += faceLine + "\n";
+      // Add smoothing group flag
+      if (shading === "smooth" || shading === "auto") {
+        result += "s 1\n";
+      } else if (shading === "flat") {
+        result += "s off\n";
+      } 
+
+      // Write faces
+      for (let f of meshData.faces.values()) { 
+        let faceLine = "f";
+
+        if (shading === "smooth") {
+          for (let vId of f.vertexIds) {
+            const vIdx = vertexIdToObjIndex.get(vId);
+            const nIdx = normalIndexMap.get(vId);
+            faceLine += ` ${vIdx}//${nIdx}`;
+          }
+        } else if (shading === "flat") {
+          const nIdx = normalIndexMap.get(f.id);
+          for (let vId of f.vertexIds) {
+            const vIdx = vertexIdToObjIndex.get(vId);
+            faceLine += ` ${vIdx}//${nIdx}`;
+          }
+        } else if (shading === "auto") {
+          for (let vId of f.vertexIds) {
+            const vIdx = vertexIdToObjIndex.get(vId);
+            const nIdx = normalIndexMap.get(`${f.id}_${vId}`);
+            faceLine += ` ${vIdx}//${nIdx}`;
+          }
+        }
+
+        result += faceLine + "\n";
+      }
     }
 
-    this.saveFile(result, `${object.name || 'object'}.obj`, 'text/plain');
-    console.log('Exported OBJ:', object.name || object.uuid);
+    this.saveFile(result, `object.obj`, 'text/plain');
+    console.log('Exported OBJ with multiple objects:', objects.map(o => o.name).join(', '));
   }
 
-  async exportStl(object) {
+  async exportStl(objects) {
     const { STLExporter } = await import('jsm/exporters/STLExporter.js');
 
     const exporter = new STLExporter();
 
-    const meshData = object.userData.meshData;
-    const shading = object.userData.shading;
-    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
-    const mesh = new THREE.Mesh(geometry, object.material);
-    mesh.name = object.name;
+    const group = new THREE.Group();
 
-    const result = exporter.parse(mesh);
+    objects.forEach(object => {
+      const meshData = object.userData.meshData;
+      const shading = object.userData.shading;
+      const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+      const mesh = new THREE.Mesh(geometry, object.material);
+      mesh.name = object.name;
 
-    this.saveFile(result, `${object.name || 'object'}.stl`, 'text/plain');
-    console.log('Exported STL:', object.name || object.uuid);
+      object.updateWorldMatrix(true, false);
+      mesh.geometry.applyMatrix4(object.matrixWorld);
+
+      group.add(mesh);
+    });
+
+    const result = exporter.parse(group);
+
+    this.saveFile(result, `object.stl`, 'text/plain');
+    console.log('Exported STL with multiple objects:', objects.map(o => o.name).join(', '));
   }
 
-  async exportStlBinary(object) {
+  async exportStlBinary(objects) {
     const { STLExporter } = await import('jsm/exporters/STLExporter.js');
 
     const exporter = new STLExporter();
 
-    const meshData = object.userData.meshData;
-    const shading = object.userData.shading;
-    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
-    const mesh = new THREE.Mesh(geometry, object.material);
-    mesh.name = object.name;
+    const group = new THREE.Group();
 
-    const result = exporter.parse(mesh, { binary: true });
+    objects.forEach(object => {
+      const meshData = object.userData.meshData;
+      const shading = object.userData.shading;
+      const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+      const mesh = new THREE.Mesh(geometry, object.material);
+      mesh.name = object.name;
 
-    this.saveFile(result, `${object.name || 'object'}.stl`, 'application/octet-stream');
-    console.log('Exported Binary STL:', object.name || object.uuid);
+      object.updateWorldMatrix(true, false);
+      mesh.geometry.applyMatrix4(object.matrixWorld);
+
+      group.add(mesh);
+    });
+
+    const result = exporter.parse(group, { binary: true });
+
+    this.saveFile(result, `object.stl`, 'application/octet-stream');
+    console.log('Exported Binary STL with multiple objects:', objects.map(o => o.name).join(', '));
   }
 
-  async exportUsdz(object) {
+  async exportUsdz(objects) {
     const { USDZExporter } = await import('jsm/exporters/USDZExporter.js');
 
     const exporter = new USDZExporter();
 
-    const meshData = object.userData.meshData;
-    const shading = object.userData.shading;
-    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
-    const mesh = new THREE.Mesh(geometry, object.material);
-    mesh.name = object.name;
+    const group = new THREE.Group();
 
-    const result = await exporter.parseAsync(mesh);
+    objects.forEach(object => {
+      const meshData = object.userData.meshData;
+      const shading = object.userData.shading;
+      const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+      const mesh = new THREE.Mesh(geometry, object.material);
+      mesh.name = object.name;
 
-    this.saveFile(result, `${object.name || 'object'}.usdz`, 'model/vnd.usdz+zip');
-    console.log('Exported USDZ:', object.name || object.uuid);
+      object.updateWorldMatrix(true, false);
+      mesh.geometry.applyMatrix4(object.matrixWorld);
+
+      group.add(mesh);
+    });
+
+    const result = await exporter.parseAsync(group);
+
+    this.saveFile(result, `object.usdz`, 'model/vnd.usdz+zip');
+    console.log('Exported USDZ with multiple objects:', objects.map(o => o.name).join(', '));
   }
 }

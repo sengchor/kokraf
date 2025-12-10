@@ -198,10 +198,6 @@ export class SidebarScene {
       const objectItem = this.outlinerList.querySelector(`[data-uuid="${obj.uuid}"]`);
       if (objectItem) objectItem.classList.add('selected');
     });
-
-    const firstSelected = selectedObjects[0];
-    const firstItem = this.outlinerList.querySelector(`[data-uuid="${firstSelected.uuid}"]`);
-    if (firstItem) firstItem.scrollIntoView({ block: 'nearest' });
   }
 
   selectObjectFromOutlinerItem(item) {
