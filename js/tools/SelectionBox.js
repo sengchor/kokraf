@@ -226,6 +226,29 @@ export class SelectionBox {
     return faceHits;
   }
 
+  getObjectsInFrustum(objects, frustum) {
+    const hits = [];
+
+    for (const obj of objects) {
+      if (!obj.geometry) continue;
+
+      if (!obj.geometry.boundingBox) {
+        obj.geometry.computeBoundingBox();
+      }
+
+      const worldBB = new THREE.Box3().copy(obj.geometry.boundingBox);
+      worldBB.applyMatrix4(obj.matrixWorld);
+
+      const target = obj.userData.object || obj;
+
+      if (frustum.intersectsBox(worldBB)) {
+        hits.push({ object: target });
+      }
+    }
+
+    return hits;
+  }
+
   getSafePointOnEdge(a, b, camPos) {
     const hitPoint = this.closestPointOnSegmentToPoint(a, b, camPos);
 

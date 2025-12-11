@@ -27,7 +27,6 @@ export default class Toolbar {
     this.knifeTool = new KnifeTool(this.editor);
 
     this.load();
-    this.handlePointerDown();
   }
 
   load() {
@@ -77,6 +76,7 @@ export default class Toolbar {
 
     this.signals.editSelectionChanged.add(onSelectionUpdate);
     this.signals.editSelectionCleared.add(onSelectionUpdate);
+    this.signals.objectSelected.add(onSelectionUpdate);
   }
 
   setupToolbarButtons() {
@@ -103,23 +103,6 @@ export default class Toolbar {
       this.activeToolEditMode = toolName;
     }
     this.updateTools();
-  }
-
-  handlePointerDown() {
-    this.canvas.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
-      if (this.moveTool.transformControls.dragging || this.rotateTool.transformControls.dragging || this.scaleTool.transformControls.dragging || this.extrudeTool.transformControls.dragging) return;
-
-      if (this.currentMode === 'object') {
-        this.selection.onMouseSelect(event, this.renderer, this.camera);
-      }
-
-      // Only refresh transform-based tools after selecting
-      const activeTool = this.getActiveTool();
-      if (['move', 'rotate', 'scale', 'extrude'].includes(activeTool)) {
-        this.updateTools();
-      }
-    });
   }
 
   updateTools() {

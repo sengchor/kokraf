@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 export default class Selection {
   constructor(editor) {
+    this.editor = editor;
     this.signals = editor.signals;
     this.selectionBoxes = new Map();
     this.sceneManager = editor.sceneManager;
@@ -13,6 +14,9 @@ export default class Selection {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.enable = true;
+    this.renderer = editor.renderer;
+    this.camera = editor.cameraManager.camera;
+    this.selectionBox = editor.selectionBox;
 
     this.pivotHandle = new THREE.Object3D();
     this.pivotHandle.name = '__PivotHandle';
@@ -30,38 +34,115 @@ export default class Selection {
     this.signals.multiSelectChanged.add((shiftChanged) => {
       this.multiSelectEnabled = shiftChanged;
     });
+
+    this.signals.transformDragStarted.add(() => {
+      this.enable = false;
+    });
+
+    this.signals.transformDragEnded.add(() => {
+      this.enable = true;
+    });
+
+    const dom = this.renderer.domElement;
+    dom.addEventListener("mousedown", this.onMouseDown.bind(this));
+    dom.addEventListener("mousemove", this.onMouseMove.bind(this));
+    dom.addEventListener("mouseup", this.onMouseUp.bind(this));
   }
 
-  onMouseSelect(event, renderer, camera) {
-    if (!this.enable) return;
-    const rect = renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  onMouseDown(event) {
+    if (!this.enable || event.button !== 0) return;
 
-    this.raycaster.setFromCamera(this.mouse, camera);
-    const intersects = this.getIntersects(this.raycaster);
+    this.dragging = false;
+    this.mouseDownPos = { x: event.clientX, y: event.clientY };
+  }
 
-    if (intersects.length > 0) {
-      const object = intersects[0].object;
-      const target = object.userData.object || object;
-      this.select(target);
-    } else {
-      this.deselect();
+  onMouseMove(event) {
+    if (!this.enable || !this.mouseDownPos) return;
+    
+    const dx = event.clientX - this.mouseDownPos.x;
+    const dy = event.clientY - this.mouseDownPos.y;
+    const dragThreshold = 1;
+
+    if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
+      this.dragging = true;
+      this.selectionBox.startSelection(event.clientX, event.clientY);
+    }
+
+    if (this.dragging) {
+      this.selectionBox.updateSelection(event.clientX, event.clientY);
     }
   }
 
-  getIntersects(raycaster) {
+  onMouseUp(event) {
+    if (!this.enable || event.button !== 0) return;
+
+    this.selectionBox.finishSelection();
+
+    if (this.dragging) {  
+      const objects = this.getBoxSelectedObjects();
+      if (objects === null || objects.length === 0) {
+        this.deselect();
+        return;
+      }
+
+      this.select(objects, true);
+    } else {
+      const object = this.getSingleSelectedObject(event);
+      if (object === null) {
+        this.deselect();
+        return;
+      }
+
+      this.select(object);
+    }
+
+    this.dragging = false;
+    this.mouseDownPos = null;
+  }
+
+  getSingleSelectedObject(event) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const objects = this.getPickableObjects();
+    const intersects = this.raycaster.intersectObjects(objects, false);
+    if (intersects.length === 0) return null;
+
+    const object = intersects[0].object;
+    const target = object.userData.object || object;
+
+    return target;
+  }
+
+  getBoxSelectedObjects() {
+    const frustum = this.selectionBox.computeFrustumFromSelection();
+    if (!frustum) return null;
+
+    const objects = this.getPickableObjects();
+    const objectHits = this.selectionBox.getObjectsInFrustum(objects, frustum);
+    if (!objectHits || objectHits.length === 0) return null;
+
+    const selectedObjects = objectHits.map(h => h.object);
+    return selectedObjects;
+  }
+
+  getPickableObjects() {
     const objects = [];
 
-    this.sceneManager.mainScene.traverseVisible( child => {
+    this.sceneManager.mainScene.traverseVisible(child => {
+      if (!child.visible) return;
       objects.push(child);
     });
 
-    this.sceneManager.sceneHelpers.traverseVisible( child => {
-      if (child.name === 'picker') objects.push(child);
+    this.sceneManager.sceneHelpers.traverseVisible(child => {
+      if (child.name === 'picker') {
+        objects.push(child);
+      }
     });
 
-    return raycaster.intersectObjects(objects, false);
+    return objects;
   }
 
   update() {
@@ -114,6 +195,9 @@ export default class Selection {
     this.clearHighlight();
     this.selectedObjects = [];
     this.updatePivotHandle();
+    this.dragging = false;
+    this.mouseDownPos = null;
+    
     this.signals.objectSelected.dispatch([]);
   }
 
@@ -135,35 +219,55 @@ export default class Selection {
     }
   }
 
-  select(object) {
-    if (this.multiSelectEnabled) {
-      // If already selected, toggle off
-      const index = this.selectedObjects.indexOf(object);
-      if (index !==  -1) {
-        this.selectedObjects.splice(index, 1);
-        this.unhighlightObject(object);
+  select(objects, isBoxSelection = false) {
+    const isArray = Array.isArray(objects);
+    if (!isArray) objects = [objects];
 
-        if (this.selectedObjects.length === 0) {
-          this.deselect();
-        } else {
-          this.updatePivotHandle();
-          this.signals.objectSelected.dispatch(this.selectedObjects);
+    objects = objects.filter(o => o);
+
+    if (this.multiSelectEnabled) {
+
+      if (isBoxSelection) {
+        // Box selection: add only
+        for (const obj of objects) {
+          if (!this.selectedObjects.includes(obj)) {
+            this.selectedObjects.push(obj);
+            this.highlightObject(obj);
+          }
         }
+      } else {
+        // Click selection: toggle
+        for (const obj of objects) {
+          const i = this.selectedObjects.indexOf(obj);
+
+          if (i !== -1) {
+            this.selectedObjects.splice(i, 1);
+            this.unhighlightObject(obj);
+          } else {
+            this.selectedObjects.push(obj);
+            this.highlightObject(obj);
+          }
+        }
+      }
+
+      // If everything got toggled off
+      if (this.selectedObjects.length === 0) {
+        this.deselect();
         return;
       }
 
-      // Add new object
-      this.selectedObjects.push(object);
-      this.highlightObject(object);
       this.updatePivotHandle();
       this.signals.objectSelected.dispatch(this.selectedObjects);
       return;
     }
 
-    // Single select
+    // Click selection (no shift)
     this.clearHighlight();
-    this.selectedObjects = [object];
-    this.highlightObject(object);
+    this.selectedObjects = [...objects];
+    for (const obj of this.selectedObjects) {
+      this.highlightObject(obj);
+    }
+
     this.updatePivotHandle();
     this.signals.objectSelected.dispatch(this.selectedObjects);
   }

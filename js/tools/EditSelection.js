@@ -46,7 +46,7 @@ export default class EditSelection {
       this.enable = true;
     });
 
-    const dom = this.editor.renderer.domElement;
+    const dom = this.renderer.domElement;
     dom.addEventListener("mousedown", this.onMouseDown.bind(this));
     dom.addEventListener("mousemove", this.onMouseMove.bind(this));
     dom.addEventListener("mouseup", this.onMouseUp.bind(this));
