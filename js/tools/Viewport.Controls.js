@@ -12,6 +12,7 @@ export default class ViewportControls {
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
     this.editHelpers = editor.editHelpers;
+    this.panelResizer = editor.panelResizer;
     this.currentMode = 'object';
 
     this.load();
@@ -30,6 +31,7 @@ export default class ViewportControls {
     this.shadingDropdown = document.getElementById('shading-modes');
     this.interactionDropdown = document.getElementById('interaction-modes');
     this.selectionModeBar = document.querySelector('.selection-mode');
+    this.snapButton = document.querySelector('.snap-button');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -71,6 +73,12 @@ export default class ViewportControls {
 
           this.editor.execute(new SwitchSubModeCommand(this.editor, newMode, currentMode));
         })
+      })
+    }
+
+    if (this.snapButton) {
+      this.snapButton.addEventListener('click', () => {
+        const isActive = this.snapButton.classList.toggle('active');
       })
     }
   }
@@ -139,6 +147,7 @@ export default class ViewportControls {
     });
 
     this.cameraDropdown.value = this.cameraManager.camera.uuid;
+    this.panelResizer.onWindowResize();
   }
 
 switchMode(newMode) {

@@ -16,6 +16,24 @@
     </button>
   </div>
 
+  <div class="middle-controls-container">
+    <select class="transform-orientation-select" id="transform-orientation">
+      <option value="global" selected>GLOBAL</option>
+      <option value="local">LOCAL</option>
+    </select>
+
+    <button class="snap-button active" id="snap-button">
+      <img class="snap-off" src="assets/icons/snap.svg" alt="Snap Off"/>
+      <img class="snap-on" src="assets/icons/snapping.svg" alt="Snap On"/>
+    </button>
+
+    <select class="snapping-to-select" id="snapping-to">
+      <option value="vertex" selected>VERTEX</option>
+      <option value="edge">EDGE</option>
+      <option value="face">FACE</option>
+    </select>
+  </div>
+
   <div id="right-controls-container">
     <select class="camera-select" id="cameraDropdown">
       <option value="perspective-camera" selected>CAMERA</option>

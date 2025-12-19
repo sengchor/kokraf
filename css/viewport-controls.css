@@ -18,6 +18,16 @@
   margin-left: 10px;
 }
 
+.snapping-to-select {
+  padding: 1px;
+  margin-left: 0px;
+}
+
+.transform-orientation-select {
+  padding: 1px;
+  margin-left: 10px;
+}
+
 .mode-select {
   padding: 1px;
 }
@@ -71,4 +81,50 @@
   background: rgba(255, 216, 0, 0.18);;
   pointer-events: none;
   display: none;
+}
+
+.middle-controls-container {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.snap-button {
+  width: 20px;
+  height: 20px;
+  margin-left: 10px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background-color: #ddd;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.snap-button.active {
+  background-color: #f8f8f8;
+}
+
+.snap-button .snap-on {
+  display: none;
+}
+
+.snap-button.active .snap-off {
+  display: none;
+}
+
+.snap-button.active .snap-on {
+  display: block;
+}
+
+.snap-button img {
+  width: 18px;
+  height: 18px;
+  opacity: 0.6;
 }

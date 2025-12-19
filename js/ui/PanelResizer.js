@@ -86,8 +86,8 @@ export default class PanelResizer {
   }
 
   onWindowResize() {
-    const outliner = document.getElementById('right-panel-container');
-    const width = window.innerWidth - outliner.offsetWidth;
+    const rightPanel  = document.getElementById('right-panel-container');
+    const width = window.innerWidth - rightPanel.offsetWidth;
     const height = window.innerHeight + 30;
 
     this.renderer.setSize(width, height);
@@ -96,9 +96,8 @@ export default class PanelResizer {
     this.adjustOutlinerHeight();
 
     const rightControls = document.getElementById('right-controls-container');
-    if (rightControls) {
-      rightControls.style.marginLeft = `${width - 355}px`;
-    }
+    const controlsWidth = rightControls.clientWidth;
+    rightControls.style.marginLeft = `${width - controlsWidth - 145}px`;
   }
 
   adjustOutlinerHeight() {
