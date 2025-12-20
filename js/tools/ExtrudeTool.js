@@ -25,12 +25,12 @@ export class ExtrudeTool {
     });
 
     this.transformControls.addEventListener('mouseDown', () => {
-      this.signals.transformDragStarted.dispatch();
+      this.signals.transformDragStarted.dispatch('edit');
     });
 
     this.transformControls.addEventListener('mouseUp', () => {
       requestAnimationFrame(() => {
-        this.signals.transformDragEnded.dispatch();
+        this.signals.transformDragEnded.dispatch('edit');
       });
     });
 

@@ -35,11 +35,13 @@ export default class Selection {
       this.multiSelectEnabled = shiftChanged;
     });
 
-    this.signals.transformDragStarted.add(() => {
+    this.signals.transformDragStarted.add((mode) => {
+      if (mode !== 'object') return;
       this.enable = false;
     });
 
-    this.signals.transformDragEnded.add(() => {
+    this.signals.transformDragEnded.add((mode) => {
+      if (mode !== 'object') return;
       this.enable = true;
     });
 

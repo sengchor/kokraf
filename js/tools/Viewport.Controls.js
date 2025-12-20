@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { VertexEditor } from './VertexEditor.js';
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 
@@ -13,6 +12,7 @@ export default class ViewportControls {
     this.editSelection = editor.editSelection;
     this.editHelpers = editor.editHelpers;
     this.panelResizer = editor.panelResizer;
+    this.snapManager = editor.snapManager;
     this.currentMode = 'object';
 
     this.load();
@@ -77,8 +77,12 @@ export default class ViewportControls {
     }
 
     if (this.snapButton) {
+      // Placeholder
+      const active = true;
+      this.snapManager.setEnabled(active);
       this.snapButton.addEventListener('click', () => {
-        const isActive = this.snapButton.classList.toggle('active');
+        const active = this.snapButton.classList.toggle('active');
+        this.snapManager.setEnabled(active);
       })
     }
   }

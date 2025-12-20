@@ -38,11 +38,13 @@ export default class EditSelection {
       this.editedObject = null;
     });
 
-    this.signals.transformDragStarted.add(() => {
+    this.signals.transformDragStarted.add((mode) => {
+      if (mode !== 'edit') return;
       this.enable = false;
     });
 
-    this.signals.transformDragEnded.add(() => {
+    this.signals.transformDragEnded.add((mode) => {
+      if (mode !== 'edit') return;
       this.enable = true;
     });
 

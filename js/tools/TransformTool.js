@@ -16,6 +16,7 @@ export class TransformTool {
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.sceneManager = editor.sceneManager;
+    this.snapManager = editor.snapManager;
     this.sceneEditorHelpers = this.sceneManager.sceneEditorHelpers;
     this.controls = editor.controlsManager;
     this.interactionMode = 'object';
@@ -26,18 +27,23 @@ export class TransformTool {
     this.transformControls.setMode(this.mode);
     this.transformControls.visible = false;
 
+    this.event = null;
+    this.renderer.domElement.addEventListener('pointermove', (event) => {
+      this.event = event;
+    });
+
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.controls.enabled = !event.value;
       if (!event.value) this.signals.objectChanged.dispatch();
     });
 
     this.transformControls.addEventListener('mouseDown', () => {
-      this.signals.transformDragStarted.dispatch();
+      this.signals.transformDragStarted.dispatch(this.interactionMode);
     });
 
     this.transformControls.addEventListener('mouseUp', () => {
       requestAnimationFrame(() => {
-        this.signals.transformDragEnded.dispatch();
+        this.signals.transformDragEnded.dispatch(this.interactionMode);
       });
     });
 
@@ -181,7 +187,23 @@ export class TransformTool {
 
         if (this.mode === 'translate') {
           const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
-          const offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
+
+          let offset = new THREE.Vector3();
+
+          const snapTarget = this.snapManager.snapPosition(this.event, this.editSelection.selectedVertexIds, this.editSelection.editedObject);
+          if (snapTarget !== null) {
+            currentPivotPosition.copy(snapTarget);
+            const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
+            offset.subVectors(snapTarget, nearestWorldPos);
+
+            const activeAxis = this.transformControls.axis;
+            offset = this.snapManager.applyTranslationAxisConstraint(offset, activeAxis);
+
+            this.transformControls.object.position.copy(this.startPivotPosition).add(offset);
+            this.transformControls.update();
+          } else {
+            offset.subVectors(currentPivotPosition, this.startPivotPosition);
+          }
 
           const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
           this.vertexEditor.setVerticesWorldPositions(selectedVertexIds, newPositions);

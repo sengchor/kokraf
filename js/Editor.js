@@ -23,6 +23,7 @@ import { MeshEditDispatcher } from './tools/MeshEditDispatcher.js';
 import { ObjectEditDispatcher } from './tools/ObjectEditDispatcher.js';
 import EditHelpers from './helpers/EditHelpers.js';
 import { SelectionBox } from './tools/SelectionBox.js';
+import { SnapManager } from './core/SnapManager.js';
 
 export default class Editor {
   constructor() {
@@ -74,6 +75,7 @@ export default class Editor {
     this.cameraManager = new CameraManager(this);
     this.sceneManager = new SceneManager(this);
     this.controlsManager = new ControlsManager(this);
+    this.snapManager = new SnapManager(this);
 
     // Helpers
     this.viewportViewHelper = new ViewportViewHelper(this);
