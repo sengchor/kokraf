@@ -10,7 +10,7 @@ export default class EditSelection {
     this.mouse = new THREE.Vector2();
     this.editedObject = null;
     this.sceneManager = editor.sceneManager;
-    this.enable = true;
+    this.enable = false;
     this.subSelectionMode = 'vertex';
 
     this.vertexHandle = new THREE.Object3D();

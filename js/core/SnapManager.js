@@ -41,9 +41,7 @@ export class SnapManager {
       for (let bufferIndex = 0; bufferIndex < posAttr.count; bufferIndex++) {
         if (isEditedObject && meshData) {
           const vertexId = meshData.bufferIndexToVertexId.get(bufferIndex);
-          if (vertexId !== undefined && selectedVertexIds.has(vertexId)) {
-            continue;
-          }
+          if (vertexId !== undefined && selectedVertexIds.includes(vertexId)) continue;
         }
 
         local.fromBufferAttribute(posAttr, bufferIndex);

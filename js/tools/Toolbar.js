@@ -1,4 +1,5 @@
-import { TransformTool } from '../tools/TransformTool.js';
+import { ObjectTransformTool } from '../tools/ObjectTransformTool.js';
+import { EditTransformTool } from '../tools/EditTransformTool.js';
 import { ExtrudeTool } from '../tools/ExtrudeTool.js';
 import { LoopCutTool } from '../tools/LoopCutTool.js';
 import { KnifeTool } from '../tools/KnifeTool.js';
@@ -19,9 +20,14 @@ export default class Toolbar {
     this.currentMode = 'object';
     this.isTransformDragging = false;
 
-    this.moveTool = new TransformTool('translate', this.editor);
-    this.rotateTool = new TransformTool('rotate', this.editor);
-    this.scaleTool = new TransformTool('scale', this.editor);
+    this.objectMoveTool   = new ObjectTransformTool(this.editor, 'translate');
+    this.objectRotateTool = new ObjectTransformTool(this.editor, 'rotate');
+    this.objectScaleTool  = new ObjectTransformTool(this.editor, 'scale');
+
+    this.editMoveTool   = new EditTransformTool(this.editor, 'translate');
+    this.editRotateTool = new EditTransformTool(this.editor, 'rotate');
+    this.editScaleTool  = new EditTransformTool(this.editor, 'scale');
+
     this.extrudeTool = new ExtrudeTool(this.editor);
     this.loopCutTool = new LoopCutTool(this.editor);
     this.knifeTool = new KnifeTool(this.editor);
@@ -123,9 +129,14 @@ export default class Toolbar {
   }
 
   disableTools() {
-    this.moveTool.disable();
-    this.rotateTool.disable();
-    this.scaleTool.disable();
+    this.objectMoveTool.disable();
+    this.objectRotateTool.disable();
+    this.objectScaleTool.disable();
+
+    this.editMoveTool.disable();
+    this.editRotateTool.disable();
+    this.editScaleTool.disable();
+
     this.extrudeTool.disable();
     this.loopCutTool.disable();
     this.knifeTool.disable();
@@ -133,11 +144,21 @@ export default class Toolbar {
 
   updateActiveTools(activeTool, attachObject) {
     this.disableTools();
+    const isObjectMode = this.currentMode === 'object';
 
     switch (activeTool) {
-      case 'move':   this.moveTool.enableFor(attachObject); break;
-      case 'rotate': this.rotateTool.enableFor(attachObject); break;
-      case 'scale':  this.scaleTool.enableFor(attachObject); break;
+      case 'move':
+        isObjectMode ? this.objectMoveTool.enableFor(attachObject) : this.editMoveTool.enableFor(attachObject);
+        break;
+        
+      case 'rotate':
+        isObjectMode ? this.objectRotateTool.enableFor(attachObject) : this.editRotateTool.enableFor(attachObject);
+        break;
+
+      case 'scale':
+        isObjectMode ? this.objectScaleTool.enableFor(attachObject) : this.editScaleTool.enableFor(attachObject);
+        break;
+      
       case 'extrude': this.extrudeTool.enableFor(attachObject); break;
       case 'loopcut' : this.loopCutTool.enable(); break;
       case 'knife' : this.knifeTool.enable(); break;

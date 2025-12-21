@@ -13,7 +13,7 @@ export default class Selection {
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
-    this.enable = true;
+    this.enable = false;
     this.renderer = editor.renderer;
     this.camera = editor.cameraManager.camera;
     this.selectionBox = editor.selectionBox;
