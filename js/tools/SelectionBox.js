@@ -115,6 +115,7 @@ export class SelectionBox {
   getVerticesInFrustum(vertexPoints, frustum) {
     const vertexHits = [];
     const position = vertexPoints.geometry.getAttribute('position');
+    const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
 
     const worldMatrix = vertexPoints.matrixWorld;
     const vertex = new THREE.Vector3();
@@ -125,7 +126,7 @@ export class SelectionBox {
 
       if (frustum.containsPoint(worldPos)) {
         vertexHits.push({
-          index: i,
+          index: vertexIdAttr.getX(i),
           point: worldPos
         });
       }
