@@ -7,6 +7,8 @@ export class SnapManager {
     this.sceneManager = editor.sceneManager;
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
     this.enabled = false;
     this.snapMode = 'vertex';
     this.thresholdPx = 10;
@@ -43,6 +45,9 @@ export class SnapManager {
         break;
       case 'edge':
         result = this.snapEdge(event, selectedVertexIds, editedObject);
+        break;
+      case 'face':
+        result = this.snapFace(event, selectedVertexIds, editedObject);
         break;
     }
 
@@ -163,6 +168,48 @@ export class SnapManager {
     return closest;
   }
 
+  snapFace(event, selectedVertexIds, editedObject) {
+    if (!this.enabled) return null;
+
+    const rect = this.renderer.domElement.getBoundingClientRect();
+
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    let closest = null;
+    let minDistance = Infinity;
+
+    this.sceneManager.mainScene.traverse(obj => {
+      if (!obj.isMesh || !obj.geometry) return;
+
+      const meshData = obj.userData.meshData;
+      if (!meshData) return;
+
+      const hits = this.raycaster.intersectObject(obj, false);
+      if (hits.length === 0) return;
+
+      for (const hit of hits) {
+        if (hit.distance >= minDistance) continue;
+
+        if (obj === editedObject) {
+          const face = this.getMeshDataFaceFromTriangle(meshData, obj.geometry, hit.faceIndex);
+
+          if (face) {
+            const hasSelectedVertex = face.vertexIds.some(id => selectedVertexIds.includes(id));
+            if (hasSelectedVertex) continue;
+          }
+        }
+
+        minDistance = hit.distance;
+        closest = hit.point.clone();
+      }
+    });
+
+    return closest;
+  }
+
   getClosestPointOnScreenSegment(px, py, ax, ay, bx, by) {
     const ABx = bx - ax;
     const ABy = by - ay;
@@ -202,6 +249,36 @@ export class SnapManager {
     }
 
     return nearest ? nearest.clone() : null;
+  }
+
+  getMeshDataFaceFromTriangle(meshData, geometry, faceIndex) {
+    const index = geometry.index;
+    if (!index) return null;
+
+    const i0 = index.getX(faceIndex * 3);
+    const i1 = index.getX(faceIndex * 3 + 1);
+    const i2 = index.getX(faceIndex * 3 + 2);
+
+    const vId0 = meshData.bufferIndexToVertexId.get(i0);
+    const vId1 = meshData.bufferIndexToVertexId.get(i1);
+    const vId2 = meshData.bufferIndexToVertexId.get(i2);
+
+    if (vId0 === undefined || vId1 === undefined || vId2 === undefined) {
+      return null;
+    }
+
+    for (const face of meshData.faces.values()) {
+      const ids = face.vertexIds;
+      if (
+        ids.includes(vId0) &&
+        ids.includes(vId1) &&
+        ids.includes(vId2)
+      ) {
+        return face;
+      }
+    }
+
+    return null;
   }
 
   applyTranslationAxisConstraint(offset, axis) {
