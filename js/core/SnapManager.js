@@ -3,12 +3,22 @@ import * as THREE from 'three';
 export class SnapManager {
   constructor(editor) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.sceneManager = editor.sceneManager;
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.enabled = false;
     this.snapMode = 'vertex';
     this.thresholdPx = 10;
+
+    this.createSnapPreview();
+    this.setupListeners();
+  }
+
+  setupListeners() {
+    this.signals.transformDragEnded.add(() => {
+      this.updateSnapPreview(null);
+    });
   }
 
   setEnabled(state) {
@@ -20,16 +30,24 @@ export class SnapManager {
   }
 
   snapPosition(event, selectedVertexIds, editedObject) {
-    if (!this.enabled || !event) return null;
+    if (!this.enabled || !event) {
+      this.updateSnapPreview(null);
+      return null;
+    }
+
+    let result = null;
 
     switch (this.snapMode) {
       case 'vertex':
-        return this.snapVertex(event, selectedVertexIds, editedObject);
+        result = this.snapVertex(event, selectedVertexIds, editedObject);
+        break;
       case 'edge':
-        return this.snapEdge(event, selectedVertexIds, editedObject);
-      default:
-        return null;
+        result = this.snapEdge(event, selectedVertexIds, editedObject);
+        break;
     }
+
+    this.updateSnapPreview(result);
+    return result;
   }
 
   snapVertex(event, selectedVertexIds, editedObject) {
@@ -107,8 +125,8 @@ export class SnapManager {
       for (const edge of meshData.edges.values()) {
         if (
           obj === editedObject &&
-          selectedVertexIds.includes(edge.v1Id) &&
-          selectedVertexIds.includes(edge.v2Id)
+          (selectedVertexIds.includes(edge.v1Id) ||
+          selectedVertexIds.includes(edge.v2Id))
         ) continue;
 
         const v1 = meshData.vertices.get(edge.v1Id);
@@ -218,5 +236,62 @@ export class SnapManager {
     }
 
     return result;
+  }
+
+  createSnapPreview() {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+
+    // Draw circle
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    const texture = new THREE.CanvasTexture(canvas);
+
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false
+    });
+
+    this.snapPreview = new THREE.Sprite(material);
+    this.snapPreview.renderOrder = Infinity + 1;
+    this.snapPreview.frustumCulled = false;
+    this.snapPreview.visible = false;
+    this.snapPreview.scale.set(1, 1, 1);
+
+    this.sceneManager.sceneEditorHelpers.add(this.snapPreview);
+  }
+
+  updateSnapPreview(worldPosition) {
+    if (!worldPosition) {
+      this.snapPreview.visible = false;
+      return;
+    }
+
+    this.snapPreview.visible = true;
+    this.snapPreview.position.copy(worldPosition);
+
+    const camera = this.camera;
+    const distance = camera.position.distanceTo(worldPosition);
+
+    const fov = camera.fov * (Math.PI / 180);
+    const worldHeightAtDistance = 2 * Math.tan(fov / 2) * distance;
+
+    const viewportHeight = this.renderer.domElement.clientHeight;
+
+    const desiredPixelSize = 18;
+    const scale = (desiredPixelSize / viewportHeight) * worldHeightAtDistance;
+
+    this.snapPreview.scale.set(scale, scale, 1);
   }
 }
