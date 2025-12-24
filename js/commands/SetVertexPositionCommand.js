@@ -28,6 +28,8 @@ export class SetVertexPositionCommand {
     const vertexEditor = new VertexEditor(this.editor, object);
     vertexEditor.setVerticesWorldPositions(this.vertexIndices, this.newPositions);
     vertexEditor.updateGeometryAndHelpers();
+    
+    this.editor.editSelection.selectVertices(this.vertexIndices, true);
   }
 
   undo() {
@@ -36,6 +38,8 @@ export class SetVertexPositionCommand {
     const vertexEditor = new VertexEditor(this.editor, object);
     vertexEditor.setVerticesWorldPositions(this.vertexIndices, this.oldPositions);
     vertexEditor.updateGeometryAndHelpers();
+
+    this.editor.editSelection.selectVertices(this.vertexIndices, true);
   }
 
   toJSON() {

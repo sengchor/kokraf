@@ -83,6 +83,7 @@ export default class Toolbar {
     this.signals.editSelectionChanged.add(onSelectionUpdate);
     this.signals.editSelectionCleared.add(onSelectionUpdate);
     this.signals.objectSelected.add(onSelectionUpdate);
+    this.signals.subSelectionModeChanged.add(onSelectionUpdate);
   }
 
   setupToolbarButtons() {

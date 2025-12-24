@@ -30,6 +30,7 @@ export class SetPositionCommand {
       objects[i].position.copy(this.newPositions[i]);
       objects[i].updateMatrixWorld(true);
     }
+    this.editor.selection.select(objects, true);
   }
 
   undo() {
@@ -38,6 +39,7 @@ export class SetPositionCommand {
       objects[i].position.copy(this.oldPositions[i]);
       objects[i].updateMatrixWorld(true);
     }
+    this.editor.selection.select(objects, true);
   }
 
   toJSON() {

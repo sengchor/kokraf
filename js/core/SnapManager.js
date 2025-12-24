@@ -72,41 +72,41 @@ export class SnapManager {
     const hits = this.raycaster.intersectObjects(this.sceneManager.mainScene.children, true);
     if (hits.length === 0) return null;
 
-    const hit = hits[0];
-    const obj = hit.object;
-
-    if (!obj.isMesh || !obj.geometry?.attributes?.position) return null;
-
-    const posAttr = obj.geometry.attributes.position;
-    const meshData = obj.userData.meshData;
-
     let closest = null;
     let minDistSq = this.thresholdPx * this.thresholdPx;
 
-    const local = new THREE.Vector3();
-    const world = new THREE.Vector3();
-    const screenPos = new THREE.Vector3();
+    for (const hit of hits) {
+      const obj = hit.object;
+      if (!obj.isMesh || !obj.geometry?.attributes?.position) continue;
 
-    for (let bufferIndex = 0; bufferIndex < posAttr.count; bufferIndex++) {
-      if (obj === editedObject && meshData) {
-        const vertexId = meshData.bufferIndexToVertexId.get(bufferIndex);
-        if (vertexId !== undefined && selectedVertexIds.includes(vertexId)) continue;
-      }
+      const posAttr = obj.geometry.attributes.position;
+      const meshData = obj.userData.meshData;
 
-      local.fromBufferAttribute(posAttr, bufferIndex);
-      world.copy(local).applyMatrix4(obj.matrixWorld);
+      const local = new THREE.Vector3();
+      const world = new THREE.Vector3();
+      const screenPos = new THREE.Vector3();
 
-      screenPos.copy(world).project(this.camera);
-      const sx = (screenPos.x * 0.5 + 0.5) * rect.width;
-      const sy = (-screenPos.y * 0.5 + 0.5) * rect.height;
+      for (let bufferIndex = 0; bufferIndex < posAttr.count; bufferIndex++) {
+        if (obj === editedObject && meshData) {
+          const vertexId = meshData.bufferIndexToVertexId.get(bufferIndex);
+          if (vertexId !== undefined && selectedVertexIds.includes(vertexId)) continue;
+        }
 
-      const dx = sx - event.clientX;
-      const dy = sy - event.clientY;
-      const distSq = dx * dx + dy * dy;
+        local.fromBufferAttribute(posAttr, bufferIndex);
+        world.copy(local).applyMatrix4(obj.matrixWorld);
 
-      if (distSq < minDistSq) {
-        minDistSq = distSq;
-        closest = world.clone();
+        screenPos.copy(world).project(this.camera);
+        const sx = (screenPos.x * 0.5 + 0.5) * rect.width;
+        const sy = (-screenPos.y * 0.5 + 0.5) * rect.height;
+
+        const dx = sx - event.clientX;
+        const dy = sy - event.clientY;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < minDistSq) {
+          minDistSq = distSq;
+          closest = world.clone();
+        }
       }
     }
 
@@ -125,58 +125,58 @@ export class SnapManager {
     const hits = this.raycaster.intersectObjects(this.sceneManager.mainScene.children, true);
     if (hits.length === 0) return null;
 
-    const hit = hits[0];
-    const obj = hit.object;
-
-    if (!obj.isMesh || !obj.userData.meshData) return null;
-
-    const meshData = obj.userData.meshData;
-    const worldMatrix = obj.matrixWorld;
-
     let closest = null;
     let minDistSq = this.thresholdPx * this.thresholdPx;
 
-    const vAWorld = new THREE.Vector3();
-    const vBWorld = new THREE.Vector3();
-    const pA = new THREE.Vector3();
-    const pB = new THREE.Vector3();
-    const snapWorld = new THREE.Vector3();
+    for (const hit of hits) {
+      const obj = hit.object;
+      if (!obj.isMesh || !obj.userData.meshData) continue;
 
-    for (const edge of meshData.edges.values()) {
-      if (
-        obj === editedObject &&
-        (selectedVertexIds.includes(edge.v1Id) ||
-        selectedVertexIds.includes(edge.v2Id))
-      ) continue;
+      const meshData = obj.userData.meshData;
+      const worldMatrix = obj.matrixWorld;
 
-      const v1 = meshData.vertices.get(edge.v1Id);
-      const v2 = meshData.vertices.get(edge.v2Id);
-      if (!v1 || !v2) continue;
+      const vAWorld = new THREE.Vector3();
+      const vBWorld = new THREE.Vector3();
+      const pA = new THREE.Vector3();
+      const pB = new THREE.Vector3();
+      const snapWorld = new THREE.Vector3();
 
-      vAWorld.copy(v1.position).applyMatrix4(worldMatrix);
-      vBWorld.copy(v2.position).applyMatrix4(worldMatrix);
+      for (const edge of meshData.edges.values()) {
+        if (
+          obj === editedObject &&
+          (selectedVertexIds.includes(edge.v1Id) ||
+          selectedVertexIds.includes(edge.v2Id))
+        ) continue;
 
-      pA.copy(vAWorld).project(this.camera);
-      pB.copy(vBWorld).project(this.camera);
+        const v1 = meshData.vertices.get(edge.v1Id);
+        const v2 = meshData.vertices.get(edge.v2Id);
+        if (!v1 || !v2) continue;
 
-      const ax = (pA.x * 0.5 + 0.5) * rect.width;
-      const ay = (-pA.y * 0.5 + 0.5) * rect.height;
-      const bx = (pB.x * 0.5 + 0.5) * rect.width;
-      const by = (-pB.y * 0.5 + 0.5) * rect.height;
+        vAWorld.copy(v1.position).applyMatrix4(worldMatrix);
+        vBWorld.copy(v2.position).applyMatrix4(worldMatrix);
 
-      const { t, cx, cy } = this.getClosestPointOnScreenSegment(event.clientX, event.clientY, 
-        ax, ay, bx, by);
+        pA.copy(vAWorld).project(this.camera);
+        pB.copy(vBWorld).project(this.camera);
 
-      const dx = cx - event.clientX;
-      const dy = cy - event.clientY;
-      const distSq = dx * dx + dy * dy;
+        const ax = (pA.x * 0.5 + 0.5) * rect.width;
+        const ay = (-pA.y * 0.5 + 0.5) * rect.height;
+        const bx = (pB.x * 0.5 + 0.5) * rect.width;
+        const by = (-pB.y * 0.5 + 0.5) * rect.height;
 
-      if (distSq < minDistSq) {
-        minDistSq = distSq;
+        const { t, cx, cy } = this.getClosestPointOnScreenSegment(event.clientX, event.clientY, 
+          ax, ay, bx, by);
 
-        snapWorld.copy(vBWorld).sub(vAWorld).multiplyScalar(t).add(vAWorld);
+        const dx = cx - event.clientX;
+        const dy = cy - event.clientY;
+        const distSq = dx * dx + dy * dy;
 
-        closest = snapWorld.clone();
+        if (distSq < minDistSq) {
+          minDistSq = distSq;
+
+          snapWorld.copy(vBWorld).sub(vAWorld).multiplyScalar(t).add(vAWorld);
+
+          closest = snapWorld.clone();
+        }
       }
     }
 
@@ -318,6 +318,48 @@ export class SnapManager {
       case 'XYZ':
         break;
       default:
+        break;
+    }
+
+    return result;
+  }
+
+  getRotationAxis(axis) {
+    if (!axis || axis === 'XYZ') return null;
+
+    switch (axis) {
+      case 'X': return new THREE.Vector3(1, 0, 0);
+      case 'Y': return new THREE.Vector3(0, 1, 0);
+      case 'Z': return new THREE.Vector3(0, 0, 1);
+      default: return null;
+    }
+  }
+
+  applyScaleAxisConstraint(scale, axis) {
+    const result = new THREE.Vector3(1, 1, 1);
+
+    switch (axis) {
+      case 'X':
+        result.set(scale, 1, 1);
+        break;
+      case 'Y':
+        result.set(1, scale, 1);
+        break;
+      case 'Z':
+        result.set(1, 1, scale);
+        break;
+      case 'XY':
+        result.set(scale, scale, 1);
+        break;
+      case 'XZ':
+        result.set(scale, 1, scale);
+        break;
+      case 'YZ':
+        result.set(1, scale, scale);
+        break;
+      case 'XYZ':
+      default:
+        result.set(scale, scale, scale);
         break;
     }
 

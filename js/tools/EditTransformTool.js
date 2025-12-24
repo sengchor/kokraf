@@ -126,14 +126,12 @@ export class EditTransformTool {
       const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
       if (!selectedVertexIds.length) return;
 
-      const handle = this.transformControls.object;
-
       if (this.mode === 'translate') {
-        this.commitTranslate(editedObject, handle, selectedVertexIds);
+        this.commitTranslate(editedObject, selectedVertexIds);
       } else if (this.mode === 'rotate') {
-        this.commitRotation(editedObject, handle, selectedVertexIds);
+        this.commitRotation(editedObject, selectedVertexIds);
       } else if (this.mode === 'scale') {
-        this.commitScale(editedObject, handle, selectedVertexIds);
+        this.commitScale(editedObject, selectedVertexIds);
       }
 
       if (editedObject.userData.shading === 'auto') {
@@ -150,15 +148,16 @@ export class EditTransformTool {
     let offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
 
     const snapTarget = this.snapManager.snapPosition(this.event, vertexIds, this.editSelection.editedObject);
-    if (snapTarget !== null) {
+    if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
       offset.subVectors(snapTarget, nearestWorldPos);
       offset = this.snapManager.applyTranslationAxisConstraint(offset, this.transformControls.axis);
 
-      this.transformControls.object.position.copy(this.startPivotPosition).add(offset);
+      handle.position.copy(this.startPivotPosition).add(offset);
       this.transformControls.update();
     }
 
+    this.currentTranslationDelta = offset.clone();
     const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
     this.vertexEditor.setVerticesWorldPositions(vertexIds, newPositions);
   }
@@ -168,8 +167,38 @@ export class EditTransformTool {
 
     const pivot = this.startPivotPosition.clone();
     const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
-    const deltaQuat = currentPivotQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
+    let deltaQuat = currentPivotQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
 
+    const snapTarget = this.snapManager.snapPosition(this.event, vertexIds, this.editSelection.editedObject);
+
+    if (snapTarget) {
+      const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
+
+      const fromDir = nearestWorldPos.clone().sub(pivot).normalize();
+      const toDir = snapTarget.clone().sub(pivot).normalize();
+
+      if (fromDir.lengthSq() > 0 && toDir.lengthSq() > 0) {
+        const axis = this.snapManager.getRotationAxis(this.transformControls.axis);
+
+        if (axis) {
+          const fromProj = fromDir.clone().projectOnPlane(axis).normalize();
+          const toProj = toDir.clone().projectOnPlane(axis).normalize();
+
+          if (fromProj.lengthSq() > 0 && toProj.lengthSq() > 0) {
+            const angle = Math.atan2(axis.dot(fromProj.clone().cross(toProj)), fromProj.dot(toProj));
+
+            deltaQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+          }
+        } else {
+          deltaQuat = new THREE.Quaternion().setFromUnitVectors (fromDir, toDir);
+        }
+      }
+
+      handle.quaternion.copy(this.startPivotQuaternion).multiply(deltaQuat);
+      this.transformControls.update();
+    }
+
+    this.currentRotationDelta = deltaQuat.clone();
     const newPositions = this.oldPositions.map(pos => {
       const local = pos.clone().sub(pivot);
       local.applyQuaternion(deltaQuat);
@@ -184,12 +213,31 @@ export class EditTransformTool {
 
     const pivot = this.startPivotPosition.clone();
     const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
-    const scaleFactor = new THREE.Vector3(
-      currentPivotScale.x / this.startPivotScale.x,
-      currentPivotScale.y / this.startPivotScale.y,
-      currentPivotScale.z / this.startPivotScale.z
-    );
+    let scaleFactor = currentPivotScale.divide(this.startPivotScale);
 
+    const snapTarget = this.snapManager.snapPosition(this.event, vertexIds, this.editSelection.editedObject);
+
+    if (snapTarget) {
+      const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
+
+      const fromDir = this.snapManager.applyTranslationAxisConstraint(nearestWorldPos.clone().sub(pivot), this.transformControls.axis);
+
+      const toDir = this.snapManager.applyTranslationAxisConstraint(snapTarget.clone().sub(pivot), this.transformControls.axis);
+
+      const fromLength = fromDir.length();
+      const toLength = toDir.length();
+
+      if (fromLength > 1e-6) {
+        const uniformScale = toLength / fromLength;
+
+        scaleFactor = this.snapManager.applyScaleAxisConstraint(uniformScale, this.transformControls.axis);
+
+        handle.scale.copy(this.startPivotScale).multiply(scaleFactor);
+        this.transformControls.update();
+      }
+    }
+
+    this.currentScaleDelta = scaleFactor.clone();
     const newPositions = this.oldPositions.map(pos => {
       const local = pos.clone().sub(pivot);
       local.multiply(scaleFactor);
@@ -214,23 +262,25 @@ export class EditTransformTool {
     }
   }
 
-  commitTranslate(object, handle, vertexIds) {
-    const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
-    const offset = currentPivotPosition.clone().sub(this.startPivotPosition);
+  commitTranslate(object, vertexIds) {
+    if (!this.currentTranslationDelta) return;
+
+    const offset = this.currentTranslationDelta;
 
     if (offset.lengthSq() === 0) return;
 
-    const newPositions = this.oldPositions.map(p => p.clone().add(offset));
+    const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
 
     this.editor.execute(new SetVertexPositionCommand(this.editor, object, vertexIds, newPositions, this.oldPositions));
   }
 
-  commitRotation(object, handle, vertexIds) {
-    const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
-    if (currentPivotQuat.equals(this.startPivotQuaternion)) return;
+  commitRotation(object, vertexIds) {
+    if (!this.currentRotationDelta) return;
 
-    const deltaQuat = currentPivotQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
     const pivot = this.startPivotPosition.clone();
+    const deltaQuat = this.currentRotationDelta;
+
+    if (deltaQuat.equals(new THREE.Quaternion())) return;
 
     const newPositions = this.oldPositions.map(pos => {
       const local = pos.clone().sub(pivot);
@@ -241,17 +291,13 @@ export class EditTransformTool {
     this.editor.execute(new SetVertexPositionCommand(this.editor, object, vertexIds, newPositions, this.oldPositions));
   }
 
-  commitScale(object, handle, vertexIds) {
-    const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
-    const scaleFactor = new THREE.Vector3(
-      currentPivotScale.x / this.startPivotScale.x,
-      currentPivotScale.y / this.startPivotScale.y,
-      currentPivotScale.z / this.startPivotScale.z
-    );
-
-    if (scaleFactor.equals(new THREE.Vector3(1, 1, 1))) return;
+  commitScale(object, vertexIds) {
+    if (!this.currentScaleDelta) return;
 
     const pivot = this.startPivotPosition.clone();
+    const scaleFactor = this.currentScaleDelta;
+
+    if (scaleFactor.equals(new THREE.Vector3(1, 1, 1))) return;
 
     const newPositions = this.oldPositions.map(pos => {
       const local = pos.clone().sub(pivot);
@@ -268,5 +314,9 @@ export class EditTransformTool {
     this.startPivotPosition = null;
     this.startPivotQuaternion = null;
     this.startPivotScale = null;
+
+    this.currentTranslationDelta = null;
+    this.currentRotationDelta = null;
+    this.currentScaleDelta = null;
   }
 }

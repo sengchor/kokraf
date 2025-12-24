@@ -30,6 +30,7 @@ export class SetScaleCommand {
       objects[i].scale.copy(this.newScales[i]);
       objects[i].updateMatrixWorld(true);
     }
+    this.editor.selection.select(objects, true);
   }
 
   undo() {
@@ -38,6 +39,7 @@ export class SetScaleCommand {
       objects[i].scale.copy(this.oldScales[i]);
       objects[i].updateMatrixWorld(true);
     }
+    this.editor.selection.select(objects, true);
   }
 
   toJSON() {
