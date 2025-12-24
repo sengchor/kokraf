@@ -36,7 +36,15 @@ export class SnapManager {
     this.snapMode = mode;
   }
 
-  snapPosition(event, selectedVertexIds, editedObject) {
+  snapObjectPosition(event, selectedObjects) {
+    return this._snap(event, { targetObjects: selectedObjects });
+  }
+
+  snapEditPosition(event, selectedVertexIds, editedObject) {
+    return this._snap(event, { selectedVertexIds, editedObject });
+  }
+
+  _snap(event, { selectedVertexIds = [], editedObject = null, targetObjects = null }) {
     if (!this.enabled || !event) {
       this.updateSnapPreview(null);
       return null;
@@ -46,13 +54,13 @@ export class SnapManager {
 
     switch (this.snapMode) {
       case 'vertex':
-        result = this.snapVertex(event, selectedVertexIds, editedObject);
+        result = this.snapVertex(event, selectedVertexIds, editedObject, targetObjects);
         break;
       case 'edge':
-        result = this.snapEdge(event, selectedVertexIds, editedObject);
+        result = this.snapEdge(event, selectedVertexIds, editedObject, targetObjects);
         break;
       case 'face':
-        result = this.snapFace(event, selectedVertexIds, editedObject);
+        result = this.snapFace(event, selectedVertexIds, editedObject, targetObjects);
         break;
     }
 
@@ -60,7 +68,7 @@ export class SnapManager {
     return result;
   }
 
-  snapVertex(event, selectedVertexIds, editedObject) {
+  snapVertex(event, selectedVertexIds, editedObject, ignoreObjects) {
     if (!this.enabled) return null;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -68,6 +76,8 @@ export class SnapManager {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    const ignoreSet = new Set(ignoreObjects);
 
     const hits = this.raycaster.intersectObjects(this.sceneManager.mainScene.children, true);
     if (hits.length === 0) return null;
@@ -78,6 +88,7 @@ export class SnapManager {
     for (const hit of hits) {
       const obj = hit.object;
       if (!obj.isMesh || !obj.geometry?.attributes?.position) continue;
+      if (ignoreSet.has(obj)) continue;
 
       const posAttr = obj.geometry.attributes.position;
       const meshData = obj.userData.meshData;
@@ -113,7 +124,7 @@ export class SnapManager {
     return closest;
   }
 
-  snapEdge(event, selectedVertexIds, editedObject) {
+  snapEdge(event, selectedVertexIds, editedObject, ignoreObjects) {
     if (!this.enabled) return null;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -121,6 +132,8 @@ export class SnapManager {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    const ignoreSet = new Set(ignoreObjects);
 
     const hits = this.raycaster.intersectObjects(this.sceneManager.mainScene.children, true);
     if (hits.length === 0) return null;
@@ -131,6 +144,7 @@ export class SnapManager {
     for (const hit of hits) {
       const obj = hit.object;
       if (!obj.isMesh || !obj.userData.meshData) continue;
+      if (ignoreSet.has(obj)) continue;
 
       const meshData = obj.userData.meshData;
       const worldMatrix = obj.matrixWorld;
@@ -183,7 +197,7 @@ export class SnapManager {
     return closest;
   }
 
-  snapFace(event, selectedVertexIds, editedObject) {
+  snapFace(event, selectedVertexIds, editedObject, ignoreObjects) {
     if (!this.enabled) return null;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -193,11 +207,14 @@ export class SnapManager {
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
+    const ignoreSet = new Set(ignoreObjects);
+
     const hits = this.raycaster.intersectObjects(this.sceneManager.mainScene.children, true);
 
     for (const hit of hits) {
       const obj = hit.object;
       if (!obj.isMesh) continue;
+      if (ignoreSet.has(obj)) continue;
 
       const meshData = obj.userData.meshData;
       if (!meshData) continue;
@@ -258,6 +275,37 @@ export class SnapManager {
     }
 
     return nearest ? nearest.clone() : null;
+  }
+
+  getBoundingBoxVertexPositions(objects) {
+    const positions = [];
+
+    const box = new THREE.Box3();
+    const min = new THREE.Vector3();
+    const max = new THREE.Vector3();
+
+    for (const obj of objects) {
+      if (!obj.isObject3D) continue;
+
+      box.setFromObject(obj);
+
+      min.copy(box.min);
+      max.copy(box.max);
+
+      positions.push(
+        new THREE.Vector3(min.x, min.y, min.z),
+        new THREE.Vector3(max.x, min.y, min.z),
+        new THREE.Vector3(min.x, max.y, min.z),
+        new THREE.Vector3(max.x, max.y, min.z),
+
+        new THREE.Vector3(min.x, min.y, max.z),
+        new THREE.Vector3(max.x, min.y, max.z),
+        new THREE.Vector3(min.x, max.y, max.z),
+        new THREE.Vector3(max.x, max.y, max.z)
+      );
+    }
+
+    return positions;
   }
 
   getMeshDataFaceFromTriangle(meshData, geometry, faceIndex) {

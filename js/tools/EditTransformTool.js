@@ -147,7 +147,8 @@ export class EditTransformTool {
     const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
     let offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
 
-    const snapTarget = this.snapManager.snapPosition(this.event, vertexIds, this.editSelection.editedObject);
+    const snapTarget = this.snapManager.snapEditPosition(this.event, vertexIds, this.editSelection.editedObject);
+    
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
       offset.subVectors(snapTarget, nearestWorldPos);
@@ -169,7 +170,7 @@ export class EditTransformTool {
     const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
     let deltaQuat = currentPivotQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
 
-    const snapTarget = this.snapManager.snapPosition(this.event, vertexIds, this.editSelection.editedObject);
+    const snapTarget = this.snapManager.snapEditPosition(this.event, vertexIds, this.editSelection.editedObject);
 
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
@@ -190,7 +191,7 @@ export class EditTransformTool {
             deltaQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
           }
         } else {
-          deltaQuat = new THREE.Quaternion().setFromUnitVectors (fromDir, toDir);
+          deltaQuat = new THREE.Quaternion().setFromUnitVectors(fromDir, toDir);
         }
       }
 
@@ -215,7 +216,7 @@ export class EditTransformTool {
     const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
     let scaleFactor = currentPivotScale.divide(this.startPivotScale);
 
-    const snapTarget = this.snapManager.snapPosition(this.event, vertexIds, this.editSelection.editedObject);
+    const snapTarget = this.snapManager.snapEditPosition(this.event, vertexIds, this.editSelection.editedObject);
 
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
