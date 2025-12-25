@@ -78,9 +78,8 @@ export default class ViewportControls {
     }
 
     if (this.snapButton) {
-      // Placeholder
-      const active = true;
-      this.snapManager.setEnabled(active);
+      const enabled = this.snapButton.classList.contains('active');
+      this.snapManager.setEnabled(enabled);
       this.snapButton.addEventListener('click', () => {
         const active = this.snapButton.classList.toggle('active');
         this.snapManager.setEnabled(active);
