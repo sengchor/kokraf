@@ -14,10 +14,14 @@ export class ExtrudeTool {
     this.controls = editor.controlsManager;
     this._worldPosHelper = new THREE.Vector3();
     this.editSelection = editor.editSelection;
+    this.snapManager = editor.snapManager;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
     this.transformControls.visible = false;
+
+    this.event = null;
+    this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
 
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.controls.enabled = !event.value;
@@ -64,13 +68,19 @@ export class ExtrudeTool {
     this.transformControls.addEventListener('mouseDown', () => {
       const handle = this.transformControls.object;
       if (!handle) return;
-      this.objectPositionOnDown = handle.getWorldPosition(this._worldPosHelper).clone();
+      this.startPivotPosition = handle.getWorldPosition(this._worldPosHelper).clone();
+
+      const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+      const editedObject = this.editSelection.editedObject;
+      const vertexEditor = new VertexEditor(this.editor, editedObject);
+      this.oldPositions = vertexEditor.getVertexPositions(selectedVertexIds);
+
       this.extrudeStarted = false;
     });
 
     this.transformControls.addEventListener('change', () => {
       const handle = this.transformControls.object;
-      if (!handle || !this.objectPositionOnDown) return;
+      if (!handle || !this.startPivotPosition) return;
 
       if (!this.extrudeStarted) {
         this.startExtrude();
@@ -81,8 +91,9 @@ export class ExtrudeTool {
     });
 
     this.transformControls.addEventListener('mouseUp', () => {
-      this.objectPositionOnDown = null;
+      this.startPivotPosition = null;
       this.extrudeStarted = false;
+      this.oldPositions = null;
 
       const mode = this.editSelection.subSelectionMode;
       const editedObject = this.editSelection.editedObject;
@@ -209,8 +220,19 @@ export class ExtrudeTool {
     const editedObject = this.editSelection.editedObject;
     const vertexEditor = new VertexEditor(this.editor, editedObject);
 
-    const currentPos = handle.getWorldPosition(this._worldPosHelper);
-    const offset = new THREE.Vector3().subVectors(currentPos, this.objectPositionOnDown);
+    const currentPivotPosition = handle.getWorldPosition(this._worldPosHelper);
+    let offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
+
+    const snapTarget = this.snapManager.snapEditPosition(this.event, this.newVertexIds, editedObject);
+    
+    if (snapTarget) {
+      const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
+      offset.subVectors(snapTarget, nearestWorldPos);
+      offset = this.snapManager.applyTranslationAxisConstraint(offset, this.transformControls.axis);
+
+      handle.position.copy(this.startPivotPosition).add(offset);
+      this.transformControls.update();
+    }
 
     // Move duplicated vertices
     const newPositions = this.initialDuplicatedPositions.map(pos => pos.clone().add(offset));
