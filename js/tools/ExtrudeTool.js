@@ -228,7 +228,7 @@ export class ExtrudeTool {
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
       offset.subVectors(snapTarget, nearestWorldPos);
-      offset = this.snapManager.applyTranslationAxisConstraint(offset, this.transformControls.axis);
+      offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis);
 
       handle.position.copy(this.startPivotPosition).add(offset);
       this.transformControls.update();

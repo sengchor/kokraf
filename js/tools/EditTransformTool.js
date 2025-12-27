@@ -152,7 +152,7 @@ export class EditTransformTool {
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
       offset.subVectors(snapTarget, nearestWorldPos);
-      offset = this.snapManager.applyTranslationAxisConstraint(offset, this.transformControls.axis);
+      offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis);
 
       handle.position.copy(this.startPivotPosition).add(offset);
       this.transformControls.update();
@@ -221,9 +221,9 @@ export class EditTransformTool {
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
 
-      const fromDir = this.snapManager.applyTranslationAxisConstraint(nearestWorldPos.clone().sub(pivot), this.transformControls.axis);
+      const fromDir = this.snapManager.constrainTranslationOffset(nearestWorldPos.clone().sub(pivot), this.transformControls.axis);
 
-      const toDir = this.snapManager.applyTranslationAxisConstraint(snapTarget.clone().sub(pivot), this.transformControls.axis);
+      const toDir = this.snapManager.constrainTranslationOffset(snapTarget.clone().sub(pivot), this.transformControls.axis);
 
       const fromLength = fromDir.length();
       const toLength = toDir.length();
@@ -231,7 +231,7 @@ export class EditTransformTool {
       if (fromLength > 1e-6) {
         const uniformScale = toLength / fromLength;
 
-        scaleFactor = this.snapManager.applyScaleAxisConstraint(uniformScale, this.transformControls.axis);
+        scaleFactor = this.snapManager.makeScaleVectorFromAxis(uniformScale, this.transformControls.axis);
 
         handle.scale.copy(this.startPivotScale).multiply(scaleFactor);
         this.transformControls.update();

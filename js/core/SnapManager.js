@@ -279,30 +279,37 @@ export class SnapManager {
 
   getBoundingBoxVertexPositions(objects) {
     const positions = [];
-
-    const box = new THREE.Box3();
+    const localBox = new THREE.Box3();
     const min = new THREE.Vector3();
     const max = new THREE.Vector3();
 
     for (const obj of objects) {
-      if (!obj.isObject3D) continue;
+      if (!obj.isMesh || !obj.geometry) continue;
 
-      box.setFromObject(obj);
+      obj.updateMatrixWorld(true);
 
-      min.copy(box.min);
-      max.copy(box.max);
+      if (!obj.geometry.boundingBox) {
+        obj.geometry.computeBoundingBox();
+      }
 
-      positions.push(
+      localBox.copy(obj.geometry.boundingBox);
+      min.copy(localBox.min);
+      max.copy(localBox.max);
+
+      const localCorners = [
         new THREE.Vector3(min.x, min.y, min.z),
         new THREE.Vector3(max.x, min.y, min.z),
         new THREE.Vector3(min.x, max.y, min.z),
         new THREE.Vector3(max.x, max.y, min.z),
-
         new THREE.Vector3(min.x, min.y, max.z),
         new THREE.Vector3(max.x, min.y, max.z),
         new THREE.Vector3(min.x, max.y, max.z),
-        new THREE.Vector3(max.x, max.y, max.z)
-      );
+        new THREE.Vector3(max.x, max.y, max.z),
+      ];
+
+      for (const v of localCorners) {
+        positions.push(v.applyMatrix4(obj.matrixWorld));
+      }
     }
 
     return positions;
@@ -338,38 +345,75 @@ export class SnapManager {
     return null;
   }
 
-  applyTranslationAxisConstraint(offset, axis) {
+  constrainTranslationOffset(offsetWorld, axis, orientation, objects) {
+    if (orientation === "world") {
+      return this.constrainTranslationOffsetWorld(offsetWorld, axis);
+    } else {
+      return this.constrainTranslationOffsetLocal(offsetWorld, axis, objects);
+    }
+  }
+
+  constrainTranslationOffsetWorld(offset, axis) {
     const result = offset.clone();
 
     switch (axis) {
-      case 'X':
-        result.y = 0;
-        result.z = 0;
-        break;
-      case 'Y':
-        result.x = 0;
-        result.z = 0;
-        break;
-      case 'Z':
-        result.x = 0;
-        result.y = 0;
-        break;
-      case 'XY':
-        result.z = 0;
-        break;
-      case 'XZ':
-        result.y = 0;
-        break;
-      case 'YZ':
-        result.x = 0;
-        break;
+      case 'X':  result.y = 0; result.z = 0; break;
+      case 'Y':  result.x = 0; result.z = 0; break;
+      case 'Z':  result.x = 0; result.y = 0; break;
+      case 'XY': result.z = 0; break;
+      case 'XZ': result.y = 0; break;
+      case 'YZ': result.x = 0; break;
       case 'XYZ':
-        break;
       default:
         break;
     }
 
     return result;
+  }
+
+  constrainTranslationOffsetLocal(offset, axis, objects) {
+    const object = objects[objects.length - 1];
+
+    const worldQuat = object.getWorldQuaternion(new THREE.Quaternion());
+    const invWorldQuat = worldQuat.clone().invert();
+
+    const localOffset = offset.clone().applyQuaternion(invWorldQuat);
+    const constrainedLocal = this.constrainTranslationOffsetWorld(localOffset, axis);
+
+    return constrainedLocal.applyQuaternion(worldQuat);
+  }
+
+  projectOntoTransformAxis(offset, axis, orientation, objects) {
+    const object = objects[objects.length - 1];
+
+    const worldQuat = object.getWorldQuaternion(new THREE.Quaternion());
+    const invWorldQuat = worldQuat.clone().invert();
+
+    const localOffset = offset.clone().applyQuaternion(invWorldQuat);
+
+    const activeAxis = axis.toLowerCase();
+    const mask = new THREE.Vector3(
+        activeAxis.includes('x') ? 1 : 0,
+        activeAxis.includes('y') ? 1 : 0,
+        activeAxis.includes('z') ? 1 : 0
+    );
+
+    if (orientation === 'world') {
+      mask.applyQuaternion(invWorldQuat);
+    }
+
+    return localOffset.clone().multiply(mask);
+  }
+
+  getEffectiveRotationAxis(axis, orientation, pivotQuaternion) {
+    const baseAxis = this.getRotationAxis(axis);
+    if (!baseAxis) return null;
+
+    if (orientation === 'world') {
+      return baseAxis.clone();
+    } else {
+      return baseAxis.clone().applyQuaternion(pivotQuaternion).normalize();
+    }
   }
 
   getRotationAxis(axis) {
@@ -383,7 +427,7 @@ export class SnapManager {
     }
   }
 
-  applyScaleAxisConstraint(scale, axis) {
+  makeScaleVectorFromAxis(scale, axis) {
     const result = new THREE.Vector3(1, 1, 1);
 
     switch (axis) {

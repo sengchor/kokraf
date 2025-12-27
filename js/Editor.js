@@ -63,6 +63,8 @@ export default class Editor {
 
       transformDragStarted: new Signal(),
       transformDragEnded: new Signal(),
+
+      transformOrientationChanged: new Signal(),
     }
 
     this.helpers = {};

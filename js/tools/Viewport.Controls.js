@@ -33,6 +33,7 @@ export default class ViewportControls {
     this.selectionModeBar = document.querySelector('.selection-mode');
     this.snapButton = document.querySelector('.snap-button');
     this.snappingSelect = document.getElementById('snapping-to');
+    this.transformOrientationSelect = document.getElementById('transform-orientation');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -90,6 +91,14 @@ export default class ViewportControls {
       this.snapManager.setSnapMode(this.snappingSelect.value);
       this.snappingSelect.addEventListener('change', (e) => {
         this.snapManager.setSnapMode(e.target.value);
+      });
+    }
+
+    if (this.transformOrientationSelect) {
+      const orientation = this.transformOrientationSelect.value;
+      this.signals.transformOrientationChanged.dispatch(orientation);
+      this.transformOrientationSelect.addEventListener('change', (e) => {
+        this.signals.transformOrientationChanged.dispatch(e.target.value);
       });
     }
   }
