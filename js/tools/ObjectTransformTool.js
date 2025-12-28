@@ -144,6 +144,7 @@ export class ObjectTransformTool {
   applyTranslation(objects, handle) {
     if (!this.startPivotPosition || !this.startPositions) return;
 
+    const object = objects[objects.length - 1];
     const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
     let offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
 
@@ -154,7 +155,7 @@ export class ObjectTransformTool {
 
       if (nearestWorldPos) {
         offset = new THREE.Vector3().subVectors(snapTarget, nearestWorldPos);
-        offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, objects);
+        offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, object);
 
         handle.position.copy(this.startPivotPosition).add(offset);
         this.transformControls.update();
@@ -221,6 +222,7 @@ export class ObjectTransformTool {
   applyScale(objects, handle) {
     if (!this.startPivotScale || !this.startScales) return;
 
+    const object = objects[objects.length - 1];
     const pivot = this.startPivotPosition.clone();
     const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
     let scaleFactor = currentPivotScale.divide(this.startPivotScale);
@@ -233,8 +235,8 @@ export class ObjectTransformTool {
       const fromOffset = nearestWorldPos.clone().sub(pivot);
       const toOffset = snapTarget.clone().sub(pivot);
 
-      const projectedFrom = this.snapManager.projectOntoTransformAxis(fromOffset, this.transformControls.axis, this.transformControls.space, objects);
-      const projectedTo = this.snapManager.projectOntoTransformAxis(toOffset, this.transformControls.axis, this.transformControls.space, objects);
+      const projectedFrom = this.snapManager.projectOntoTransformAxis(fromOffset, this.transformControls.axis, this.transformControls.space, object);
+      const projectedTo = this.snapManager.projectOntoTransformAxis(toOffset, this.transformControls.axis, this.transformControls.space, object);
 
       const fromLength = projectedFrom.length();
       const toLength = projectedTo.length();
@@ -251,12 +253,22 @@ export class ObjectTransformTool {
       }
     }
 
+    const pivotQuat = this.startPivotQuaternion;
+    const invPivotQuat = pivotQuat.clone().invert();
     for (let i = 0; i < objects.length; i++) {
       this.applyScaleToObject(objects[i], scaleFactor, this.startScales[i], this.transformControls.space);
 
       if (objects.length > 1) {
-        const offset = this.startPositions[i].clone().sub(this.startPivotPosition);
-        offset.multiply(scaleFactor);
+        let offset = this.startPositions[i].clone().sub(this.startPivotPosition);
+        
+        if (this.transformControls.space === 'local') {
+          offset.applyQuaternion(invPivotQuat);
+          offset.multiply(scaleFactor);
+          offset.applyQuaternion(pivotQuat);
+        } else {
+          offset.multiply(scaleFactor);
+        }
+
         objects[i].position.copy(this.startPivotPosition).add(offset);
       }
 

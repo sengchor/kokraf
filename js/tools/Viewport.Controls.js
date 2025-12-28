@@ -218,6 +218,9 @@ switchMode(newMode) {
       this.selection.select(this.editSelection.editedObject);
       this.editSelection.editedObject = null;
     }
+
+    const orientation = this.transformOrientationSelect.value;
+    this.signals.transformOrientationChanged.dispatch(orientation);
   }
 
   enterEditMode(selectedObject) {
@@ -228,6 +231,9 @@ switchMode(newMode) {
     this.editHelpers.refreshHelpers();
     this.editSelection.clearSelection();
     this.selection.deselect();
+
+    const orientation = this.transformOrientationSelect.value;
+    this.signals.transformOrientationChanged.dispatch(orientation);
   }
 
   toJSON() {

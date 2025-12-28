@@ -345,11 +345,11 @@ export class SnapManager {
     return null;
   }
 
-  constrainTranslationOffset(offsetWorld, axis, orientation, objects) {
+  constrainTranslationOffset(offsetWorld, axis, orientation, object) {
     if (orientation === "world") {
       return this.constrainTranslationOffsetWorld(offsetWorld, axis);
     } else {
-      return this.constrainTranslationOffsetLocal(offsetWorld, axis, objects);
+      return this.constrainTranslationOffsetLocal(offsetWorld, axis, object);
     }
   }
 
@@ -371,9 +371,7 @@ export class SnapManager {
     return result;
   }
 
-  constrainTranslationOffsetLocal(offset, axis, objects) {
-    const object = objects[objects.length - 1];
-
+  constrainTranslationOffsetLocal(offset, axis, object) {
     const worldQuat = object.getWorldQuaternion(new THREE.Quaternion());
     const invWorldQuat = worldQuat.clone().invert();
 
@@ -383,9 +381,7 @@ export class SnapManager {
     return constrainedLocal.applyQuaternion(worldQuat);
   }
 
-  projectOntoTransformAxis(offset, axis, orientation, objects) {
-    const object = objects[objects.length - 1];
-
+  projectOntoTransformAxis(offset, axis, orientation, object) {
     const worldQuat = object.getWorldQuaternion(new THREE.Quaternion());
     const invWorldQuat = worldQuat.clone().invert();
 
