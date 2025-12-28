@@ -43,6 +43,7 @@ export class ExtrudeTool {
     this.changeTransformControlsColor();
 
     this.setupTransformListeners();
+    this.setupListeners();
   }
 
   changeTransformControlsColor() {
@@ -61,6 +62,12 @@ export class ExtrudeTool {
       } else if (child.name === 'X' || child.name === 'YZ') {
         child.material.color.set(yColor);
       }
+    });
+  }
+
+  setupListeners() {
+    this.signals.transformOrientationChanged.add((orientation) => {
+      this.applyTransformOrientation(orientation);
     });
   }
 
@@ -119,6 +126,8 @@ export class ExtrudeTool {
     if (!object) return;
     this.transformControls.attach(object);
     this.transformControls.visible = true;
+
+    this.applyTransformOrientation(this.transformControls.space);
   }
 
   disable() {
@@ -228,7 +237,7 @@ export class ExtrudeTool {
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
       offset.subVectors(snapTarget, nearestWorldPos);
-      offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis);
+      offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, editedObject);
 
       handle.position.copy(this.startPivotPosition).add(offset);
       this.transformControls.update();
@@ -237,5 +246,22 @@ export class ExtrudeTool {
     // Move duplicated vertices
     const newPositions = this.initialDuplicatedPositions.map(pos => pos.clone().add(offset));
     vertexEditor.setVerticesWorldPositions(this.newVertexIds, newPositions);
+  }
+
+  applyTransformOrientation(orientation) {
+    if (!this.transformControls) return;
+
+    if (orientation === 'world') {
+      this.editSelection.vertexHandle.quaternion.identity();
+      this.transformControls.setSpace('world');
+    } else {
+      const object = this.editSelection.editedObject;
+      if (!object) return;
+
+      this.editSelection.vertexHandle.quaternion.copy(
+        object.getWorldQuaternion(new THREE.Quaternion())
+      );
+      this.transformControls.setSpace('local');
+    }
   }
 }
