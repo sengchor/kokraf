@@ -1,7 +1,25 @@
 <ul class="context-menu" role="menu">
-  <li class="item" role="menu-item" data-action="shade-smooth">Shade Smooth</li>
-  <li class="item" role="menu-item" data-action="shade-flat">Shade Flat</li>
-  <li class="item" role="menu-item" data-action="shade-auto">Shade Auto</li>
-  <li class="divider"></li>
-  <li class="item" role="menu-item" data-action="delete">Delete</li>
+  <div class="menu-section" data-mode="object">
+    <li class="menu-title">Object Context Menu</li>
+    <li class="divider"></li>
+    <li class="item" role="menu-item" data-action="shade-smooth">Shade Smooth</li>
+    <li class="item" role="menu-item" data-action="shade-flat">Shade Flat</li>
+    <li class="item" role="menu-item" data-action="shade-auto">Shade Auto</li>
+    <li class="divider"></li>
+    <li class="item" role="menu-item" data-action="delete-object">Delete</li>
+  </div>
+
+  <div class="menu-section" data-mode="delete">
+    <li class="menu-title">Delete</li>
+    <li class="divider"></li>
+    <li class="item" role="menu-item" data-action="delete-vertices">Vertices</li>
+    <li class="item" role="menu-item" data-action="delete-edges">Edges</li>
+    <li class="item" role="menu-item" data-action="delete-faces">Faces</li>
+    <li class="item" role="menu-item" data-action="delete-only-edges-faces">Only Edges & Faces</li>
+    <li class="item" role="menu-item" data-action="delete-only-faces">Only Faces</li>
+    <li class="divider"></li>
+    <li class="item" role="menu-item" data-action="dissolve-vertices">Dissolve Vertices</li>
+    <li class="item" role="menu-item" data-action="dissolve-edges">Dissolve Edges</li>
+    <li class="item" role="menu-item" data-action="dissolve-faces">Dissolve Faces</li>
+  </div>
 </ul>

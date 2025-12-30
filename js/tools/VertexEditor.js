@@ -338,48 +338,105 @@ export class VertexEditor {
     return { mappedVertexIds, newVertexIds, newEdgeIds, newFaceIds };
   }
 
+  deleteVertices(vertexIds) {
+    const meshData = this.object.userData.meshData;
+    for (const vId of vertexIds) {
+      const vertex = meshData.vertices.get(vId);
+      if (!vertex) continue;
+      meshData.deleteVertex(vertex);
+    }
+  }
+
+  deleteEdgesAndFacesOnly(edgeIds) {
+    const meshData = this.object.userData.meshData;
+    for (const edgeId of edgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+      meshData.deleteEdge(edge);
+    }
+  }
+
+  deleteFacesOnly(faceIds) {
+    const meshData = this.object.userData.meshData;
+    for (const faceId of faceIds) {
+      const face = meshData.faces.get(faceId);
+      if (!face) continue;
+      meshData.deleteFace(face);
+    }
+  }
+
+  deleteEdges(edgeIds) {
+    const meshData = this.object.userData.meshData;
+
+    const candidateVertices = new Set();
+
+    // Delete edges & track affected vertices
+    for (const edgeId of edgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      candidateVertices.add(edge.v1Id);
+      candidateVertices.add(edge.v2Id);
+
+      meshData.deleteEdge(edge);
+    }
+
+    this.cleanupOrphanVertices(meshData, candidateVertices);
+  }
+
+  deleteFaces(faceIds) {
+    const meshData = this.object.userData.meshData;
+
+    const candidateEdges = new Set();
+    const candidateVertices = new Set();
+
+    // Delete faces & track affected vertices and edges
+    for (const faceId of faceIds) {
+      const face = meshData.faces.get(faceId);
+      if (!face) continue;
+
+      for (const edgeId of face.edgeIds) {
+        candidateEdges.add(edgeId);
+      }
+
+      for (const vId of face.vertexIds) {
+        candidateVertices.add(vId);
+      }
+
+      meshData.deleteFace(face);
+    }
+
+    this.cleanupOrphanEdges(meshData, candidateEdges);
+    this.cleanupOrphanVertices(meshData, candidateVertices);
+  }
+
   deleteSelectionVertices(vertexIds) {
     const meshData = this.object.userData.meshData;
     const selected = new Set(vertexIds);
 
     const deletedFaces = new Set();
-    const deletedEdges = new Set();
-    const deletedVertices = new Set();
+    const candidateEdges = new Set();
+    const candidateVertices = new Set();
 
     // Delete faces fully contained in the selection
     for (const face of [...meshData.faces.values()]) {
       const allVerticesInside = face.vertexIds.every(vId => selected.has(vId));
 
       if (allVerticesInside) {
+        for (const edgeId of face.edgeIds) {
+          candidateEdges.add(edgeId);
+        }
+        for (const vId of face.vertexIds) {
+          candidateVertices.add(vId);
+        }
+
         meshData.deleteFace(face);
         deletedFaces.add(face.id);
       }
     }
 
-    // Delete edges fully contained in the selection
-    for (const edge of [...meshData.edges.values()]) {
-      const v1Inside = selected.has(edge.v1Id);
-      const v2Inside = selected.has(edge.v2Id);
-
-      if (v1Inside && v2Inside && edge.faceIds.size === 0) {
-        meshData.deleteEdge(edge);
-        deletedEdges.add(edge.id);
-      }
-    }
-
-    // Delete isolated vertices (no remaining edge or face)
-    for (const vId of selected) {
-      const vertex = meshData.getVertex(vId);
-      if (!vertex) continue;
-
-      const hasEdges = vertex.edgeIds && vertex.edgeIds.size > 0;
-      const hasFaces = vertex.faceIds && vertex.faceIds.size > 0;
-
-      if (!hasEdges && !hasFaces) {
-        meshData.deleteVertex(vertex);
-        deletedVertices.add(vId);
-      }
-    }
+    const deletedEdges = this.cleanupOrphanEdges(meshData, candidateEdges);
+    const deletedVertices = this.cleanupOrphanEdges(meshData, candidateVertices);
 
     return {
       deletedFaces: Array.from(deletedFaces),
@@ -393,41 +450,28 @@ export class VertexEditor {
     const selected = new Set(edgeIds);
 
     const deletedFaces = new Set();
-    const deletedEdges = new Set();
-    const deletedVertices = new Set();
+    const candidateEdges = new Set();
+    const candidateVertices = new Set();
 
     // Delete faces fully bounded by the selected edges
     for (const face of [...meshData.faces.values()]) {
       const allEdgesInside = [...face.edgeIds].every(eId => selected.has(eId));
 
       if (allEdgesInside) {
+        for (const edgeId of face.edgeIds) {
+          candidateEdges.add(edgeId);
+        }
+        for (const vId of face.vertexIds) {
+          candidateVertices.add(vId);
+        }
+
         meshData.deleteFace(face);
         deletedFaces.add(face.id);
       }
     }
 
-    // Delete the selected edges themselves
-    for (const edgeId of selected) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      // Edge should not be deleted while still attached to a face
-      if (edge.faceIds.size === 0) {
-        meshData.deleteEdge(edge);
-        deletedEdges.add(edgeId);
-      }
-    }
-
-    // Delete vertices that are now isolated (no edges, no faces)
-    for (const [vId, vertex] of meshData.vertices.entries()) {
-      const hasEdges = vertex.edgeIds && vertex.edgeIds.size > 0;
-      const hasFaces = vertex.faceIds && vertex.faceIds.size > 0;
-
-      if (!hasEdges && !hasFaces) {
-        meshData.deleteVertex(vertex);
-        deletedVertices.add(vId);
-      }
-    }
+    const deletedEdges = this.cleanupOrphanEdges(meshData, candidateEdges);
+    const deletedVertices = this.cleanupOrphanEdges(meshData, candidateVertices);
 
     return {
       deletedFaces: [...deletedFaces],
@@ -435,48 +479,74 @@ export class VertexEditor {
       deletedVertices: [...deletedVertices]
     };
   }
-
+  
   deleteSelectionFaces(faceIds) {
     const meshData = this.object.userData.meshData;
     const selected = new Set(faceIds);
 
     const deletedFaces = new Set();
-    const deletedEdges = new Set();
-    const deletedVertices = new Set();
+    const candidateEdges = new Set();
+    const candidateVertices = new Set();
 
     // Delete the selected faces
     for (const faceId of selected) {
       const face = meshData.faces.get(faceId);
       if (!face) continue;
 
+      for (const edgeId of face.edgeIds) {
+        candidateEdges.add(edgeId);
+      }
+
+      for (const vId of face.vertexIds) {
+        candidateVertices.add(vId);
+      }
+
       meshData.deleteFace(face);
       deletedFaces.add(faceId);
     }
 
-    // Delete edges no longer used by any face
-    for (const [edgeId, edge] of [...meshData.edges.entries()]) {
-      if (edge.faceIds.size === 0) {
-        meshData.deleteEdge(edge);
-        deletedEdges.add(edgeId);
-      }
-    }
-
-    // Delete vertices now isolated (no edges, no faces)
-    for (const [vId, vertex] of [...meshData.vertices.entries()]) {
-      const hasEdges = vertex.edgeIds && vertex.edgeIds.size > 0;
-      const hasFaces = vertex.faceIds && vertex.faceIds.size > 0;
-
-      if (!hasEdges && !hasFaces) {
-        meshData.deleteVertex(vertex);
-        deletedVertices.add(vId);
-      }
-    }
+    const deletedEdges = this.cleanupOrphanEdges(meshData, candidateEdges);
+    const deletedVertices = this.cleanupOrphanEdges(meshData, candidateVertices);
 
     return {
       deletedFaces: Array.from(deletedFaces),
       deletedEdges: Array.from(deletedEdges),
       deletedVertices: Array.from(deletedVertices)
     };
+  }
+
+  // Delete edges that no longer belong to any face
+  cleanupOrphanEdges(meshData, candidateEdges) {
+    const deletedEdges = new Set();
+
+    for (const edgeId of candidateEdges) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      if (edge.faceIds.size === 0) {
+        meshData.deleteEdge(edge);
+        deletedEdges.add(edgeId);
+      }
+    }
+
+    return deletedEdges;
+  }
+
+  // Delete vertices that have no edges and no faces
+  cleanupOrphanVertices(meshData, candidateVertices) {
+    const deletedVertices = new Set();
+
+    for (const vId of candidateVertices) {
+      const vertex = meshData.vertices.get(vId);
+      if (!vertex) continue;
+
+      if (vertex.edgeIds.size === 0 && vertex.faceIds.size === 0) {
+        meshData.deleteVertex(vertex);
+        deletedVertices.add(vId);
+      }
+    }
+
+    return deletedVertices;
   }
 
   createFaceFromVertices(vertexIds) {

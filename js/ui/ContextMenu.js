@@ -5,11 +5,18 @@ import { SetShadingCommand } from "../commands/SetShadingCommand.js";
 export default class ContextMenu {
   constructor( editor ) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.uiLoader = editor.uiLoader;
     this.selection = editor.selection;
+    this.editSelection = editor.editSelection;
     this.menuEl = null;
+    this.currentMode = 'object';
+
+    this.lastMouse = { x: 0, y: 0 };
+    this.menuTrigger = null;
 
     this.load();
+    this.setupListeners();
   }
 
   load() {
@@ -25,9 +32,9 @@ export default class ContextMenu {
       canvas.addEventListener('contextmenu', (e) => {
         if (e.button === 2) {
           e.preventDefault();
+          this.menuTrigger = 'mouse';
           this.show(e.clientX, e.clientY);
         }
-        this.show(e.clientX, e.clientY);
       });
 
       appContainer.addEventListener('contextmenu', (e) => {
@@ -36,11 +43,22 @@ export default class ContextMenu {
           this.hide();
         }
       });
-      document.addEventListener('click', () => this.hide());
+
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.context-menu')) return;
+        this.hide();
+      });
+
       document.addEventListener('mousedown', (e) => {
         if (e.button === 1) {
+          if (e.target.closest('.context-menu')) return;
           this.hide();
         }
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        this.lastMouse.x = e.clientX;
+        this.lastMouse.y = e.clientY;
       });
 
       this.menuEl.querySelectorAll('[data-action]').forEach((item) => {
@@ -53,12 +71,47 @@ export default class ContextMenu {
     });
   }
 
+  setupListeners() {
+    this.signals.modeChanged.add((newMode) => {
+      this.currentMode = newMode;
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Delete') {
+        this.menuTrigger = 'delete';
+        this.show(this.lastMouse.x, this.lastMouse.y);
+      }
+    })
+  }
+
   show(x, y) {
     if (!this.menuEl) return;
+
+    this.menuEl.querySelectorAll('.menu-section').forEach(section => {
+      section.style.display = 'none';
+    });
+
+    let visible = false;
+    if (this.menuTrigger === 'mouse' && this.currentMode === 'object') {
+      this.showSection('object');
+      visible = true;
+    }
+
+    if (this.menuTrigger === 'delete' && this.currentMode === 'edit') {
+      this.showSection('delete');
+      visible = true;
+    }
+
+    if (!visible) return;
+
     this.menuEl.style.display = 'block';
-    this.menuEl.style.position = 'absolute';
     this.menuEl.style.left = `${x}px`;
     this.menuEl.style.top = `${y}px`;
+  }
+
+  showSection(mode) {
+    const section = this.menuEl.querySelector(`.menu-section[data-mode="${mode}"]`);
+    if (section) section.style.display = 'block';
   }
 
   hide() {
@@ -68,17 +121,20 @@ export default class ContextMenu {
   }
 
   handleAction(action) {
-    const objects = this.selection.selectedObjects;
-    if (!objects || objects.length === 0) return;
+    if (action === 'delete-object') {
+      const objects = this.selection.selectedObjects;
+      if (!objects || objects.length === 0) return;
 
-    if (action === 'delete') {
       objects.forEach(obj => {
         this.editor.execute(new RemoveObjectCommand(this.editor, obj));
-      })
+      });
       return;
     }
 
     if (action === 'shade-smooth' || action === 'shade-flat' || action === 'shade-auto') {
+      const objects = this.selection.selectedObjects;
+      if (!objects || objects.length === 0) return;
+
       objects.forEach(obj => {
         if (!(obj instanceof THREE.Mesh)) return;
 
@@ -91,6 +147,11 @@ export default class ContextMenu {
           this.editor.execute(new SetShadingCommand(this.editor, obj, 'auto', currentShading));
         }
       });
+      return;
+    }
+
+    if (action.startsWith('delete-') || action.startsWith('dissolve-')) {
+      this.signals.deleteSelectedFaces.dispatch(action);
       return;
     }
 

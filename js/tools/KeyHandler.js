@@ -68,8 +68,6 @@ export class KeyHandler {
         this.editor.toolbar.setActiveTool('select');
       } else if (event.key === 'f') {
         this.signals.createFaceFromVertices.dispatch();
-      } else if (event.key === 'Delete') {
-        this.signals.deleteSelectedFaces.dispatch();
       } else if (event.key === 'p') {
         this.signals.separateSelection.dispatch();
       } else if (event.key === 'Tab') {

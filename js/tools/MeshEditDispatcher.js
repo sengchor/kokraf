@@ -62,10 +62,9 @@ export class MeshEditDispatcher {
         this.editSelection.selectEdges(newEdges);
       }
     });
-
-    this.signals.deleteSelectedFaces.add(() => {
+    
+    this.signals.deleteSelectedFaces.add((action) => {
       const editedObject = this.editSelection.editedObject;
-      const mode = this.editSelection.subSelectionMode;
 
       const selectedVertexIds = this.editSelection.selectedVertexIds;
       const selectedEdgeIds = this.editSelection.selectedEdgeIds;
@@ -75,12 +74,16 @@ export class MeshEditDispatcher {
       this.beforeMeshData = structuredClone(meshData);
 
       const vertexEditor = new VertexEditor(this.editor, editedObject);
-      if (mode === 'vertex') {
-        vertexEditor.deleteSelectionVertices(selectedVertexIds);
-      } else if (mode === 'edge') {
-        vertexEditor.deleteSelectionEdges(selectedEdgeIds);
-      } else if (mode === 'face') {
-        vertexEditor.deleteSelectionFaces(selectedFaceIds);
+      if (action === 'delete-vertices') {
+        vertexEditor.deleteVertices(selectedVertexIds);
+      } else if (action === 'delete-edges') {
+        vertexEditor.deleteEdges(selectedEdgeIds);
+      } else if (action === 'delete-faces') {
+        vertexEditor.deleteFaces(selectedFaceIds);
+      } else if (action === 'delete-only-edges-faces') {
+        vertexEditor.deleteEdgesAndFacesOnly(selectedEdgeIds);
+      } else if (action === 'delete-only-faces') {
+        vertexEditor.deleteFacesOnly(selectedFaceIds);
       }
 
       this.afterMeshData = structuredClone(meshData);

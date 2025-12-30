@@ -160,7 +160,7 @@ export class MeshData {
     for (let faceId of edge.faceIds) {
       const face = this.faces.get(faceId);
       if (face) {
-        face.edgeIds.delete(edge.id);
+        this.deleteFace(face);
       }
     }
 

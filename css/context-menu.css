@@ -15,6 +15,16 @@
   margin: 0;
 }
 
+.context-menu .menu-title {
+  padding: 5px 6px;
+  font-size: 14px;
+  font-weight: 400;
+  color: #bbb;
+  cursor: default;
+  pointer-events: none;
+  align-items: center;
+}
+
 .context-menu .item {
   padding: 5px 12px;
   cursor: pointer;
