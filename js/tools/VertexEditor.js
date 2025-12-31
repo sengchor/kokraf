@@ -549,6 +549,199 @@ export class VertexEditor {
     return deletedVertices;
   }
 
+  dissolveVertices(vertexIds) {
+    const meshData = this.object.userData.meshData;
+
+    const edgeVertices = [];
+    const faceVertices = [];
+
+    for (const vId of vertexIds) {
+      const v = meshData.vertices.get(vId);
+      if (!v) continue;
+
+      if (v.edgeIds.size === 2) {
+        edgeVertices.push(vId);
+      } else {
+        faceVertices.push(vId);
+      }
+    }
+
+    this.dissolveEdgeVertices(edgeVertices, meshData);
+    this.dissolveFaceVertices(faceVertices, meshData);
+  }
+
+  orderBoundaryLoop(boundaryEdges) {
+    if (!boundaryEdges || boundaryEdges.length === 0) return [];
+
+    // Build adjacency
+    const adjacency = new Map();
+
+    for (const edge of boundaryEdges) {
+      if (!adjacency.has(edge.v1Id)) adjacency.set(edge.v1Id, []);
+      if (!adjacency.has(edge.v2Id)) adjacency.set(edge.v2Id, []);
+
+      adjacency.get(edge.v1Id).push(edge.v2Id);
+      adjacency.get(edge.v2Id).push(edge.v1Id);
+    }
+
+    // Find a start vertex (any boundary vertex)
+    const startVertex = adjacency.keys().next().value;
+
+    const ordered = [];
+    let current = startVertex;
+    let prev = null;
+
+    while (true) {
+      ordered.push(current);
+
+      const neighbors = adjacency.get(current);
+      if (!neighbors || neighbors.length === 0) break;
+
+      // Choose the neighbor that is not the previous vertex
+      const next = neighbors.find(v => v !== prev);
+      if (next === undefined) break;
+
+      prev = current;
+      current = next;
+
+      if (current === startVertex) break;
+    }
+
+    return ordered;
+  }
+
+  splitVertexIslands(vertexIds, meshData) {
+    const selected = new Set(vertexIds);
+    const visited = new Set();
+    const islands = [];
+
+    for (const start of selected) {
+      if (visited.has(start)) continue;
+
+      const stack = [start];
+      const island = new Set();
+
+      while (stack.length) {
+        const vId = stack.pop();
+        if (visited.has(vId)) continue;
+
+        visited.add(vId);
+        island.add(vId);
+
+        const v = meshData.vertices.get(vId);
+        if (!v) continue;
+
+        // Expand through edges
+        for (const eId of v.edgeIds) {
+          const e = meshData.edges.get(eId);
+          if (!e) continue;
+
+          const other =
+            e.v1Id === vId ? e.v2Id : e.v1Id;
+
+          if (selected.has(other) && !visited.has(other)) {
+            stack.push(other);
+          }
+        }
+
+        // Expand through faces
+        for (const fId of v.faceIds) {
+          const f = meshData.faces.get(fId);
+          if (!f) continue;
+
+          for (const fvId of f.vertexIds) {
+            if (selected.has(fvId) && !visited.has(fvId)) {
+              stack.push(fvId);
+            }
+          }
+        }
+      }
+
+      islands.push([...island]);
+    }
+
+    return islands;
+  }
+
+  getEdgeOppositeVertices(v, meshData) {
+    const edges = [...v.edgeIds].map(eId => meshData.edges.get(eId)).filter(Boolean);
+    if (edges.length !== 2) return null;
+
+    const [e1, e2] = edges;
+
+    const a = e1.v1Id === v.id ? e1.v2Id : e1.v1Id;
+    const b = e2.v1Id === v.id ? e2.v2Id : e2.v1Id;
+
+    return [a, b, e1, e2];
+  }
+
+  dissolveEdgeVertices(vertexIds, meshData) {
+    for (const vId of vertexIds) {
+      const v = meshData.vertices.get(vId);
+      if (!v) continue;
+
+      if (v.edgeIds.size !== 2) continue;
+
+      const result = this.getEdgeOppositeVertices(v, meshData);
+      if (!result) continue;
+
+      const [aId, bId, e1, e2] = result;
+
+      if (aId === bId) continue;
+
+      for (const faceId of v.faceIds) {
+        const face = meshData.faces.get(faceId);
+        if (!face) continue;
+
+        const newVertexIds = face.vertexIds.filter(id => id !== vId);
+
+        if (newVertexIds.length < 3) {
+          meshData.deleteFace(face);
+          continue;
+        }
+
+        meshData.deleteFace(face);
+        this.createFaceFromVertices(newVertexIds);
+      }
+
+      // Remove old edges and vertex
+      meshData.deleteEdge(e1);
+      meshData.deleteEdge(e2);
+      meshData.deleteVertex(v);
+    }
+  }
+
+  dissolveFaceVertices(vertexIds, meshData) {
+    const vertexIslands = this.splitVertexIslands(vertexIds, meshData);
+
+    for (const island of vertexIslands) {
+      const candidateFaces = new Set();
+      const candidateEdges = new Set();
+      const candidateVertices = new Set();
+
+      for (const vertexId of island) {
+        const vertex = meshData.vertices.get(vertexId);
+        if (!vertex) continue;
+
+        for (const faceId of vertex.faceIds) {
+          const face = meshData.faces.get(faceId);
+          if (!face) continue;
+
+          candidateFaces.add(faceId);
+          face.vertexIds.forEach(v => candidateVertices.add(v));
+          face.edgeIds.forEach(e => candidateEdges.add(e));
+        }
+      }
+
+      const boundaryEdges = this.getBoundaryEdges(meshData, [...candidateVertices], [...candidateEdges], [...candidateFaces]);
+
+      const orderedVertexIds = this.orderBoundaryLoop(boundaryEdges);
+      this.createFaceFromVertices(orderedVertexIds);
+    }
+
+    this.deleteVertices(vertexIds);
+  }
+
   createFaceFromVertices(vertexIds) {
     const meshData = this.object.userData.meshData;
     if (!meshData || !vertexIds || vertexIds.length < 3) {

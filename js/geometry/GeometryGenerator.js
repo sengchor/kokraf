@@ -307,10 +307,12 @@ export function projectTo2D(verts, normal) {
   return flat;
 }
 
-export function removeCollinearVertices(verts, epsilon = 1e-6) {
+export function removeCollinearVertices(verts, angleEpsilon = 1e-4) {
   if (verts.length <= 3) return verts.slice();
 
-  const toVec3 = v => new THREE.Vector3(v.position.x, v.position.y, v.position.z);
+  const toVec3 = v =>
+    new THREE.Vector3(v.position.x, v.position.y, v.position.z);
+
   const filtered = [];
 
   for (let i = 0; i < verts.length; i++) {
@@ -318,10 +320,12 @@ export function removeCollinearVertices(verts, epsilon = 1e-6) {
     const curr = toVec3(verts[i]);
     const next = toVec3(verts[(i + 1) % verts.length]);
 
-    const v1 = curr.clone().sub(prev);
-    const v2 = next.clone().sub(curr);
+    const v1 = curr.clone().sub(prev).normalize();
+    const v2 = next.clone().sub(curr).normalize();
 
-    if (v1.clone().cross(v2).lengthSq() > epsilon) {
+    const dot = v1.dot(v2);
+
+    if (Math.abs(dot) < 1 - angleEpsilon) {
       filtered.push(verts[i]);
     }
   }
