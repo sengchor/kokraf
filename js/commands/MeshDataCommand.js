@@ -1,5 +1,3 @@
-import { VertexEditor } from '../tools/VertexEditor.js';
-
 export class MeshDataCommand {
   /**
    * @param {Editor} editor
@@ -11,6 +9,7 @@ export class MeshDataCommand {
    */
   constructor(editor, object, beforeMeshData, afterMeshData, name = 'MeshDataCommand') {
     this.editor = editor;
+    this.vertexEditor = editor.vertexEditor;
     this.name = name;
     this.objectUuid = object ? object.uuid : null;
 
@@ -30,9 +29,9 @@ export class MeshDataCommand {
     const object = this.editor.objectByUuid(this.objectUuid);
     if (!object || !meshData) return;
 
-    const vertexEditor = new VertexEditor(this.editor, object);
-    vertexEditor.applyMeshData(meshData);
-    vertexEditor.updateGeometryAndHelpers();
+    this.vertexEditor.setObject(object);
+    this.vertexEditor.transform.applyMeshData(meshData);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
   }
 
   toJSON() {

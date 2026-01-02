@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { VertexEditor } from '../tools/VertexEditor.js';
 
 export class SetVertexPositionCommand {
   static type = 'SetVertexPositionCommand';
@@ -13,6 +12,7 @@ export class SetVertexPositionCommand {
    */
   constructor(editor, object = null, vertexIndices = null, newPositions = null, oldPositions = null) {
     this.editor = editor;
+    this.vertexEditor = editor.vertexEditor;
     this.name = 'Set Vertex Position';
 
     this.objectUuid = object ? object.uuid : null;
@@ -25,9 +25,9 @@ export class SetVertexPositionCommand {
   execute() {
     const object = this.editor.objectByUuid(this.objectUuid);
 
-    const vertexEditor = new VertexEditor(this.editor, object);
-    vertexEditor.setVerticesWorldPositions(this.vertexIndices, this.newPositions);
-    vertexEditor.updateGeometryAndHelpers();
+    this.vertexEditor.setObject(object);
+    this.vertexEditor.transform.setVerticesWorldPositions(this.vertexIndices, this.newPositions);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
     
     this.editor.editSelection.selectVertices(this.vertexIndices, true);
   }
@@ -35,9 +35,9 @@ export class SetVertexPositionCommand {
   undo() {
     const object = this.editor.objectByUuid(this.objectUuid);
     
-    const vertexEditor = new VertexEditor(this.editor, object);
-    vertexEditor.setVerticesWorldPositions(this.vertexIndices, this.oldPositions);
-    vertexEditor.updateGeometryAndHelpers();
+    this.vertexEditor.setObject(object);
+    this.vertexEditor.transform.setVerticesWorldPositions(this.vertexIndices, this.oldPositions);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
 
     this.editor.editSelection.selectVertices(this.vertexIndices, true);
   }

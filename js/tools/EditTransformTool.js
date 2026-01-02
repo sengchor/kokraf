@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { VertexEditor } from './VertexEditor.js';
 import { SetVertexPositionCommand } from '../commands/SetVertexPositionCommand.js';
 import { ShadingUtils } from '../utils/ShadingUtils.js';
 
@@ -8,6 +7,7 @@ export class EditTransformTool {
   constructor(editor, mode = 'translate') {
     this.editor = editor;
     this.signals = editor.signals;
+    this.vertexEditor = editor.vertexEditor;
     this.mode = mode;
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
@@ -104,8 +104,8 @@ export class EditTransformTool {
       const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
       if (!selectedVertexIds.length) return;
 
-      this.vertexEditor = new VertexEditor(this.editor, editedObject);
-      this.oldPositions = this.vertexEditor.getVertexPositions(selectedVertexIds);
+      this.vertexEditor.setObject(editedObject);
+      this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
     });
 
     this.transformControls.addEventListener('change', () => {
@@ -114,7 +114,7 @@ export class EditTransformTool {
       const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
       if (!selectedVertexIds.length) return;
 
-      if (!this.vertexEditor) this.vertexEditor = new VertexEditor(this.editor, editedObject);
+      if (!this.vertexEditor.object) this.vertexEditor.setObject(editedObject);
 
       const handle = this.transformControls.object;
 
@@ -165,7 +165,7 @@ export class EditTransformTool {
 
     this.currentTranslationDelta = offset.clone();
     const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
-    this.vertexEditor.setVerticesWorldPositions(vertexIds, newPositions);
+    this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, newPositions);
   }
 
   applyRotate(vertexIds, handle) {
@@ -211,7 +211,7 @@ export class EditTransformTool {
     handle.quaternion.copy(this.startPivotQuaternion);
     this.transformControls.update();
 
-    this.vertexEditor.setVerticesWorldPositions(vertexIds, newPositions);
+    this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, newPositions);
   }
 
   applyScale(vertexIds, handle) {
@@ -263,7 +263,7 @@ export class EditTransformTool {
       return offset.add(pivot);
     });
 
-    this.vertexEditor.setVerticesWorldPositions(vertexIds, newPositions);
+    this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, newPositions);
   }
 
   restoreSubSelection() {
@@ -338,7 +338,7 @@ export class EditTransformTool {
   }
 
   clearStartData() {
-    this.vertexEditor = null;
+    this.vertexEditor.object = null;
     this.oldPositions = null;
     this.startPivotPosition = null;
     this.startPivotQuaternion = null;

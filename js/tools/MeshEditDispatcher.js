@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { VertexEditor } from './VertexEditor.js';
 import { getSortedVertexIds } from '../utils/SortUtils.js';
 import { getNeighborFaces, shouldFlipNormal } from '../utils/AlignedNormalUtils.js';
 import { CreateFaceCommand } from '../commands/CreateFaceCommand.js';
@@ -10,6 +9,7 @@ export class MeshEditDispatcher {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
+    this.vertexEditor = editor.vertexEditor;
     this.editSelection = editor.editSelection;
 
     this.setupListeners();
@@ -37,8 +37,7 @@ export class MeshEditDispatcher {
           return null;
         }
       }
-      
-      const vertexEditor = new VertexEditor(this.editor, editedObject);
+      this.vertexEditor.setObject(editedObject);
       
       const { sortedVertexIds, normal } = getSortedVertexIds(meshData, selectedVertexIds);
       const neighbors = getNeighborFaces(meshData, selectedEdgeIds);
@@ -48,7 +47,7 @@ export class MeshEditDispatcher {
         sortedVertexIds.reverse();
       }
 
-      const newFaceId = vertexEditor.createFaceFromVertices(sortedVertexIds);
+      const newFaceId = this.vertexEditor.topology.createFaceFromVertices(sortedVertexIds);
       const newFace = meshData.faces.get(newFaceId);
       const newVertices = [...newFace.vertexIds];
       const newEdges = [...newFace.edgeIds];
@@ -73,19 +72,19 @@ export class MeshEditDispatcher {
       const meshData = editedObject.userData.meshData;
       this.beforeMeshData = structuredClone(meshData);
 
-      const vertexEditor = new VertexEditor(this.editor, editedObject);
+      this.vertexEditor.setObject(editedObject);
       if (action === 'delete-vertices') {
-        vertexEditor.deleteVertices(selectedVertexIds);
+        this.vertexEditor.delete.deleteVertices(selectedVertexIds);
       } else if (action === 'delete-edges') {
-        vertexEditor.deleteEdges(selectedEdgeIds);
+        this.vertexEditor.delete.deleteEdges(selectedEdgeIds);
       } else if (action === 'delete-faces') {
-        vertexEditor.deleteFaces(selectedFaceIds);
+        this.vertexEditor.delete.deleteFaces(selectedFaceIds);
       } else if (action === 'delete-only-edges-faces') {
-        vertexEditor.deleteEdgesAndFacesOnly(selectedEdgeIds);
+        this.vertexEditor.delete.deleteEdgesAndFacesOnly(selectedEdgeIds);
       } else if (action === 'delete-only-faces') {
-        vertexEditor.deleteFacesOnly(selectedFaceIds);
+        this.vertexEditor.delete.deleteFacesOnly(selectedFaceIds);
       } else if (action === 'dissolve-vertices') {
-        vertexEditor.dissolveVertices(selectedVertexIds);
+        this.vertexEditor.dissolve.dissolveVertices(selectedVertexIds);
       }
 
       this.afterMeshData = structuredClone(meshData);
@@ -107,16 +106,16 @@ export class MeshEditDispatcher {
       let newEdgeIds = [];
       let newFaceIds = [];
 
-      const vertexEditor = new VertexEditor(this.editor, editedObject);
+      this.vertexEditor.setObject(editedObject);
       if (mode === 'vertex') {
-        ({ newVertexIds } = vertexEditor.duplicateSelectionVertices(selectedVertexIds));
-        vertexEditor.deleteSelectionVertices(selectedVertexIds);
+        ({ newVertexIds } = this.vertexEditor.duplicate.duplicateSelectionVertices(selectedVertexIds));
+        this.vertexEditor.delete.deleteSelectionVertices(selectedVertexIds);
       } else if (mode === 'edge') {
-        ({ newEdgeIds } = vertexEditor.duplicateSelectionEdges(selectedEdgeIds));
-        vertexEditor.deleteSelectionEdges(selectedEdgeIds);
+        ({ newEdgeIds } = this.vertexEditor.duplicate.duplicateSelectionEdges(selectedEdgeIds));
+        this.vertexEditor.delete.deleteSelectionEdges(selectedEdgeIds);
       } else if (mode === 'face') {
-        ({ newFaceIds } = vertexEditor.duplicateSelectionFaces(selectedFaceIds));
-        vertexEditor.deleteSelectionFaces(selectedFaceIds);
+        ({ newFaceIds } = this.vertexEditor.duplicate.duplicateSelectionFaces(selectedFaceIds));
+        this.vertexEditor.delete.deleteSelectionFaces(selectedFaceIds);
       }
 
       this.afterMeshData = structuredClone(meshData);
