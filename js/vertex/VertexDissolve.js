@@ -159,6 +159,53 @@ export class VertexDissolve {
     return islands;
   }
 
+  splitEdgeIslands(edgeIds) {
+    const selected = new Set(edgeIds);
+    const visited = new Set();
+    const islands = [];
+
+    for (const start of selected) {
+      if (visited.has(start)) continue;
+
+      const stack = [start];
+      const island = new Set();
+
+      while (stack.length) {
+        const eId = stack.pop();
+        if (visited.has(eId)) continue;
+
+        visited.add(eId);
+        island.add(eId);
+
+        const e = this.meshData.edges.get(eId);
+        if (!e) continue;
+
+        // expand via vertices
+        for (const vId of [e.v1Id, e.v2Id]) {
+          const v = this.meshData.vertices.get(vId);
+          if (!v) continue;
+
+          for (const veId of v.edgeIds) {
+            if (!selected.has(veId) || visited.has(veId)) continue;
+
+            const ve = this.meshData.edges.get(veId);
+            if (!ve) continue;
+
+            // Check if they share at least one face
+            const sharedFace = [...e.faceIds].some(faceId => ve.faceIds.has(faceId));
+            if (sharedFace) {
+              stack.push(veId);
+            }
+          }
+        }
+      }
+
+      islands.push([...island]);
+    }
+
+    return islands;
+  }
+
   orderBoundaryLoop(boundaryEdges) {
     if (!boundaryEdges || boundaryEdges.length === 0) return [];
 
@@ -197,5 +244,90 @@ export class VertexDissolve {
     }
 
     return ordered;
+  }
+
+  dissolveEdges(edgeIds) {
+    const edgeIslands = this.splitEdgeIslands(edgeIds);
+
+    const edgeVertices = [];
+    for (const eId of edgeIds) {
+      const edge = this.meshData.edges.get(eId);
+      if (!edge || edge.faceIds.size !== 2) continue;
+
+      edgeVertices.push(edge.v1Id);
+      edgeVertices.push(edge.v2Id);
+    }
+    
+    for (const island of edgeIslands) {
+      this.dissolveEdgeIsland(island);
+    }
+    
+    this.dissolveEdgeVertices(edgeVertices);
+  }
+
+  dissolveEdgeIsland(edgeIds) {
+    const candidateFaces = new Set();
+    const candidateEdges = new Set();
+    const candidateVertices = new Set();
+
+    // Only consider vertices of edges that are internal
+    const selectedVertices = [];
+    for (const eId of edgeIds) {
+      const edge = this.meshData.edges.get(eId);
+      if (!edge) continue;
+
+      selectedVertices.push(edge.v1Id);
+      selectedVertices.push(edge.v2Id);
+    }
+
+    for (const eId of edgeIds) {
+      const edge = this.meshData.edges.get(eId);
+      if (!edge) continue;
+
+      candidateVertices.add(edge.v1Id);
+      candidateVertices.add(edge.v2Id);
+
+      candidateEdges.add(edge.id);
+
+      for (const fId of edge.faceIds) {
+        candidateFaces.add(fId);
+        const f = this.meshData.faces.get(fId);
+        if (!f) continue;
+
+        for (const vId of f.vertexIds) {
+          candidateVertices.add(vId);
+        }
+
+        for (const feId of f.edgeIds) {
+          if (!candidateEdges.has(feId)) {
+            candidateEdges.add(feId);
+          }
+        }
+      }
+    }
+
+    const boundaryEdges = this.topology.getBoundaryEdges([...candidateVertices], [...candidateEdges], [...candidateFaces]);
+
+    if (boundaryEdges.length < 3) return;
+
+    const boundaryEdgeIds = new Set(boundaryEdges.map(e => e.id));
+    let orderedVertexIds = this.orderBoundaryLoop(boundaryEdges);
+
+    for (const fId of candidateFaces) {
+      const face = this.meshData.faces.get(fId);
+      if (face) this.meshData.deleteFace(face);
+    }
+
+    for (const eId of candidateEdges) {
+      if (!boundaryEdgeIds.has(eId)) {
+        const edge = this.meshData.edges.get(eId);
+        if (edge) this.meshData.deleteEdge(edge);
+      }
+    }
+
+    this.vertexEditor.delete.cleanupOrphanVertices(this.meshData, candidateVertices);
+    orderedVertexIds = orderedVertexIds.filter(vId => this.meshData.vertices.get(vId));
+
+    this.topology.createFaceFromVertices(orderedVertexIds);
   }
 }

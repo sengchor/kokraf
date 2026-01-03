@@ -85,6 +85,8 @@ export class MeshEditDispatcher {
         this.vertexEditor.delete.deleteFacesOnly(selectedFaceIds);
       } else if (action === 'dissolve-vertices') {
         this.vertexEditor.dissolve.dissolveVertices(selectedVertexIds);
+      } else if (action === 'dissolve-edges') {
+        this.vertexEditor.dissolve.dissolveEdges(selectedEdgeIds);
       }
 
       this.afterMeshData = structuredClone(meshData);
