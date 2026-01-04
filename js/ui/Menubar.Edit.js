@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { SetPositionCommand } from "../commands/SetPositionCommand.js";
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
+import { MultiCommand } from '../commands/MultiCommand.js';
+import { duplicateObject } from '../utils/ObjectUtils.js';
 
 export class MenubarEdit {
   constructor(editor) {
@@ -26,29 +28,37 @@ export class MenubarEdit {
       const objects = this.selection.selectedObjects;
       if (!objects || objects.length === 0) return;
 
-      objects.forEach(object => {
-        this.editor.execute(new SetPositionCommand(this.editor, object, newPos));
-        this.selection.updatePivotHandle();
-      });
+      const oldPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
+      const newPositions = objects.map(() => newPos.clone());
+
+      this.editor.execute(new SetPositionCommand(this.editor, objects, newPositions, oldPositions));
     });
 
-    document.querySelector('.clone').addEventListener('click', () => {
+    document.querySelector('.duplicate').addEventListener('click', () => {
       const objects = this.selection.selectedObjects;
       if (!objects || objects.length === 0) return;
 
+      const multi = new MultiCommand(this.editor, 'Duplicate Objects');
+
       objects.forEach(object => {
-        const clone = object.clone(true);
-        this.editor.execute(new AddObjectCommand(this.editor, clone));
+        const duplicate = duplicateObject(object);
+        multi.add(new AddObjectCommand(this.editor, duplicate));
       });
+
+      this.editor.execute(multi);
     });
 
     document.querySelector('.delete').addEventListener('click', () => {
       const objects = this.selection.selectedObjects;
       if (!objects || objects.length === 0) return;
 
+      const multi = new MultiCommand(this.editor, 'Delete Objects');
+
       objects.forEach(object => {
-        this.editor.execute(new RemoveObjectCommand(this.editor, object));
+        multi.add(new RemoveObjectCommand(this.editor, object));
       });
+
+      this.editor.execute(multi);
     });
   }
 }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
 import { SetShadingCommand } from "../commands/SetShadingCommand.js";
+import { MultiCommand } from '../commands/MultiCommand.js';
 
 export default class ContextMenu {
   constructor( editor ) {
@@ -125,9 +126,13 @@ export default class ContextMenu {
       const objects = this.selection.selectedObjects;
       if (!objects || objects.length === 0) return;
 
-      objects.forEach(obj => {
-        this.editor.execute(new RemoveObjectCommand(this.editor, obj));
+      const multi = new MultiCommand(this.editor, 'Delete Objects');
+
+      objects.forEach(object => {
+        multi.add(new RemoveObjectCommand(this.editor, object));
       });
+
+      this.editor.execute(multi);
       return;
     }
 

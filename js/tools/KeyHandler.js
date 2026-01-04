@@ -62,6 +62,8 @@ export class KeyHandler {
           document.activeElement.blur();
         } 
         this.signals.switchMode.dispatch('edit');
+      } else if (event.shiftKey && event.key.toLowerCase() === 'd') {
+        this.signals.objectDuplicated.dispatch();
       }
     } else if (this.currentMode === 'edit') {
       if (event.key === 'w') {
