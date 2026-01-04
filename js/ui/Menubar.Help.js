@@ -4,6 +4,10 @@ export class MenubarHelp {
   }
 
   init() {
+      document.querySelector('.manual').addEventListener('click', () => {
+      window.open('/manual', '_blank');
+    });
+
     document.querySelector('.sourcecode').addEventListener('click', () => {
       window.open('https://github.com/sengchor/kokraf', '_blank');
     });
