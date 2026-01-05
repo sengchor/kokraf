@@ -16,6 +16,13 @@ body {
   height: 100vh;
 }
 
+#sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
 #sidebar {
   width: 280px;
   background-color: #faf7f2;
@@ -142,43 +149,104 @@ td {
   color: #cccccc;
 }
 
+/* Scrollbar*/
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: #f1f1f1;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 4px;
+  background: #8f8f8f;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  background: #5d5d5d;
+}
+
+::-webkit-scrollbar-button {
+  display: block;
+  background-color: #f1f1f1;
+  height: 10px;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement {
+  background: url('data:image/svg+xml;utf8,<svg fill="%235d5d5d" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><polygon points="0,6 5,1 10,6"/></svg>') no-repeat center;
+  background-size: 100% 100%;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:increment {
+  background: url('data:image/svg+xml;utf8,<svg fill="%235d5d5d" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><polygon points="0,4 5,9 10,4"/></svg>') no-repeat center;
+  background-size: 100% 100%;
+}
+
+::-webkit-scrollbar-button:horizontal {
+  display: none;
 }
 
 #manual-logo {
   display: flex;
-  justify-content: left;
   align-items: center;
-  margin-left: 6px;
-  margin-bottom: 12px;
-  width: fit-content;
   padding: 8px 0;
-  cursor: pointer;
+  margin-left: 5px;
   text-decoration: none;
 }
 
 #manual-logo img {
   max-width: 25px;
-  height: auto;
-  display: block;
   border-radius: 6px;
   transition: transform 0.2s ease;
 }
 
 #manual-logo img:hover {
   transform: scale(1.1);
+}
+
+#manual-home svg {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: translateY(1px);
+}
+
+#manual-home {
+  position: relative;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+#manual-home:hover {
+  opacity: 1;
+}
+
+#manual-home::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  left: 110%;
+  transform: translateY(-50%);
+  
+  background: #fff;
+  color: #444;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+
+  border: 1px solid #ccc; 
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#manual-home:hover::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(4px);
 }

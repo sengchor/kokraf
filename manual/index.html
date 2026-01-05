@@ -50,12 +50,21 @@
   </script>
 
   <link rel="stylesheet" href="./manual.css">
+  <link rel="stylesheet" href="./manual-content.css">
 </head>
 <body>
   <div id="sidebar">
-    <a href="/" id="manual-logo">
-      <img src="../assets/images/KokrafLogo.png" alt="Kokraf Logo">
-    </a>
+    <div id="sidebar-header">
+      <a href="/" id="manual-logo">
+        <img src="../assets/images/KokrafLogo.png" alt="Kokraf Logo">
+      </a>
+      <a href="/manual" id="manual-home" data-tooltip="User Manual">
+        <svg viewBox="0 0 22 22" width="20" height="20" aria-hidden="true">
+          <path d="M4 4.5C4 3.67 4.67 3 5.5 3H20v18H5.5A1.5 1.5 0 0 1 4 19.5v-15Z"/>
+          <path d="M6 3v18"/>
+        </svg>
+      </a>
+    </div>
 
     <input type="text" id="search-input" placeholder="Search">
     <ul id="category-list">
@@ -75,7 +84,7 @@
 
     <p>
       This manual helps you learn how to navigate Kokraf, use its tools, and understand
-      core modeling workflows from beginner to advanced levels.
+      core modeling workflows.
     </p>
 
 
@@ -89,7 +98,7 @@
     <ul>
       <li>Move Tool</li>
       <li>Vertex Dissolve</li>
-      <li>Orbit Camera</li>
+      <li>Selection</li>
     </ul>
 
     <h2>Notes</h2>

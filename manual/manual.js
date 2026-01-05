@@ -6,7 +6,6 @@ const content = document.getElementById('content');
 // Search filtering
 searchInput.addEventListener('input', () => {
   const query = searchInput.value.toLowerCase();
-
   categories.forEach(item => {
     const text = item.textContent.toLowerCase();
     item.style.display = text.includes(query) ? '' : 'none';
@@ -21,7 +20,7 @@ categories.forEach(item => {
 
     setActive(item);
     await loadPage(page);
-    updateURL(page);
+    updateHash(page);
   });
 });
 
@@ -31,13 +30,20 @@ function setActive(activeItem) {
   activeItem.classList.add('active');
 }
 
+// Load content dynamically
 async function loadPage(page) {
   try {
+    if (page === 'manual') {
+      content.innerHTML = `
+        <h1>Kokraf User Manual</h1>
+        <p>Welcome to the <strong>Kokraf User Manual</strong> — a collaborative 3D modeling app.</p>
+      `;
+      return;
+    }
+
     const response = await fetch(`./${page}.html`);
     if (!response.ok) throw new Error('Page not found');
-
-    const html = await response.text();
-    content.innerHTML = html;
+    content.innerHTML = await response.text();
   } catch (err) {
     content.innerHTML = `
       <h1>Page not found</h1>
@@ -47,14 +53,15 @@ async function loadPage(page) {
   }
 }
 
-function updateURL(page) {
-  history.pushState({ page }, '', `/manual/${page}`);
+// Update hash in URL
+function updateHash(page) {
+  window.location.hash = page;
 }
 
-// Handle direct URL access
-function loadFromURL() {
-  const parts = window.location.pathname.split('/');
-  let page = parts[parts.length - 1];
+// Load page based on hash
+function loadFromHash() {
+  let page = window.location.hash.replace('#', '');
+  if (!page) page = 'manual';
 
   const item = categories.find(li => li.dataset.link === page);
   if (item) {
@@ -63,5 +70,8 @@ function loadFromURL() {
   }
 }
 
-window.addEventListener('popstate', loadFromURL);
-loadFromURL();
+// Listen to hash changes
+window.addEventListener('hashchange', loadFromHash);
+
+// Initial load
+loadFromHash();

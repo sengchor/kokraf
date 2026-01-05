@@ -1,0 +1,85 @@
+#content ul {
+  margin: 12px 0 24px;
+  padding-left: 20px;
+}
+
+#content li {
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.manual-key {
+  font-family: monospace;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+}
+
+.manual-note {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+}
+
+.manual-input {
+  display: inline-block;
+  padding: 4px 8px;
+  margin: 0 2px;
+  font-size: 13px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  background: #f6f6f6;
+  color: #333;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.axis {
+  display: inline-block;
+  padding: 4px 8px;
+  margin: 0 2px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #f5f5f5;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ----- Shortcut Table Styling ----- */
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  max-width: 900px;
+}
+
+.shortcut-table th,
+.shortcut-table td {
+  border: 1px solid #444;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 16px;
+  font-family: inherit;
+  color: #444;
+}
+
+.shortcut-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #444;
+}
+
+.shortcut-table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.shortcut-table tr:hover {
+  background-color: #f0f0f0;
+}
