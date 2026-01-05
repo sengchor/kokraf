@@ -125,3 +125,26 @@
 .checked .tick::before {
   content: '\2713';
 }
+
+.login-button {
+  margin-left: auto;
+  margin-right: 12px;
+  padding: 0px 16px;
+  line-height: 22px;
+  background-color: #ddd;
+  color: #777;
+  border-radius: 0px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s;
+}
+
+.login-button:hover {
+  background-color: #fff;
+}
+
+.star {
+  vertical-align: middle;
+  transform: translateY(-2px);
+}
