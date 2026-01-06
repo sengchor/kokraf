@@ -7,6 +7,7 @@ import { MenubarHelp } from './Menubar.Help.js';
 export default class Menubar {
   constructor( editor ) {
     this.uiLoader = editor.uiLoader;
+    this.signals = editor.signals;
     this.load(editor);
   }
 
@@ -17,6 +18,11 @@ export default class Menubar {
       new MenubarAdd(editor);
       new MenubarView(editor);
       new MenubarHelp(editor);
+
+      const loginButton = document.querySelector('.login-button');
+      loginButton.addEventListener('click', () => {
+        this.signals.showLogin.dispatch();
+      });
     });
   }
 }
