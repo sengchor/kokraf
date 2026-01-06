@@ -29,10 +29,10 @@ export class AccountPanel {
   }
 
   async open() {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const { data: { session }, error } = await supabase.auth.getSession();
 
-    if (user) {
-      this.emailDisplay.textContent = user.email;
+    if (session && session.user) {
+      this.emailDisplay.textContent = session.user.email;
     } else {
       this.emailDisplay.textContent = 'Not signed in';
     }
