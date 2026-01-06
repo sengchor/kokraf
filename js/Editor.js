@@ -26,6 +26,7 @@ import { SelectionBox } from './tools/SelectionBox.js';
 import { SnapManager } from './core/SnapManager.js';
 import { VertexEditor } from './vertex/VertexEditor.js';
 import { LoginPanel } from './login/LoginPanel.js';
+import { AccountPanel } from './login/AccountPanel.js';
 
 export default class Editor {
   constructor() {
@@ -71,6 +72,8 @@ export default class Editor {
 
       showLogin: new Signal(),
       userLoggedIn: new Signal(),
+      showAccount: new Signal(),
+      userLoggedOut: new Signal(),
     }
 
     this.helpers = {};
@@ -99,6 +102,7 @@ export default class Editor {
     this.panelResizer = new PanelResizer(this);
     this.contextMenu = new ContextMenu(this);
     this.loginPanel = new LoginPanel(this);
+    this.accountPanel = new AccountPanel(this);
 
     this.clock = new THREE.Clock();
 

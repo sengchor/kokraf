@@ -22,40 +22,27 @@ export default class Menubar {
       new MenubarHelp(editor);
 
       this.loginButton = document.querySelector('.login-button');
-      this.starIcon = this.loginButton.querySelector('.star');
+      this.accountButton = document.querySelector('.account-button');
 
       this.loginButton.addEventListener('click', () => {
         this.signals.showLogin.dispatch();
+      });
+
+      this.accountButton.addEventListener('click', () => {
+        this.signals.showAccount.dispatch();
       });
     });
   }
 
   setupListener() {
     this.signals.userLoggedIn.add(() => {
-      this.setAccountState();
+      this.loginButton.classList.add('hidden');
+      this.accountButton.classList.remove('hidden');
     });
-  }
 
-  setAccountState() {
-    this.loginButton.textContent = ' Account';
-
-    // Re-attach star (since textContent removes children)
-    const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    star.setAttribute('viewBox', '0 0 24 24');
-    star.setAttribute('width', '16');
-    star.setAttribute('height', '16');
-    star.classList.add('star');
-
-    star.innerHTML = `
-      <path d="M12 17.27L18.18 21 16.54 13.97
-              22 9.24l-7.19-.62L12 2
-              9.19 8.62 2 9.24l5.46 4.73
-              L5.82 21z"/>
-    `;
-
-    star.style.fill = '#f5c542';
-    star.style.stroke = '#888';
-
-    this.loginButton.prepend(star);
+    this.signals.userLoggedOut.add(() => {
+      this.accountButton.classList.add('hidden');
+      this.loginButton.classList.remove('hidden');
+    });
   }
 }

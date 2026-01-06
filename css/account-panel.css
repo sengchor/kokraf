@@ -1,11 +1,11 @@
-#overlay-root-login {
+#overlay-root-account {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 1000;
 }
 
-.login-overlay {
+.account-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.4);
@@ -20,7 +20,7 @@
   display: none !important;
 }
 
-.login-panel {
+.account-panel {
   position: relative;
   background-color: #eeeeee;
   padding: 32px;
@@ -30,86 +30,65 @@
   font-family: sans-serif;
   font-size: 14px;
   border: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.login-panel h3 {
-  margin: 0 0 20px;
+.account-panel .account-title {
+  margin: 0;
   font-size: 22px;
   color: #888;
   text-align: center;
 }
 
-.login-label {
-  display: block;
-  margin-bottom: 6px;
-  margin-top: 10px;
+.account-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
+.account-label {
   font-size: 13px;
   font-weight: normal;
   color: #888;
   letter-spacing: 0.2px;
 }
 
-.login-panel input {
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 10px;
-  padding: 10px 10px;
-
+.account-email {
   font-size: 14px;
-  font-family: sans-serif;
-
-  border-radius: 3px;
-  border: 1px solid #bbb;
-  background-color: #fff;
   color: #555;
-}
-
-.login-panel input:focus {
-  outline: none;
-  border-color: #1587f9;
-}
-
-#login-submit {
-  width: 100%;
-  margin-top: 16px;
-  padding: 10px 0;
-
-  border-radius: 3px;
-  background-color: #ddd;
+  background-color: #fff;
   border: 1px solid #bbb;
-  color: #777;
+  border-radius: 3px;
+  padding: 10px;
+  word-break: break-all;
+}
+
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+#account-logout {
+  width: 100%;
+  padding: 10px 0;
+  border-radius: 3px;
+  border: 1px solid #bbb;
+  background-color: #ddd;
+  color: #b44;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
 
-#login-submit:hover {
+#account-logout:hover {
   background-color: #fff;
 }
 
-.login-panel .error {
-  margin-top: 8px;
-  color: #c44;
-  font-size: 14px;
-}
-
-.switch-mode {
-  margin-top: 12px;
-  text-align: center;
-  font-size: 14px;
-  color: #888;
-}
-
-.switch-mode span {
-  cursor: pointer;
-}
-
-.switch-mode span:hover {
-  color: #1587f9;
-}
-
-.login-close {
+.account-close {
   position: absolute;
   top: 10px;
   right: 12px;
@@ -121,6 +100,6 @@
   cursor: pointer;
 }
 
-.login-close:hover {
+.account-close:hover {
   color: #000;
 }

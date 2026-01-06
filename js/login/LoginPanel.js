@@ -12,7 +12,7 @@ export class LoginPanel {
   }
 
   load() {
-    this.uiLoader.loadComponent('#overlay-root', 'components/login-panel.html', () => {
+    this.uiLoader.loadComponent('#overlay-root-login', 'components/login-panel.html', () => {
       this.overlay = document.getElementById('login-overlay');
       this.error = document.getElementById('login-error');
       this.title = document.getElementById('login-title');
@@ -99,6 +99,11 @@ export class LoginPanel {
 
       if (response.error) {
         this.error.textContent = response.error.message;
+        return;
+      }
+
+      if (response.data.user && !response.data.session) {
+        this.error.textContent = 'This email is already registered. Please log in.';
         return;
       }
 
