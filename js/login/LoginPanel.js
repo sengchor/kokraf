@@ -1,3 +1,5 @@
+import { supabase } from '../login/supabase.js';
+
 export class LoginPanel {
   constructor(editor) {
     this.editor = editor;
@@ -69,7 +71,7 @@ export class LoginPanel {
     }
   }
 
-  submit() {
+  async submit() {
     const email = this.emailInput.value;
     const password = this.passwordInput.value;
     const confirm = this.confirmInput.value;
@@ -86,7 +88,29 @@ export class LoginPanel {
       return;
     }
 
-    // TODO: call Supabase login/signup here
-    console.log(this.mode, email, password);
+    try {
+      let response;
+
+      if (this.mode === 'login') {
+        response = await supabase.auth.signInWithPassword({ email, password });
+      } else {
+        response = await supabase.auth.signUp({ email, password });
+      }
+
+      if (response.error) {
+        this.error.textContent = response.error.message;
+        return;
+      }
+
+      this.signals.userLoggedIn.dispatch();
+      this.close();
+    } catch(err) {
+      console.error(err);
+      this.error.textContent = 'An unexpected error occurred';
+    }
+
+    this.emailInput.value = '';
+    this.passwordInput.value = '';
+    this.confirmInput.value = '';
   }
 }

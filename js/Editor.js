@@ -25,7 +25,7 @@ import EditHelpers from './helpers/EditHelpers.js';
 import { SelectionBox } from './tools/SelectionBox.js';
 import { SnapManager } from './core/SnapManager.js';
 import { VertexEditor } from './vertex/VertexEditor.js';
-import { LoginPanel } from './ui/LoginPanel.js';
+import { LoginPanel } from './login/LoginPanel.js';
 
 export default class Editor {
   constructor() {
@@ -70,6 +70,7 @@ export default class Editor {
       transformOrientationChanged: new Signal(),
 
       showLogin: new Signal(),
+      userLoggedIn: new Signal(),
     }
 
     this.helpers = {};
