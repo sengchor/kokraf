@@ -130,10 +130,15 @@
   position: relative;
   margin-left: auto;
   margin-right: 12px;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .login-button,
-.account-button {
+.account-button,
+.pricing-button {
   display: inline-flex;
   align-items: center;
 
@@ -153,7 +158,8 @@
 }
 
 .login-button:hover,
-.account-button:hover {
+.account-button:hover,
+.pricing-button:hover {
   background-color: #fff;
 }
 

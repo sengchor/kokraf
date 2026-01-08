@@ -23,6 +23,7 @@ export default class Menubar {
 
       this.loginButton = document.querySelector('.login-button');
       this.accountButton = document.querySelector('.account-button');
+      this.pricingButton = document.querySelector('.pricing-button');
 
       this.loginButton.addEventListener('click', () => {
         this.signals.showLogin.dispatch();
@@ -30,6 +31,10 @@ export default class Menubar {
 
       this.accountButton.addEventListener('click', () => {
         this.signals.showAccount.dispatch();
+      });
+
+      this.pricingButton.addEventListener('click', () => {
+        this.signals.showPricing.dispatch();
       });
     });
   }

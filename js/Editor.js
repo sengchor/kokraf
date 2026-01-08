@@ -27,6 +27,7 @@ import { SnapManager } from './core/SnapManager.js';
 import { VertexEditor } from './vertex/VertexEditor.js';
 import { LoginPanel } from './login/LoginPanel.js';
 import { AccountPanel } from './login/AccountPanel.js';
+import { PricingPanel } from './ui/PricingPanel.js';
 
 export default class Editor {
   constructor() {
@@ -74,6 +75,7 @@ export default class Editor {
       userLoggedIn: new Signal(),
       showAccount: new Signal(),
       userLoggedOut: new Signal(),
+      showPricing: new Signal(),
     }
 
     this.helpers = {};
@@ -103,6 +105,7 @@ export default class Editor {
     this.contextMenu = new ContextMenu(this);
     this.loginPanel = new LoginPanel(this);
     this.accountPanel = new AccountPanel(this);
+    this.pricingPanel = new PricingPanel(this);
 
     this.clock = new THREE.Clock();
 
