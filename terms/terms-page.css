@@ -1,0 +1,162 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+  background-color: #ffffff;
+  color: #222;
+}
+
+.terms-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 0.4em;
+}
+
+h2 {
+  font-size: 1.3rem;
+  margin-top: 2em;
+}
+
+p,
+li {
+  margin-bottom: 0.8em;
+}
+
+ul {
+  padding-left: 1.2em;
+}
+
+.meta {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 2em;
+}
+
+footer {
+  margin-top: 4em;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.policy-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    #ccc,
+    transparent
+  );
+  margin: 4rem 0;
+}
+
+/* Header */
+.app-header {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  background: #ffffff;
+  border-bottom: 1px solid #e6e8eb;
+  z-index: 100;
+}
+
+/* Left */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 28px;
+  height: 28px;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111;
+}
+
+/* Center nav */
+.header-center {
+  display: flex;
+  gap: 28px;
+}
+
+.header-center a {
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #888;
+  position: relative;
+  padding: 4px 0;
+}
+
+.header-center a.active {
+  color: #111;
+}
+
+.header-center a:hover {
+  color: #444;
+}
+
+.header-center a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 0;
+  height: 2px;
+  background: #111;
+  transition: width 0.2s ease;
+}
+
+.header-center a:hover::after {
+  width: 100%;
+}
+
+/* Right */
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.app-button {
+  background: #111;
+  color: #fff;
+  border: none;
+	text-decoration: none;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.app-button:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header-center {
+    display: none;
+  }
+}
