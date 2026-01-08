@@ -34,7 +34,7 @@ export default class Menubar {
       });
 
       this.pricingButton.addEventListener('click', () => {
-        this.signals.showPricing.dispatch();
+        window.open('/pricing', '_blank');
       });
     });
   }
