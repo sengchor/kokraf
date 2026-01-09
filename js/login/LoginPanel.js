@@ -1,10 +1,10 @@
 import { supabase } from '../login/supabase.js';
 
 export class LoginPanel {
-  constructor({ rootSelector = 'body' } = {}) {
+  constructor({ rootSelector = 'body', onSuccess } = {}) {
     this.mode = 'login';
     this.root = document.querySelector(rootSelector);
-
+    this.onSuccess = onSuccess;
     this.load();
   }
 
@@ -56,9 +56,17 @@ export class LoginPanel {
   close() {
     this.overlay.classList.add('hidden');
     this.error.textContent = '';
+
+    this.emailInput.value = '';
+    this.passwordInput.value = '';
+    this.confirmInput.value = '';
   }
 
   toggleMode() {
+    this.emailInput.value = '';
+    this.passwordInput.value = '';
+    this.confirmInput.value = '';
+
     if (this.mode === 'login') {
       this.mode = 'signup';
       this.title.textContent = 'Sign Up';
@@ -102,19 +110,29 @@ export class LoginPanel {
         response = await supabase.auth.signUp({ email, password });
       }
 
+      this.emailInput.value = '';
+      this.passwordInput.value = '';
+      this.confirmInput.value = '';
+
       if (response.error) {
         this.error.textContent = response.error.message;
         return;
       }
 
+      const { user, session } = response.data;
       this.close();
+
+      if (this.mode === 'signup' && !session) {
+        alert('Check your email to confirm your account.');
+        return;
+      }
+
+      if (this.onSuccess && user) {
+        this.onSuccess(user);
+      }
     } catch(err) {
       console.error(err);
       this.error.textContent = 'An unexpected error occurred';
     }
-
-    this.emailInput.value = '';
-    this.passwordInput.value = '';
-    this.confirmInput.value = '';
   }
 }
