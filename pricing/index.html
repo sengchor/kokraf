@@ -19,6 +19,14 @@
   <link rel="manifest" href="/assets/favicon_io/site.webmanifest">
   
   <link rel="stylesheet" href="./pricing-page.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "supabase": "https://esm.sh/@supabase/supabase-js@2"
+    }
+  }
+  </script>
 </head>
 
 <body>
@@ -49,7 +57,7 @@
       <div class="pricing-card">
         <h3>Free</h3>
         <div class="price">$0<span>/month</span></div>
-        <button class="pricing-action">Start for Free</button>
+        <button id="free-btn" class="pricing-action">Start for Free</button>
         <p class="included-label">What’s included</p>
         <ul>
           <li>✔ Full modeling tools</li>
@@ -63,13 +71,10 @@
 
         <h3>Pro</h3>
         <div class="price">$2<span>/month</span></div>
-        <button class="pricing-action">Upgrade now</button>
+        <button id="pro-btn" class="pricing-action">Upgrade now</button>
         <p class="included-label">What’s included</p>
         <ul>
           <li>✔ Unlimited exports</li>
-          <li>✔ Cloud save (planned)</li>
-          <li>✔ Public showcases (planned)</li>
-          <li>✔ Real-time collaboration (planned)</li>
         </ul>
       </div>
     </div>
@@ -86,5 +91,14 @@
       </div>
     </footer>
   </main>
+
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  <script type="text/javascript">
+    Paddle.Environment.set("sandbox");
+    Paddle.Initialize({ 
+      token: 'test_92482e642d97f09a713364e26bd'
+    });
+  </script>
+  <script type="module" src="./pricing.js"></script>
 </body>
 </html>

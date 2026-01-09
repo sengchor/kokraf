@@ -1,35 +1,47 @@
 import { supabase } from '../login/supabase.js';
 
 export class AccountPanel {
-  constructor(editor) {
-    this.editor = editor;
-    this.signals = editor.signals;
-    this.uiLoader = editor.uiLoader;
-    
+  constructor({ rootSelector = 'body' } = {}) {
+    this.root = document.querySelector(rootSelector);
+
     this.load();
-    this.setupListeners();
   }
 
   load() {
-    this.uiLoader.loadComponent('#overlay-root-account', 'components/account-panel.html', () => {
-      this.overlay = document.getElementById('account-overlay');
-      this.logoutBtn = document.getElementById('account-logout');
-      this.emailDisplay = document.getElementById('account-email');
+    const template = `
+      <div id="account-overlay" class="account-overlay hidden">
+        <div class="account-panel">
+          <button id="account-close" class="account-close"aria-label="Close">✕</button>
 
-      document
-        .getElementById('account-close')
-        .addEventListener('click', () => this.close());
+          <h3 class="account-title">Account</h3>
 
-      this.logoutBtn.addEventListener('click', () => this.logout());
-    });
-  }
+          <div class="account-section">
+            <div class="account-label">Signed in as</div>
+            <div id="account-email" class="account-email">user@email.com</div>
+          </div>
 
-  setupListeners() {
-    this.signals.showAccount.add(() => this.open());
+          <div class="account-actions">
+            <button id="account-logout">Log Out</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.root.insertAdjacentHTML('beforeend', template);
+
+    this.overlay = document.getElementById('account-overlay');
+    this.emailDisplay = document.getElementById('account-email');
+    this.logoutBtn = document.getElementById('account-logout');
+
+    document
+      .getElementById('account-close')
+      .addEventListener('click', () => this.close());
+
+    this.logoutBtn.addEventListener('click', () => this.logout());
   }
 
   async open() {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
 
     if (session && session.user) {
       this.emailDisplay.textContent = session.user.email;
@@ -46,11 +58,12 @@ export class AccountPanel {
 
   async logout() {
     const { error } = await supabase.auth.signOut();
+
     if (error) {
       console.error('Logout error:', error);
-    } else {
-      this.close();
-      this.signals.userLoggedOut.dispatch();
+      return;
     }
+
+    this.close();
   }
 }

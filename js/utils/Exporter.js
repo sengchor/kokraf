@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { supabase } from '../login/supabase.js';
+import { auth } from '../login/AuthService.js';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { computePerVertexNormals, computeFaceNormals, computeVertexNormalsWithAngle } from '../geometry/NormalCalculator.js';
 
@@ -8,17 +8,11 @@ export class Exporter {
     this.editor = editor;
   }
 
-  async isUserLoggedIn() {
-    const { data: { session } } = await supabase.auth.getSession();
-    return !!(session && session.user);
-  }
-
   async export(objects, format) {
     // Check if user is logged in
-    const loggedIn = await this.isUserLoggedIn();
-    if (!loggedIn) {
+    if (!auth.isLoggedIn()) {
       alert('You must be logged in to export.');
-      this.editor.signals.showLogin.dispatch();
+      this.editor.signals.showLoginPanel.dispatch();
       return;
     }
 
