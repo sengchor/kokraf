@@ -3,7 +3,7 @@ import { MenubarEdit } from './Menubar.Edit.js';
 import { MenubarAdd } from './Menubar.Add.js';
 import { MenubarView } from './Menubar.View.js';
 import { MenubarHelp } from './Menubar.Help.js';
-import { auth } from '../login/AuthService.js';
+import { auth } from '/supabase/AuthService.js';
 import { LoginPanel } from '../login/LoginPanel.js';
 import { AccountPanel } from '../login/AccountPanel.js';
 

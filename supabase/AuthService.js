@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js';
-import { Signal } from '../utils/Signals.js';
+import { Signal } from '../js/utils/Signals.js';
 
 class AuthService {
   constructor() {

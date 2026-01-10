@@ -1,4 +1,4 @@
-import { supabase } from '../login/supabase.js';
+import { supabase } from '/supabase/supabase.js';
 
 export class LoginPanel {
   constructor({ rootSelector = 'body', onSuccess } = {}) {

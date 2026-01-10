@@ -1,4 +1,4 @@
-import { auth } from '../js/login/AuthService.js';
+import { auth } from '/supabase/AuthService.js';
 import { LoginPanel } from '../js/login/LoginPanel.js';
 
 const VENDOR_ID = 45202;

@@ -22,20 +22,20 @@
 
 .login-panel {
   position: relative;
-  background-color: #eeeeee;
+  background-color: #fff;
   padding: 32px;
   border-radius: 5px;
   width: 420px;
-  color: #888;
+  color: #222;
   font-family: sans-serif;
   font-size: 14px;
-  border: 1px solid #ccc;
+  border: 1px solid #e6e8eb;
 }
 
 .login-panel h3 {
   margin: 0 0 20px;
   font-size: 22px;
-  color: #888;
+  color: #111;
   text-align: center;
 }
 
@@ -43,10 +43,9 @@
   display: block;
   margin-bottom: 6px;
   margin-top: 10px;
-
   font-size: 13px;
   font-weight: normal;
-  color: #888;
+  color: #666;
   letter-spacing: 0.2px;
 }
 
@@ -55,37 +54,34 @@
   box-sizing: border-box;
   margin-bottom: 10px;
   padding: 10px 10px;
-
   font-size: 14px;
   font-family: sans-serif;
-
   border-radius: 3px;
-  border: 1px solid #bbb;
+  border: 1px solid #e6e8eb;
   background-color: #fff;
-  color: #555;
+  color: #222;
 }
 
 .login-panel input:focus {
   outline: none;
-  border-color: #1587f9;
+  border-color: #111;
 }
 
 #login-submit {
   width: 100%;
   margin-top: 16px;
   padding: 10px 0;
-
   border-radius: 3px;
-  background-color: #ddd;
-  border: 1px solid #bbb;
-  color: #777;
+  background-color: #111;
+  border: 1px solid #111;
+  color: #fff;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
 
 #login-submit:hover {
-  background-color: #fff;
+  background-color: #000;
 }
 
 .login-panel .error {
@@ -98,7 +94,7 @@
   margin-top: 12px;
   text-align: center;
   font-size: 14px;
-  color: #888;
+  color: #666;
 }
 
 .switch-mode span {
@@ -106,14 +102,13 @@
 }
 
 .switch-mode span:hover {
-  color: #1587f9;
+  color: #111;
 }
 
 .login-close {
   position: absolute;
   top: 10px;
   right: 12px;
-
   background: none;
   border: none;
   color: #888;
@@ -122,5 +117,5 @@
 }
 
 .login-close:hover {
-  color: #000;
+  color: #111;
 }
