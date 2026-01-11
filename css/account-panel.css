@@ -89,3 +89,57 @@
 .account-close:hover {
   color: #111;
 }
+
+.account-billing {
+  border: 1px solid #e6e8eb;
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #fafbfc;
+}
+
+.billing-credits {
+  text-align: center;
+  padding: 12px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid #e6e8eb;
+}
+
+.billing-value {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.billing-value.unlimited {
+  font-size: 22px;
+  color: #0a7cff;
+}
+
+.billing-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.billing-row {
+  display: flex;
+  gap: 16px;
+}
+
+.billing-field {
+  flex: 1;
+}
+
+.billing-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111;
+}
+
+#account-plan.pro {
+  color: #0a7cff;
+  font-weight: 600;
+}

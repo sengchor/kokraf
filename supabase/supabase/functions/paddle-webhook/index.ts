@@ -104,14 +104,31 @@ Deno.serve(async (req) => {
       return new Response("Missing user ID", { status: 400 });
     }
 
+    const lineItems = payload.data.details.line_items ?? [];
+
+    if (lineItems.length === 0) {
+      return new Response("No line items in transaction", { status: 400 });
+    }
+
+    const productName = lineItems[0].product?.name ?? "";
+    const words = productName.split(" ");
+
+    if (words.length < 2 || !words[1]) {
+      console.error("Invalid product name format:", productName);
+      return new Response(`Invalid product name: "${productName}"`, { status: 400 });
+    }
+
+    const plan = words[1].toLowerCase(); 
+
     // Mark user as Pro
     const { error } = await supabase
       .from("profiles")
       .update({
-        is_pro: true,
-        pro_since: payload.data.billing_period.starts_at ?? null,
         paddle_customer_id: payload.data.customer_id ?? null,
         paddle_subscription_id: payload.data.subscription_id ?? null,
+        plan: plan,
+        subscription_starts_at: payload.data.billing_period.starts_at ?? null,
+        subscription_ends_at: payload.data.billing_period.ends_at ?? null,
       })
       .eq("id", userId);
 
