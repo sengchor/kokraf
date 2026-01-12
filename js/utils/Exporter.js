@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { auth } from '/supabase/AuthService.js';
+import { SUPABASE_URL } from '/supabase/supabase.js';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { computePerVertexNormals, computeFaceNormals, computeVertexNormalsWithAngle } from '../geometry/NormalCalculator.js';
 
@@ -15,6 +16,9 @@ export class Exporter {
       this.editor.signals.showLoginPanel.dispatch();
       return;
     }
+
+    const canExport = await this.canExport();
+    if (!canExport) return;
 
     const handlers = {
       'glb': () => this.exportGlb(objects),
@@ -37,6 +41,32 @@ export class Exporter {
     } else {
       alert(`Unsupported export format: ${format}`);
     }
+  }
+
+  async canExport() {
+    const session = await auth.getSession();
+    if (!session) return false;
+
+    const res = await fetch(
+      `${SUPABASE_URL}/functions/v1/consume-credit`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+          "Content-Type": "application/json"
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok || !data.allowed) {
+      const reason = data.reason === "no_credits" ? "You have no credits left! Please upgrade to Pro" : "Action not allowed!";
+      alert(reason);
+      return false;
+    }
+
+    return true;
   }
 
   saveFile(data, filename, mimeType) {

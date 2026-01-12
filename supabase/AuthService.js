@@ -34,6 +34,15 @@ class AuthService {
     });
   }
 
+  async getSession() {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('Failed to get session:', error);
+      return null;
+    }
+    return session;
+  }
+
   async login(email, password) {
     return supabase.auth.signInWithPassword({ email, password });
   }
