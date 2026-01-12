@@ -1,5 +1,6 @@
 import { auth } from '/supabase/AuthService.js';
 import { LoginPanel } from '../js/login/LoginPanel.js';
+import { supabase } from '/supabase/supabase.js';
 
 const VENDOR_ID = 45202;
 const PRODUCT_ID = "pri_01kegge02m5bwcd311ja0ezfxr";
@@ -29,22 +30,36 @@ freeBtn.addEventListener("click", () => {
 proBtn.addEventListener('click', async () => {
   if (!auth.isLoggedIn()) {
     const loginPanel = new LoginPanel({
-      onSuccess: (user) => {
-        Paddle.Checkout.open({
-          customer: { email: user.email },
-          items: [{ priceId: PRODUCT_ID, quantity: 1 }],
-          customData: { supabase_user_id: user.id }
-        });
-      }
+      onSuccess: (user) => attemptProPurchase(user)
     });
 
     loginPanel.open();
     return;
   }
   
-  Paddle.Checkout.open({
-    customer: { email: auth.user.email },
-    items: [{ priceId: PRODUCT_ID, quantity: 1 }],
-    customData: { supabase_user_id: auth.user.id }
-  });
+  attemptProPurchase(auth.user);
 });
+
+async function attemptProPurchase(user) {
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('plan')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    console.error('Failed to fetch user plan:', error);
+    return;
+  }
+
+  if (profile.plan === 'pro') {
+    alert('You are already on the Pro plan!');
+    return;
+  }
+
+  Paddle.Checkout.open({
+    customer: { email: user.email },
+    items: [{ priceId: PRODUCT_ID, quantity: 1 }],
+    customData: { supabase_user_id: user.id }
+  });
+}
