@@ -118,6 +118,13 @@
   color: #0a7cff;
 }
 
+.plan-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 .billing-label {
   font-size: 12px;
   color: #666;
@@ -127,10 +134,13 @@
 .billing-row {
   display: flex;
   gap: 16px;
+  align-items: center;
 }
 
 .billing-field {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .billing-text {
@@ -142,4 +152,33 @@
 #account-plan.pro {
   color: #0a7cff;
   font-weight: 600;
+}
+
+#account-expiry {
+  margin-top: 2px;
+}
+
+.cancel-plan-btn {
+  margin-top: 0px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #ff4d4f;
+  background: transparent;
+  border: 1px solid #ff4d4f;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+
+.cancel-plan-btn:hover {
+  background: #ff4d4f;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.cancel-plan-btn:active {
+  transform: translateY(0);
+  background: #e53935;
 }

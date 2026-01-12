@@ -1,4 +1,4 @@
-import { supabase } from '/supabase/supabase.js';
+import { supabase, SUPABASE_URL } from '/supabase/supabase.js';
 
 export class AccountPanel {
   constructor({ rootSelector = 'body' } = {}) {
@@ -30,7 +30,10 @@ export class AccountPanel {
             <div class="billing-row">
               <div class="billing-field">
                 <div class="billing-label">Subscription plan</div>
-                <div class="billing-text" id="account-plan">Free</div>
+                <div class="plan-container">
+                  <div class="billing-text" id="account-plan">Pro</div>
+                  <button id="cancel-plan-btn" class="cancel-plan-btn">Cancel Plan</button>
+                </div>
               </div>
 
               <div class="billing-field">
@@ -62,11 +65,15 @@ export class AccountPanel {
 
     this.logoutBtn = document.getElementById('account-logout');
 
+    this.cancelBtn = document.getElementById('cancel-plan-btn');
+
     document
       .getElementById('account-close')
       .addEventListener('click', () => this.close());
 
     this.logoutBtn.addEventListener('click', () => this.logout());
+
+    this.cancelBtn.addEventListener('click', () => this.cancelPlan());
   }
 
   async open() {
@@ -86,7 +93,8 @@ export class AccountPanel {
         credits,
         plan,
         subscription_starts_at,
-        subscription_ends_at
+        subscription_ends_at,
+        subscription_status
       `)
       .eq('id', user.id)
       .single();
@@ -118,6 +126,8 @@ export class AccountPanel {
   }
 
   renderPlan(profile) {
+    const status = profile.subscription_status;
+
     if (profile.plan === 'pro') {
       // Pro plan
       this.usageDisplay.textContent = 'Unlimited';
@@ -126,10 +136,30 @@ export class AccountPanel {
       this.planDisplay.textContent = 'Pro';
       this.planDisplay.classList.add('pro');
 
-      this.expiryLabel.textContent = 'Renews on';
-      this.expiryDisplay.textContent = profile.subscription_ends_at
+      if (status === 'active') {
+        this.expiryLabel.textContent = 'Renews on';
+        this.expiryDisplay.textContent = profile.subscription_ends_at
         ? new Date(profile.subscription_ends_at).toLocaleDateString()
         : '—';
+
+        this.cancelBtn.textContent = 'Cancel Plan';
+        this.cancelBtn.disabled = false;
+        this.cancelBtn.classList.remove('hidden');
+      } else if (status === 'cancelled') {
+        this.expiryLabel.textContent = 'Cancels on';
+        this.expiryDisplay.textContent = profile.subscription_ends_at
+        ? new Date(profile.subscription_ends_at).toLocaleDateString()
+        : '—';
+
+        this.cancelBtn.textContent = 'Cancelled';
+        this.cancelBtn.disabled = true;
+        this.cancelBtn.classList.remove('hidden');
+      } else {
+        this.expiryLabel.textContent = 'Status';
+        this.expiryDisplay.textContent = 'Unknown';
+
+        this.cancelBtn.classList.add('hidden');
+      }
     } else {
       // Free plan
       this.usageDisplay.textContent = profile.credits ?? 'Null';
@@ -140,11 +170,57 @@ export class AccountPanel {
 
       this.expiryLabel.textContent = 'Resets monthly';
       this.expiryDisplay.textContent = this.getFirstOfNextMonth().toLocaleDateString();
+
+      this.cancelBtn.classList.add('hidden');
     }
   }
 
   getFirstOfNextMonth() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  }
+
+  async cancelPlan() {
+    const { data: { session }, error: sessionError } = 
+      await supabase.auth.getSession();
+
+    if (sessionError || !session?.user) {
+      console.error('No active session');
+      return;
+    }
+
+    const confirmed = confirm(
+      'Are you sure you want to cancel your subscription plan?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/functions/v1/cancel-subscription`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${session.access_token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            user_id: session.user.id
+          })
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+
+      alert('Your plan has been cancelled. It will remain active until expiry.');
+
+      await this.open();
+    } catch (err) {
+      console.error('Cancel plan failed:', err);
+      alert('Failed to cancel your plan. Please try again later.');
+    }
   }
 }
