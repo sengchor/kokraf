@@ -158,6 +158,7 @@
   margin-top: 2px;
 }
 
+/* Cancel button */
 .cancel-plan-btn {
   margin-top: 0px;
   padding: 3px 8px;
@@ -181,4 +182,21 @@
 .cancel-plan-btn:active {
   transform: translateY(0);
   background: #e53935;
+}
+
+.cancel-plan-btn:disabled {
+  opacity: 0.5;
+  color: #888;
+  border-color: #888;
+  background: transparent;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+}
+
+.cancel-plan-btn:disabled:hover,
+.cancel-plan-btn:disabled:active {
+  background: transparent;
+  color: #888;
+  transform: none;
 }

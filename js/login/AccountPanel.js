@@ -145,13 +145,13 @@ export class AccountPanel {
         this.cancelBtn.textContent = 'Cancel Plan';
         this.cancelBtn.disabled = false;
         this.cancelBtn.classList.remove('hidden');
-      } else if (status === 'cancelled') {
-        this.expiryLabel.textContent = 'Cancels on';
+      } else if (status === 'canceled') {
+        this.expiryLabel.textContent = 'Ends on';
         this.expiryDisplay.textContent = profile.subscription_ends_at
         ? new Date(profile.subscription_ends_at).toLocaleDateString()
         : '—';
 
-        this.cancelBtn.textContent = 'Cancelled';
+        this.cancelBtn.textContent = 'Canceled';
         this.cancelBtn.disabled = true;
         this.cancelBtn.classList.remove('hidden');
       } else {
@@ -204,9 +204,6 @@ export class AccountPanel {
             "Authorization": `Bearer ${session.access_token}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            user_id: session.user.id
-          })
         }
       );
 
@@ -215,7 +212,7 @@ export class AccountPanel {
         throw new Error(text);
       }
 
-      alert('Your plan has been cancelled. It will remain active until expiry.');
+      alert('Your plan has been canceled. It will remain active until expiry.');
 
       await this.open();
     } catch (err) {

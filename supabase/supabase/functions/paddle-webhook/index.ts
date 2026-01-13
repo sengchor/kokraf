@@ -129,6 +129,8 @@ Deno.serve(async (req) => {
         plan: plan,
         subscription_starts_at: payload.data.billing_period.starts_at ?? null,
         subscription_ends_at: payload.data.billing_period.ends_at ?? null,
+        subscription_status: 'active',
+        subscription_cancels_at: null
       })
       .eq("id", userId);
 
