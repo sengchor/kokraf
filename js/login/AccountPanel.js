@@ -99,14 +99,18 @@ export class AccountPanel {
       .eq('id', user.id)
       .single();
 
-    if (error) {
+    if (error || !profile) {
       console.error('Failed to load profile:', error);
-      this.overlay.classList.remove('hidden');
+      alert(
+        'Your account is no longer available. Please sign in again.'
+      );
+
+      await supabase.auth.signOut();
+      this.close();
       return;
     }
 
     this.renderPlan(profile);
-
     this.overlay.classList.remove('hidden');
   }
 

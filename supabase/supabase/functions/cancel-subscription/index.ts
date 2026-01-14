@@ -82,16 +82,11 @@ Deno.serve(async (req) => {
 
     const paddleJson = await paddleRes.json();
 
+    // Paddle cancel request
     if (!paddleRes.ok) {
       if (paddleJson?.error?.code === "subscription_locked_pending_changes") {
-        const updatedProfile = await cancelProfileSubscription(user.id);
-
         return new Response(
-          JSON.stringify({
-            success: true,
-            alreadyCanceled: true,
-            profile: updatedProfile,
-          }),
+          JSON.stringify({ success: true, alreadyCanceled: true }),
           { headers: corsHeaders }
         );
       }
@@ -102,14 +97,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Normal success
-    const updatedProfile = await cancelProfileSubscription(user.id);
-
     return new Response(
-      JSON.stringify({
-        success: true,
-        profile: updatedProfile,
-      }),
+      JSON.stringify({ success: true }),
       { headers: corsHeaders }
     );
   } catch (err) {
@@ -120,24 +109,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
-const cancelProfileSubscription = async (userId: string) => {
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({
-      subscription_status: "canceled",
-      subscription_cancels_at: new Date().toISOString(),
-    })
-    .eq("id", userId)
-    .select(
-      "subscription_status, subscription_cancels_at, subscription_ends_at"
-    )
-    .single();
-
-  if (error) {
-    console.error("Profile update failed:", error);
-    throw new Error("PROFILE_UPDATE_FAILED");
-  }
-
-  return data;
-};

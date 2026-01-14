@@ -91,56 +91,158 @@ Deno.serve(async (req) => {
 
   console.log("Valid Paddle webhook:", payload.event_type);
 
-  // Only handle successful transactions
-  if (
-    payload.event_type === "transaction.completed" &&
-    payload.data?.status === "completed"
-  ) {
-    const customData = payload.data.custom_data;
-    const userId = customData?.supabase_user_id;
+  // Handle successful transactions
+  if (payload.event_type === "transaction.completed") {
+    const response = await handleTransactionCompleted(payload, supabase);
+    if (response) return response;
+  }
 
-    if (!userId) {
-      console.error("Missing supabase_user_id in custom_data");
-      return new Response("Missing user ID", { status: 400 });
-    }
+  // Handle subscription updated
+  if (payload.event_type === "subscription.updated") {
+    const response = await handleSubscriptionUpdated(payload, supabase);
+    if (response) return response;
+  }
 
-    const lineItems = payload.data.details.line_items ?? [];
+  return new Response("OK", { status: 200 });
+});
 
-    if (lineItems.length === 0) {
-      return new Response("No line items in transaction", { status: 400 });
-    }
+async function handleTransactionCompleted(
+  payload: any,
+  supabase: ReturnType<typeof createClient>
+): Promise<Response | null> {
+  if (payload.data?.status !== "completed") {
+    return null;
+  }
 
-    const productName = lineItems[0].product?.name ?? "";
-    const words = productName.split(" ");
+  const customData = payload.data.custom_data;
+  const userId = customData?.supabase_user_id;
 
-    if (words.length < 2 || !words[1]) {
-      console.error("Invalid product name format:", productName);
-      return new Response(`Invalid product name: "${productName}"`, { status: 400 });
-    }
+  if (!userId) {
+    console.error("Missing supabase_user_id in custom_data");
+    return new Response("Missing user ID", { status: 400 });
+  }
 
-    const plan = words[1].toLowerCase(); 
+  const isRecurring =
+    payload.data.origin === "subscription_recurring";
 
-    // Mark user as Pro
+  // Renewal
+  if (isRecurring) {
     const { error } = await supabase
       .from("profiles")
       .update({
-        paddle_customer_id: payload.data.customer_id ?? null,
-        paddle_subscription_id: payload.data.subscription_id ?? null,
-        plan: plan,
-        subscription_starts_at: payload.data.billing_period.starts_at ?? null,
-        subscription_ends_at: payload.data.billing_period.ends_at ?? null,
-        subscription_status: 'active',
-        subscription_cancels_at: null
+        subscription_status: "active",
+        subscription_ends_at:
+          payload.data.billing_period?.ends_at ?? null
       })
       .eq("id", userId);
 
     if (error) {
-      console.error("Supabase update failed:", error);
+      console.error("Renewal update failed:", error);
       return new Response("Database error", { status: 500 });
     }
 
-    console.log(`User ${userId} upgraded to Pro`);
+    console.log(`Subscription renewed for user ${userId}`);
+    return null;
   }
 
-  return new Response("OK");
-});
+  // New Subscription
+  const lineItems = payload.data.details?.line_items ?? [];
+
+  if (lineItems.length === 0) {
+    return new Response("No line items in transaction", { status: 400 });
+  }
+
+  const productName = lineItems[0].product?.name ?? "";
+  const words = productName.split(" ");
+
+  if (words.length < 2 || !words[1]) {
+    console.error("Invalid product name format:", productName);
+    return new Response(`Invalid product name: "${productName}"`, {
+      status: 400
+    });
+  }
+
+  const plan = words[1].toLowerCase();
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      paddle_customer_id: payload.data.customer_id ?? null,
+      paddle_subscription_id: payload.data.subscription_id ?? null,
+      plan: plan,
+      subscription_starts_at: payload.data.billing_period?.starts_at ?? null,
+      subscription_ends_at: payload.data.billing_period?.ends_at ?? null,
+      subscription_status: "active",
+      subscription_cancels_at: null
+    })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("Supabase update failed:", error);
+    return new Response("Database error", { status: 500 });
+  }
+
+  console.log(`User ${userId} subscription activated (${plan})`);
+  return null;
+}
+
+async function handleSubscriptionUpdated(
+  payload: any,
+  supabase: ReturnType<typeof createClient>
+): Promise<Response | null> {
+  const userId = payload.data?.custom_data?.supabase_user_id;
+
+  if (!userId) {
+    console.error("Missing supabase_user_id");
+    return new Response("Missing user ID", { status: 400 });
+  }
+
+  const status = payload.data.status;
+  const scheduled = payload.data.scheduled_change;
+
+  // User canceled (but still active)
+  if (status === "active" && scheduled?.action === "cancel") {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        subscription_status: "canceled",
+        subscription_cancels_at: new Date().toISOString()
+      })
+      .eq("id", userId);
+
+    if (error) {
+      console.error("Cancel update failed:", error);
+      return new Response("Database error", { status: 500 });
+    }
+
+    console.log(`Subscription scheduled to cancel for ${userId}`);
+    return null;
+  }
+
+  // Fully ended (canceled or past due)
+  if (status === "canceled" || status === "past_due") {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        plan: "free",
+        subscription_status: null,
+        subscription_cancels_at: null,
+        paddle_subscription_id: null,
+        subscription_starts_at: null,
+        subscription_ends_at: null
+      })
+      .eq("id", userId);
+
+    if (error) {
+      console.error("End update failed:", error);
+      return new Response("Database error", { status: 500 });
+    }
+
+    console.log(`Subscription ended for ${userId}`);
+    return null;
+  }
+
+  // Ignore other statuses safely
+  console.log(`Unhandled subscription status: ${status}`);
+  return null;
+}
