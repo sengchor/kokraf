@@ -58,6 +58,15 @@ class AuthService {
   isLoggedIn() {
     return !!this.user;
   }
+
+  async loginWithGoogle() {
+    return supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/index.html'
+      }
+    });
+  }
 }
 
 export const auth = new AuthService();

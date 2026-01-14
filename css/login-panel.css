@@ -81,7 +81,7 @@
 }
 
 #login-submit:hover {
-  background-color: #000;
+  background-color: #222;
 }
 
 .login-panel .error {
@@ -118,4 +118,76 @@
 
 .login-close:hover {
   color: #111;
+}
+
+/* OR separator */
+.or-separator {
+  display: flex;
+  align-items: center;
+  margin: 12px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.or-separator::before,
+.or-separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #ddd;
+  margin: 0 8px;
+}
+
+.gsi-material-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  padding-left: 48px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+}
+
+/* Google logo */
+.gsi-material-button-icon {
+  position: absolute;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 100%;
+}
+
+.gsi-material-button-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.gsi-material-button-text {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: 500;
+
+  font-family: sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.gsi-material-button:hover {
+  background-color: #f7f7f7;
+}
+
+.gsi-material-button:active {
+  background-color: #e0e0e0;
+}
+
+.gsi-material-button {
+  transition: background-color 0.2s;
 }
