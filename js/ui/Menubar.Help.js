@@ -13,15 +13,11 @@ export class MenubarHelp {
     });
 
     document.querySelector('.about').addEventListener('click', () => {
-      window.open('https://www.youtube.com/@jourverse', '_blank');
+      window.open('/about', '_blank');
     });
 
     document.querySelector('.report').addEventListener('click', () => {
       window.open('https://discord.com/invite/FEkhTyggYq', '_blank');
-    });
-
-    document.querySelector('.patreon').addEventListener('click', () => {
-      window.open('https://www.patreon.com/c/jourverse', '_blank');
     });
   }
 }
