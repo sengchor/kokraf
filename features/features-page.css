@@ -1,3 +1,4 @@
+/* Reset */
 * {
   box-sizing: border-box;
 }
@@ -10,26 +11,26 @@ body {
   color: #222;
 }
 
-.terms-container {
+/* Container */
+.features-container {
   max-width: 900px;
   margin: 40px auto;
   padding: 0 20px;
 }
 
+/* Headings */
 h1 {
   font-size: 2rem;
   margin-bottom: 0.4em;
 }
 
-h1[id] {
-  scroll-margin-top: 80px; /* height of your header */
-}
-
 h2 {
   font-size: 1.3rem;
   margin-top: 2em;
+  color: #111;
 }
 
+/* Paragraphs and lists */
 p,
 li {
   margin-bottom: 0.8em;
@@ -39,30 +40,24 @@ ul {
   padding-left: 1.2em;
 }
 
+ol {
+  padding-left: 1.2em;
+  margin-bottom: 1.5em;
+}
+
 .meta {
   font-size: 0.9rem;
   color: #666;
   margin-bottom: 2em;
 }
 
+/* Footer */
 footer {
   margin-top: 4em;
   font-size: 0.9rem;
   color: #666;
   text-align: left;
   padding-bottom: 40px;
-}
-
-.policy-divider {
-  border: none;
-  height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    #ccc,
-    transparent
-  );
-  margin: 4rem 0;
 }
 
 /* Header */
@@ -146,7 +141,7 @@ footer {
   background: #111;
   color: #fff;
   border: none;
-	text-decoration: none;
+  text-decoration: none;
   padding: 8px 14px;
   font-size: 14px;
   font-weight: 500;
@@ -160,90 +155,83 @@ footer {
   transform: translateY(-1px);
 }
 
+/* Sections */
+section {
+  margin-bottom: 3em;
+}
+
+/* Roadmap list styling */
+ol li {
+  margin-bottom: 1em;
+  padding-left: 12px;
+  border-left: 2px solid #111;
+}
+
+ol li strong {
+  color: #111;
+}
+
+/* Links */
+a {
+  color: #111;
+  text-decoration: underline;
+}
+
+a:hover {
+  color: #000;
+  text-decoration: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .header-center {
     display: none;
   }
+
+  .features-container {
+    margin: 20px auto;
+    padding: 0 15px;
+  }
 }
 
-/* Legal sidebar */
-.legal-sidebar {
-  position: fixed;
-  right: 28px;
-  top: 120px;
-  width: 200px;
-  background: #ffffff;
-  padding: 12px 16px;
-  border-radius: 5px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  z-index: 50;
+/* Features grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+  margin-top: 24px;
 }
 
-.legal-sidebar .sidebar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #111;
-  margin-bottom: 12px;
+.feature-card {
+  border: 1px solid #e6e8eb;
+  border-radius: 12px;
+  padding: 20px;
+  background: #fff;
+}
+
+.feature-card img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-bottom: 14px;
   display: block;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
+.feature-card h3 {
+  font-size: 1rem;
+  margin-bottom: 0.4em;
+  color: #111;
+}
 
-.legal-sidebar ul {
-  list-style: none;
-  padding: 0;
+.feature-card p {
+  font-size: 0.95rem;
+  color: #444;
   margin: 0;
 }
 
-.legal-sidebar li {
-  margin-bottom: 14px;
-}
-
-.legal-sidebar a {
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  color: #888;
-  position: relative;
-  padding: 4px 0;
-  display: inline-block;
-  transition: color 0.2s ease;
-}
-
-.legal-sidebar a:hover {
-  color: #111;
-}
-
-.legal-sidebar a::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -2px;
-  width: 0;
-  height: 2px;
-  background: #111;
-  transition: width 0.2s ease;
-}
-
-.legal-sidebar a:hover::after {
-  width: 100%;
-}
-
-.legal-sidebar a.active {
-  color: #111;
-  font-weight: 600;
-}
-
-.legal-sidebar a.active::after {
-  width: 100%;
-}
-
-/* Responsive: hide sidebar on small screens */
-@media (max-width: 1024px) {
-  .legal-sidebar {
-    display: none;
+/* Mobile */
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
   }
 }

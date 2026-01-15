@@ -8,16 +8,20 @@ export class MenubarHelp {
       window.open('/terms', '_blank');
     });
 
+    document.querySelector('.features').addEventListener('click', () => {
+      window.open('/features', '_blank');
+    });
+
+    document.querySelector('.about').addEventListener('click', () => {
+      window.open('/about', '_blank');
+    });
+
     document.querySelector('.manual').addEventListener('click', () => {
       window.open('/manual', '_blank');
     });
 
     document.querySelector('.sourcecode').addEventListener('click', () => {
       window.open('https://github.com/sengchor/kokraf', '_blank');
-    });
-
-    document.querySelector('.about').addEventListener('click', () => {
-      window.open('/about', '_blank');
     });
 
     document.querySelector('.report').addEventListener('click', () => {
