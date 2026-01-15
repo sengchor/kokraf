@@ -12,6 +12,7 @@
   height: 17px;
   object-fit: contain;
   opacity: 0.5;
+  transition: opacity 0.15s;
 }
 
 .toolbar-button {
@@ -21,15 +22,25 @@
   position: relative;
   border: none;
   cursor: pointer;
-  background-color: #ddd;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+.toolbar-button:hover img,
+.toolbar-button.active img {
+  opacity: 0.7;
 }
 
 .toolbar-button:hover {
   background-color: #f8f8f8;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .toolbar-button.active {
-  background-color: #f8f8f8;
+  background-color: #ddd;
 }
 
 .toolbar-button::after {
@@ -39,8 +50,8 @@
   left: 0px;
   transform: translateX(40px);
 
-  background: #ddd;
-  color: #444;
+  background: #ffffff;
+  color: #222;
   padding: 4px 8px;
   border-radius: 2px;
   white-space: nowrap;

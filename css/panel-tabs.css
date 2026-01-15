@@ -7,7 +7,8 @@
   padding: 0;
   list-style: none;
   background-color: white;
-  color: #6f6f6f;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #222;
 }
 
 .outliner-list::-webkit-scrollbar {
@@ -24,6 +25,7 @@
   cursor: pointer;
   border: 1px solid transparent;
   padding: 6px 6px;
+  color: inherit;
 }
 
 .outliner-item.dragInto {
@@ -114,8 +116,8 @@ body.resizing-outliner .outliner-resizer {
   width: 325px;
   height: calc(100vh - 30px);
   background-color: #eee;
-  color: #888;
-  font-family: sans-serif;
+  color: #444;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 12.5px;
   overflow-y: auto;
   z-index: 9;
@@ -131,18 +133,25 @@ body.resizing-outliner .outliner-resizer {
 
 .panel-tabs {
   font-size: 0;
-  background-color: #ddd;
+  background-color: #ffffff;
   border-top: 1px solid #ccc;
 }
 
 .tab {
   flex: 1;
   padding: 9.5px;
+  background: none;
   border: none;
   border-right: 1px solid #ccc;
-  color: #888;
+  font-weight: 500;
+  color: #666;
   font-size: 14px;
-  background: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.tab:hover {
+  background-color: #f1f3f5;
+  color: #111;
 }
 
 .tab.active {
@@ -183,19 +192,22 @@ select {
   padding: 1px 30px 1px 1px;
   font-size: 14px;
   border-radius: 0px;
-  color: #888;
-  background-color: #ddd;
+  color: #666;
+  background-color: #fff;
   margin-left: 5px;
   border: 0px;
 }
 
 select:hover {
-  background-color: white;
+  background-color: #f8f8f8;
+  color: #111;
   cursor: pointer;
 }
 
 select:focus {
   outline: none;
+  background-color: #fff;
+  color: #111;
 }
 
 #title {
@@ -223,6 +235,7 @@ select:focus {
 
 .action-button:hover {
   background-color: white;
+  color: #111;
 }
 
 .setting-option .number {

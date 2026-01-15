@@ -55,10 +55,11 @@
   padding: 0px;
   border: none;
   cursor: pointer;
-  background-color: #ddd;
+  background-color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .selection-button img {
@@ -69,10 +70,39 @@
 
 .selection-button:hover {
   background-color: #f8f8f8;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .selection-button.active {
-  background-color: #f8f8f8;
+  background-color: #ddd;
+}
+
+.selection-button:hover img,
+.selection-button.active img {
+  opacity: 0.7;
+}
+
+.selection-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+
+  background: #ffffff;
+  color: #222;
+  padding: 4px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+  z-index: 20;
+}
+
+.selection-button:hover::after {
+  opacity: 1;
 }
 
 #selectionBox {
@@ -100,7 +130,7 @@
   padding: 0;
   border: none;
   cursor: pointer;
-  background-color: #ddd;
+  background-color: #f8f8f8;
 
   display: flex;
   align-items: center;
@@ -108,7 +138,7 @@
 }
 
 .snap-button.active {
-  background-color: #f8f8f8;
+  background-color: #fff;
 }
 
 .snap-button .snap-on {
@@ -127,4 +157,8 @@
   width: 18px;
   height: 18px;
   opacity: 0.6;
+}
+
+.snap-button:hover img {
+  opacity: 0.8;
 }

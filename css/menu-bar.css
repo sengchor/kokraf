@@ -1,17 +1,16 @@
 .menu-bar {
-  background-color: #eeeeee;
-  color: #888888;
+  background-color: #ffffff;
+  color: #666;
   font-family: sans-serif;
   font-size: 14px;
   user-select: none;
   padding: 0px;
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  inset: 0 0 auto 0;
   height: 30px;
   display: flex;
   align-items: center;
+  border-bottom: 1px solid #e6e8eb;
   z-index: 10;
 }
 
@@ -25,21 +24,27 @@
 .menu-item {
   position: relative;
   padding: 0 15px;
-  line-height: 30px;
+  line-height: 32px;
   cursor: pointer;
+  color: #111;
 }
 
 .submenu {
   position: absolute;
   top: 30px;
   left: 0;
-  background-color: #eeeeee;
-  border-top: 5px solid #eeeeee;
-  border-bottom: 5px solid #eeeeee;
+  background-color: #ffffff;
+  border: 1px solid #e6e8eb;
+  padding: 6px 0;
   flex-direction: column;
-  min-width: 145px;
+  min-width: 150px;
   z-index: 100;
   visibility: hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+.menu-item:hover {
+  background-color: #f1f3f5;
 }
 
 .menu-item:hover > .submenu {
@@ -52,6 +57,7 @@
   white-space: nowrap;
   display: flex;
   align-items: center;
+  color: #222;
 }
 
 .toggle-item {
@@ -78,15 +84,14 @@
 
 .submenu.right {
   position: absolute;
-  top: -5px;
+  top: -6px;
   left: 100%;
-  background-color: #eeeeee;
-  color: #888888;
-  border-top: 5px solid #eeeeee;
-  border-bottom: 5px solid #eeeeee;
-  min-width: 145px;
+  background-color: #ffffff;
+  border: 1px solid #e6e8eb;
+  min-width: 150px;
   visibility: hidden;
   z-index: 101;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
 .submenu-item:hover .submenu.right {
@@ -100,15 +105,20 @@
 }
 
 .shortcut {
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   background-color: transparent;
-  padding: 0px 4px;
-  border-radius: 5px;
-  border: solid 1px #bbb;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: solid 1px #999;
   margin-left: auto;
   font-size: 10.5px;
-  color: #bbb;
+  color: #666;
   line-height: 1.5;
+}
+
+.submenu li:hover .shortcut {
+  border-color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .tick {
@@ -141,26 +151,31 @@
 .pricing-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
 
-  padding: 0 16px;
-  height: 22px;
-  background-color: #ddd;
-  color: #777;
+  padding: 0 14px;
+  height: 24px;
+  background-color: #ffffff;
+  color: #222;
   font-size: 14px;
+  border: 1.5px solid #ddd;
   cursor: pointer;
-  user-select: none;
-  transition: background-color 0.15s;
+  transition: background-color 0.15s, box-shadow 0.15s;
+  line-height: 1; 
 }
 
-
-.account-button .label {
+.login-button .label,
+.account-button .label,
+.pricing-button {
   white-space: nowrap;
+  vertical-align: middle; 
 }
 
 .login-button:hover,
 .account-button:hover,
 .pricing-button:hover {
-  background-color: #fff;
+  background-color: #f1f3f5;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .star {
@@ -168,4 +183,5 @@
   height: 16px;
   margin-right: 6px;
   flex-shrink: 0;
+  vertical-align: middle;
 }
