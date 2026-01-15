@@ -4,7 +4,11 @@ export class MenubarHelp {
   }
 
   init() {
-      document.querySelector('.manual').addEventListener('click', () => {
+      document.querySelector('.terms').addEventListener('click', () => {
+      window.open('/terms', '_blank');
+    });
+
+    document.querySelector('.manual').addEventListener('click', () => {
       window.open('/manual', '_blank');
     });
 
