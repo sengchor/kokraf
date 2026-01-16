@@ -17,6 +17,11 @@ class AuthService {
     const { data: { session } } = await supabase.auth.getSession();
     this.user = session?.user || null;
 
+    // Clean OAuth hash
+    if (window.location.href.endsWith('#')) {
+      history.replaceState(null, '', window.location.href.slice(0, -1));
+    }
+
     if (this.user) {
       this.signals.login.dispatch(this.user);
     }
