@@ -56,7 +56,7 @@ export default class Editor {
       switchMode: new Signal(),
       multiSelectChanged: new Signal(),
 
-      createFaceFromVertices: new Signal(),
+      createElementFromVertices: new Signal(),
       deleteSelectedFaces: new Signal(),
       separateSelection: new Signal(),
 

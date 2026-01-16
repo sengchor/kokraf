@@ -16,7 +16,7 @@ export class MeshEditDispatcher {
   }
 
   setupListeners() {
-    this.signals.createFaceFromVertices.add(() => {
+    this.signals.createElementFromVertices.add(() => {
       const editedObject = this.editSelection.editedObject;
       const mode = this.editSelection.subSelectionMode;
       if (mode === 'face') return null;
@@ -28,7 +28,7 @@ export class MeshEditDispatcher {
       const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
       const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
       const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
-      if (!selectedVertexIds || selectedVertexIds.length < 3) return null;
+      if (!selectedVertexIds || selectedVertexIds.length < 2) return null;
 
       // Prevent creating a face identical to the selected face
       if (selectedFaceIds.length === 1) {
@@ -47,10 +47,29 @@ export class MeshEditDispatcher {
         sortedVertexIds.reverse();
       }
 
-      const newFaceId = this.vertexEditor.topology.createFaceFromVertices(sortedVertexIds);
-      const newFace = meshData.faces.get(newFaceId);
-      const newVertices = [...newFace.vertexIds];
-      const newEdges = [...newFace.edgeIds];
+      const result = this.vertexEditor.topology.createEdgeFaceFromVertices(sortedVertexIds);
+      if (!result) return;
+
+      const { edgeId, faceId } = result;
+      
+      let newVertices = [];
+      let newEdges = [];
+
+      if (faceId !== null) {
+        const newFace = meshData.faces.get(faceId);
+        if (!newFace) return;
+
+        newVertices = [...newFace.vertexIds];
+        newEdges = [...newFace.edgeIds];
+      }
+
+      if (edgeId !== null) {
+        const newEdge = meshData.edges.get(edgeId);
+        if (!newEdge) return;
+
+        newVertices = [newEdge.v1Id, newEdge.v2Id];
+        newEdges = [edgeId];
+      }
 
       this.afterMeshData = structuredClone(meshData);
       this.editor.execute(new CreateFaceCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));

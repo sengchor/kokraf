@@ -20,6 +20,29 @@ export class VertexTopologyUtils {
     return newFace ? newFace.id : null;
   }
 
+  createEdgeFaceFromVertices(vertexIds) {
+    if (!this.meshData || !Array.isArray(vertexIds)) {
+      return null;
+    }
+
+    const vertices = vertexIds
+      .map(id => this.meshData.getVertex(id))
+      .filter(v => v !== null);
+
+    if (vertices.length < 2) {
+      return null;
+    }
+
+    if (vertices.length === 2) {
+      const [v1, v2] = vertices;
+      const edge = this.meshData.addEdge(v1, v2);
+      return edge ? { edgeId: edge.id, faceId: null } : null;
+    }
+
+    const face = this.meshData.addFace(vertices);
+    return face ? { edgeId: null, faceId: face.id } : null;
+  }
+
   getBoundaryEdges(vertexIds, edgeIds, faceIds) {
     const selectedVertexSet = new Set(vertexIds);
     const selectedFaceSet = new Set(faceIds);

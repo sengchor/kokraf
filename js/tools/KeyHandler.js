@@ -69,7 +69,7 @@ export class KeyHandler {
       if (event.key === 'w') {
         this.editor.toolbar.setActiveTool('select');
       } else if (event.key === 'f') {
-        this.signals.createFaceFromVertices.dispatch();
+        this.signals.createElementFromVertices.dispatch();
       } else if (event.key === 'p') {
         this.signals.separateSelection.dispatch();
       } else if (event.key === 'Tab') {

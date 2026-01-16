@@ -63,7 +63,7 @@ class AuthService {
     return supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/index.html'
+        redirectTo: window.location.origin
       }
     });
   }
