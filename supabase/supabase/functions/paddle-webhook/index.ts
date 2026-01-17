@@ -1,5 +1,5 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+import "@supabase/functions-js/edge-runtime.d.ts";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
 
 async function handleTransactionCompleted(
   payload: any,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient
 ): Promise<Response | null> {
   if (payload.data?.status !== "completed") {
     return null;
@@ -188,7 +188,7 @@ async function handleTransactionCompleted(
 
 async function handleSubscriptionUpdated(
   payload: any,
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient
 ): Promise<Response | null> {
   const userId = payload.data?.custom_data?.supabase_user_id;
 

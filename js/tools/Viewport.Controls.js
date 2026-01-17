@@ -34,6 +34,7 @@ export default class ViewportControls {
     this.snapButton = document.querySelector('.snap-button');
     this.snappingSelect = document.getElementById('snapping-to');
     this.transformOrientationSelect = document.getElementById('transform-orientation');
+    this.xrayButton = document.getElementById('xray-button');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -100,6 +101,12 @@ export default class ViewportControls {
       this.transformOrientationSelect.addEventListener('change', (e) => {
         this.signals.transformOrientationChanged.dispatch(e.target.value);
       });
+    }
+
+    if (this.xrayButton) {
+      this.xrayButton.addEventListener('click', () => {
+        const active = this.xrayButton.classList.toggle('active');
+      })
     }
   }
 
