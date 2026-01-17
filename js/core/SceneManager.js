@@ -21,6 +21,9 @@ export default class SceneManager {
     this.sceneHelpers = new THREE.Scene();
     this.sceneHelpers.background = null;
 
+    this.shadingMode = 'material';
+    this.xrayMode = false;
+
     this.setupListeners();
   }
   
@@ -141,29 +144,53 @@ export default class SceneManager {
     });
 
     this.signals.viewportShadingChanged.add((value) => {
-      switch (value) {
-        case 'material':
-          this.mainScene.overrideMaterial = null;
-          break;
-        case 'solid':
-          const matcapTexture = new THREE.TextureLoader().load('assets/textures/matcaps/040full.jpg');
-          this.mainScene.overrideMaterial = new THREE.MeshMatcapMaterial({
-            matcap: matcapTexture,
-            color: 0xcccccc,
-            side: THREE.DoubleSide
-          });
-          break;
-        case 'normal':
-          this.mainScene.overrideMaterial = new THREE.MeshNormalMaterial();
-          break;
-        case 'wireframe':
-          this.mainScene.overrideMaterial = new THREE.MeshBasicMaterial({
-            color: 0x000000,
-            wireframe: true
-          });
-          break;
-      }
+      this.shadingMode = value;
+      this.updateShadingMode(this.shadingMode, this.xrayMode);
     });
+
+    this.signals.viewportXRayChanged.add((value) => {
+      this.xrayMode = value;
+      this.updateShadingMode(this.shadingMode, this.xrayMode);
+    });
+  }
+
+  updateShadingMode(shadingMode, xrayMode) {
+    let material = null;
+
+    switch (shadingMode) {
+      case 'material':
+        material = null;
+        break;
+      case 'solid': {
+        const matcapTexture = new THREE.TextureLoader().load('assets/textures/matcaps/040full.jpg');
+        material = new THREE.MeshMatcapMaterial({
+          matcap: matcapTexture,
+          color: 0xcccccc,
+          side: THREE.DoubleSide
+        });
+        break;
+      }
+      case 'normal':
+        material = new THREE.MeshNormalMaterial();
+        break;
+      case 'wireframe':
+        material = new THREE.MeshBasicMaterial({
+          color: 0x000000,
+          wireframe: true
+        });
+        break;
+    }
+
+    // Apply X-Ray properties
+    if (xrayMode && material && shadingMode !== 'wireframe') {
+      material = material.clone();
+      material.transparent = true;
+      material.opacity = 0.4;
+      material.depthWrite = false;
+      material.side = THREE.DoubleSide;
+    }
+
+    this.mainScene.overrideMaterial = material;
   }
 
   addHelper(object) {

@@ -206,3 +206,13 @@
 .xray-button.active img {
   opacity: 0.7;
 }
+
+.xray-button.disabled {
+  pointer-events: none;
+  opacity: 0.3;
+  background-color: #ffffff;
+}
+
+.xray-button.disabled img {
+  opacity: 0.3;
+}

@@ -48,10 +48,12 @@ export default class ViewportControls {
     if (this.shadingDropdown) {
       const shadingValue = this.shadingDropdown.value;
       this.signals.viewportShadingChanged.dispatch(shadingValue);
+      this.updateXRayButtonState(shadingValue);
 
       this.shadingDropdown.addEventListener('change', (e) => {
         const value = e.target.value;
         this.signals.viewportShadingChanged.dispatch(value);
+        this.updateXRayButtonState(value);
       });
     }
 
@@ -104,8 +106,11 @@ export default class ViewportControls {
     }
 
     if (this.xrayButton) {
+      const enabled = this.xrayButton.classList.contains('active');
+      this.signals.viewportXRayChanged.dispatch(enabled);
       this.xrayButton.addEventListener('click', () => {
         const active = this.xrayButton.classList.toggle('active');
+        this.signals.viewportXRayChanged.dispatch(active);
       })
     }
   }
@@ -241,6 +246,14 @@ switchMode(newMode) {
 
     const orientation = this.transformOrientationSelect.value;
     this.signals.transformOrientationChanged.dispatch(orientation);
+  }
+
+  updateXRayButtonState(shadingMode) {
+    if (shadingMode === 'wireframe' || shadingMode === 'material') {
+      this.xrayButton.classList.add('disabled');
+    } else {
+      this.xrayButton.classList.remove('disabled');
+    }
   }
 
   toJSON() {

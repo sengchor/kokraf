@@ -34,6 +34,7 @@ export default class Editor {
 
       viewportCameraChanged: new Signal(),
       viewportShadingChanged: new Signal(),
+      viewportXRayChanged: new Signal(),
 
       cameraAdded: new Signal(),
       cameraRemoved: new Signal(),
