@@ -171,7 +171,8 @@ export default class EditSelection {
     const vertexHits = this.raycaster.intersectObject(vertexPoints);
     if (vertexHits.length === 0) return null;
 
-    const visibleVertices = this.filterVisibleVertices(vertexHits, vertexPoints, camera);
+    const xrayMode = this.sceneManager.xrayMode;
+    const visibleVertices = xrayMode ? vertexHits : this.filterVisibleVertices(vertexHits, vertexPoints, camera);
     if (visibleVertices.length === 0) return null;
 
     const nearestVertexId = this.pickNearestVertex(visibleVertices, camera, rect, vertexPoints);
@@ -197,7 +198,9 @@ export default class EditSelection {
     const edgeHits = this.raycaster.intersectObjects(edgeLines, false);
     if (edgeHits.length === 0) return null;
 
-    const visibleEdges = this.filterVisibleEdges(edgeHits, camera);
+    const xrayMode = this.sceneManager.xrayMode;
+    const edgeCandidates = this.buildEdgeCandidates(edgeHits);
+    const visibleEdges = xrayMode ? edgeCandidates : this.filterVisibleEdges(edgeCandidates, camera);
     if (visibleEdges.length === 0) return null;
 
     const nearestEdgeId = this.pickNearestEdge(visibleEdges, camera, rect);
@@ -218,7 +221,8 @@ export default class EditSelection {
     const faceHits = this.raycaster.intersectObject(faceMesh);
     if (faceHits.length === 0) return null;
     
-    const visibleFaces = this.filterVisibleFaces(faceHits, faceMesh, camera);
+    const xrayMode = this.sceneManager.xrayMode;
+    const visibleFaces = xrayMode ? faceHits : this.filterVisibleFaces(faceHits, faceMesh, camera);
     if (visibleFaces.length === 0) return null;
 
     const nearestFaceId = this.pickNearestFace(visibleFaces, camera, rect, faceMesh);
@@ -236,7 +240,8 @@ export default class EditSelection {
     const vertexHits = this.selectionBox.getVerticesInFrustum(vertexPoints, frustum);
     if (vertexHits.length === 0) return null;
 
-    const visibleVertices = this.filterVisibleVertices(vertexHits, vertexPoints, this.camera);
+    const xrayMode = this.sceneManager.xrayMode;
+    const visibleVertices = xrayMode ? vertexHits : this.filterVisibleVertices(vertexHits, vertexPoints, this.camera);
     if (visibleVertices.length === 0) return null;
 
     const vertexIndices = visibleVertices.map(v => v.index);
@@ -257,7 +262,9 @@ export default class EditSelection {
     const edgeHits = this.selectionBox.getEdgesInFrustum(edgeLines, frustum);
     if (edgeHits.length === 0) return null;
 
-    const visibleEdges = this.filterVisibleEdges(edgeHits, this.camera);
+    const xrayMode = this.sceneManager.xrayMode;
+    const edgeCandidates = this.buildEdgeCandidates(edgeHits);
+    const visibleEdges = xrayMode ? edgeCandidates : this.filterVisibleEdges(edgeCandidates, this.camera);
     if (visibleEdges.length === 0) return null;
 
     const insideHits = visibleEdges.filter(e => e.type === "endpoint");
@@ -280,7 +287,9 @@ export default class EditSelection {
     const faceHits = this.selectionBox.getFacesInFrustum(faceMesh, frustum);
     if (faceHits.length === 0) return null;
 
-    const visibleFaces = this.filterVisibleFaces(faceHits, faceMesh, this.camera);
+    const xrayMode = this.sceneManager.xrayMode;
+    const visibleFaces = xrayMode ? faceHits : this.filterVisibleFaces(faceHits, faceMesh, this.camera);
+    // const visibleFaces = this.filterVisibleFaces(faceHits, faceMesh, this.camera);
     if (visibleFaces.length === 0) return null;
 
     const faceIndices = visibleFaces.map(f => f.index);
@@ -464,8 +473,8 @@ export default class EditSelection {
     return visibleVertices;
   }
 
-  filterVisibleEdges(edgeHits, camera) {
-    if (edgeHits.length === 0) return [];
+  filterVisibleEdges(edgeCandidates, camera) {
+    if (edgeCandidates.length === 0) return [];
 
     const mainObjects = this.sceneManager.mainScene.children;
     const cameraPos = new THREE.Vector3();
@@ -473,44 +482,26 @@ export default class EditSelection {
 
     const epsilon = 0.001;
     const reverseRay = new THREE.Raycaster();
-    const visibleEdges = [];
 
     // occluders: everything in the scene except the edge helper lines
     const occluders = mainObjects.filter(obj => obj.name !== '__EdgeLines');
 
-    for (const hit of edgeHits) {
-      const thinLine = hit.object;
-      const geo = thinLine.geometry;
-      const pos = geo.getAttribute('position');
+    const visibleEdges = [];
 
-      // world-space endpoints
-      const vA = new THREE.Vector3(pos.getX(0), pos.getY(0), pos.getZ(0))
-        .applyMatrix4(thinLine.matrixWorld);
-
-      const vB = new THREE.Vector3(pos.getX(1), pos.getY(1), pos.getZ(1))
-        .applyMatrix4(thinLine.matrixWorld);
-
-      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, hit.point).normalize();
-      const rayOrigin = (hit.point).clone().addScaledVector(dirToCamera, epsilon);
+    for (const edge of edgeCandidates) {
+      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, edge.hitPoint).normalize();
+      const rayOrigin = (edge.hitPoint).clone().addScaledVector(dirToCamera, epsilon);
 
       reverseRay.set(rayOrigin, dirToCamera);
 
       const hits = reverseRay.intersectObjects(occluders, true);
-      const maxDist = (hit.point).distanceTo(cameraPos);
+      const maxDist = (edge.hitPoint).distanceTo(cameraPos);
 
       // If any hit is closer than the camera, the edge is occluded.
       const blocked = hits.some(h => h.distance < maxDist - epsilon);
 
       if (!blocked) {
-        visibleEdges.push({
-          thinLine,
-          visualLine: thinLine.userData.visualLine,
-          edge: thinLine.userData.edge,
-          vA,
-          vB,
-          screenDist: hit.distance,
-          type: hit.type,
-        });
+        visibleEdges.push(edge);
       }
     }
 
@@ -545,7 +536,7 @@ export default class EditSelection {
         //  Skip self-face intersection
         if (h.object === this.editedObject) {
           const hitFaceId = this.findFaceIdFromTriIndex(h.faceIndex, faceMesh.userData.faceRanges);
-          if (hitFaceId === hit.index) return false;
+          if (hitFaceId === hit.faceIndex) return false;
         }
 
         return h.distance < maxDist - epsilon;
@@ -557,6 +548,38 @@ export default class EditSelection {
     }
 
     return visibleFaces;
+  }
+
+  buildEdgeCandidates(edgeHits) {
+    const edges = [];
+
+    for (const hit of edgeHits) {
+      const thinLine = hit.object;
+      const geo = thinLine.geometry;
+      const pos = geo.getAttribute('position');
+
+      if (!pos || pos.count < 2) continue;
+
+      // world-space endpoints
+      const vA = new THREE.Vector3(pos.getX(0), pos.getY(0), pos.getZ(0))
+        .applyMatrix4(thinLine.matrixWorld);
+
+      const vB = new THREE.Vector3(pos.getX(1), pos.getY(1), pos.getZ(1))
+        .applyMatrix4(thinLine.matrixWorld);
+
+      edges.push({
+        thinLine,
+        visualLine: thinLine.userData.visualLine,
+        edge: thinLine.userData.edge,
+        vA,
+        vB,
+        screenDist: hit.distance,
+        hitPoint: hit.point,
+        type: hit.type,
+      });
+    }
+
+    return edges;
   }
 
   pickNearestVertex(vertexHits, camera, rect, vertexPoints) {
