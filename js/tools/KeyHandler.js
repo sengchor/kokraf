@@ -6,6 +6,10 @@ export class KeyHandler {
     this.selection = editor.selection;
     this.shortcuts = null;
     this.currentMode = 'object';
+    this.keysPressed = {};
+
+    this.onKeyDown = this.onKeyDown.bind(this);
+    this.onKeyUp = this.onKeyUp.bind(this);
     
     this.init();
     this.setupListeners();
@@ -15,8 +19,6 @@ export class KeyHandler {
     await this.config.loadSettings();
     this.shortcuts = this.config.get('shortcuts');
 
-    this.onKeyDown = this.onKeyDown.bind(this);
-    this.onKeyUp = this.onKeyUp.bind(this);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', () => {
@@ -35,6 +37,11 @@ export class KeyHandler {
       return;
     }
 
+    // Ignore repeat while held down
+    const key = event.key.toLowerCase();
+    if (this.keysPressed[key]) return;
+    this.keysPressed[key] = true;
+
     if (event.ctrlKey && event.key === this.shortcuts['undo']) {
       this.editor.undo();
     } else if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === this.shortcuts['undo']) {
@@ -43,10 +50,13 @@ export class KeyHandler {
       this.editor.toolbar.setActiveTool('select');
     } else if (event.key === this.shortcuts['translate']) {
       this.editor.toolbar.setActiveTool('move');
+      this.signals.objectTransformStart.dispatch('translate');
     } else if (event.key === this.shortcuts['rotate']) {
       this.editor.toolbar.setActiveTool('rotate');
+      this.signals.objectTransformStart.dispatch('rotate');
     } else if (event.key === this.shortcuts['scale']) {
       this.editor.toolbar.setActiveTool('scale');
+      this.signals.objectTransformStart.dispatch('scale');
     } else if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(true);
     }
@@ -90,12 +100,16 @@ export class KeyHandler {
   }
 
   onKeyUp(event) {
+    const key = event.key.toLowerCase();
+    this.keysPressed[key] = false;
+
     if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(false);
     }
   }
 
   dispose() {
-    window.removeEventListener('keydown', this.onKeyDown.bind(this));
+      window.removeEventListener('keydown', this.onKeyDown);
+      window.removeEventListener('keyup', this.onKeyUp);
   }
 }

@@ -17,6 +17,9 @@ export class ObjectTransformTool {
     this.snapManager = editor.snapManager;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
+    this.activeTransformSource = null;
+    this.commandAxisConstraint = null;
+
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode(this.mode);
     this.transformControls.visible = false;
@@ -44,14 +47,25 @@ export class ObjectTransformTool {
     this.changeTransformControlsColor();
     this.setupTransformListeners();
     this.setupListeners();
+
+    this._onPointerDown = this.onPointerDown.bind(this);
+    this._onPointerMove = this.onPointerMove.bind(this);
+    this._onPointerUp = this.onPointerUp.bind(this);
+    this._onKeyDown = this.onKeyDown.bind(this);
   }
 
   enableFor(object) {
     if (!object) return;
     this.transformControls.attach(object);
     this.transformControls.visible = true;
+    this.handle = this.transformControls.object;
 
     this.applyTransformOrientation(this.transformControls.space);
+
+    this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
+    this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
+    this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
+    window.addEventListener('keydown', this._onKeyDown);
   }
 
   disable() {
@@ -86,59 +100,155 @@ export class ObjectTransformTool {
     });
   }
 
+  setGizmoActiveVisualState() {
+    this.transformControls.dragging = true;
+    this.transformControls.axis = this.commandAxisConstraint ?? 'XYZ';
+  }
+
+  clearGizmoActiveVisualState() {
+    this.transformControls.dragging = false;
+    this.transformControls.axis = null;
+  }
+
   setupListeners() {
     this.signals.transformOrientationChanged.add((orientation) => {
       this.applyTransformOrientation(orientation);
     });
-  }
 
-  setupTransformListeners() {
-    this.transformControls.addEventListener('mouseDown', () => {
+    this.signals.objectTransformStart.add((transformMode) => {
+      if (this.mode !== transformMode) return;
+      
       const objects = this.selection.selectedObjects;
       if (!objects || objects.length === 0) return;
 
-      const handle = this.transformControls.object;
-      if (!handle) return;
+      if (this.activeTransformSource !== null) return;
 
-      this.startPivotPosition = handle.getWorldPosition(new THREE.Vector3());
-      this.startPivotQuaternion = handle.getWorldQuaternion(new THREE.Quaternion());
-      this.startPivotScale = handle.getWorldScale(new THREE.Vector3());
-      
-      this.startPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
-      this.startQuaternions = objects.map(obj => obj.getWorldQuaternion(new THREE.Quaternion()));
-      this.startScales = objects.map(obj => obj.getWorldScale(new THREE.Vector3()));
-
-      if (this.snapManager.enabled) {
-        this.oldPositions = this.snapManager.getBoundingBoxVertexPositions(objects);
+      if (this.handle && this.transformControls.worldPositionStart) {
+        this.handle.getWorldPosition(this.transformControls.worldPositionStart);
       }
+
+      this.activeTransformSource = 'command';
+      this.startTransformSession();
+
+      this.updateHandleFromMouse();
+      this.applyTransformSession();
+      this.setGizmoActiveVisualState();
+
+      this.signals.transformDragStarted.dispatch('object');
+    });
+  }
+
+  // Gizmo Control
+  setupTransformListeners() {
+    this.transformControls.addEventListener('mouseDown', () => {
+      if (this.activeTransformSource !== null) return;
+
+      this.activeTransformSource = 'gizmo';
+      this.startTransformSession();
     });
 
     this.transformControls.addEventListener('change', () => {
       if (!this.transformControls.dragging) return;
-      const objects = this.selection.selectedObjects;
-      if (!objects || objects.length === 0) return;
+      if (this.activeTransformSource !== 'gizmo') return;
 
-      const handle = this.transformControls.object;
-      if (!handle) return;
-
-      if (this.mode === 'translate') this.applyTranslation(objects, handle);
-      else if (this.mode === 'rotate') this.applyRotation(objects, handle);
-      else if (this.mode === 'scale') this.applyScale(objects, handle);
+      this.applyTransformSession();
     });
 
     this.transformControls.addEventListener('mouseUp', () => {
-      const objects = this.selection.selectedObjects;
-      if (!objects || objects.length === 0) return;
+      if (this.activeTransformSource !== 'gizmo') return;
 
-      const handle = this.transformControls.object;
-      if (!handle) return;
-
-      if (this.mode === 'translate') this.commitTranslation(objects, handle);
-      else if (this.mode === 'rotate') this.commitRotation(objects, handle);
-      else if (this.mode === 'scale') this.commitScale(objects, handle);
-
-      this.clearStartData();
+      this.commitTransformSession();
+      this.activeTransformSource = null;
     });
+  }
+
+  // Command Control
+  onPointerMove() {
+    if (this.activeTransformSource !== 'command') return;
+
+    this.updateHandleFromMouse();
+    this.applyTransformSession();
+
+    this.signals.objectChanged.dispatch();
+  }
+
+  onPointerDown() {
+    if (this.activeTransformSource !== 'command') return;
+
+    this.commitTransformSession();
+    this.clearGizmoActiveVisualState();
+  }
+
+  onPointerUp() {
+    if (this.activeTransformSource !== 'command') return;
+    this.clearCommandTransformState();
+  }
+
+  onKeyDown(event) {
+    if (this.activeTransformSource !== 'command') return;
+
+    const key = event.key.toLowerCase();
+    if (key === 'x' || key === 'y' || key === 'z') {
+      this.commandAxisConstraint = this.getThreeAxisName(key);
+      this.commandAxisConstraint = this.commandAxisConstraint.toUpperCase();
+      this.transformControls.axis = this.commandAxisConstraint;
+
+      this.updateHandleFromMouse();
+      this.applyTransformSession();
+
+      this.setGizmoActiveVisualState();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      this.cancelTransformSession();
+      this.clearCommandTransformState();
+    }
+
+    if (event.key === 'Enter') {
+      this.commitTransformSession();
+      this.clearCommandTransformState();
+    }
+  }
+
+  startTransformSession() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+    if (!this.handle) return;
+
+    this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
+    this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion());
+    this.startPivotScale = this.handle.getWorldScale(new THREE.Vector3());
+
+    this.startPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
+    this.startQuaternions = objects.map(obj => obj.getWorldQuaternion(new THREE.Quaternion()));
+    this.startScales = objects.map(obj => obj.getWorldScale(new THREE.Vector3()));
+
+    if (this.snapManager.enabled) {
+      this.oldPositions = this.snapManager.getBoundingBoxVertexPositions(objects);
+    }
+  }
+
+  applyTransformSession() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+    if (!this.handle) return;
+
+    if (this.mode === 'translate') this.applyTranslation(objects, this.handle);
+    else if (this.mode === 'rotate') this.applyRotation(objects, this.handle);
+    else if (this.mode === 'scale') this.applyScale(objects, this.handle);
+  }
+
+  commitTransformSession() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+    if (!this.handle) return;
+
+    if (this.mode === 'translate') this.commitTranslation(objects, this.handle);
+    else if (this.mode === 'rotate') this.commitRotation(objects, this.handle);
+    else if (this.mode === 'scale') this.commitScale(objects, this.handle);
+
+    this.clearStartData();
   }
 
   applyTranslation(objects, handle) {
@@ -378,5 +488,104 @@ export class ObjectTransformTool {
       );
       this.transformControls.setSpace('local');
     }
+  }
+
+  getAxisVector(axis) {
+    switch (axis) {
+      case 'X': return new THREE.Vector3(1, 0, 0);
+      case 'Y': return new THREE.Vector3(0, 1, 0);
+      case 'Z': return new THREE.Vector3(0, 0, 1);
+    }
+  }
+
+  getThreeAxisName(editorAxis) {
+    switch (editorAxis) {
+      case 'x': return 'z';
+      case 'y': return 'x';
+      case 'z': return 'y';
+    }
+  }
+
+  updateHandleFromMouse() {
+    if (!this.startPivotPosition) return;
+
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+      ((this.event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((this.event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, this.camera);
+
+    let newPosition = new THREE.Vector3(); 
+
+    if (this.commandAxisConstraint) {
+      const axis = this.getAxisVector(this.commandAxisConstraint).clone();
+
+      const linePoint = this.startPivotPosition.clone();
+      const lineDir = axis.clone().normalize();
+
+      newPosition.copy(this.closestPointOnLineToRay(linePoint, lineDir, raycaster.ray));
+    } else {
+      // Free plane movement
+      const planeNormal = this.camera.getWorldDirection(new THREE.Vector3());
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        planeNormal,
+        this.startPivotPosition
+      );
+      if (!raycaster.ray.intersectPlane(plane, newPosition)) return;
+    }
+
+    this.handle.position.copy(newPosition);
+    this.handle.updateMatrixWorld(true);
+  }
+
+  closestPointOnLineToRay(linePoint, lineDir, ray) {
+    const p = linePoint.clone();
+    const d = lineDir.clone();
+    const o = ray.origin.clone();
+    const r = ray.direction.clone();
+
+    const w0 = p.clone().sub(o);
+    const a = d.dot(d);
+    const b = d.dot(r);
+    const c = r.dot(r);
+    const d0 = d.dot(w0);
+    const e = r.dot(w0);
+
+    const denom = a*c - b*b;
+    const t = denom !== 0 ? (b*e - c*d0) / denom : 0;
+
+    return p.clone().add(d.clone().multiplyScalar(t));
+  }
+
+  cancelTransformSession() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    // restore objects
+    for (let i = 0; i < objects.length; i++) {
+      objects[i].position.copy(this.startPositions[i]);
+      objects[i].quaternion.copy(this.startQuaternions[i]);
+      objects[i].scale.copy(this.startScales[i]);
+      objects[i].updateMatrixWorld(true);
+    }
+
+    // restore pivot / handle
+    this.handle.position.copy(this.startPivotPosition);
+    this.handle.quaternion.copy(this.startPivotQuaternion);
+    this.handle.scale.copy(this.startPivotScale);
+    this.handle.updateMatrixWorld(true);
+  }
+
+  clearCommandTransformState() {
+    this.commandAxisConstraint = null;
+    this.clearGizmoActiveVisualState();
+    this.activeTransformSource = null;
+
+    requestAnimationFrame(() => {
+      this.signals.transformDragEnded.dispatch('object');
+    });
   }
 }

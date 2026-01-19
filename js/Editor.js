@@ -71,6 +71,8 @@ export default class Editor {
 
       showLoginPanel: new Signal(),
       showAccountPanel: new Signal(),
+
+      objectTransformStart: new Signal(),
     }
 
     this.helpers = {};

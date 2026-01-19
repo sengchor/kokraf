@@ -104,6 +104,9 @@ export default class Toolbar {
   }
 
   setActiveTool(toolName) {
+    const current = this.getActiveTool();
+    if (current === toolName) return;
+
     if (this.currentMode === 'object') {
       this.activeToolObjectMode = toolName;
     } else {
