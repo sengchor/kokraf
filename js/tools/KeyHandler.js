@@ -7,6 +7,7 @@ export class KeyHandler {
     this.shortcuts = null;
     this.currentMode = 'object';
     this.keysPressed = {};
+    this.isTransformDragging = false;
 
     this.onKeyDown = this.onKeyDown.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
@@ -30,12 +31,21 @@ export class KeyHandler {
     this.signals.modeChanged.add((newMode) => {
       this.currentMode = newMode;
     });
+
+    this.signals.transformDragStarted.add(() => {
+      this.isTransformDragging = true;
+    });
+
+    this.signals.transformDragEnded.add(() => {
+      this.isTransformDragging = false;
+    });
   }
 
   onKeyDown(event) {
     if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
       return;
     }
+    if (this.isTransformDragging) return;
 
     // Prevent the active element from consuming keyboard shortcuts
     if (document.activeElement) {

@@ -89,7 +89,7 @@ export class ObjectTransformTool {
       this.activeTransformSource = 'command';
       this.startTransformSession();
 
-      this.updateHandleFromMouse();
+      this.updateHandleFromCommandInput();
       this.applyTransformSession();
       this.setGizmoActiveVisualState();
 
@@ -140,7 +140,7 @@ export class ObjectTransformTool {
   // Command Control
   onPointerMove() {
     if (this.activeTransformSource !== 'command') return;
-    this.updateHandleFromMouse();
+    this.updateHandleFromCommandInput();
     this.applyTransformSession();
     this.signals.objectChanged.dispatch();
   }
@@ -165,7 +165,7 @@ export class ObjectTransformTool {
       this.commandAxisConstraint = this.commandAxisConstraint.toUpperCase();
       this.transformControls.axis = this.commandAxisConstraint;
 
-      this.updateHandleFromMouse();
+      this.updateHandleFromCommandInput();
       this.applyTransformSession();
 
       this.setGizmoActiveVisualState();
@@ -537,17 +537,23 @@ export class ObjectTransformTool {
     }
   }
 
-  updateHandleFromMouse() {
+  updateHandleFromCommandInput() {
     if (!this.startPivotPosition) return;
 
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    const mouse = new THREE.Vector2(
-      ((this.event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((this.event.clientY - rect.top) / rect.height) * 2 + 1
-    );
+    switch (this.mode) {
+      case 'translate':
+        this.updateHandleTranslation();
+        break;
+      case 'rotate':
+        this.updateHandleRotation();
+        break;
+    }
+  }
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, this.camera);
+  updateHandleTranslation() {
+    if (!this.startPivotPosition) return;
+
+    const raycaster = this.getMouseRaycaster();
 
     const newPosition = new THREE.Vector3(); 
 
@@ -562,15 +568,48 @@ export class ObjectTransformTool {
       newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
     } else {
       // Free plane movement
-      const planeNormal = this.camera.getWorldDirection(new THREE.Vector3());
-      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
-        planeNormal,
-        this.startPivotPosition
-      );
+      const axis = this.camera.getWorldDirection(new THREE.Vector3());
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axis, this.startPivotPosition);
       if (!raycaster.ray.intersectPlane(plane, newPosition)) return;
     }
 
     this.handle.position.copy(newPosition);
+    this.handle.updateMatrixWorld(true);
+  }
+
+  updateHandleRotation() {
+    if (!this.startPivotPosition || !this.startPivotQuaternion) return;
+
+    const raycaster = this.getMouseRaycaster();
+
+    // Determine rotation axis
+    const axis = new THREE.Vector3();
+    if (this.commandAxisConstraint) {
+      axis.copy(this.getAxisVector(this.commandAxisConstraint));
+      if (this.transformControls.space === 'local') axis.applyQuaternion(this.startPivotQuaternion);
+    } else {
+      axis.copy(this.camera.getWorldDirection(new THREE.Vector3()));
+    }
+    axis.normalize();
+
+    // Build a reference vector perpendicular to axis
+    const startVector = new THREE.Vector3();
+    if (Math.abs(axis.x) < 0.99) startVector.set(1, 0, 0);
+    else startVector.set(0, 1, 0);
+
+    // Project mouse ray onto plane perpendicular to rotation axis
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axis, this.startPivotPosition);
+    const hitPoint = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(plane, hitPoint)) return;
+
+    const newVector = hitPoint.clone().sub(this.startPivotPosition).projectOnPlane(axis).normalize();
+    if (!newVector) return;
+
+    const cross = startVector.clone().cross(newVector);
+    const angle = Math.atan2(axis.dot(cross), startVector.dot(newVector));
+    const deltaQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+
+    this.handle.quaternion.copy(deltaQuat).multiply(this.startPivotQuaternion);
     this.handle.updateMatrixWorld(true);
   }
 
@@ -591,5 +630,19 @@ export class ObjectTransformTool {
     const t = denom !== 0 ? (b*e - c*d0) / denom : 0;
 
     return p.clone().add(d.clone().multiplyScalar(t));
+  }
+
+  getMouseRaycaster() {
+    if (!this.event) return null;
+
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+      ((this.event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((this.event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, this.camera);
+    return raycaster;
   }
 }
