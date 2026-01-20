@@ -39,13 +39,17 @@ export class ObjectEditDispatcher {
       if (!objects || objects.length === 0) return;
 
       const multi = new MultiCommand(this.editor, 'Duplicate Objects');
+      const duplicates = [];
 
       objects.forEach(object => {
         const duplicate = duplicateObject(object);
+        duplicates.push(duplicate);
         multi.add(new AddObjectCommand(this.editor, duplicate));
       });
 
       this.editor.execute(multi);
+
+      this.selection.select(duplicates);
     });
   }
 }

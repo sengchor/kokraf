@@ -164,6 +164,9 @@ export class ObjectTransformTool {
       this.commandAxisConstraint = this.getThreeAxisName(key);
       this.commandAxisConstraint = this.commandAxisConstraint.toUpperCase();
       this.transformControls.axis = this.commandAxisConstraint;
+      this.startTranslateVector = null;
+      this.startRotateVector = null;
+      this.startScaleVector = null;
 
       this.updateHandleFromCommandInput();
       this.applyTransformSession();
@@ -244,6 +247,9 @@ export class ObjectTransformTool {
     this.commandAxisConstraint = null;
     this.clearGizmoActiveVisualState();
     this.activeTransformSource = null;
+    this.startTranslateVector = null;
+    this.startRotateVector = null;
+    this.startScaleVector = null;
 
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('object');
@@ -305,7 +311,7 @@ export class ObjectTransformTool {
 
       if (nearestWorldPos) {
         offset = new THREE.Vector3().subVectors(snapTarget, nearestWorldPos);
-        offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, object);
+        offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, this.startPivotQuaternion);
 
         handle.position.copy(this.startPivotPosition).add(offset);
         this.transformControls.update();
@@ -547,6 +553,9 @@ export class ObjectTransformTool {
       case 'rotate':
         this.updateHandleRotation();
         break;
+      case 'scale':
+        this.updateHandleScale();
+        break;
     }
   }
 
@@ -573,7 +582,13 @@ export class ObjectTransformTool {
       if (!raycaster.ray.intersectPlane(plane, newPosition)) return;
     }
 
-    this.handle.position.copy(newPosition);
+    if (!this.startTranslateVector) {
+      this.startTranslateVector = newPosition.clone();
+    }
+
+    const delta = newPosition.clone().sub(this.startTranslateVector);
+
+    this.handle.position.copy(this.startPivotPosition).add(delta);
     this.handle.updateMatrixWorld(true);
   }
 
@@ -592,11 +607,6 @@ export class ObjectTransformTool {
     }
     axis.normalize();
 
-    // Build a reference vector perpendicular to axis
-    const startVector = new THREE.Vector3();
-    if (Math.abs(axis.x) < 0.99) startVector.set(1, 0, 0);
-    else startVector.set(0, 1, 0);
-
     // Project mouse ray onto plane perpendicular to rotation axis
     const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axis, this.startPivotPosition);
     const hitPoint = new THREE.Vector3();
@@ -605,11 +615,62 @@ export class ObjectTransformTool {
     const newVector = hitPoint.clone().sub(this.startPivotPosition).projectOnPlane(axis).normalize();
     if (!newVector) return;
 
-    const cross = startVector.clone().cross(newVector);
-    const angle = Math.atan2(axis.dot(cross), startVector.dot(newVector));
+    if (!this.startRotateVector) {
+      this.startRotateVector = newVector.clone();
+    }
+
+    const cross = this.startRotateVector.clone().cross(newVector);
+    const angle = Math.atan2(axis.dot(cross), this.startRotateVector.dot(newVector));
     const deltaQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
 
     this.handle.quaternion.copy(deltaQuat).multiply(this.startPivotQuaternion);
+    this.handle.updateMatrixWorld(true);
+  }
+
+  updateHandleScale() {
+    if (!this.startPivotPosition || !this.startPivotScale) return;
+
+    const raycaster = this.getMouseRaycaster();
+    if (!raycaster) return;
+
+    const newPosition = new THREE.Vector3();
+    if (this.commandAxisConstraint) {
+      const axis = this.getAxisVector(this.commandAxisConstraint).clone();
+
+      if (this.transformControls.space === 'local') {
+        axis.applyQuaternion(this.startPivotQuaternion);
+      }
+      axis.normalize();
+
+      newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
+    } else {
+      // Free plane movement
+      const axis = this.camera.getWorldDirection(new THREE.Vector3());
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axis, this.startPivotPosition);
+      if (!raycaster.ray.intersectPlane(plane, newPosition)) return;
+    }
+
+    const rawVector = newPosition.clone().sub(this.startPivotPosition);
+    if (!rawVector) return;
+
+    // Initialize reference once
+    if (!this.startScaleVector) {
+      this.startScaleVector = rawVector.clone();
+    }
+
+    const scaleFactor = rawVector.length() / this.startScaleVector.length();
+
+    let scaleVector;
+    if (this.commandAxisConstraint) {
+      scaleVector = new THREE.Vector3(1, 1, 1);
+      if (this.commandAxisConstraint === 'X') scaleVector.x = scaleFactor;
+      if (this.commandAxisConstraint === 'Y') scaleVector.y = scaleFactor;
+      if (this.commandAxisConstraint === 'Z') scaleVector.z = scaleFactor;
+    } else {
+      scaleVector = new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor);
+    }
+
+    this.handle.scale.copy(this.startPivotScale).multiply(scaleVector);
     this.handle.updateMatrixWorld(true);
   }
 
