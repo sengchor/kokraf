@@ -10,38 +10,24 @@ export class ObjectTransformTool {
     this.editor = editor;
     this.signals = editor.signals;
     this.mode = mode;
+
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.controls = editor.controlsManager;
     this.selection = editor.selection;
     this.snapManager = editor.snapManager;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
+    this.viewportControls = editor.viewportControls;
 
     this.activeTransformSource = null;
     this.commandAxisConstraint = null;
+    this.event = null;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode(this.mode);
     this.transformControls.visible = false;
 
-    this.event = null;
     this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
-
-    this.transformControls.addEventListener('dragging-changed', (event) => {
-      this.controls.enabled = !event.value;
-      if (!event.value) this.signals.objectChanged.dispatch();
-    });
-
-    this.transformControls.addEventListener('mouseDown', () => {
-      this.signals.transformDragStarted.dispatch('object');
-    });
-
-    this.transformControls.addEventListener('mouseUp', () => {
-      requestAnimationFrame(() => {
-        this.signals.transformDragEnded.dispatch('object');
-      });
-    });
-
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.changeTransformControlsColor();
@@ -56,11 +42,12 @@ export class ObjectTransformTool {
 
   enableFor(object) {
     if (!object) return;
+
     this.transformControls.attach(object);
     this.transformControls.visible = true;
     this.handle = this.transformControls.object;
 
-    this.applyTransformOrientation(this.transformControls.space);
+    this.applyTransformOrientation(this.viewportControls.transformOrientation);
 
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
@@ -81,35 +68,7 @@ export class ObjectTransformTool {
     return this.transformControls.dragging;
   }
 
-  changeTransformControlsColor() {
-    const xColor = new THREE.Color(0xff0000);
-    const yColor = new THREE.Color(0x00ff00);
-    const zColor = new THREE.Color(0x0000ff);
-
-    const helper = this.transformControls.getHelper();
-
-    helper.traverse(child => {
-      if (!child.isMesh || !child.name) return;
-      if (child.name === 'Z' || child.name === 'XY') {
-        child.material.color.set(xColor);
-      } else if (child.name === 'Y' || child.name === 'XZ') {
-        child.material.color.set(zColor);
-      } else if (child.name === 'X' || child.name === 'YZ') {
-        child.material.color.set(yColor);
-      }
-    });
-  }
-
-  setGizmoActiveVisualState() {
-    this.transformControls.dragging = true;
-    this.transformControls.axis = this.commandAxisConstraint ?? 'XYZ';
-  }
-
-  clearGizmoActiveVisualState() {
-    this.transformControls.dragging = false;
-    this.transformControls.axis = null;
-  }
-
+  // Signals & Listeners
   setupListeners() {
     this.signals.transformOrientationChanged.add((orientation) => {
       this.applyTransformOrientation(orientation);
@@ -160,21 +119,34 @@ export class ObjectTransformTool {
       this.commitTransformSession();
       this.activeTransformSource = null;
     });
+
+    // Signal dispatch
+    this.transformControls.addEventListener('dragging-changed', (event) => {
+      this.controls.enabled = !event.value;
+      if (!event.value) this.signals.objectChanged.dispatch();
+    });
+
+    this.transformControls.addEventListener('mouseDown', () => {
+      this.signals.transformDragStarted.dispatch('object');
+    });
+
+    this.transformControls.addEventListener('mouseUp', () => {
+      requestAnimationFrame(() => {
+        this.signals.transformDragEnded.dispatch('object');
+      });
+    });
   }
 
   // Command Control
   onPointerMove() {
     if (this.activeTransformSource !== 'command') return;
-
     this.updateHandleFromMouse();
     this.applyTransformSession();
-
     this.signals.objectChanged.dispatch();
   }
 
   onPointerDown() {
     if (this.activeTransformSource !== 'command') return;
-
     this.commitTransformSession();
     this.clearGizmoActiveVisualState();
   }
@@ -211,10 +183,10 @@ export class ObjectTransformTool {
     }
   }
 
+  // Transform session
   startTransformSession() {
     const objects = this.selection.selectedObjects;
-    if (!objects || objects.length === 0) return;
-    if (!this.handle) return;
+    if (!objects?.length || !this.handle) return;
 
     this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
     this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion());
@@ -231,8 +203,7 @@ export class ObjectTransformTool {
 
   applyTransformSession() {
     const objects = this.selection.selectedObjects;
-    if (!objects || objects.length === 0) return;
-    if (!this.handle) return;
+    if (!objects?.length || !this.handle) return;
 
     if (this.mode === 'translate') this.applyTranslation(objects, this.handle);
     else if (this.mode === 'rotate') this.applyRotation(objects, this.handle);
@@ -241,8 +212,7 @@ export class ObjectTransformTool {
 
   commitTransformSession() {
     const objects = this.selection.selectedObjects;
-    if (!objects || objects.length === 0) return;
-    if (!this.handle) return;
+    if (!objects?.length || !this.handle) return;
 
     if (this.mode === 'translate') this.commitTranslation(objects, this.handle);
     else if (this.mode === 'rotate') this.commitRotation(objects, this.handle);
@@ -251,6 +221,76 @@ export class ObjectTransformTool {
     this.clearStartData();
   }
 
+  cancelTransformSession() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    // restore objects
+    for (let i = 0; i < objects.length; i++) {
+      objects[i].position.copy(this.startPositions[i]);
+      objects[i].quaternion.copy(this.startQuaternions[i]);
+      objects[i].scale.copy(this.startScales[i]);
+      objects[i].updateMatrixWorld(true);
+    }
+
+    // restore pivot / handle
+    this.handle.position.copy(this.startPivotPosition);
+    this.handle.quaternion.copy(this.startPivotQuaternion);
+    this.handle.scale.copy(this.startPivotScale);
+    this.handle.updateMatrixWorld(true);
+  }
+
+  clearCommandTransformState() {
+    this.commandAxisConstraint = null;
+    this.clearGizmoActiveVisualState();
+    this.activeTransformSource = null;
+
+    requestAnimationFrame(() => {
+      this.signals.transformDragEnded.dispatch('object');
+    });
+  }
+
+  clearStartData() {
+    this.startPositions = null;
+    this.startQuaternions = null;
+    this.startScales = null;
+    this.startPivotPosition = null;
+    this.startPivotQuaternion = null;
+    this.startPivotScale = null;
+    this.oldPositions = null;
+  }
+
+  // Gizmo visual state
+  changeTransformControlsColor() {
+    const xColor = new THREE.Color(0xff0000);
+    const yColor = new THREE.Color(0x00ff00);
+    const zColor = new THREE.Color(0x0000ff);
+
+    const helper = this.transformControls.getHelper();
+
+    helper.traverse(child => {
+      if (!child.isMesh || !child.name) return;
+      if (child.name === 'Z' || child.name === 'XY') {
+        child.material.color.set(xColor);
+      } else if (child.name === 'Y' || child.name === 'XZ') {
+        child.material.color.set(zColor);
+      } else if (child.name === 'X' || child.name === 'YZ') {
+        child.material.color.set(yColor);
+      }
+    });
+  }
+
+  setGizmoActiveVisualState() {
+    this.transformControls.dragging = true;
+    this.transformControls.axis = this.commandAxisConstraint ?? 'XYZ';
+  }
+
+  clearGizmoActiveVisualState() {
+    this.transformControls.dragging = false;
+    this.transformControls.axis = null;
+  }
+
+  // Apply transforms
   applyTranslation(objects, handle) {
     if (!this.startPivotPosition || !this.startPositions) return;
 
@@ -386,6 +426,7 @@ export class ObjectTransformTool {
     }
   }
 
+  // Commit Transforms
   commitTranslation(objects, handle) {
     const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
 
@@ -437,19 +478,9 @@ export class ObjectTransformTool {
     }
   }
 
-  clearStartData() {
-    this.startPositions = null;
-    this.startQuaternions = null;
-    this.startScales = null;
-    this.startPivotPosition = null;
-    this.startPivotQuaternion = null;
-    this.startPivotScale = null;
-
-    this.oldPositions = null;
-  }
-
+  // Utilities
   applyScaleToObject(object, scaleFactor, startScale, orientation) {
-    if (orientation === 'world') {
+    if (orientation === 'global') {
       const localX = new THREE.Vector3(1, 0, 0).applyQuaternion(object.quaternion);
       const localY = new THREE.Vector3(0, 1, 0).applyQuaternion(object.quaternion);
       const localZ = new THREE.Vector3(0, 0, 1).applyQuaternion(object.quaternion);
@@ -475,7 +506,7 @@ export class ObjectTransformTool {
   applyTransformOrientation(orientation) {
     if (!this.transformControls) return;
 
-    if (orientation === 'world') {
+    if (orientation === 'global') {
       this.selection.pivotHandle.quaternion.identity();
       this.transformControls.setSpace('world');
     } else {
@@ -518,15 +549,17 @@ export class ObjectTransformTool {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, this.camera);
 
-    let newPosition = new THREE.Vector3(); 
+    const newPosition = new THREE.Vector3(); 
 
     if (this.commandAxisConstraint) {
       const axis = this.getAxisVector(this.commandAxisConstraint).clone();
 
-      const linePoint = this.startPivotPosition.clone();
-      const lineDir = axis.clone().normalize();
+      if (this.transformControls.space === 'local') {
+        axis.applyQuaternion(this.startPivotQuaternion);
+      }
+      axis.normalize();
 
-      newPosition.copy(this.closestPointOnLineToRay(linePoint, lineDir, raycaster.ray));
+      newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
     } else {
       // Free plane movement
       const planeNormal = this.camera.getWorldDirection(new THREE.Vector3());
@@ -558,34 +591,5 @@ export class ObjectTransformTool {
     const t = denom !== 0 ? (b*e - c*d0) / denom : 0;
 
     return p.clone().add(d.clone().multiplyScalar(t));
-  }
-
-  cancelTransformSession() {
-    const objects = this.selection.selectedObjects;
-    if (!objects || objects.length === 0) return;
-
-    // restore objects
-    for (let i = 0; i < objects.length; i++) {
-      objects[i].position.copy(this.startPositions[i]);
-      objects[i].quaternion.copy(this.startQuaternions[i]);
-      objects[i].scale.copy(this.startScales[i]);
-      objects[i].updateMatrixWorld(true);
-    }
-
-    // restore pivot / handle
-    this.handle.position.copy(this.startPivotPosition);
-    this.handle.quaternion.copy(this.startPivotQuaternion);
-    this.handle.scale.copy(this.startPivotScale);
-    this.handle.updateMatrixWorld(true);
-  }
-
-  clearCommandTransformState() {
-    this.commandAxisConstraint = null;
-    this.clearGizmoActiveVisualState();
-    this.activeTransformSource = null;
-
-    requestAnimationFrame(() => {
-      this.signals.transformDragEnded.dispatch('object');
-    });
   }
 }

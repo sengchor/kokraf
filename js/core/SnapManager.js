@@ -346,7 +346,7 @@ export class SnapManager {
   }
 
   constrainTranslationOffset(offsetWorld, axis, orientation, object) {
-    if (orientation === "world") {
+    if (orientation === "global") {
       return this.constrainTranslationOffsetWorld(offsetWorld, axis);
     } else {
       return this.constrainTranslationOffsetLocal(offsetWorld, axis, object);
@@ -394,7 +394,7 @@ export class SnapManager {
         activeAxis.includes('z') ? 1 : 0
     );
 
-    if (orientation === 'world') {
+    if (orientation === 'global') {
       mask.applyQuaternion(invWorldQuat);
     }
 
@@ -405,7 +405,7 @@ export class SnapManager {
     const baseAxis = this.getRotationAxis(axis);
     if (!baseAxis) return null;
 
-    if (orientation === 'world') {
+    if (orientation === 'global') {
       return baseAxis.clone();
     } else {
       return baseAxis.clone().applyQuaternion(pivotQuaternion).normalize();

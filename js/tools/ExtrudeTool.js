@@ -15,6 +15,7 @@ export class ExtrudeTool {
     this._worldPosHelper = new THREE.Vector3();
     this.editSelection = editor.editSelection;
     this.snapManager = editor.snapManager;
+    this.viewportControls = editor.viewportControls;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
@@ -127,7 +128,7 @@ export class ExtrudeTool {
     this.transformControls.attach(object);
     this.transformControls.visible = true;
 
-    this.applyTransformOrientation(this.transformControls.space);
+    this.applyTransformOrientation(this.viewportControls.transformOrientation);
   }
 
   disable() {
@@ -251,7 +252,7 @@ export class ExtrudeTool {
   applyTransformOrientation(orientation) {
     if (!this.transformControls) return;
 
-    if (orientation === 'world') {
+    if (orientation === 'global') {
       this.editSelection.vertexHandle.quaternion.identity();
       this.transformControls.setSpace('world');
     } else {

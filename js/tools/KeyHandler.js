@@ -37,6 +37,11 @@ export class KeyHandler {
       return;
     }
 
+    // Prevent the active element from consuming keyboard shortcuts
+    if (document.activeElement) {
+      document.activeElement.blur();
+    }
+
     // Ignore repeat while held down
     const key = event.key.toLowerCase();
     if (this.keysPressed[key]) return;
@@ -109,7 +114,7 @@ export class KeyHandler {
   }
 
   dispose() {
-      window.removeEventListener('keydown', this.onKeyDown);
-      window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
   }
 }

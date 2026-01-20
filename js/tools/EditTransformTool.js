@@ -15,6 +15,7 @@ export class EditTransformTool {
     this.editSelection = editor.editSelection;
     this.snapManager = editor.snapManager;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
+    this.viewportControls = editor.viewportControls;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode(this.mode);
@@ -50,7 +51,7 @@ export class EditTransformTool {
     this.transformControls.attach(object);
     this.transformControls.visible = true;
 
-    this.applyTransformOrientation(this.transformControls.space);
+    this.applyTransformOrientation(this.viewportControls.transformOrientation);
   }
 
   disable() {
@@ -352,7 +353,7 @@ export class EditTransformTool {
   applyTransformOrientation(orientation) {
     if (!this.transformControls) return;
 
-    if (orientation === 'world') {
+    if (orientation === 'global') {
       this.editSelection.vertexHandle.quaternion.identity();
       this.transformControls.setSpace('world');
     } else {

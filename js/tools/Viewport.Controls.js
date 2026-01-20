@@ -14,6 +14,7 @@ export default class ViewportControls {
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
     this.currentMode = 'object';
+    this.transformOrientation = 'global';
 
     this.load();
   }
@@ -98,10 +99,11 @@ export default class ViewportControls {
     }
 
     if (this.transformOrientationSelect) {
-      const orientation = this.transformOrientationSelect.value;
-      this.signals.transformOrientationChanged.dispatch(orientation);
+      this.transformOrientation = this.transformOrientationSelect.value;
+      this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
       this.transformOrientationSelect.addEventListener('change', (e) => {
-        this.signals.transformOrientationChanged.dispatch(e.target.value);
+        this.transformOrientation = e.target.value;
+        this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
       });
     }
 
@@ -231,8 +233,8 @@ switchMode(newMode) {
       this.editSelection.editedObject = null;
     }
 
-    const orientation = this.transformOrientationSelect.value;
-    this.signals.transformOrientationChanged.dispatch(orientation);
+    this.transformOrientation = this.transformOrientationSelect.value;
+    this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
   }
 
   enterEditMode(selectedObject) {
@@ -244,8 +246,8 @@ switchMode(newMode) {
     this.editSelection.clearSelection();
     this.selection.deselect();
 
-    const orientation = this.transformOrientationSelect.value;
-    this.signals.transformOrientationChanged.dispatch(orientation);
+    this.transformOrientation = this.transformOrientationSelect.value;
+    this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
   }
 
   updateXRayButtonState(shadingMode) {
