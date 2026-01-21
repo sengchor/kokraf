@@ -7,8 +7,9 @@ export class EditTransformTool {
   constructor(editor, mode = 'translate') {
     this.editor = editor;
     this.signals = editor.signals;
-    this.vertexEditor = editor.vertexEditor;
     this.mode = mode;
+
+    this.vertexEditor = editor.vertexEditor;
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.controls = editor.controlsManager;
@@ -17,28 +18,13 @@ export class EditTransformTool {
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
     this.viewportControls = editor.viewportControls;
 
+    this.event = null;
+
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode(this.mode);
     this.transformControls.visible = false;
 
-    this.event = null;
     this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
-
-    this.transformControls.addEventListener('dragging-changed', (event) => {
-      this.controls.enabled = !event.value;
-      if (!event.value) this.signals.objectChanged.dispatch();
-    });
-
-    this.transformControls.addEventListener('mouseDown', () => {
-      this.signals.transformDragStarted.dispatch('edit');
-    });
-
-    this.transformControls.addEventListener('mouseUp', () => {
-      requestAnimationFrame(() => {
-        this.signals.transformDragEnded.dispatch('edit');
-      });
-    });
-
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.changeTransformControlsColor();
@@ -67,6 +53,112 @@ export class EditTransformTool {
     return this.transformControls.dragging;
   }
 
+  // Signals & Listeners
+  setupListeners() {
+    this.signals.transformOrientationChanged.add((orientation) => {
+      this.applyTransformOrientation(orientation);
+    });
+  }
+
+  // Gizmo Control
+  setupTransformListeners() {
+    this.transformControls.addEventListener('mouseDown', () => {
+      this.startTransformSession();
+    });
+
+    this.transformControls.addEventListener('change', () => {
+      if (!this.transformControls.dragging) return;
+      this.applyTransformSession();
+    });
+
+    this.transformControls.addEventListener('mouseUp', () => {
+      this.commitTransformSession();
+    });
+
+    // Signal dispatch
+    this.transformControls.addEventListener('dragging-changed', (event) => {
+      this.controls.enabled = !event.value;
+      if (!event.value) this.signals.objectChanged.dispatch();
+    });
+
+    this.transformControls.addEventListener('mouseDown', () => {
+      this.signals.transformDragStarted.dispatch('edit');
+    });
+
+    this.transformControls.addEventListener('mouseUp', () => {
+      requestAnimationFrame(() => {
+        this.signals.transformDragEnded.dispatch('edit');
+      });
+    });
+  }
+
+  // Command Control
+
+  // Transform session
+  startTransformSession() {
+    const editedObject = this.editSelection.editedObject;
+    const handle = this.transformControls.object;
+    if (!editedObject) return;
+
+    this.startPivotPosition = handle.getWorldPosition(new THREE.Vector3());
+    this.startPivotQuaternion = handle.getWorldQuaternion(new THREE.Quaternion());
+    this.startPivotScale = handle.getWorldScale(new THREE.Vector3());
+
+    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+    if (!selectedVertexIds.length) return;
+
+    this.vertexEditor.setObject(editedObject);
+    this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
+  }
+
+  applyTransformSession() {
+    const editedObject = this.editSelection.editedObject;
+    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+    if (!selectedVertexIds.length) return;
+
+    if (!this.vertexEditor.object) this.vertexEditor.setObject(editedObject);
+
+    const handle = this.transformControls.object;
+
+    if (this.mode === 'translate') this.applyTranslate(selectedVertexIds, handle);
+    else if (this.mode === 'rotate') this.applyRotate(selectedVertexIds, handle);
+    else if (this.mode === 'scale') this.applyScale(selectedVertexIds, handle);
+  }
+
+  commitTransformSession() {
+    const editedObject = this.editSelection.editedObject;
+    if (!editedObject) return;
+
+    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+    if (!selectedVertexIds.length) return;
+
+    if (this.mode === 'translate') {
+      this.commitTranslate(editedObject, selectedVertexIds);
+    } else if (this.mode === 'rotate') {
+      this.commitRotation(editedObject, selectedVertexIds);
+    } else if (this.mode === 'scale') {
+      this.commitScale(editedObject, selectedVertexIds);
+    }
+
+    if (editedObject.userData.shading === 'auto') {
+      ShadingUtils.applyShading(editedObject, 'auto');
+    }
+    this.clearStartData();
+  }
+
+  clearStartData() {
+    this.vertexEditor.object = null;
+    this.oldPositions = null;
+    this.startPivotPosition = null;
+    this.startPivotQuaternion = null;
+    this.startPivotScale = null;
+
+    this.currentTranslationDelta = null;
+    this.currentRotationDelta = null;
+    this.currentScaleDelta = null;
+  }
+
+  // Gizmo visual state
   changeTransformControlsColor() {
     const xColor = new THREE.Color(0xff0000);
     const yColor = new THREE.Color(0x00ff00);
@@ -86,66 +178,7 @@ export class EditTransformTool {
     });
   }
 
-  setupListeners() {
-    this.signals.transformOrientationChanged.add((orientation) => {
-      this.applyTransformOrientation(orientation);
-    });
-  }
-
-  setupTransformListeners() {
-    this.transformControls.addEventListener('mouseDown', () => {
-      const editedObject = this.editSelection.editedObject;
-      const handle = this.transformControls.object;
-      if (!editedObject) return;
-
-      this.startPivotPosition = handle.getWorldPosition(new THREE.Vector3());
-      this.startPivotQuaternion = handle.getWorldQuaternion(new THREE.Quaternion());
-      this.startPivotScale = handle.getWorldScale(new THREE.Vector3());
-
-      const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
-      if (!selectedVertexIds.length) return;
-
-      this.vertexEditor.setObject(editedObject);
-      this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
-    });
-
-    this.transformControls.addEventListener('change', () => {
-      if (!this.transformControls.dragging) return;
-      const editedObject = this.editSelection.editedObject;
-      const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
-      if (!selectedVertexIds.length) return;
-
-      if (!this.vertexEditor.object) this.vertexEditor.setObject(editedObject);
-
-      const handle = this.transformControls.object;
-
-      if (this.mode === 'translate') this.applyTranslate(selectedVertexIds, handle);
-      else if (this.mode === 'rotate') this.applyRotate(selectedVertexIds, handle);
-      else if (this.mode === 'scale') this.applyScale(selectedVertexIds, handle);
-    });
-
-    this.transformControls.addEventListener('mouseUp', () => {
-      const editedObject = this.editSelection.editedObject;
-      if (!editedObject) return;
-
-      const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
-      if (!selectedVertexIds.length) return;
-
-      if (this.mode === 'translate') {
-        this.commitTranslate(editedObject, selectedVertexIds);
-      } else if (this.mode === 'rotate') {
-        this.commitRotation(editedObject, selectedVertexIds);
-      } else if (this.mode === 'scale') {
-        this.commitScale(editedObject, selectedVertexIds);
-      }
-
-      if (editedObject.userData.shading === 'auto') {
-        ShadingUtils.applyShading(editedObject, 'auto');
-      }
-      this.clearStartData();
-    });
-  }
-
+  // Apply transforms
   applyTranslate(vertexIds, handle) {
     if (!this.startPivotPosition || !this.oldPositions) return;
 
@@ -267,21 +300,7 @@ export class EditTransformTool {
     this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, newPositions);
   }
 
-  restoreSubSelection() {
-    const mode = this.editSelection.subSelectionMode;
-    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
-    const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
-    const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
-
-    if (mode === 'vertex') {
-      this.editSelection.selectVertices(selectedVertexIds);
-    } else if (mode === 'edge') {
-      this.editSelection.selectEdges(selectedEdgeIds);
-    } else if (mode === 'face') {
-      this.editSelection.selectFaces(selectedFaceIds);
-    }
-  }
-
+  // Commit Transforms
   commitTranslate(object, vertexIds) {
     if (!this.currentTranslationDelta) return;
 
@@ -338,18 +357,7 @@ export class EditTransformTool {
     this.editor.execute(new SetVertexPositionCommand(this.editor, object, vertexIds, newPositions, this.oldPositions));
   }
 
-  clearStartData() {
-    this.vertexEditor.object = null;
-    this.oldPositions = null;
-    this.startPivotPosition = null;
-    this.startPivotQuaternion = null;
-    this.startPivotScale = null;
-
-    this.currentTranslationDelta = null;
-    this.currentRotationDelta = null;
-    this.currentScaleDelta = null;
-  }
-
+  // Utilities
   applyTransformOrientation(orientation) {
     if (!this.transformControls) return;
 
