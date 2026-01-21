@@ -267,6 +267,12 @@ switchMode(newMode) {
   }
 
   fromJSON(json) {
+    if (!json) {
+      this.enterObjectMode();
+      this.signals.modeChanged.dispatch('object');
+      return;
+    }
+
     const mode = json.mode;
     const uuid = json.editedObjectUuid;
     const subMode = json.subSelectionMode || 'vertex';

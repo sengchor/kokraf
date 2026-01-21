@@ -118,6 +118,7 @@ export default class Editor {
     if (saved) {
       this.fromJSON(saved);
     } else {
+      this.viewportControls.fromJSON();
       this.sceneManager.addAmbientLight(0xffffff, 0.5);
       this.sceneManager.addDemoObjects();
     }
