@@ -65,13 +65,19 @@ export class KeyHandler {
       this.editor.toolbar.setActiveTool('select');
     } else if (event.key === this.shortcuts['translate']) {
       this.editor.toolbar.setActiveTool('move');
-      this.signals.objectTransformStart.dispatch('translate');
+      this.currentMode === 'object'
+        ? this.signals.objectTransformStart.dispatch('translate')
+        : this.signals.editTransformStart.dispatch('translate');
     } else if (event.key === this.shortcuts['rotate']) {
       this.editor.toolbar.setActiveTool('rotate');
-      this.signals.objectTransformStart.dispatch('rotate');
+      this.currentMode === 'object'
+        ? this.signals.objectTransformStart.dispatch('rotate')
+        : this.signals.editTransformStart.dispatch('rotate');
     } else if (event.key === this.shortcuts['scale']) {
       this.editor.toolbar.setActiveTool('scale');
-      this.signals.objectTransformStart.dispatch('scale');
+      this.currentMode === 'object'
+        ? this.signals.objectTransformStart.dispatch('scale')
+        : this.signals.editTransformStart.dispatch('scale');
     } else if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(true);
     }

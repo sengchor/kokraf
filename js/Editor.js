@@ -73,6 +73,7 @@ export default class Editor {
       showAccountPanel: new Signal(),
 
       objectTransformStart: new Signal(),
+      editTransformStart: new Signal(),
     }
 
     this.helpers = {};
