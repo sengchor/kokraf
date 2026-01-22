@@ -20,6 +20,26 @@ export function getNeighborFaces(meshData, edgeIds) {
   return result;
 }
 
+export function computeFaceExtrudeNormal(meshData, faceIds) {
+  if (!meshData || !faceIds || faceIds.length === 0) return null;
+
+  const normal = new THREE.Vector3();
+
+  for (let fId of faceIds) {
+    const face = meshData.faces.get(fId);
+    if (!face) continue;
+
+    const faceNormal = calculateFaceNormal(meshData, face);
+    if (faceNormal.lengthSq() === 0) continue;
+
+    normal.add(faceNormal);
+  }
+
+  if (normal.lengthSq() === 0) return null;
+
+  return normal.normalize();
+}
+
 export function calculateFaceNormal(meshData, face) {
   if (!face || !face.vertexIds || face.vertexIds.length < 3) return new THREE.Vector3(0, 0, 0);
 

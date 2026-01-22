@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint } from '../utils/AlignedNormalUtils.js';
+import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint, computeFaceExtrudeNormal } from '../utils/AlignedNormalUtils.js';
 import { ExtrudeCommand } from '../commands/ExtrudeCommand.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 
@@ -46,7 +46,9 @@ export class ExtrudeTool {
     this.transformControls.visible = true;
     this.handle = this.transformControls.object;
 
-    this.applyTransformOrientation(this.viewportControls.transformOrientation);
+    if (!this.applyFaceNormalExtrudeOrientation()) {
+      this.applyTransformOrientation(this.viewportControls.transformOrientation);
+    }
 
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
@@ -62,7 +64,9 @@ export class ExtrudeTool {
   // Signals & Listeners
   setupListeners() {
     this.signals.transformOrientationChanged.add((orientation) => {
-      this.applyTransformOrientation(orientation);
+      if (!this.applyFaceNormalExtrudeOrientation()) {
+        this.applyTransformOrientation(orientation);
+      }
     });
 
     this.signals.editExtrudeStart.add(() => {
@@ -150,6 +154,10 @@ export class ExtrudeTool {
 
     const key = event.key.toLowerCase();
     if (key === 'x' || key === 'y' || key === 'z') {
+      this.applyTransformOrientation(this.viewportControls.transformOrientation);
+      this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion()).clone();
+      this.transformSolver.startPivotQuaternion = this.startPivotQuaternion;
+
       this.transformSolver.setAxisConstraintFromKey(key);
 
       this.transformSolver.updateHandleFromCommandInput('translate', this.event);
@@ -216,6 +224,9 @@ export class ExtrudeTool {
     }
 
     this.clearStartData();
+    if (!this.applyFaceNormalExtrudeOrientation()) {
+      this.applyTransformOrientation(this.viewportControls.transformOrientation);
+    }
   }
 
   cancelExtrudeSession() {
@@ -305,15 +316,19 @@ export class ExtrudeTool {
 
       const sideFaceVertexIds = [edge.v1Id, edge.v2Id, this.mappedVertexIds[edge.v2Id], this.mappedVertexIds[edge.v1Id]];
 
-      const faceId = Array.from(newEdge.faceIds)[0];
+      let referenceFace = null;
 
-      if (faceId !== undefined) {
-        const face = meshData.faces.get(faceId);
-        const faceCentroid = getCentroidFromVertices(face.vertexIds, meshData);
+      if (newEdge && newEdge.faceIds.length > 0) {
+        const faceId = Array.from(newEdge.faceIds)[0];
+        referenceFace = meshData.faces.get(faceId);
+      }
+
+      if (referenceFace) {
+        const faceCentroid = getCentroidFromVertices(referenceFace.vertexIds, meshData);
         const newEdgeMidpoint = getEdgeMidpoint(newEdge, meshData);
 
         const sideFaceNormal = new THREE.Vector3().subVectors(newEdgeMidpoint, faceCentroid).normalize();
-        const faceNormal = calculateVertexIdsNormal(meshData, face.vertexIds);
+        const faceNormal = calculateVertexIdsNormal(meshData, referenceFace.vertexIds);
         const edgeVector = new THREE.Vector3().subVectors(meshData.getVertex(edge.v2Id).position, meshData.getVertex(edge.v1Id).position).normalize();
 
         const testNormal = new THREE.Vector3().crossVectors(edgeVector, faceNormal).normalize();
@@ -369,7 +384,7 @@ export class ExtrudeTool {
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
       offset.subVectors(snapTarget, nearestWorldPos);
-      offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, editedObject);
+      offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, this.startPivotQuaternion);
 
       this.handle.position.copy(this.startPivotPosition).add(offset);
       this.transformControls.update();
@@ -381,13 +396,17 @@ export class ExtrudeTool {
   }
 
   // Utilities
-  applyTransformOrientation(orientation) {
+  applyTransformOrientation(orientation, customQuaternion = null) {
     if (!this.transformControls) return;
 
     if (orientation === 'global') {
       this.editSelection.vertexHandle.quaternion.identity();
       this.transformControls.setSpace('world');
-    } else {
+
+      this.transformControls.showX = true;
+      this.transformControls.showY = true;
+      this.transformControls.showZ = true;
+    } else if (orientation === 'local') {
       const object = this.editSelection.editedObject;
       if (!object) return;
 
@@ -395,6 +414,42 @@ export class ExtrudeTool {
         object.getWorldQuaternion(new THREE.Quaternion())
       );
       this.transformControls.setSpace('local');
+
+      this.transformControls.showX = true;
+      this.transformControls.showY = true;
+      this.transformControls.showZ = true;
+    } else if (orientation === 'custom') {
+      this.editSelection.vertexHandle.quaternion.copy(customQuaternion);
+      this.transformControls.setSpace('local');
+
+      this.transformControls.showX = false;
+      this.transformControls.showY = true;
+      this.transformControls.showZ = false;
     }
+  }
+
+  applyFaceNormalExtrudeOrientation() {
+    const editedObject = this.editSelection.editedObject;
+    if (!editedObject) return false;
+
+    const meshData = editedObject.userData.meshData;
+    const faceIds = Array.from(this.editSelection.selectedFaceIds);
+    const faceNormal = computeFaceExtrudeNormal(meshData, faceIds);
+
+    if (!faceNormal) return false;
+
+    const objectQuaternion = editedObject.getWorldQuaternion(new THREE.Quaternion());
+    const worldNormal = faceNormal.clone().applyQuaternion(objectQuaternion).normalize();
+
+    // Lock solver to face normal
+    this.transformSolver.setCustomAxisConstraint(worldNormal);
+
+    const up = new THREE.Vector3(0, 1, 0);
+    const pivotQuat = new THREE.Quaternion().setFromUnitVectors(up, worldNormal);
+    this.startPivotQuaternion = pivotQuat;
+
+    this.applyTransformOrientation('custom', this.startPivotQuaternion);
+
+    return true;
   }
 }

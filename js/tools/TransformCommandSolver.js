@@ -8,6 +8,7 @@ export class TransformCommandSolver {
 
     this.event = null;
     this.commandAxisConstraint = null;
+    this.customAxisConstraint = null;
 
     this.startPivotPosition = new THREE.Vector3();
     this.startPivotQuaternion = new THREE.Quaternion();
@@ -34,6 +35,7 @@ export class TransformCommandSolver {
 
   clear() {
     this.commandAxisConstraint = null;
+    this.customAxisConstraint = null;
 
     this.startPivotPosition = null;
     this.startPivotQuaternion = null;
@@ -52,6 +54,20 @@ export class TransformCommandSolver {
     this.transformControls.axis = this.commandAxisConstraint;
 
     // Reset start vectors so the next transform begins clean
+    this.startTranslateVector = null;
+    this.startRotateVector = null;
+    this.startScaleVector = null;
+  }
+
+  setCustomAxisConstraint(axis) {
+    if (!axis || axis.lengthSq() === 0) {
+      this.customAxisConstraint = null;
+      return;
+    }
+
+    this.customAxisConstraint = axis.clone().normalize();
+
+    // Reset session deltas
     this.startTranslateVector = null;
     this.startRotateVector = null;
     this.startScaleVector = null;
@@ -93,6 +109,10 @@ export class TransformCommandSolver {
       axis.normalize();
 
       newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
+    } else if (this.customAxisConstraint) {
+      const axis = this.customAxisConstraint.clone();
+      
+      newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
     } else {
       // Free plane movement
       const axis = this.camera.getWorldDirection(new THREE.Vector3());
@@ -120,6 +140,8 @@ export class TransformCommandSolver {
     if (this.commandAxisConstraint) {
       axis.copy(this.getAxisVector(this.commandAxisConstraint));
       if (this.transformControls.space === 'local') axis.applyQuaternion(this.startPivotQuaternion);
+    } else if (this.customAxisConstraint) {
+      axis.copy(this.customAxisConstraint);
     } else {
       axis.copy(this.camera.getWorldDirection(new THREE.Vector3()));
     }
@@ -160,6 +182,10 @@ export class TransformCommandSolver {
       }
       axis.normalize();
 
+      newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
+    } else if (this.customAxisConstraint) {
+      const axis = this.customAxisConstraint.clone();
+      
       newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
     } else {
       // Free plane movement
@@ -264,7 +290,11 @@ export class TransformCommandSolver {
 
   setGizmoActiveVisualState() {
     this.transformControls.dragging = true;
-    this.transformControls.axis = this.commandAxisConstraint ?? 'XYZ';
+    if (this.customAxisConstraint) {
+      this.transformControls.axis = this.commandAxisConstraint ?? 'Y';
+    } else {
+      this.transformControls.axis = this.commandAxisConstraint ?? 'XYZ';
+    }
   }
 
   clearGizmoActiveVisualState() {
