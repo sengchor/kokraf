@@ -150,6 +150,7 @@ export class ObjectTransformTool {
     if (this.activeTransformSource !== 'command') return;
     this.commitTransformSession();
     this.transformSolver.clearGizmoActiveVisualState();
+    this.transformSolver.clear();
   }
 
   onPointerUp() {
@@ -241,9 +242,6 @@ export class ObjectTransformTool {
 
   clearCommandTransformState() {
     this.activeTransformSource = null;
-    this.startTranslateVector = null;
-    this.startRotateVector = null;
-    this.startScaleVector = null;
 
     this.transformSolver.clear();
     this.transformSolver.clearGizmoActiveVisualState();

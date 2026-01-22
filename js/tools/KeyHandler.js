@@ -111,6 +111,7 @@ export class KeyHandler {
         this.signals.switchMode.dispatch('object');
       } else if (event.key === 'e') {
         this.editor.toolbar.setActiveTool('extrude');
+        this.signals.editExtrudeStart.dispatch();
       } else if (event.ctrlKey && event.key.toLowerCase() === 'r') {
         event.preventDefault();
         this.editor.toolbar.setActiveTool('loopcut');

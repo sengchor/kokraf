@@ -148,6 +148,7 @@ export class EditTransformTool {
     if (this.activeTransformSource !== 'command') return;
     this.commitTransformSession();
     this.transformSolver.clearGizmoActiveVisualState();
+    this.transformSolver.clear();
   }
 
   onPointerUp() {
@@ -162,7 +163,7 @@ export class EditTransformTool {
     if (key === 'x' || key === 'y' || key === 'z') {
       this.transformSolver.setAxisConstraintFromKey(key);
 
-      this.transformSolver.updateHandleFromCommandInput();
+      this.transformSolver.updateHandleFromCommandInput(this.mode, this.event);
       this.applyTransformSession();
       return;
     }
@@ -254,9 +255,6 @@ export class EditTransformTool {
 
   clearCommandTransformState() {
     this.activeTransformSource = null;
-    this.startTranslateVector = null;
-    this.startRotateVector = null;
-    this.startScaleVector = null;
 
     this.transformSolver.clear();
     this.transformSolver.clearGizmoActiveVisualState();

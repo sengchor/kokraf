@@ -2,28 +2,113 @@ import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint } from '../utils/AlignedNormalUtils.js';
 import { ExtrudeCommand } from '../commands/ExtrudeCommand.js';
+import { TransformCommandSolver } from './TransformCommandSolver.js';
 
 export class ExtrudeTool {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
+
     this.vertexEditor = editor.vertexEditor;
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
     this.controls = editor.controlsManager;
-    this._worldPosHelper = new THREE.Vector3();
     this.editSelection = editor.editSelection;
     this.snapManager = editor.snapManager;
     this.viewportControls = editor.viewportControls;
+
+    this.activeTransformSource = null;
+    this.event = null;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
     this.transformControls.visible = false;
 
-    this.event = null;
     this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
+    this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
+    this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
+
+    this.transformSolver.changeTransformControlsColor();
+    this.setupTransformListeners();
+    this.setupListeners();
+
+    this._onPointerDown = this.onPointerDown.bind(this);
+    this._onPointerMove = this.onPointerMove.bind(this);
+    this._onPointerUp = this.onPointerUp.bind(this);
+    this._onKeyDown = this.onKeyDown.bind(this);
+  }
+
+  enableFor(object) {
+    if (!object) return;
+    this.transformControls.attach(object);
+    this.transformControls.visible = true;
+    this.handle = this.transformControls.object;
+
+    this.applyTransformOrientation(this.viewportControls.transformOrientation);
+
+    this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
+    this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
+    this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
+    window.addEventListener('keydown', this._onKeyDown);
+  }
+
+  disable() {
+    this.transformControls.detach();
+    this.transformControls.visible = false;
+  }
+
+  // Signals & Listeners
+  setupListeners() {
+    this.signals.transformOrientationChanged.add((orientation) => {
+      this.applyTransformOrientation(orientation);
+    });
+
+    this.signals.editExtrudeStart.add(() => {
+      const editedObject = this.editSelection.editedObject;
+      if (!editedObject) return;
+
+      if (this.activeTransformSource !== null) return;
+
+      if (this.handle && this.transformControls.worldPositionStart) {
+        this.handle.getWorldPosition(this.transformControls.worldPositionStart);
+      }
+
+      this.activeTransformSource = 'command';
+      this.startExtrudeSession();
+
+      this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+      this.applyExtrudeSession();
+
+      this.signals.transformDragStarted.dispatch('edit');
+    });
+  }
+
+  // Gizmo Control
+  setupTransformListeners() {
+    this.transformControls.addEventListener('mouseDown', () => {
+      if (this.activeTransformSource !== null) return;
+
+      this.activeTransformSource = 'gizmo';
+      this.startExtrudeSession();
+    });
+
+    this.transformControls.addEventListener('change', () => {
+      if (!this.transformControls.dragging) return;
+      if (this.activeTransformSource !== 'gizmo') return;
+
+      this.applyExtrudeSession();
+    });
+
+    this.transformControls.addEventListener('mouseUp', () => {
+      if (this.activeTransformSource !== 'gizmo') return;
+
+      this.commitExtrudeSession();
+      this.activeTransformSource = null;
+    });
+
+    // Signal dispatch
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.controls.enabled = !event.value;
       if (!event.value) this.signals.objectChanged.dispatch();
@@ -38,104 +123,151 @@ export class ExtrudeTool {
         this.signals.transformDragEnded.dispatch('edit');
       });
     });
-
-    this.sceneEditorHelpers.add(this.transformControls.getHelper());
-
-    this.changeTransformControlsColor();
-
-    this.setupTransformListeners();
-    this.setupListeners();
   }
 
-  changeTransformControlsColor() {
-    const xColor = new THREE.Color(0xff0000);
-    const yColor = new THREE.Color(0x00ff00);
-    const zColor = new THREE.Color(0x0000ff);
-
-    const helper = this.transformControls.getHelper();
-
-    helper.traverse(child => {
-      if (!child.isMesh || !child.name) return;
-            if (child.name === 'Z' || child.name === 'XY') {
-        child.material.color.set(xColor);
-      } else if (child.name === 'Y' || child.name === 'XZ') {
-        child.material.color.set(zColor);
-      } else if (child.name === 'X' || child.name === 'YZ') {
-        child.material.color.set(yColor);
-      }
-    });
+  // Command Control
+  onPointerMove() {
+    if (this.activeTransformSource !== 'command') return;
+    this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+    this.applyExtrudeSession();
+    this.signals.objectChanged.dispatch();
   }
 
-  setupListeners() {
-    this.signals.transformOrientationChanged.add((orientation) => {
-      this.applyTransformOrientation(orientation);
-    });
+  onPointerDown() {
+    if (this.activeTransformSource !== 'command') return;
+    this.commitExtrudeSession();
+    this.transformSolver.clearGizmoActiveVisualState();
+    this.transformSolver.clear();
   }
 
-  setupTransformListeners() {
-    this.transformControls.addEventListener('mouseDown', () => {
-      const handle = this.transformControls.object;
-      if (!handle) return;
-      this.startPivotPosition = handle.getWorldPosition(this._worldPosHelper).clone();
+  onPointerUp() {
+    if (this.activeTransformSource !== 'command') return;
+    this.clearCommandExtrudeState();
+  }
 
-      const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
-      const editedObject = this.editSelection.editedObject;
+  onKeyDown(event) {
+    if (this.activeTransformSource !== 'command') return;
+
+    const key = event.key.toLowerCase();
+    if (key === 'x' || key === 'y' || key === 'z') {
+      this.transformSolver.setAxisConstraintFromKey(key);
+
+      this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+      this.applyExtrudeSession();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      this.cancelExtrudeSession();
+      this.clearCommandExtrudeState();
+      this.commitExtrudeSession();
+    }
+
+    if (event.key === 'Enter') {
+      this.commitExtrudeSession();
+      this.clearCommandExtrudeState();
+    }
+  }
+
+  // Transform session
+  startExtrudeSession() {
+    this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3()).clone();
+    this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion()).clone();
+    this.startPivotScale = this.handle.getWorldScale(new THREE.Vector3()).clone();
+
+    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+    const editedObject = this.editSelection.editedObject;
+    this.vertexEditor.setObject(editedObject);
+    this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
+
+    this.transformSolver.beginSession(this.startPivotPosition, this.startPivotQuaternion, this.startPivotScale);
+
+    this.extrudeStarted = false;
+  }
+
+  applyExtrudeSession() {
+    if (!this.startPivotPosition) return;
+
+    if (!this.extrudeStarted) {
+      this.startExtrude();
+      this.extrudeStarted = true;
+    }
+
+    this.updateExtrude();
+  }
+
+  commitExtrudeSession() {
+    const mode = this.editSelection.subSelectionMode;
+    const editedObject = this.editSelection.editedObject;
+    this.vertexEditor.setObject(editedObject);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
+    const meshData = editedObject.userData.meshData;
+    this.afterMeshData = structuredClone(meshData);
+
+    this.editor.execute(new ExtrudeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+
+    // Keep selection on the new vertices
+    if (mode === 'vertex') {
+      this.editSelection.selectVertices(this.newVertexIds);
+    } else if (mode === 'edge') {
+      this.editSelection.selectEdges(this.newEdgeIds);
+    } else if (mode === 'face') {
+      this.editSelection.selectFaces(this.newFaceIds);
+    }
+
+    this.clearStartData();
+  }
+
+  cancelExtrudeSession() {
+    const editedObject = this.editSelection.editedObject;
+    if (!editedObject) return;
+
+    if (!this.newVertexIds || !this.initialDuplicatedPositions) return;
+
+    if (!this.vertexEditor.object) {
       this.vertexEditor.setObject(editedObject);
-      this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
+    }
 
-      this.extrudeStarted = false;
-    });
+    // Restore duplicated vertices
+    this.vertexEditor.transform.setVerticesWorldPositions(
+      this.newVertexIds,
+      this.initialDuplicatedPositions
+    );
 
-    this.transformControls.addEventListener('change', () => {
-      const handle = this.transformControls.object;
-      if (!handle || !this.startPivotPosition) return;
+    // restore pivot / handle
+    this.handle.position.copy(this.startPivotPosition);
+    this.handle.quaternion.copy(this.startPivotQuaternion);
+    this.handle.scale.copy(this.startPivotScale);
+    this.handle.updateMatrixWorld(true);
+  }
 
-      if (!this.extrudeStarted) {
-        this.startExtrude();
-        this.extrudeStarted = true;
-      }
+  clearCommandExtrudeState() {
+    this.activeTransformSource = null;
 
-      this.updateExtrude();
-    });
+    this.transformSolver.clear();
+    this.transformSolver.clearGizmoActiveVisualState();
 
-    this.transformControls.addEventListener('mouseUp', () => {
-      this.startPivotPosition = null;
-      this.extrudeStarted = false;
-      this.oldPositions = null;
-
-      const mode = this.editSelection.subSelectionMode;
-      const editedObject = this.editSelection.editedObject;
-      this.vertexEditor.setObject(editedObject);
-      this.vertexEditor.transform.updateGeometryAndHelpers();
-      const meshData = editedObject.userData.meshData;
-      this.afterMeshData = structuredClone(meshData);
-
-      this.editor.execute(new ExtrudeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
-
-      // Keep selection on the new vertices
-      if (mode === 'vertex') {
-        this.editSelection.selectVertices(this.newVertexIds);
-      } else if (mode === 'edge') {
-        this.editSelection.selectEdges(this.newEdgeIds);
-      } else if (mode === 'face') {
-        this.editSelection.selectFaces(this.newFaceIds);
-      }
+    requestAnimationFrame(() => {
+      this.signals.transformDragEnded.dispatch('edit');
     });
   }
 
-  enableFor(object) {
-    if (!object) return;
-    this.transformControls.attach(object);
-    this.transformControls.visible = true;
+  clearStartData() {
+    this.startPivotPosition = null;
+    this.startPivotQuaternion = null;
+    this.startPivotScale = null;
 
-    this.applyTransformOrientation(this.viewportControls.transformOrientation);
+    this.oldPositions = null;
+    this.initialDuplicatedPositions = null;
+    this.mappedVertexIds = null;
+    this.newVertexIds = null;
+    this.newEdgeIds = null;
+    this.newFaceIds = null;
+    this.boundaryEdges = null;
+    this.extrudeStarted = false;
   }
 
-  disable() {
-    this.transformControls.detach();
-    this.transformControls.visible = false;
-  }
-
+  // Extrude
   startExtrude() {
     const editedObject = this.editSelection.editedObject;
     this.vertexEditor.setObject(editedObject);
@@ -226,11 +358,10 @@ export class ExtrudeTool {
   }
 
   updateExtrude() {
-    const handle = this.transformControls.object;
     const editedObject = this.editSelection.editedObject;
     this.vertexEditor.setObject(editedObject);
 
-    const currentPivotPosition = handle.getWorldPosition(this._worldPosHelper);
+    const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
     let offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
 
     const snapTarget = this.snapManager.snapEditPosition(this.event, this.newVertexIds, editedObject);
@@ -240,7 +371,7 @@ export class ExtrudeTool {
       offset.subVectors(snapTarget, nearestWorldPos);
       offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, editedObject);
 
-      handle.position.copy(this.startPivotPosition).add(offset);
+      this.handle.position.copy(this.startPivotPosition).add(offset);
       this.transformControls.update();
     }
 
@@ -249,6 +380,7 @@ export class ExtrudeTool {
     this.vertexEditor.transform.setVerticesWorldPositions(this.newVertexIds, newPositions);
   }
 
+  // Utilities
   applyTransformOrientation(orientation) {
     if (!this.transformControls) return;
 
