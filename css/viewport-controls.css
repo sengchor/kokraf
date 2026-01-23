@@ -4,7 +4,7 @@
   flex-direction: row;
   top: 40px;
   left: 5px;
-  z-index: 8;
+  z-index: 15;
   justify-content: space-between;
 }
 
@@ -83,29 +83,6 @@
 .selection-button:hover img,
 .selection-button.active img {
   opacity: 0.7;
-}
-
-.selection-button::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(8px);
-
-  background: #ffffff;
-  color: #222;
-  padding: 4px 8px;
-  border-radius: 2px;
-  white-space: nowrap;
-
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease-out;
-  z-index: 20;
-}
-
-.selection-button:hover::after {
-  opacity: 1;
 }
 
 #selectionBox {
@@ -215,4 +192,41 @@
 
 .xray-button.disabled img {
   opacity: 0.3;
+}
+
+.tooltip-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-wrapper::after,
+button::after {
+  font-family: sans-serif;
+  font-size: 13px;
+
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+
+  background: #ffffff;
+  color: #222;
+  padding: 4px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+  z-index: 10;
+}
+
+.tooltip-wrapper:hover::after,
+button:hover::after {
+  opacity: 1;
+}
+
+.tooltip-wrapper:has(select:focus)::after {
+  opacity: 0;
 }

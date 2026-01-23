@@ -20,10 +20,11 @@ export function getNeighborFaces(meshData, edgeIds) {
   return result;
 }
 
-export function computeFaceExtrudeNormal(meshData, faceIds) {
+export function computeFacesAverageNormal(meshData, faceIds) {
   if (!meshData || !faceIds || faceIds.length === 0) return null;
 
-  const normal = new THREE.Vector3();
+  let normal = new THREE.Vector3();
+  let firstFaceNormal = null;
 
   for (let fId of faceIds) {
     const face = meshData.faces.get(fId);
@@ -31,6 +32,17 @@ export function computeFaceExtrudeNormal(meshData, faceIds) {
 
     const faceNormal = calculateFaceNormal(meshData, face);
     if (faceNormal.lengthSq() === 0) continue;
+
+    if (!firstFaceNormal) {
+      firstFaceNormal = faceNormal.clone();
+      normal.add(faceNormal);
+      continue;
+    }
+
+    // Align the face normal with the first face
+    if (faceNormal.dot(firstFaceNormal) < 0) {
+      faceNormal.negate();
+    }
 
     normal.add(faceNormal);
   }

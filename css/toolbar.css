@@ -44,11 +44,11 @@
 }
 
 .toolbar-button::after {
-  content: attr(data-tooltip);
+  content: attr(data-tooltip) " (" attr(data-shortcut) ")";
   position: absolute;
-  bottom: 4px;
-  left: 0px;
-  transform: translateX(40px);
+  top: 50%;
+  left: 100%;
+  transform: translate(8px, -50%);
 
   background: #ffffff;
   color: #222;

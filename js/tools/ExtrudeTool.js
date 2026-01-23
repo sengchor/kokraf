@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint, computeFaceExtrudeNormal } from '../utils/AlignedNormalUtils.js';
+import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint, computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
 import { ExtrudeCommand } from '../commands/ExtrudeCommand.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 
@@ -318,7 +318,7 @@ export class ExtrudeTool {
 
       let referenceFace = null;
 
-      if (newEdge && newEdge.faceIds.length > 0) {
+      if (newEdge && newEdge.faceIds.size > 0) {
         const faceId = Array.from(newEdge.faceIds)[0];
         referenceFace = meshData.faces.get(faceId);
       }
@@ -440,7 +440,7 @@ export class ExtrudeTool {
 
     const meshData = editedObject.userData.meshData;
     const faceIds = Array.from(this.editSelection.selectedFaceIds);
-    const faceNormal = computeFaceExtrudeNormal(meshData, faceIds);
+    const faceNormal = computeFacesAverageNormal(meshData, faceIds);
 
     if (!faceNormal) return false;
 

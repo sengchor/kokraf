@@ -1,53 +1,67 @@
 <div class="viewport-controls">
-  <select class="mode-select" id="interaction-modes">
-    <option value="object" selected>OBJECT MODE</option>
-    <option value="edit">EDIT MODE</option>
-  </select>
+  <!-- Mode Select -->
+  <div class="tooltip-wrapper" data-tooltip="Interaction Modes">
+    <select class="mode-select" id="interaction-modes">
+      <option value="object" selected>OBJECT MODE</option>
+      <option value="edit">EDIT MODE</option>
+    </select>
+  </div>
 
+  <!-- Selection Buttons -->
   <div class="selection-mode hidden">
     <button class="selection-button active" data-tool="vertex" data-tooltip="Vertex Select">
-      <img src="assets/icons/point-select.svg" alt="Select" />
+      <img src="assets/icons/point-select.svg" alt="Vertex Select" />
     </button>
     <button class="selection-button" data-tool="edge" data-tooltip="Edge Select">
-      <img src="assets/icons/edge-select.svg" alt="Select" />
+      <img src="assets/icons/edge-select.svg" alt="Edge Select" />
     </button>
     <button class="selection-button" data-tool="face" data-tooltip="Face Select">
-      <img src="assets/icons/face-select.svg" alt="Select" />
+      <img src="assets/icons/face-select.svg" alt="Face Select" />
     </button>
   </div>
 
+  <!-- Middle Controls -->
   <div class="middle-controls-container">
-    <select class="transform-orientation-select" id="transform-orientation">
-      <option value="global" selected>GLOBAL</option>
-      <option value="local">LOCAL</option>
-    </select>
+    <div class="tooltip-wrapper" data-tooltip="Transform Orientation">
+      <select class="transform-orientation-select" id="transform-orientation">
+        <option value="global" selected>GLOBAL</option>
+        <option value="local">LOCAL</option>
+      </select>
+    </div>
 
-    <button class="snap-button" id="snap-button">
+    <button class="snap-button" id="snap-button" data-tooltip="Snap">
       <img class="snap-off" src="assets/icons/snap.svg" alt="Snap Off"/>
       <img class="snap-on" src="assets/icons/snapping.svg" alt="Snap On"/>
     </button>
 
-    <select class="snapping-to-select" id="snapping-to">
-      <option value="vertex" selected>VERTEX</option>
-      <option value="edge">EDGE</option>
-      <option value="face">FACE</option>
-    </select>
+    <div class="tooltip-wrapper" data-tooltip="Snapping To">
+      <select class="snapping-to-select" id="snapping-to">
+        <option value="vertex" selected>VERTEX</option>
+        <option value="edge">EDGE</option>
+        <option value="face">FACE</option>
+      </select>
+    </div>
   </div>
 
+  <!-- Right Controls -->
   <div class="right-controls-container" id="right-controls-container">
-    <button class="xray-button" id="xray-button">
+    <button class="xray-button" id="xray-button" data-tooltip="X-Ray Display">
       <img src="assets/icons/xray.svg" alt="X-Ray"/>
     </button>
 
-    <select class="camera-select" id="cameraDropdown">
-      <option value="perspective-camera" selected>CAMERA</option>
-    </select>
+    <div class="tooltip-wrapper" data-tooltip="Camera View">
+      <select class="camera-select" id="cameraDropdown">
+        <option value="perspective-camera" selected>CAMERA</option>
+      </select>
+    </div>
     
-    <select class="shading-select" id="shading-modes">
-      <option value="material">MATERIAL</option>
-      <option value="solid" selected>SOLID</option>
-      <option value="normal">NORMAL</option>
-      <option value="wireframe">WIREFRAME</option>
-    </select>
+    <div class="tooltip-wrapper" data-tooltip="Viewport Shading">
+      <select class="shading-select" id="shading-modes">
+        <option value="material">MATERIAL</option>
+        <option value="solid" selected>SOLID</option>
+        <option value="normal">NORMAL</option>
+        <option value="wireframe">WIREFRAME</option>
+      </select>
+    </div>
   </div>
 </div>
