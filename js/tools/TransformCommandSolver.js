@@ -75,7 +75,7 @@ export class TransformCommandSolver {
 
   // Update handle
   updateHandleFromCommandInput(mode, event) {
-    if (!this.startPivotPosition) return;
+    if (!this.startPivotPosition || !this.handle) return;
 
     this.event = event;
     switch (mode) {

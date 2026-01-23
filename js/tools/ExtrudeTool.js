@@ -71,7 +71,7 @@ export class ExtrudeTool {
 
     this.signals.editExtrudeStart.add(() => {
       const editedObject = this.editSelection.editedObject;
-      if (!editedObject) return;
+      if (!editedObject || !this.handle) return;
 
       if (this.activeTransformSource !== null) return;
 
@@ -353,7 +353,13 @@ export class ExtrudeTool {
 
     for (let vId of leftoverVertexIds) {
       const newVId = this.mappedVertexIds[vId];
-      meshData.addEdge(meshData.getVertex(vId), meshData.getVertex(newVId));
+
+      const vertexA = meshData.getVertex(vId);
+      const vertexB = meshData.getVertex(newVId);
+
+      if (vertexA && vertexB) {
+        meshData.addEdge(vertexA, vertexB);
+      }
     }
 
     // Delete old selection

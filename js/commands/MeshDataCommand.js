@@ -18,10 +18,12 @@ export class MeshDataCommand {
   }
 
   execute() {
+    this.editor.editSelection.clearSelection();
     this.applyMeshData(this.afterMeshData);
   }
 
   undo() {
+    this.editor.editSelection.clearSelection();
     this.applyMeshData(this.beforeMeshData);
   }
 

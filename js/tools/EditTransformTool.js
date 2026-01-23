@@ -78,7 +78,7 @@ export class EditTransformTool {
       if (this.mode !== transformMode) return;
 
       const editedObject = this.editSelection.editedObject;
-      if (!editedObject) return;
+      if (!editedObject || !this.handle) return;
 
       if (this.activeTransformSource !== null) return;
 
@@ -182,7 +182,7 @@ export class EditTransformTool {
   // Transform session
   startTransformSession() {
     const editedObject = this.editSelection.editedObject;
-    if (!editedObject) return;
+    if (!editedObject || !this.handle) return;
 
     this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
     this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion());
@@ -199,6 +199,8 @@ export class EditTransformTool {
 
   applyTransformSession() {
     const editedObject = this.editSelection.editedObject;
+    if (!editedObject || !this.handle) return;
+
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     if (!selectedVertexIds.length) return;
 
@@ -211,7 +213,7 @@ export class EditTransformTool {
 
   commitTransformSession() {
     const editedObject = this.editSelection.editedObject;
-    if (!editedObject) return;
+    if (!editedObject || !this.handle) return;
 
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     if (!selectedVertexIds.length) return;

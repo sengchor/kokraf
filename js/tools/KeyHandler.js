@@ -57,68 +57,101 @@ export class KeyHandler {
     if (this.keysPressed[key]) return;
     this.keysPressed[key] = true;
 
+    let handled = false;
+
+    /* ---------- Global shortcuts ---------- */
     if (event.ctrlKey && event.key === this.shortcuts['undo']) {
       this.editor.undo();
+      handled = true;
     } else if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === this.shortcuts['undo']) {
       this.editor.redo();
+      handled = true;
     } else if (event.key === 'w') {
       this.editor.toolbar.setActiveTool('select');
+      handled = true;
     } else if (event.key === this.shortcuts['translate']) {
       this.editor.toolbar.setActiveTool('move');
       this.currentMode === 'object'
         ? this.signals.objectTransformStart.dispatch('translate')
         : this.signals.editTransformStart.dispatch('translate');
+      handled = true;
     } else if (event.key === this.shortcuts['rotate']) {
       this.editor.toolbar.setActiveTool('rotate');
       this.currentMode === 'object'
         ? this.signals.objectTransformStart.dispatch('rotate')
         : this.signals.editTransformStart.dispatch('rotate');
+      handled = true;
     } else if (event.key === this.shortcuts['scale']) {
       this.editor.toolbar.setActiveTool('scale');
       this.currentMode === 'object'
         ? this.signals.objectTransformStart.dispatch('scale')
         : this.signals.editTransformStart.dispatch('scale');
+      handled = true;
     } else if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(true);
+      handled = true;
     }
 
+    /* ---------- Object mode ---------- */
     if (this.currentMode === 'object') {
       if (event.key === 'Delete') {
         this.signals.objectDeleted.dispatch();
+        handled = true;
       } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
         this.signals.objectFocused.dispatch();
+        handled = true;
       } else if (event.key === 'Tab') {
         event.preventDefault();
         if (document.activeElement && document.activeElement.blur) {
           document.activeElement.blur();
-        } 
+        }
         this.signals.switchMode.dispatch('edit');
+        return;
       } else if (event.shiftKey && event.key.toLowerCase() === 'd') {
         this.signals.objectDuplicated.dispatch();
+        handled = true;
       }
-    } else if (this.currentMode === 'edit') {
+    }
+
+    /* ---------- Edit mode ---------- */
+    if (this.currentMode === 'edit') {
       if (event.key === 'w') {
         this.editor.toolbar.setActiveTool('select');
+        handled = true;
       } else if (event.key === 'f') {
         this.signals.createElementFromVertices.dispatch();
+        handled = true;
       } else if (event.key === 'p') {
         this.signals.separateSelection.dispatch();
+        handled = true;
       } else if (event.key === 'Tab') {
         event.preventDefault();
         if (document.activeElement && document.activeElement.blur) {
           document.activeElement.blur();
         }
         this.signals.switchMode.dispatch('object');
+        return;
       } else if (event.key === 'e') {
         this.editor.toolbar.setActiveTool('extrude');
         this.signals.editExtrudeStart.dispatch();
+        handled = true;
       } else if (event.ctrlKey && event.key.toLowerCase() === 'r') {
-        event.preventDefault();
         this.editor.toolbar.setActiveTool('loopcut');
+        handled = true;
       } else if (event.key === 'k') {
         this.editor.toolbar.setActiveTool('knife');
+        handled = true;
       }
-    } 
+    }
+
+    if (handled) {
+      event.preventDefault();
+
+      // Blur only when we actually used the shortcut
+      if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur();
+      }
+    }
   }
 
   onKeyUp(event) {

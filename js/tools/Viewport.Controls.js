@@ -215,7 +215,6 @@ switchMode(newMode) {
   }
 
   this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
-  this.currentMode = newMode;
 }
 
   enterObjectMode() {

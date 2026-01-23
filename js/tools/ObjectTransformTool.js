@@ -80,7 +80,7 @@ export class ObjectTransformTool {
       if (this.mode !== transformMode) return;
       
       const objects = this.selection.selectedObjects;
-      if (!objects || objects.length === 0) return;
+      if (!objects || objects.length === 0 || !this.handle) return;
 
       if (this.activeTransformSource !== null) return;
 
