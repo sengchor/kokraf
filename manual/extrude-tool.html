@@ -1,0 +1,93 @@
+<h1>Extrude Tool</h1>
+
+<p>
+  The <strong>Extrude Tool</strong> allows you to create new geometry by extending
+  selected <strong>vertices</strong>, <strong>edges</strong>, or <strong>faces</strong>
+  in <strong>Edit Mode</strong>.
+</p>
+<p>
+  You can control extrusion visually using the <strong>Transform Gizmo</strong>.
+</p>
+
+<p class="manual-note">
+  Extrusion is essential for modeling complex shapes. New geometry is connected
+  to the original selection.
+</p>
+
+<h2>How to Use Extrude</h2>
+
+<ul class="nav-list">
+  <li>
+    Select the vertices, edges, or faces you want to extrude.
+  </li>
+  <li>
+    Activate the Extrude Tool.
+    <span class="manual-input">E</span>
+  </li>
+  <li>
+    Move the mouse to extend the selection along the normal direction.
+  </li>
+  <li>
+    Confirm with
+    <span class="manual-input">Left Click</span>
+    or
+    <span class="manual-input">Enter</span>.
+  </li>
+  <li>
+    Cancel with
+    <span class="manual-input">Esc</span>.
+    The extruded geometry will remain, but new vertices will return to their original position.
+  </li>
+</ul>
+
+<h2>Axis Constraints</h2>
+
+<p>
+  You can constrain extrusion to a specific axis for precise control.
+</p>
+
+<ul class="nav-list">
+  <li>
+    Press
+    <span class="manual-input">X</span>,
+    <span class="manual-input">Y</span>,
+    or
+    <span class="manual-input">Z</span>
+    after activating Extrude to lock the extrusion to that axis.
+  </li>
+</ul>
+
+<h2>Transform During Extrude</h2>
+
+<p>
+  After extruding, you can immediately move, rotate, or scale the new geometry
+  without deactivating the tool.
+</p>
+
+<ul class="nav-list">
+  <li>
+    Move the mouse to position the extrusion.
+  </li>
+  <li>
+    Use <span class="manual-input">G</span>, <span class="manual-input">R</span>, or
+    <span class="manual-input">S</span> to transform the extrusion in real-time.
+  </li>
+</ul>
+
+<h2>Extrusion Direction</h2>
+
+<ul class="nav-list">
+  <li>
+    <strong>With at least one face selected:</strong>  
+    The extrusion direction follows the <strong>average normal</strong> of the selected faces.
+  </li>
+  <li>
+    <strong>No faces selected:</strong>  
+    The extrusion moves freely in any direction based on mouse movement.
+  </li>
+</ul>
+
+<p class="manual-note">
+  Extrude works on all selection types (vertex, edge, face), but the resulting
+  geometry depends on what is selected.
+</p>

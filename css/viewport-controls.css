@@ -200,7 +200,7 @@
 }
 
 .tooltip-wrapper::after,
-button::after {
+.viewport-controls button::after {
   font-family: sans-serif;
   font-size: 13px;
 
@@ -223,7 +223,7 @@ button::after {
 }
 
 .tooltip-wrapper:hover::after,
-button:hover::after {
+.viewport-controls button:hover::after {
   opacity: 1;
 }
 

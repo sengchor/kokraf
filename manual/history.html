@@ -1,0 +1,73 @@
+<h1>History</h1>
+
+<p>
+  The History system tracks all actions performed in the editor, allowing you to undo or redo changes.
+  It helps you safely experiment with transformations, edits, and scene modifications without losing work.
+</p>
+
+<h2>Location</h2>
+<ul class="nav-list">
+  <li>
+    History controls are located in the <strong>Settings panel</strong> of the editor.
+  </li>
+</ul>
+
+<h2>Undo & Redo</h2>
+<ul class="nav-list">
+  <li>
+    <strong>Undo</strong> reverts the last action. You can undo multiple steps, up to the limit of stored commands.
+  </li>
+  <li>
+    <strong>Redo</strong> reapplies the last undone action.
+  </li>
+  <li>
+    The system supports a maximum of <strong>25 commands</strong> by default. Older commands are removed when this limit is exceeded.
+  </li>
+</ul>
+
+<h2>Supported Actions</h2>
+<ul class="nav-list">
+  <li>
+    History tracks operations such as object transformations (move, rotate, scale), geometry edits (vertex, edge, face modifications), mode switches, and other scene changes.
+  </li>
+  <li>
+    Each action is recorded as a command object with an <strong>execute</strong> and <strong>undo</strong> function.
+  </li>
+</ul>
+
+<h2>Clearing History</h2>
+<ul class="nav-list">
+  <li>
+    You can clear all stored undo and redo steps using the <strong>Clear History</strong> option.
+  </li>
+  <li>
+    This resets the history stack and removes all previously tracked commands.
+  </li>
+</ul>
+
+<h2>Persistent History</h2>
+<ul class="nav-list">
+  <li>
+    A <strong>Persistent</strong> checkbox is available in the History panel.
+  </li>
+  <li>
+    When enabled, your undo/redo history will be saved even after closing or reloading the browser.
+  </li>
+  <li>
+    If disabled, the history will reset when the editor is closed or reloaded.
+  </li>
+</ul>
+
+<h2>Saving & Loading History</h2>
+<ul class="nav-list">
+  <li>
+    History can be serialized into JSON, including all stored undo and redo commands.
+  </li>
+  <li>
+    When loading from JSON, commands are revived using their respective classes. Unknown or unsupported commands are skipped with a warning.
+  </li>
+</ul>
+
+<p class="manual-note">
+  Using the History system ensures that you can safely experiment with your scene, revert mistakes, and restore previous states of your work.
+</p>

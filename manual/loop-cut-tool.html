@@ -1,0 +1,67 @@
+<h1>Loop Cut Tool</h1>
+
+<p>
+  The <strong>Loop Cut Tool</strong> allows you to insert a new edge loop into
+  a mesh while in <strong>Edit Mode</strong>.
+</p>
+
+<p class="manual-note">
+  Loop cuts work on continuous quad-based geometry. The new edges are inserted
+  at the midpoint of existing edges.
+</p>
+
+<h2>How to Use</h2>
+
+<ul class="nav-list">
+  <li>
+    Activate the Loop Cut Tool.
+    <span class="manual-input">Ctrl</span> +
+    <span class="manual-input">R</span>
+    or click the Loop Cut tool in the viewport toolbar.
+  </li>
+  <li>
+    Hover over the mesh to preview the edge loop.
+    A <strong>yellow highlight</strong> indicates where the cut will occur.
+  </li>
+  <li>
+    Click
+    <span class="manual-input">Left Click</span>
+    to apply the loop cut.
+  </li>
+</ul>
+
+<h2>Loop Cut Behavior</h2>
+
+<ul class="nav-list">
+  <li>
+    Loop cuts follow connected quad faces to form a continuous edge loop.
+  </li>
+  <li>
+    If the loop forms a closed ring, the cut will wrap fully around the mesh.
+  </li>
+  <li>
+    If the loop is open, the cut will stop at the mesh boundary or when it encounters a non-quad face.
+  </li>
+</ul>
+
+<h2>Selection After Loop Cut</h2>
+
+<ul class="nav-list">
+  <li>
+    After applying a loop cut, the newly created geometry is automatically selected.
+  </li>
+  <li>
+    In <strong>Vertex Select</strong> Mode, the new vertices created by the loop cut are selected.
+  </li>
+  <li>
+    In <strong>Edge Select</strong> Mode, the new edge loop is selected.
+  </li>
+  <li>
+    In <strong>Face Select</strong> Mode, no faces are selected.
+  </li>
+</ul>
+
+<p class="manual-note">
+  This allows you to immediately move, scale, or slide the new loop without
+  reselecting it.
+</p>

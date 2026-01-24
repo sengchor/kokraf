@@ -1,0 +1,73 @@
+<h1>Transform Orientation</h1>
+
+<p>
+  <strong>Transform Orientation</strong> determines how the gizmo for Move,
+  Rotate, and Scale is aligned in the viewport. It affects the direction of
+  axis constraints and how transformations are applied.
+</p>
+
+<p class="manual-note">
+  Transform Orientation works together with the Transform Gizmo, Snap, and Axis
+  Constraints for precise modeling workflows.
+</p>
+
+<h2>How to Access</h2>
+
+<ul class="nav-list">
+  <li>
+    In the viewport, at the <strong>middle-top toolbar</strong>, next to the
+    <strong>Snap (magnet) button</strong>, there is a <strong>Transform Orientation menu</strong>.
+  </li>
+  <li>
+    Click the menu to select between the available orientation types.
+  </li>
+</ul>
+
+<h2>Orientation Types</h2>
+
+<ul class="nav-list">
+  <li>
+    <strong>Global</strong> — aligns the gizmo to the world axes (X, Y, Z).
+    Transformations occur along fixed global directions, regardless of object rotation.
+  </li>
+  <li>
+    <strong>Local</strong> — aligns the gizmo to the selected object’s local axes.
+    Transformations follow the object’s rotation and orientation.
+  </li>
+</ul>
+
+<h2>Behavior</h2>
+
+<ul class="nav-list">
+  <li>
+    When the Transform Orientation is set to <strong>Global</strong>, axis constraints
+    (<span class="manual-input">X</span>, <span class="manual-input">Y</span>, <span class="manual-input">Z</span>)
+    correspond to world directions.
+  </li>
+  <li>
+    When set to <strong>Local</strong>, axis constraints follow the selected object’s
+    rotation. For example, the local X-axis rotates with the object.
+  </li>
+  <li>
+    The orientation also affects snapping when transformations are constrained to
+    an axis.
+  </li>
+</ul>
+
+<h2>Practical Examples</h2>
+
+<ul class="nav-list">
+  <li>
+    <strong>Global:</strong> Move a rotated object along the world X-axis — the gizmo stays
+    aligned to the world, not the object’s rotation.
+  </li>
+  <li>
+    <strong>Local:</strong> Move the same object along its local X-axis — the gizmo follows
+    the object’s rotation.
+  </li>
+</ul>
+
+<p class="manual-note">
+  Choosing the correct orientation helps maintain precision in modeling,
+  especially when transforming rotated objects or working with multiple objects.
+</p>

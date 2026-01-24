@@ -1,0 +1,72 @@
+<h1>Export</h1>
+
+<p>
+  The <strong>Export</strong> feature allows you to save your 3D objects into various file formats
+  for use in other 3D software, game engines, or for sharing.
+</p>
+
+<h2>Location</h2>
+<ul class="nav-list">
+  <li>
+    The Export option is located in the <strong>File &gt; Export</strong> submenu of the editor.
+  </li>
+</ul>
+
+<h2>Supported Formats</h2>
+<ul class="nav-list">
+  <li><strong>GLB (.glb)</strong> — Binary GLTF format, compact and widely supported.</li>
+  <li><strong>GLTF (.gltf)</strong> — JSON-based GLTF format, readable and editable.</li>
+  <li><strong>OBJ (.obj)</strong> — Geometry format including vertices, normals, and faces.</li>
+  <li><strong>STL (.stl)</strong> — Plain-text STL format for 3D printing.</li>
+  <li><strong>Binary STL (.stl-binary)</strong> — Binary STL format for more compact storage.</li>
+  <li><strong>USDZ (.usdz)</strong> — Apple AR format for ARKit and USDZ viewers.</li>
+</ul>
+
+<h2>Recommended Format</h2>
+<p>
+  For preserving your <strong>original polygon geometry</strong> and topology, it is recommended to export using the <strong>OBJ (.obj)</strong> format. 
+  Other formats (GLB, GLTF, STL, USDZ) will automatically <strong>triangulate your mesh</strong> during export, which can make it harder to edit or modify later.
+</p>
+
+<h2>Requirements</h2>
+<ul class="nav-list">
+  <li>
+    You must be <strong>logged in</strong> to export objects. If not logged in, the editor will prompt you to log in.
+  </li>
+  <li>
+    Exports may require credits if your account has usage limitations. You will be notified if you cannot export.
+  </li>
+</ul>
+
+<h2>Export Behavior</h2>
+<ul class="nav-list">
+  <li>
+    Multiple objects can be exported simultaneously. All objects are merged into a single file while preserving transformations.
+  </li>
+  <li>
+    Geometry is processed according to its <strong>shading mode</strong> (smooth, flat, or auto), ensuring normals and faces are correctly exported.
+  </li>
+  <li>
+    World transformations (position, rotation, scale) are applied to the exported geometry.
+  </li>
+</ul>
+
+<h2>How to Export</h2>
+<ul class="nav-list">
+  <li>
+    Go to <strong>File &gt; Export</strong> and select the desired format.
+  </li>
+  <li>
+    Ensure the objects you want to export are selected.
+  </li>
+  <li>
+    The file will automatically be downloaded once exported.
+  </li>
+  <li>
+    If the export fails, check your login status, available credits, and that the selected objects are valid meshes.
+  </li>
+</ul>
+
+<p class="manual-note">
+  Exporting allows you to share your 3D creations or import them into other applications while preserving geometry, shading, and transformations. For best results, always ensure your objects are properly transformed and have the correct shading applied before exporting.
+</p>

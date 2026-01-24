@@ -1,0 +1,151 @@
+<h1>Snapping</h1>
+
+<p>
+  <strong>Snapping</strong> allows transformations to align precisely to existing
+  geometry such as <strong>vertices</strong>, <strong>edges</strong>, or
+  <strong>faces</strong>.
+</p>
+
+<p class="manual-note">
+  Snapping is applied while transforming using Move, Rotate, Scale, or the
+  Transform Gizmo.
+</p>
+
+<h2>How to Activate Snapping</h2>
+
+<ul class="nav-list">
+  <li>
+    In the viewport, at the <strong>middle-top</strong>, there is a
+    <strong>magnet button</strong>.
+  </li>
+  <li>
+    Press the magnet button to <strong>enable</strong> snapping; press again to
+    <strong>disable</strong> snapping.
+  </li>
+  <li>
+    Next to the magnet button, select the <strong>Snap Target Type</strong>:
+    <span class="manual-input">Vertex</span>, <span class="manual-input">Edge</span>,
+    or <span class="manual-input">Face</span>.
+  </li>
+</ul>
+
+<h2>Snap Targets</h2>
+
+<ul class="nav-list">
+  <li>
+    <strong>Vertex Snap</strong> — snaps to the nearest visible vertex.
+  </li>
+  <li>
+    <strong>Edge Snap</strong> — snaps to the closest point along an edge.
+  </li>
+  <li>
+    <strong>Face Snap</strong> — snaps to a surface point on a face.
+  </li>
+</ul>
+
+<h2>How Snapping Works</h2>
+
+<ul class="nav-list">
+  <li>
+    Snapping is evaluated in screen space, based on the mouse cursor position.
+  </li>
+  <li>
+    The closest valid snap target within the snap threshold is selected.
+  </li>
+  <li>
+    A visual indicator appears when a valid snap target is detected.
+  </li>
+</ul>
+
+<h2>Transform-Specific Behavior</h2>
+
+<h3>Move (Translate)</h3>
+
+<ul class="nav-list">
+  <li>
+    The selection is translated so the nearest original vertex aligns with
+    the snap target.
+  </li>
+  <li>
+    The entire selection moves together as a group.
+  </li>
+  <li>
+    Axis constraints are respected during snapping.
+  </li>
+</ul>
+
+<h3>Rotate</h3>
+
+<ul class="nav-list">
+  <li>
+    The selection is rotated toward the snap target around the transform pivot.
+  </li>
+  <li>
+    When an axis is constrained, rotation is limited to that axis.
+  </li>
+  <li>
+    Without an axis constraint, the rotation aligns the direction from the pivot
+    to the snap target.
+  </li>
+</ul>
+
+<h3>Scale</h3>
+
+<ul class="nav-list">
+  <li>
+    Scaling adjusts so the selection reaches the snap target.
+  </li>
+  <li>
+    Scale snapping is computed relative to the transform pivot.
+  </li>
+  <li>
+    Axis constraints limit scaling to specific directions.
+  </li>
+</ul>
+
+<h2>Edit Mode Snapping</h2>
+
+<ul class="nav-list">
+  <li>
+    Snapping affects only the selected vertices, edges, or faces.
+  </li>
+  <li>
+    Selected vertices are ignored as snap targets to prevent self-snapping.
+  </li>
+  <li>
+    The shape of the selection is always preserved.
+  </li>
+</ul>
+
+<h2>Axis and Space</h2>
+
+<ul class="nav-list">
+  <li>
+    Snapping respects axis constraints
+    (<span class="manual-input">X</span>,
+    <span class="manual-input">Y</span>,
+    <span class="manual-input">Z</span>).
+  </li>
+  <li>
+    In <strong>World Space</strong>, snapping aligns using global axes.
+  </li>
+  <li>
+    In <strong>Local Space</strong>, snapping respects object rotation.
+  </li>
+</ul>
+
+<h2>Visual Feedback</h2>
+
+<ul class="nav-list">
+  <li>
+    A circular snap indicator appears at the snap location.
+  </li>
+  <li>
+    The indicator scales with camera distance to remain readable.
+  </li>
+</ul>
+
+<p class="manual-note">
+  Snapping works together with transform orientation, axis constraints,
+  and gizmo controls to provide precise modeling workflows.
+</p>

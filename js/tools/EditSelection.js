@@ -289,7 +289,6 @@ export default class EditSelection {
 
     const xrayMode = this.sceneManager.xrayMode;
     const visibleFaces = xrayMode ? faceHits : this.filterVisibleFaces(faceHits, faceMesh, this.camera);
-    // const visibleFaces = this.filterVisibleFaces(faceHits, faceMesh, this.camera);
     if (visibleFaces.length === 0) return null;
 
     const faceIndices = visibleFaces.map(f => f.index);
