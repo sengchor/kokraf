@@ -16,6 +16,10 @@ export default class PanelResizer {
     this.signals.emptyScene.add(() => {
       this.onWindowResize();
     });
+
+    this.signals.layoutChanged.add(() => {
+      this.onWindowResize();
+    });
   }
 
   initRightPanelResizer() {
@@ -95,9 +99,11 @@ export default class PanelResizer {
     this.viewportViewHelper.updatePosition(this.renderer.domElement);
     this.adjustOutlinerHeight();
 
+    const leftControls = document.getElementById('left-controls-container');
     const rightControls = document.getElementById('right-controls-container');
-    const controlsWidth = rightControls.clientWidth;
-    rightControls.style.marginLeft = `${width - controlsWidth - 145}px`;
+
+    const controlsWidth = rightControls.clientWidth + leftControls.clientWidth;
+    rightControls.style.marginLeft = `${width - controlsWidth - 15}px`;
   }
 
   adjustOutlinerHeight() {

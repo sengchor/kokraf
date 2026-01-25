@@ -56,6 +56,67 @@ export default class Menubar {
       this.pricingButton.addEventListener('click', () => {
         window.open('/pricing', '_blank');
       });
+
+      this.initMenuBar();
+    });
+  }
+
+  initMenuBar() {
+    function closeAllMenus() {
+      document
+        .querySelectorAll('.menu-item.active')
+        .forEach(m => m.classList.remove('active'));
+
+      // temporarily kill hover
+      document.body.classList.add('menu-closing');
+
+      requestAnimationFrame(() => {
+        document.body.classList.remove('menu-closing');
+      });
+    }
+
+    const menuItems = document.querySelectorAll('.menu-item');
+
+    menuItems.forEach(item => {
+      item.addEventListener('click', e => {
+
+        // ignore submenu clicks here
+        if (e.target.closest('.submenu')) return;
+
+        menuItems.forEach(i => {
+          if (i !== item) i.classList.remove('active');
+        });
+
+        item.classList.toggle('active');
+
+        e.stopPropagation();
+      });
+    });
+
+    document.addEventListener('click', e => {
+      if (e.target.closest('.submenu li')) {
+        closeAllMenus();
+      }
+    });
+
+    // Close menu when hovering outside
+    let closeTimeout = null;
+
+    document.addEventListener('mousemove', e => {
+      const activeMenu = document.querySelector('.menu-item.active');
+      if (!activeMenu) return;
+
+      const submenu = activeMenu.querySelector('.submenu');
+
+      if (activeMenu.contains(e.target) ||
+          (submenu && submenu.contains(e.target))) {
+        clearTimeout(closeTimeout);
+        return;
+      }
+
+      closeTimeout = setTimeout(() => {
+        activeMenu.classList.remove('active');
+      }, 300);
     });
   }
 }

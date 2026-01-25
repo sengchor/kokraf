@@ -50,6 +50,7 @@ export default class Editor {
 
       historyChanged: new Signal(),
       emptyScene: new Signal(),
+      layoutChanged: new Signal(),
 
       sceneGraphChanged: new Signal(),
       modeChanged: new Signal(),

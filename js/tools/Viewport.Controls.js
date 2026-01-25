@@ -36,6 +36,8 @@ export default class ViewportControls {
     this.snappingSelect = document.getElementById('snapping-to');
     this.transformOrientationSelect = document.getElementById('transform-orientation');
     this.xrayButton = document.getElementById('xray-button');
+    this.objectMenu = document.getElementById('object-menu');
+    this.leftControls = document.getElementById('left-controls-container');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -115,6 +117,14 @@ export default class ViewportControls {
         this.signals.viewportXRayChanged.dispatch(active);
       })
     }
+
+    if (this.leftControls) {
+      this.leftControlsResizeObserver = new ResizeObserver(() => {
+        this.signals.layoutChanged.dispatch();
+      });
+
+      this.leftControlsResizeObserver.observe(this.leftControls);
+    }
   }
 
   setupListeners() {
@@ -132,8 +142,14 @@ export default class ViewportControls {
       if (this.interactionDropdown) {
         this.interactionDropdown.value = newMode;
       }
+
       if (this.selectionModeBar) {
         this.selectionModeBar.classList.toggle('hidden', newMode === 'object');
+      }
+
+      if (this.objectMenu) {
+        this.objectMenu.classList.toggle('hidden', newMode === 'edit');
+        this.objectMenu.classList.remove('active');
       }
     });
 

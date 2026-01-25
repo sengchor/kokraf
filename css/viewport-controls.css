@@ -8,6 +8,14 @@
   justify-content: space-between;
 }
 
+.left-controls-container {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+  margin-left: 0px;
+  z-index: 9;
+}
+
 .camera-select {
   padding: 1px;
   margin-left: 10px;
@@ -229,4 +237,51 @@
 
 .tooltip-wrapper:has(select:focus)::after {
   opacity: 0;
+}
+
+.viewport-controls .menu-item {
+  background-color: #ffffff;
+  color: #666;
+  font-family: sans-serif;
+  font-size: 14px;
+  user-select: none;
+  padding: 0 10px;
+  margin-left: 10px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #e6e8eb;
+  z-index: 30;
+  height: 18px;
+  padding-top: 1px;
+}
+
+.viewport-controls .menu-item:hover {
+  background-color: #f1f3f5;
+  color: #222;
+}
+
+.viewport-controls .menu-item.active > .submenu {
+  visibility: visible;
+}
+
+.viewport-controls .submenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 1px;
+  padding: 0px;
+}
+
+.viewport-controls .submenu li {
+  line-height: 30px;
+  padding: 0 8px;
+  gap: 6px;
+}
+
+.viewport-controls .submenu .divider {
+  height: 1px;
+  margin: 4px 0;
+  background-color: #ccc;
+  pointer-events: none;
 }

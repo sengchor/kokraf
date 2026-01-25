@@ -21,10 +21,10 @@
   display: flex;
 }
 
-.menu-item {
+.menu-bar .menu-item {
   position: relative;
   padding: 0 15px;
-  line-height: 32px;
+  line-height: 30px;
   cursor: pointer;
   color: #111;
 }
@@ -43,11 +43,11 @@
   box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
-.menu-item:hover {
+.menu-bar .menu-item:hover {
   background-color: #f1f3f5;
 }
 
-.menu-item:hover > .submenu {
+.menu-item.active > .submenu {
   visibility: visible;
 }
 
@@ -94,8 +94,13 @@
   box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
-.submenu-item:hover .submenu.right {
+.submenu-item:hover > .submenu.right {
   visibility: visible;
+}
+
+.menu-closing .submenu,
+.menu-closing .submenu.right {
+  visibility: hidden !important;
 }
 
 .arrow {
