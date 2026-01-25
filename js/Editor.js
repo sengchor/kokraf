@@ -19,8 +19,8 @@ import Config from './core/Config.js';
 import { Storage } from './core/Storage.js';
 import EditSelection from './tools/EditSelection.js';
 import ContextMenu from './ui/ContextMenu.js';
-import { MeshEditDispatcher } from './tools/MeshEditDispatcher.js';
-import { ObjectEditDispatcher } from './tools/ObjectEditDispatcher.js';
+import { EditActions } from './actions/EditActions.js';
+import { ObjectActions } from './actions/ObjectActions.js';
 import EditHelpers from './helpers/EditHelpers.js';
 import { SelectionBox } from './tools/SelectionBox.js';
 import { SnapManager } from './core/SnapManager.js';
@@ -97,7 +97,9 @@ export default class Editor {
     this.editSelection = new EditSelection(this);
     this.editHelpers = new EditHelpers(this);
     this.keyHandler = new KeyHandler(this);
-    this.vertexEditor = new VertexEditor(this)
+    this.vertexEditor = new VertexEditor(this);
+    this.editActions = new EditActions(this);
+    this.objectActions = new ObjectActions(this);
 
     // UI
     this.uiLoader = new UIComponentsLoader();
@@ -113,8 +115,6 @@ export default class Editor {
     this.viewportControls = new ViewportControls(this);  
     this.toolbar = new Toolbar(this);
     this.menubar = new Menubar(this);
-    this.meshEditDispatcher = new MeshEditDispatcher(this);
-    this.objectEditDispatcher = new ObjectEditDispatcher(this);
 
     const saved = await Storage.get('scene');
     if (saved) {

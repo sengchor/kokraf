@@ -10,6 +10,7 @@ export default class ViewportControls {
     this.cameraManager = editor.cameraManager;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
+    this.objectActions = editor.objectActions;
     this.editHelpers = editor.editHelpers;
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
@@ -124,6 +125,14 @@ export default class ViewportControls {
       });
 
       this.leftControlsResizeObserver.observe(this.leftControls);
+    }
+
+    if (this.objectMenu) {
+      this.objectMenu.querySelectorAll('[data-action]').forEach(item => {
+        item.addEventListener('click', () => {
+          this.objectActions.handleAction(item.dataset.action);
+        });
+      });
     }
   }
 

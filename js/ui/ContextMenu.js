@@ -1,8 +1,3 @@
-import * as THREE from 'three';
-import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
-import { SetShadingCommand } from "../commands/SetShadingCommand.js";
-import { MultiCommand } from '../commands/MultiCommand.js';
-
 export default class ContextMenu {
   constructor( editor ) {
     this.editor = editor;
@@ -10,6 +5,8 @@ export default class ContextMenu {
     this.uiLoader = editor.uiLoader;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
+    this.objectActions = editor.objectActions;
+    this.editActions = editor.editActions;
     this.menuEl = null;
     this.currentMode = 'object';
 
@@ -65,7 +62,17 @@ export default class ContextMenu {
       this.menuEl.querySelectorAll('[data-action]').forEach((item) => {
         item.addEventListener('click', () => {
           const action = item.getAttribute('data-action');
-          this.handleAction(action);
+
+          // Find the closest menu-section parent to know the mode
+          const section = item.closest('.menu-section');
+          const mode = section ? section.dataset.mode : 'object';
+
+          if (mode === 'object') {
+            this.objectActions.handleAction(action);
+          } else if (mode === 'delete') {
+            this.editActions.handleAction(action);
+          }
+
           this.hide();
         });
       });
@@ -119,47 +126,5 @@ export default class ContextMenu {
     if (this.menuEl) {
       this.menuEl.style.display = 'none';
     }
-  }
-
-  handleAction(action) {
-    if (action === 'delete-object') {
-      const objects = this.selection.selectedObjects;
-      if (!objects || objects.length === 0) return;
-
-      const multi = new MultiCommand(this.editor, 'Delete Objects');
-
-      objects.forEach(object => {
-        multi.add(new RemoveObjectCommand(this.editor, object));
-      });
-
-      this.editor.execute(multi);
-      return;
-    }
-
-    if (action === 'shade-smooth' || action === 'shade-flat' || action === 'shade-auto') {
-      const objects = this.selection.selectedObjects;
-      if (!objects || objects.length === 0) return;
-
-      objects.forEach(obj => {
-        if (!(obj instanceof THREE.Mesh)) return;
-
-        const currentShading = obj.userData.shading;
-        if (action === 'shade-smooth' && currentShading !== 'smooth') {
-          this.editor.execute(new SetShadingCommand(this.editor, obj, 'smooth', currentShading));
-        } else if (action === 'shade-flat' && currentShading !== 'flat') {
-          this.editor.execute(new SetShadingCommand(this.editor, obj, 'flat', currentShading));
-        } else if (action === 'shade-auto' && currentShading !== 'auto') {
-          this.editor.execute(new SetShadingCommand(this.editor, obj, 'auto', currentShading));
-        }
-      });
-      return;
-    }
-
-    if (action.startsWith('delete-') || action.startsWith('dissolve-')) {
-      this.signals.deleteSelectedFaces.dispatch(action);
-      return;
-    }
-
-    console.log('Invalid action:', action);
   }
 }
