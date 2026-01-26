@@ -20,6 +20,7 @@ import { LoopCutCommand } from './LoopCutCommand.js';
 import { KnifeCommand } from './KnifeCommand.js';
 import { SwitchSubModeCommand } from './SwitchSubModeCommand.js';
 import { MultiCommand } from './MultiCommand.js';
+import { JoinObjectsCommand } from './JoinObjectsCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -44,4 +45,5 @@ export const commands = new Map([
   [KnifeCommand.type, KnifeCommand],
   [SwitchSubModeCommand.type, SwitchSubModeCommand],
   [MultiCommand.type, MultiCommand],
+  [JoinObjectsCommand.type, JoinObjectsCommand],
 ]);

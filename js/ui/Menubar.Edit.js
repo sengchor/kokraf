@@ -4,13 +4,13 @@ import { SetPositionCommand } from "../commands/SetPositionCommand.js";
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
 import { MultiCommand } from '../commands/MultiCommand.js';
-import { duplicateObject } from '../utils/ObjectUtils.js';
 
 export class MenubarEdit {
   constructor(editor) {
     this.editor = editor;
     this.sceneManager = editor.sceneManager;
     this.selection = editor.selection;
+    this.objectEditor = editor.objectEditor;
     this.init();
   }
 
@@ -41,7 +41,7 @@ export class MenubarEdit {
       const multi = new MultiCommand(this.editor, 'Duplicate Objects');
 
       objects.forEach(object => {
-        const duplicate = duplicateObject(object);
+        const duplicate = this.objectEditor.duplicateObject(object);
         multi.add(new AddObjectCommand(this.editor, duplicate));
       });
 

@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
 import { MultiCommand } from '../commands/MultiCommand.js';
-import { duplicateObject } from '../utils/ObjectUtils.js';
 import { SetShadingCommand } from "../commands/SetShadingCommand.js";
+import { JoinObjectsCommand } from '../commands/JoinObjectsCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -11,6 +11,8 @@ export class ObjectActions {
     this.signals = editor.signals;
     this.selection = editor.selection;
     this.controlsManager = editor.controlsManager;
+    this.sceneManager = editor.sceneManager;
+    this.objectEditor = editor.objectEditor;
 
     this.setupListeners();
   }
@@ -22,6 +24,11 @@ export class ObjectActions {
   }
 
   handleAction(action) {
+    if (action === 'join-object') {
+      this.joinSelectedObjects();
+      return;
+    }
+
     if (action === 'delete-object') {
       this.deleteSelectedObjects();
       return;
@@ -76,7 +83,7 @@ export class ObjectActions {
     const duplicates = [];
 
     objects.forEach(object => {
-      const duplicate = duplicateObject(object);
+      const duplicate = this.objectEditor.duplicateObject(object);
       duplicates.push(duplicate);
       multi.add(new AddObjectCommand(this.editor, duplicate));
     });
@@ -84,5 +91,14 @@ export class ObjectActions {
     this.editor.execute(multi);
 
     this.selection.select(duplicates);
+  }
+
+  joinSelectedObjects() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length < 2) return;
+
+    const joined = this.objectEditor.joinObjects(objects);
+    
+    this.editor.execute(new JoinObjectsCommand(this.editor, objects, joined));
   }
 }
