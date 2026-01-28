@@ -4,6 +4,7 @@ import { LineMaterial } from 'jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 import earcut from 'earcut';
 import { computePlaneNormal, projectTo2D, removeCollinearVertices } from "../geometry/GeometryGenerator.js";
+import { MeshData } from '../core/MeshData.js';
 
 export default class EditHelpers {
   constructor(editor) {
@@ -260,6 +261,11 @@ export default class EditHelpers {
   refreshHelpers() {
     const editedObject = this.editSelection.editedObject;
     if (!editedObject) return;
+
+    if (editedObject.userData.meshData && !(editedObject.userData.meshData instanceof MeshData)) {
+      MeshData.rehydrateMeshData(editedObject);
+    }
+
     this.removeVertexPoints();
     this.removeEdgeLines();
     this.removeFacePolygons();

@@ -110,6 +110,10 @@ export class KeyHandler {
       } else if (event.shiftKey && event.key.toLowerCase() === 'd') {
         this.signals.objectDuplicated.dispatch();
         handled = true;
+      } else if (event.ctrlKey && event.key.toLowerCase() === 'j') {
+        event.preventDefault();
+        this.signals.objectJoined.dispatch();
+        handled = true;
       }
     }
 

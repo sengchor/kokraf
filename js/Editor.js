@@ -49,6 +49,7 @@ export default class Editor {
       objectChanged: new Signal(),
       objectDeleted: new Signal(),
       objectDuplicated: new Signal(),
+      objectJoined: new Signal(),
 
       historyChanged: new Signal(),
       emptyScene: new Signal(),

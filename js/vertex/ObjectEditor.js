@@ -33,9 +33,7 @@ export class ObjectEditor {
     const meshDatas = [];
     const transforms = [];
 
-    const baseObject = objects[0];
-    const parent = baseObject.parent;
-
+    const baseObject = objects[objects.length - 1];
     const baseMaterial = baseObject.material;
     const baseShading = baseObject.userData.shading;
 
@@ -48,27 +46,18 @@ export class ObjectEditor {
 
     if (meshDatas.length === 0) return null;
 
-    const mergedMeshData = this.meshEditor.mergeMeshData(meshDatas, transforms);
+    const inverseBaseWorld = baseObject.matrixWorld.clone().invert();
+    const mergedMeshData = this.meshEditor.mergeMeshData(meshDatas, transforms, inverseBaseWorld);
 
     const geometry = ShadingUtils.createGeometryWithShading(mergedMeshData, baseShading);
-
-    // Convert world to baseObject local
-    const inverseBaseWorld = baseObject.matrixWorld.clone().invert();
-    geometry.applyMatrix4(inverseBaseWorld);
 
     const material = Array.isArray(baseMaterial) ? baseMaterial.map(m => m.clone()) : baseMaterial.clone();
 
     const mesh = new THREE.Mesh(geometry, material);
 
     mesh.userData.meshData = mergedMeshData;
+    mesh.userData.shading = baseShading;
     mesh.name = baseObject.name;
-
-    // Set transform like base object
-    mesh.matrixAutoUpdate = false;
-    mesh.matrix.copy(baseObject.matrix);
-    mesh.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
-    mesh.matrixAutoUpdate = true;
-    mesh.updateMatrixWorld(true);
 
     return mesh;
   }

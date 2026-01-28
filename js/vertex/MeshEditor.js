@@ -6,7 +6,7 @@ export class MeshEditor {
     this.editor = editor;
   }
 
-  mergeMeshData(meshDataList, transforms = []) {
+  mergeMeshData(meshDataList, transforms = [], inverseWorld) {
     const merged = new MeshData();
 
     for (let i = 0; i < meshDataList.length; i++) {
@@ -21,7 +21,7 @@ export class MeshEditor {
           vertex.position.y,
           vertex.position.z
         );
-        pos.applyMatrix4(transform);
+        pos.applyMatrix4(transform).applyMatrix4(inverseWorld);
 
         vertexIdMap.set(
           vertex.id,

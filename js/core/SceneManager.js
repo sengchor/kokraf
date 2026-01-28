@@ -119,6 +119,134 @@ export default class SceneManager {
     this.signals.objectRemoved.dispatch();
   }
 
+  // Take an object out of any hierarchy and place it at root
+  detachObject(object) {
+    if (!object || !object.parent) return;
+
+    const parent = object.parent;
+
+    // Ensure world matrices are up to date
+    parent.updateMatrixWorld(true);
+    object.updateMatrixWorld(true);
+
+    const childrenToPromote = object.children.length > 0 ? [object.children[0]] : [];
+
+    // Promote children[0] to root
+    childrenToPromote.forEach(child => {
+      child.updateMatrixWorld(true);
+      const worldMatrix = child.matrixWorld.clone();
+
+      object.remove(child);
+      this.mainScene.add(child);
+
+      const rootInverse = this.mainScene.matrixWorld.clone().invert();
+      child.matrix.copy(rootInverse.multiply(worldMatrix));
+      child.matrix.decompose(child.position, child.quaternion, child.scale);
+    });
+
+    // Promote object to root
+    const worldMatrixObject = object.matrixWorld.clone();
+    parent.remove(object);
+    this.mainScene.add(object);
+
+    const rootInverse = this.mainScene.matrixWorld.clone().invert();
+    object.matrix.copy(rootInverse.multiply(worldMatrixObject));
+    object.matrix.decompose(object.position, object.quaternion, object.scale);
+
+    this.signals.objectAdded.dispatch();
+    this.signals.objectRemoved.dispatch();
+  }
+
+  attachObject(object, parent, index) {
+    if (!object || !parent) return;
+
+    // Ensure matrices are up to date
+    this.mainScene.updateMatrixWorld(true);
+    parent.updateMatrixWorld(true);
+    object.updateMatrixWorld(true);
+
+    // Compute object's matrix relative to new parent
+    const parentInverse = parent.matrixWorld.clone().invert();
+    const localMatrix = parentInverse.multiply(object.matrixWorld);
+
+    // Remove from current parent
+    if (object.parent) {
+      object.parent.remove(object);
+    }
+
+    // Add to new parent
+    if (index !== undefined && index >= 0) {
+      parent.children.splice(index, 0, object);
+      object.parent = parent;
+    } else {
+      parent.add(object);
+    }
+
+    // Apply local transform
+    object.matrix.copy(localMatrix);
+    object.matrix.decompose(object.position, object.quaternion, object.scale);
+    object.updateMatrixWorld(true);
+
+    this.signals.objectAdded.dispatch();
+  }
+
+  replaceObject(oldObject, newObject) {
+    if (!newObject || !oldObject) return;
+
+    this.detachObject(oldObject);
+
+    const parent = newObject.parent;
+    if (!parent) return;
+
+    const index = parent.children.indexOf(newObject);
+
+    parent.updateMatrixWorld(true);
+    newObject.updateMatrixWorld(true);
+
+    // Match newObject transform to oldObject
+    const parentInverse = parent.matrixWorld.clone().invert();
+    oldObject.matrix.copy(parentInverse.multiply(newObject.matrixWorld));
+    oldObject.matrix.decompose(
+      oldObject.position,
+      oldObject.quaternion,
+      oldObject.scale
+    );
+
+    // Replace object
+    parent.remove(newObject);
+    parent.add(oldObject);
+
+    // Restore original index
+    const children = parent.children;
+    const newIndex = children.indexOf(oldObject);
+    children.splice(newIndex, 1);
+    children.splice(index, 0, oldObject);
+
+    oldObject.updateMatrixWorld(true);
+
+    // Transfer children (WORLD preserved)
+    while (newObject.children.length > 0) {
+      const child = newObject.children[0];
+
+      child.updateMatrixWorld(true);
+      const worldMatrix = child.matrixWorld.clone();
+
+      newObject.remove(child);
+      oldObject.add(child);
+
+      const newParentInverse = oldObject.matrixWorld.clone().invert();
+      child.matrix.copy(newParentInverse.multiply(worldMatrix));
+      child.matrix.decompose(
+        child.position,
+        child.quaternion,
+        child.scale
+      );
+    }
+
+    this.signals.objectRemoved.dispatch();
+    this.signals.objectAdded.dispatch();
+  }
+
   setupListeners() {
     this.signals.showHelpersChanged.add((states) => {
       this.gridHelper.visible = states.gridHelper;

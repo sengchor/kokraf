@@ -21,6 +21,7 @@ export class ObjectActions {
     this.signals.objectDeleted.add(() => this.deleteSelectedObjects());
     this.signals.objectFocused.add(() => this.focusSelectedObjects());
     this.signals.objectDuplicated.add(() => this.duplicateSelectedObjects());
+    this.signals.objectJoined.add(() => this.joinSelectedObjects());
   }
 
   handleAction(action) {
