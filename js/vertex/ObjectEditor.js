@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
+import { MeshData } from '../core/MeshData.js';
 
 export class ObjectEditor {
   constructor(editor) {
@@ -8,23 +9,43 @@ export class ObjectEditor {
     this.sceneManager = editor.sceneManager;
   }
 
-  duplicateObject(object) {
-    const clone = object.clone(true);
+  duplicateObjects(objects) {
+    const clones = [];
 
-    clone.traverse(child => {
-      if (child.isMesh) {
-        if (child.geometry) {
-          child.geometry = child.geometry.clone();
+    for (const object of objects) {
+      if (!object) continue;
+
+      const clone = object.clone(false);
+
+      if (clone.isMesh) {
+        if (clone.geometry) {
+          clone.geometry = clone.geometry.clone();
         }
 
-        if (child.material) {
-          child.material = Array.isArray(child.material)
-            ? child.material.map(m => m.clone()) : child.material.clone();
+        if (clone.material) {
+          clone.material = Array.isArray(clone.material)
+            ? clone.material.map(m => m.clone())
+            : clone.material.clone();
         }
       }
-    });
 
-    return clone;
+      clone.userData = { ...object.userData };
+
+      const objectMeshData = object.userData.meshData;
+      if (objectMeshData) {
+        if (!(objectMeshData instanceof MeshData)) {
+          MeshData.rehydrateMeshData(object);
+        }
+
+        clone.userData.meshData = JSON.parse(
+          JSON.stringify(object.userData.meshData.toJSON())
+        );
+      }
+
+      clones.push(clone);
+    }
+
+    return clones;
   }
 
   joinObjects(objects) {
@@ -39,6 +60,10 @@ export class ObjectEditor {
 
     for (const object of objects) {
       if (!object.isMesh || !object.userData.meshData) return null;
+
+      if (object.userData.meshData && !(object.userData.meshData instanceof MeshData)) {
+        MeshData.rehydrateMeshData(object);
+      }
 
       meshDatas.push(object.userData.meshData);
       transforms.push(object.matrixWorld);

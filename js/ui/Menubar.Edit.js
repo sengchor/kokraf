@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 
 import { SetPositionCommand } from "../commands/SetPositionCommand.js";
-import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
-import { MultiCommand } from '../commands/MultiCommand.js';
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
+import { DuplicateObjectCommand } from '../commands/DuplicateObjectCommand.js';
 
 export class MenubarEdit {
   constructor(editor) {
@@ -39,14 +38,9 @@ export class MenubarEdit {
       const objects = this.selection.selectedObjects;
       if (!objects || objects.length === 0) return;
 
-      const multi = new MultiCommand(this.editor, 'Duplicate Objects');
+      const duplicates = this.objectEditor.duplicateObjects(objects);
 
-      objects.forEach(object => {
-        const duplicate = this.objectEditor.duplicateObject(object);
-        multi.add(new AddObjectCommand(this.editor, duplicate));
-      });
-
-      this.editor.execute(multi);
+      this.editor.execute(new DuplicateObjectCommand(this.editor, objects, duplicates));
     });
 
     document.querySelector('.delete').addEventListener('click', () => {

@@ -190,6 +190,26 @@ export default class SceneManager {
     this.signals.objectAdded.dispatch();
   }
 
+  attachObjectLocal(object, parent, index) {
+    if (!object || !parent) return;
+
+    if (object.parent) {
+        object.parent.remove(object);
+    }
+
+    if (index !== undefined && index >= 0) {
+        parent.children.splice(index, 0, object);
+        object.parent = parent;
+    } else {
+        parent.add(object);
+    }
+
+    object.updateMatrix();
+    object.updateMatrixWorld(true);
+
+    this.signals.objectAdded.dispatch();
+  }
+
   replaceObject(oldObject, newObject) {
     if (!newObject || !oldObject) return;
 

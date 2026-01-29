@@ -22,6 +22,7 @@ import { SwitchSubModeCommand } from './SwitchSubModeCommand.js';
 import { MultiCommand } from './MultiCommand.js';
 import { JoinObjectsCommand } from './JoinObjectsCommand.js';
 import { SequentialMultiCommand } from './SequentialMultiCommand.js';
+import { DuplicateObjectCommand } from './DuplicateObjectCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -48,4 +49,5 @@ export const commands = new Map([
   [MultiCommand.type, MultiCommand],
   [JoinObjectsCommand.type, JoinObjectsCommand],
   [SequentialMultiCommand.type, SequentialMultiCommand],
+  [DuplicateObjectCommand.type, DuplicateObjectCommand],
 ]);

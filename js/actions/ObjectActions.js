@@ -1,10 +1,9 @@
 import * as THREE from 'three';
-import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
-import { MultiCommand } from '../commands/MultiCommand.js';
 import { SetShadingCommand } from "../commands/SetShadingCommand.js";
 import { JoinObjectsCommand } from '../commands/JoinObjectsCommand.js';
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
+import { DuplicateObjectCommand } from '../commands/DuplicateObjectCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -81,18 +80,9 @@ export class ObjectActions {
     const objects = this.selection.selectedObjects;
     if (!objects || objects.length === 0) return;
 
-    const multi = new MultiCommand(this.editor, 'Duplicate Objects');
-    const duplicates = [];
+    const duplicates = this.objectEditor.duplicateObjects(objects);
 
-    objects.forEach(object => {
-      const duplicate = this.objectEditor.duplicateObject(object);
-      duplicates.push(duplicate);
-      multi.add(new AddObjectCommand(this.editor, duplicate));
-    });
-
-    this.editor.execute(multi);
-
-    this.selection.select(duplicates);
+    this.editor.execute(new DuplicateObjectCommand(this.editor, objects, duplicates));
   }
 
   joinSelectedObjects() {
