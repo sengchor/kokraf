@@ -22,7 +22,7 @@ export class JoinObjectsCommand {
       parentUuid: obj.parent ? obj.parent.uuid : null,
       index: obj.parent ? obj.parent.children.indexOf(obj) : -1,
       json: this.serializeObjectWithoutChildren(obj),
-      childUuid: obj.children[0] ? obj.children[0].uuid : null
+      childrenUuids: obj.children.map(child => child.uuid)
     }));
   }
 
@@ -92,12 +92,14 @@ export class JoinObjectsCommand {
     // Restore original children
     for (let i = 0; i < this.objectStates.length; i++) {
       const state = this.objectStates[i];
-      if (state.childUuid) {
+      if (state.childrenUuids.length > 0) {
         const obj = restoredObjects.get(state.uuid) || this.editor.objectByUuid(state.uuid);
-        const child = this.editor.objectByUuid(state.childUuid);
-        
-        if (obj && child) {
-          sceneManager.attachObject(child, obj);
+        for (const childUuid of state.childrenUuids) {
+          const child = this.editor.objectByUuid(childUuid);
+
+          if (obj && child) {
+            sceneManager.attachObject(child, obj);
+          }
         }
       }
     }

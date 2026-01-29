@@ -4,6 +4,7 @@ import { RemoveObjectCommand } from "../commands/RemoveObjectCommand.js";
 import { MultiCommand } from '../commands/MultiCommand.js';
 import { SetShadingCommand } from "../commands/SetShadingCommand.js";
 import { JoinObjectsCommand } from '../commands/JoinObjectsCommand.js';
+import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -61,11 +62,11 @@ export class ObjectActions {
     const objects = this.selection.selectedObjects;
     if (!objects || objects.length === 0) return;
 
-    const multi = new MultiCommand(this.editor, 'Delete Objects');
+    const multi = new SequentialMultiCommand(this.editor, 'Delete Objects');
 
-    objects.forEach(object => {
-      multi.add(new RemoveObjectCommand(this.editor, object));
-    });
+    for (const object of objects) {
+      multi.add(() => new RemoveObjectCommand(this.editor, object));
+    }
 
     this.editor.execute(multi);
   }

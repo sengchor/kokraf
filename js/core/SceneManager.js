@@ -129,7 +129,7 @@ export default class SceneManager {
     parent.updateMatrixWorld(true);
     object.updateMatrixWorld(true);
 
-    const childrenToPromote = object.children.length > 0 ? [object.children[0]] : [];
+    const childrenToPromote = [...object.children];
 
     // Promote children[0] to root
     childrenToPromote.forEach(child => {
