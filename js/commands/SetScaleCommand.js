@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TransformUtils } from '../utils/TransformUtils.js';
 
 export class SetScaleCommand {
   static type = 'SetScaleCommand';
@@ -27,7 +28,7 @@ export class SetScaleCommand {
   execute() {
     const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
     for (let i = 0; i < objects.length; i++) {
-      objects[i].scale.copy(this.newScales[i]);
+      TransformUtils.setWorldScale(objects[i], this.newScales[i]);
       objects[i].updateMatrixWorld(true);
     }
     this.editor.selection.select(objects, true);
@@ -36,7 +37,7 @@ export class SetScaleCommand {
   undo() {
     const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
     for (let i = 0; i < objects.length; i++) {
-      objects[i].scale.copy(this.oldScales[i]);
+      TransformUtils.setWorldScale(objects[i], this.oldScales[i]);
       objects[i].updateMatrixWorld(true);
     }
     this.editor.selection.select(objects, true);

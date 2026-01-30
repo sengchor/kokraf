@@ -322,17 +322,45 @@ export default class Selection {
       this.pivotHandle.visible = false;
       return;
     }
+    const rootObjects = this.getRootSelectedObjects();
 
     const sum = new THREE.Vector3();
     const worldPos = new THREE.Vector3();
 
-    for (const obj of this.selectedObjects) {
+    for (const obj of rootObjects) {
       obj.getWorldPosition(worldPos);
       sum.add(worldPos);
     }
 
-    sum.divideScalar(this.selectedObjects.length);
+    sum.divideScalar(rootObjects.length);
     this.pivotHandle.position.copy(sum);
     this.pivotHandle.visible = true;
+  }
+
+  getRootSelectedObjects() {
+    const objects = this.selectedObjects;
+    const set = new Set(objects);
+
+    return objects.filter(obj => {
+      let p = obj.parent;
+      while (p) {
+        if (set.has(p)) return false;
+        p = p.parent;
+      }
+      return true;
+    });
+  }
+
+  getAffectedObjects() {
+    const objects = this.selectedObjects;
+    const set = new Set();
+
+    for (const obj of objects) {
+      obj.traverse(o => {
+        set.add(o);
+      });
+    }
+
+    return set;
   }
 }

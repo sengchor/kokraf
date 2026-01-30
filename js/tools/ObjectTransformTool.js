@@ -5,6 +5,7 @@ import { SetRotationCommand } from "../commands/SetRotationCommand.js";
 import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 import { MultiCommand } from '../commands/MultiCommand.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
+import { TransformUtils } from '../utils/TransformUtils.js';
 
 export class ObjectTransformTool {
   constructor(editor, mode = 'translate') {
@@ -79,7 +80,7 @@ export class ObjectTransformTool {
     this.signals.objectTransformStart.add((transformMode) => {
       if (this.mode !== transformMode) return;
       
-      const objects = this.selection.selectedObjects;
+      const objects = this.selection.getRootSelectedObjects();
       if (!objects || objects.length === 0 || !this.handle) return;
 
       if (this.activeTransformSource !== null) return;
@@ -183,7 +184,7 @@ export class ObjectTransformTool {
 
   // Transform session
   startTransformSession() {
-    const objects = this.selection.selectedObjects;
+    const objects = this.selection.getRootSelectedObjects();
     if (!objects?.length || !this.handle) return;
 
     this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
@@ -202,7 +203,7 @@ export class ObjectTransformTool {
   }
 
   applyTransformSession() {
-    const objects = this.selection.selectedObjects;
+    const objects = this.selection.getRootSelectedObjects();
     if (!objects?.length || !this.handle) return;
 
     if (this.mode === 'translate') this.applyTranslation(objects, this.handle);
@@ -211,7 +212,7 @@ export class ObjectTransformTool {
   }
 
   commitTransformSession() {
-    const objects = this.selection.selectedObjects;
+    const objects = this.selection.getRootSelectedObjects();
     if (!objects?.length || !this.handle) return;
 
     if (this.mode === 'translate') this.commitTranslation(objects, this.handle);
@@ -222,7 +223,7 @@ export class ObjectTransformTool {
   }
 
   cancelTransformSession() {
-    const objects = this.selection.selectedObjects;
+    const objects = this.selection.getRootSelectedObjects();
     if (!objects || objects.length === 0) return;
 
     // restore objects
@@ -268,7 +269,8 @@ export class ObjectTransformTool {
     const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
     let offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
 
-    let snapTarget = this.snapManager.snapObjectPosition(this.event, objects);
+    const affectedObjects = this.selection.getAffectedObjects();
+    let snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
 
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
@@ -283,7 +285,8 @@ export class ObjectTransformTool {
     }
 
     for (let i = 0; i < objects.length; i++) {
-      objects[i].position.copy(this.startPositions[i]).add(offset);
+      const worldPos = this.startPositions[i].clone().add(offset);
+      TransformUtils.setWorldPosition(objects[i], worldPos);
       objects[i].updateMatrixWorld(true);
     }
   }
@@ -295,7 +298,8 @@ export class ObjectTransformTool {
     const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
     let deltaQuat = currentPivotQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
 
-    let snapTarget = this.snapManager.snapObjectPosition(this.event, objects);
+    const affectedObjects = this.selection.getAffectedObjects();
+    let snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
 
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
@@ -325,15 +329,26 @@ export class ObjectTransformTool {
     }
 
     if (objects.length === 1) {
-      objects[0].quaternion.copy(deltaQuat).multiply(this.startQuaternions[0]);
-      objects[0].updateMatrixWorld(true);
+      const object = objects[0];
+
+      const worldQuat = deltaQuat.clone().multiply(this.startQuaternions[0]);
+      TransformUtils.setWorldRotation(object, worldQuat);
+
+      object.updateMatrixWorld(true);
     } else {
       for (let i = 0; i < objects.length; i++) {
-        const offset = this.startPositions[i].clone().sub(this.startPivotPosition);
-        offset.applyQuaternion(deltaQuat);
+        const object = objects[i];
 
-        objects[i].position.copy(this.startPivotPosition).add(offset);
-        objects[i].quaternion.copy(deltaQuat).multiply(this.startQuaternions[i]);
+        const worldOffset = this.startPositions[i].clone()
+          .sub(this.startPivotPosition)
+          .applyQuaternion(deltaQuat);
+
+        const worldPos = this.startPivotPosition.clone().add(worldOffset);
+        TransformUtils.setWorldPosition(object, worldPos);
+
+        const worldQuat = deltaQuat.clone().multiply(this.startQuaternions[i]);
+        TransformUtils.setWorldRotation(object, worldQuat);
+
         objects[i].updateMatrixWorld(true);
       }
     }
@@ -347,7 +362,8 @@ export class ObjectTransformTool {
     const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
     let scaleFactor = currentPivotScale.divide(this.startPivotScale);
 
-    const snapTarget = this.snapManager.snapObjectPosition(this.event, objects);
+    const affectedObjects = this.selection.getAffectedObjects();
+    const snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
 
     if (snapTarget) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
@@ -376,23 +392,27 @@ export class ObjectTransformTool {
     const pivotQuat = this.startPivotQuaternion;
     const invPivotQuat = pivotQuat.clone().invert();
     for (let i = 0; i < objects.length; i++) {
-      this.applyScaleToObject(objects[i], scaleFactor, this.startScales[i], this.transformControls.space);
+      const object = objects[i];
+
+      const worldScale = this.startScales[i].clone().multiply(scaleFactor);
+      TransformUtils.setWorldScale(objects[i], worldScale);
 
       if (objects.length > 1) {
-        let offset = this.startPositions[i].clone().sub(this.startPivotPosition);
+        let worldOffset = this.startPositions[i].clone().sub(this.startPivotPosition);
         
         if (this.transformControls.space === 'local') {
-          offset.applyQuaternion(invPivotQuat);
-          offset.multiply(scaleFactor);
-          offset.applyQuaternion(pivotQuat);
+          worldOffset.applyQuaternion(invPivotQuat);
+          worldOffset.multiply(scaleFactor);
+          worldOffset.applyQuaternion(pivotQuat);
         } else {
-          offset.multiply(scaleFactor);
+          worldOffset.multiply(scaleFactor);
         }
 
-        objects[i].position.copy(this.startPivotPosition).add(offset);
+        const worldPos = this.startPivotPosition.clone().add(worldOffset);
+        TransformUtils.setWorldPosition(object, worldPos);
       }
 
-      objects[i].updateMatrixWorld(true);
+      object.updateMatrixWorld(true);
     }
   }
 
@@ -407,18 +427,18 @@ export class ObjectTransformTool {
   }
 
   commitRotation(objects, handle) {
-    const newRotations = objects.map(obj => obj.rotation.clone());
-    const startRotations = this.startQuaternions.map(q => new THREE.Euler().setFromQuaternion(q));
+    const newQuaternions = objects.map(obj => obj.getWorldQuaternion(new THREE.Quaternion()));
+    const startQuaternions = this.startQuaternions.map(q => q.clone());
 
     const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
     if (currentPivotQuat.equals(this.startPivotQuaternion)) return;
 
     if (objects.length === 1) {
-      this.editor.execute(new SetRotationCommand(this.editor, objects, newRotations, startRotations));
+      this.editor.execute(new SetRotationCommand(this.editor, objects, newQuaternions, startQuaternions));
     } else {
       const newPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
       const posCmd = new SetPositionCommand(this.editor, objects, newPositions, this.startPositions);
-      const rotCmd = new SetRotationCommand(this.editor, objects, newRotations, startRotations);
+      const rotCmd = new SetRotationCommand(this.editor, objects, newQuaternions, startQuaternions);
 
       const multi = new MultiCommand(this.editor, 'Set Rotation Objects');
       multi.add(posCmd);
@@ -428,7 +448,7 @@ export class ObjectTransformTool {
   }
 
   commitScale(objects, handle) {
-    const newScales = objects.map(obj => obj.scale.clone());
+    const newScales = objects.map(obj => obj.getWorldScale(new THREE.Vector3()));
     const startScales = this.startScales.map(s => s.clone());
 
     const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
@@ -480,7 +500,7 @@ export class ObjectTransformTool {
       this.selection.pivotHandle.quaternion.identity();
       this.transformControls.setSpace('world');
     } else {
-      const objects = this.selection.selectedObjects;
+      const objects = this.selection.getRootSelectedObjects();
       const object = objects[objects.length - 1];
       if (!object) return;
 

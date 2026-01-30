@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TransformUtils } from '../utils/TransformUtils.js';
 
 export class SetPositionCommand {
   static type = 'SetPositionCommand';
@@ -27,7 +28,7 @@ export class SetPositionCommand {
   execute() {
     const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
     for (let i = 0; i < objects.length; i++) {
-      objects[i].position.copy(this.newPositions[i]);
+      TransformUtils.setWorldPosition(objects[i], this.newPositions[i]);
       objects[i].updateMatrixWorld(true);
     }
     this.editor.selection.select(objects, true);
@@ -36,7 +37,7 @@ export class SetPositionCommand {
   undo() {
     const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
     for (let i = 0; i < objects.length; i++) {
-      objects[i].position.copy(this.oldPositions[i]);
+      TransformUtils.setWorldPosition(objects[i], this.oldPositions[i]);
       objects[i].updateMatrixWorld(true);
     }
     this.editor.selection.select(objects, true);

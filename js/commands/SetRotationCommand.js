@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TransformUtils } from '../utils/TransformUtils.js';
 
 export class SetRotationCommand {
   static type = 'SetRotationCommand';
@@ -6,28 +7,28 @@ export class SetRotationCommand {
   /**
    * @param {Editor} editor
    * @param {THREE.Object3D|THREE.Object3D[]} objects
-   * @param {THREE.Euler|THREE.Euler[]} newRotations
-   * @param {THREE.Euler|THREE.Euler[]} oldRotations
+   * @param {THREE.Quaternion|THREE.Quaternion[]} newQuaternions
+   * @param {THREE.Quaternion|THREE.Quaternion[]} oldQuaternions
    * @constructor
    */
-  constructor(editor, objects = [], newRotations = [], oldRotations = []) {
+  constructor(editor, objects = [], newQuaternions = [], oldQuaternions = []) {
     this.editor = editor;
     this.name = 'Set Rotation';
 
     if (!Array.isArray(objects)) objects = [objects];
-    if (!Array.isArray(newRotations)) newRotations = [newRotations];
-    if (!Array.isArray(oldRotations)) oldRotations = [oldRotations];
+    if (!Array.isArray(newQuaternions)) newQuaternions = [newQuaternions];
+    if (!Array.isArray(oldQuaternions)) oldQuaternions = [oldQuaternions];
 
     this.objectUuids = objects.map(o => o.uuid);
 
-    this.oldRotations = oldRotations.map(r => r.clone());
-    this.newRotations = newRotations.map(r => r.clone());
+    this.oldQuaternions = oldQuaternions.map(r => r.clone());
+    this.newQuaternions = newQuaternions.map(r => r.clone());
   }
 
   execute() {
     const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
     for (let i = 0; i < objects.length; i++) {
-      objects[i].rotation.copy(this.newRotations[i]);
+      TransformUtils.setWorldRotation(objects[i], this.newQuaternions[i]);
       objects[i].updateMatrixWorld(true);
     }
     this.editor.selection.select(objects, true);
@@ -36,7 +37,7 @@ export class SetRotationCommand {
   undo() {
     const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
     for (let i = 0; i < objects.length; i++) {
-      objects[i].rotation.copy(this.oldRotations[i]);
+      TransformUtils.setWorldRotation(objects[i], this.oldQuaternions[i]);
       objects[i].updateMatrixWorld(true);
     }
     this.editor.selection.select(objects, true);
@@ -46,8 +47,8 @@ export class SetRotationCommand {
     return {
       type: SetRotationCommand.type,
       objectUuids: this.objectUuids,
-      oldRotations: this.oldRotations.map(r => r.toArray()),
-      newRotations: this.newRotations.map(r => r.toArray())
+      oldQuaternions: this.oldQuaternions.map(r => r.toArray()),
+      newQuaternions: this.newQuaternions.map(r => r.toArray())
     };
   }
 
@@ -57,8 +58,8 @@ export class SetRotationCommand {
     const command = new SetRotationCommand(editor);
 
     command.objectUuids = json.objectUuids;
-    command.newRotations = json.newRotations.map(arr => new THREE.Euler().fromArray(arr));
-    command.oldRotations = json.oldRotations.map(arr => new THREE.Euler().fromArray(arr));
+    command.newQuaternions = json.newQuaternions.map(arr => new THREE.Quaternion().fromArray(arr));
+    command.oldQuaternions = json.oldQuaternions.map(arr => new THREE.Quaternion().fromArray(arr));
 
     return command;
   }
