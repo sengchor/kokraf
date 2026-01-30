@@ -2,8 +2,8 @@ import { auth } from '/supabase/AuthService.js';
 import { LoginPanel } from '../js/login/LoginPanel.js';
 import { supabase } from '/supabase/supabase.js';
 
-const VENDOR_ID = 45202;
-const PRODUCT_ID = "pri_01kegge02m5bwcd311ja0ezfxr";
+const VENDOR_ID = 278565;
+const PRODUCT_ID = "pri_01keg7mbr5a1yd033qfsmef85x";
 
 Paddle.Setup({ vendor: VENDOR_ID });
 
