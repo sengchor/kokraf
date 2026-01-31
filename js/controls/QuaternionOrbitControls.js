@@ -37,6 +37,8 @@ export class QuaternionOrbitControls {
 	_onMouseDown(event) {
 		if (!this.enabled || event.button !== 1) return;
 
+		this._mouseDown = true;
+
 		this.movePrev.copy(this._getMouseOnCircle(event.clientX, event.clientY));
 
 		if (event.shiftKey) {
@@ -60,6 +62,7 @@ export class QuaternionOrbitControls {
 		const onMouseUp = () => {
 			window.removeEventListener('mousemove', onMouseMove);
 			window.removeEventListener('mouseup', onMouseUp);
+			this._mouseDown = false;
 			this._state = null;
 		};
 
@@ -69,8 +72,10 @@ export class QuaternionOrbitControls {
 
 	_onMouseWheel(event) {
 		if (!this.enabled) return;
-		event.preventDefault();
 
+		if (this._mouseDown) return;
+
+		event.preventDefault();
 		this._zoom(event);
 	}
 

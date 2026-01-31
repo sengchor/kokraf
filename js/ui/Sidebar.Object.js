@@ -12,6 +12,9 @@ export class SidebarObject {
     this.signals = editor.signals;
     this.lastSelectedObject = null;
 
+    this.isEditingRotation = false;
+    this.cachedEuler = null;
+
     this.emptyMessage = document.getElementById('object-empty-message');
     this.objectSettingList = document.getElementById('object-properties-content');
 
@@ -369,6 +372,13 @@ export class SidebarObject {
           f.positionZ.value = fix(object.position.y, 3);
           break;
         case 'rotation':
+          if (this.isEditingRotation && this.cachedEuler) {
+            f.rotationX.value = fix(deg(this.cachedEuler.z), 2);
+            f.rotationY.value = fix(deg(this.cachedEuler.x), 2);
+            f.rotationZ.value = fix(deg(this.cachedEuler.y), 2);
+            break;
+          }
+          
           f.rotationX.value = fix(deg(object.rotation.z), 2);
           f.rotationY.value = fix(deg(object.rotation.x), 2);
           f.rotationZ.value = fix(deg(object.rotation.y), 2);
@@ -515,15 +525,31 @@ export class SidebarObject {
         case 'rotation':
           this.bindVectorInputs(
             [f.rotationX, f.rotationY, f.rotationZ],
-            () => new THREE.Euler(
-              THREE.MathUtils.degToRad(parseFloat(f.rotationY.value) || 0),
-              THREE.MathUtils.degToRad(parseFloat(f.rotationZ.value) || 0),
-              THREE.MathUtils.degToRad(parseFloat(f.rotationX.value) || 0),
-              'XYZ'
-            ),
-            object => object.rotation.clone(),
+            () => {
+              const euler = new THREE.Euler(
+                THREE.MathUtils.degToRad(parseFloat(f.rotationY.value) || 0),
+                THREE.MathUtils.degToRad(parseFloat(f.rotationZ.value) || 0),
+                THREE.MathUtils.degToRad(parseFloat(f.rotationX.value) || 0),
+                'XYZ'
+              );
+              this.cachedEuler = euler;
+
+              return new THREE.Quaternion().setFromEuler(euler);
+            },
+
+            object => object.quaternion.clone(),
             SetRotationCommand
           );
+
+          [f.rotationX, f.rotationY, f.rotationZ].forEach(input => {
+            input.addEventListener('focus', () => {
+              this.isEditingRotation = true;
+            });
+            input.addEventListener('blur', () => {
+              this.cachedEuler = null;
+              this.isEditingRotation = false;
+            });
+          });
           break;
 
         case 'scale':
