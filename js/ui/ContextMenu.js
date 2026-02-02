@@ -2,6 +2,7 @@ export default class ContextMenu {
   constructor( editor ) {
     this.editor = editor;
     this.signals = editor.signals;
+    this.keyHandler = editor.keyHandler;
     this.uiLoader = editor.uiLoader;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
@@ -33,6 +34,9 @@ export default class ContextMenu {
     canvas.addEventListener('contextmenu', (e) => {
       if (e.button === 2) {
         e.preventDefault();
+
+        if (!this.editor.keyHandler.startInteraction('context-menu')) return;
+
         this.menuTrigger = 'mouse';
         this.show(e.clientX, e.clientY);
       }
@@ -127,6 +131,7 @@ export default class ContextMenu {
   hide() {
     if (this.menuEl) {
       this.menuEl.style.display = 'none';
+      this.editor.keyHandler.endInteraction('context-menu');
     }
   }
 }

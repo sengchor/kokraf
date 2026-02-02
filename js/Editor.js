@@ -90,6 +90,7 @@ export default class Editor {
     this.objectFactory = new ObjectFactory(this);
     this.cameraManager = new CameraManager(this);
     this.sceneManager = new SceneManager(this);
+    this.keyHandler = new KeyHandler(this);
     this.controlsManager = new ControlsManager(this);
     this.snapManager = new SnapManager(this);
 
@@ -99,7 +100,6 @@ export default class Editor {
     this.selection = new Selection(this);
     this.editSelection = new EditSelection(this);
     this.editHelpers = new EditHelpers(this);
-    this.keyHandler = new KeyHandler(this);
     this.vertexEditor = new VertexEditor(this);
     this.meshEditor = new MeshEditor(this);
     this.objectEditor = new ObjectEditor(this);

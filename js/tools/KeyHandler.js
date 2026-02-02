@@ -3,11 +3,12 @@ export class KeyHandler {
     this.editor = editor;
     this.signals = editor.signals;
     this.config = editor.config;
-    this.selection = editor.selection;
     this.shortcuts = null;
     this.currentMode = 'object';
     this.keysPressed = {};
     this.isTransformDragging = false;
+
+    this.activeInteraction = null;
 
     this.onKeyDown = this.onKeyDown.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
@@ -170,5 +171,17 @@ export class KeyHandler {
   dispose() {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+  }
+
+  startInteraction(type) {
+    if (this.activeInteraction) return false;
+
+    this.activeInteraction = type;
+    return true;
+  }
+
+  endInteraction(type) {
+    if (this.activeInteraction !== type) return;
+    this.activeInteraction = null;
   }
 }

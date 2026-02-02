@@ -4,7 +4,7 @@ import { ViewHelper } from '../helpers/ViewHelper.js';
 export class ViewportViewHelper {
   constructor(editor) {
     this.camera = editor.cameraManager.camera;
-    this.orbitControls = editor.controlsManager.instance;
+    this.orbitControls = editor.controlsManager.orbit;
     this.viewHelperContainer = document.getElementById('viewHelper');
 
     if (!this.viewHelperContainer) {

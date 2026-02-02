@@ -4,6 +4,7 @@ export default class EditSelection {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
+    this.keyHandler = editor.keyHandler;
     this.viewportControls = editor.viewportControls;
 
     this.raycaster = new THREE.Raycaster();
@@ -120,6 +121,7 @@ export default class EditSelection {
 
   onMouseDown(event) {
     if (!this.enable || event.button !== 0) return;
+    if (!this.keyHandler.startInteraction('select')) return;
 
     this.dragging = false;
     this.mouseDownPos = { x: event.clientX, y: event.clientY };
@@ -127,6 +129,7 @@ export default class EditSelection {
 
   onMouseMove(event) {
     if (!this.enable || !this.mouseDownPos) return;
+    if (this.keyHandler.activeInteraction !== 'select') return;
 
     const dx = event.clientX - this.mouseDownPos.x;
     const dy = event.clientY - this.mouseDownPos.y;
@@ -144,6 +147,7 @@ export default class EditSelection {
 
   onMouseUp(event) {
     if (!this.enable || event.button !== 0) return;
+    this.keyHandler.endInteraction('select');
     
     this.selectionBox.finishSelection();
 

@@ -1,7 +1,9 @@
 import { Vector2, Vector3, Quaternion, Box3, Sphere } from 'three';
 
 export class QuaternionOrbitControls {
-	constructor(camera, domElement, target = new Vector3()) {
+	constructor(editor, camera, domElement, target = new Vector3()) {
+		this.editor = editor;
+		this.keyHandler = editor.keyHandler;
 		this.camera = camera;
 		this.domElement = domElement;
 		this.target = target;
@@ -36,16 +38,12 @@ export class QuaternionOrbitControls {
 
 	_onMouseDown(event) {
 		if (!this.enabled || event.button !== 1) return;
+		if (!this.keyHandler.startInteraction('orbit')) return;
 
-		this._mouseDown = true;
-
+		const type = event.shiftKey ? 'pan' : 'orbit';
+		this._state = type;
 		this.movePrev.copy(this._getMouseOnCircle(event.clientX, event.clientY));
-
-		if (event.shiftKey) {
-			this._state = 'pan';
-		} else {
-			this._state = 'orbit';
-		}
+		this._startButton = event.button;
 
 		const onMouseMove = (event) => {
 			this.moveCurr.copy(this._getMouseOnCircle(event.clientX, event.clientY));
@@ -59,11 +57,13 @@ export class QuaternionOrbitControls {
 			this.movePrev.copy(this.moveCurr);
 		};
 
-		const onMouseUp = () => {
+		const onMouseUp = (event) => {
+			if (event.button !== this._startButton) return;
 			window.removeEventListener('mousemove', onMouseMove);
 			window.removeEventListener('mouseup', onMouseUp);
-			this._mouseDown = false;
 			this._state = null;
+
+			this.keyHandler.endInteraction('orbit');
 		};
 
 		window.addEventListener('mousemove', onMouseMove);
@@ -73,7 +73,12 @@ export class QuaternionOrbitControls {
 	_onMouseWheel(event) {
 		if (!this.enabled) return;
 
-		if (this._mouseDown) return;
+		if (this.keyHandler.activeInteraction) return;
+
+		if (event.deltaY === 0) {
+			event.preventDefault();
+			return;
+		}
 
 		event.preventDefault();
 		this._zoom(event);

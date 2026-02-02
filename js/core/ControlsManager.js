@@ -2,20 +2,21 @@ import { QuaternionOrbitControls } from '../controls/QuaternionOrbitControls.js'
 
 export default class ControlsManager {
   constructor(editor) {
+    this.editor = editor;
     this.cameraManager = editor.cameraManager;
     this.renderer = editor.renderer;
-    this.instance = new QuaternionOrbitControls(this.cameraManager.camera, this.renderer.domElement);
+    this.orbit = new QuaternionOrbitControls(this.editor, this.cameraManager.camera, this.renderer.domElement);
   }
 
   enable() {
-    this.instance.enabled = true;
+    this.orbit.enabled = true;
   }
 
   disable() {
-    this.instance.enabled = false;
+    this.orbit.enabled = false;
   }
 
   focus(objects) {
-    this.instance._focus(objects);
+    this.orbit._focus(objects);
   }
 }
