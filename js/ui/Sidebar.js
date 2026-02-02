@@ -9,34 +9,34 @@ export default class Sidebar {
     this.sidebarScene = null;
     this.sidebarProject = null;
     this.sidebarSetting = null;
-    this.load(editor);
+    this.ready = this.load(editor);
   }
 
-  load(editor) {
-    this.uiLoader.loadComponent('#right-panel-container', 'components/panel-tabs.html', () => {
-      const tabs = document.querySelectorAll('.right-panel .tab');
-      const panels = document.querySelectorAll('.panel-content');
+  async load(editor) {
+    await this.uiLoader.loadComponent('#right-panel-container', 'components/panel-tabs.html');
 
-      tabs.forEach((tab, index) => {
-        tab.addEventListener('click', () => {
-          tabs.forEach(t => t.classList.remove('active'));
-          panels.forEach(p => p.style.display = 'none');
+    const tabs = document.querySelectorAll('.right-panel .tab');
+    const panels = document.querySelectorAll('.panel-content');
 
-          tab.classList.add('active');
-          panels[index].style.display = 'block';
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        panels.forEach(p => p.style.display = 'none');
 
-          if (index === 0 && this.sidebarScene?.sidebarProperties) {
-            this.sidebarScene.sidebarProperties.showActiveTab();
-          }
-        });
+        tab.classList.add('active');
+        panels[index].style.display = 'block';
+
+        if (index === 0 && this.sidebarScene?.sidebarProperties) {
+          this.sidebarScene.sidebarProperties.showActiveTab();
+        }
       });
-
-      this.sidebarScene = new SidebarScene(editor);
-      this.sidebarProject = new SidebarProject(editor);
-      this.sidebarSetting = new SidebarSetting(editor);
-
-      this.panelResizer.initRightPanelResizer();
-      requestAnimationFrame(() => this.panelResizer.onWindowResize());
     });
+
+    this.sidebarScene = new SidebarScene(editor);
+    this.sidebarProject = new SidebarProject(editor);
+    this.sidebarSetting = new SidebarSetting(editor);
+
+    this.panelResizer.initRightPanelResizer();
+    requestAnimationFrame(() => this.panelResizer.onWindowResize());
   }
 }

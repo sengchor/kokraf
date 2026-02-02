@@ -17,15 +17,15 @@ export default class ViewportControls {
     this.currentMode = 'object';
     this.transformOrientation = 'global';
 
-    this.load();
+    this.ready = this.load();
   }
 
-  load() {
-    this.uiLoader.loadComponent('#viewport-controls-container', 'components/viewport-controls.html', () => {
-      this.setupViewportControls();
-      this.setupListeners();
-      this.resetCameraOption(this.cameraManager.cameras)
-    });
+  async load() {
+    await this.uiLoader.loadComponent('#viewport-controls-container', 'components/viewport-controls.html');
+
+    this.setupViewportControls();
+    this.setupListeners();
+    this.resetCameraOption(this.cameraManager.cameras);
   }
 
   setupViewportControls() {

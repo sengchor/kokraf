@@ -32,21 +32,20 @@ export default class Toolbar {
     this.loopCutTool = new LoopCutTool(this.editor);
     this.knifeTool = new KnifeTool(this.editor);
 
-    this.load();
+    this.ready = this.load();
   }
 
-  load() {
-    this.uiLoader.loadComponent('#toolbar-container', 'components/toolbar.html', () => {
-      this.buttons = document.querySelectorAll('.toolbar-button');
-      this.setupToolbarButtons();
-      this.setupListeners();
+  async load() {
+    await this.uiLoader.loadComponent('#toolbar-container', 'components/toolbar.html');
+    this.buttons = document.querySelectorAll('.toolbar-button');
+    this.setupToolbarButtons();
+    this.setupListeners();
 
-      this.currentMode = this.viewportControls.currentMode;
-      this.updateTools();
-      if (this.meshToolContainer) {
-        this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object');
-      }
-    });
+    this.currentMode = this.viewportControls.currentMode;
+    this.updateTools();
+    if (this.meshToolContainer) {
+      this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object');
+    }
   }
 
   setupListeners() {

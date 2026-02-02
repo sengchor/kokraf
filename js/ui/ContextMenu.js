@@ -13,68 +13,70 @@ export default class ContextMenu {
     this.lastMouse = { x: 0, y: 0 };
     this.menuTrigger = null;
 
-    this.load();
+    this.ready = this.load();
     this.setupListeners();
   }
 
-  load() {
-    this.uiLoader.loadComponent('#floating-container', 'components/context-menu.html', (container) => {
-      this.menuEl = container.querySelector('.context-menu');
+  async load() {
+    const container = await this.uiLoader.loadComponent('#floating-container', 'components/context-menu.html');
 
-      const appContainer = document.querySelector('.app-container');
-      appContainer.addEventListener('contextmenu', (e) => {
+    if (!container) return;
+
+    this.menuEl = container.querySelector('.context-menu');
+
+    const appContainer = document.querySelector('.app-container');
+    appContainer.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+
+    const canvas = document.querySelector('#three-canvas');
+    canvas.addEventListener('contextmenu', (e) => {
+      if (e.button === 2) {
         e.preventDefault();
-      });
+        this.menuTrigger = 'mouse';
+        this.show(e.clientX, e.clientY);
+      }
+    });
 
-      const canvas = document.querySelector('#three-canvas');
-      canvas.addEventListener('contextmenu', (e) => {
-        if (e.button === 2) {
-          e.preventDefault();
-          this.menuTrigger = 'mouse';
-          this.show(e.clientX, e.clientY);
-        }
-      });
+    appContainer.addEventListener('contextmenu', (e) => {
+      if (e.target !== canvas) {
+        e.preventDefault();
+        this.hide();
+      }
+    });
 
-      appContainer.addEventListener('contextmenu', (e) => {
-        if (e.target !== canvas) {
-          e.preventDefault();
-          this.hide();
-        }
-      });
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.context-menu')) return;
+      this.hide();
+    });
 
-      document.addEventListener('click', (e) => {
+    document.addEventListener('mousedown', (e) => {
+      if (e.button === 1) {
         if (e.target.closest('.context-menu')) return;
         this.hide();
-      });
+      }
+    });
 
-      document.addEventListener('mousedown', (e) => {
-        if (e.button === 1) {
-          if (e.target.closest('.context-menu')) return;
-          this.hide();
+    document.addEventListener('mousemove', (e) => {
+      this.lastMouse.x = e.clientX;
+      this.lastMouse.y = e.clientY;
+    });
+
+    this.menuEl.querySelectorAll('[data-action]').forEach((item) => {
+      item.addEventListener('click', () => {
+        const action = item.getAttribute('data-action');
+
+        // Find the closest menu-section parent to know the mode
+        const section = item.closest('.menu-section');
+        const mode = section ? section.dataset.mode : 'object';
+
+        if (mode === 'object') {
+          this.objectActions.handleAction(action);
+        } else if (mode === 'delete') {
+          this.editActions.handleAction(action);
         }
-      });
 
-      document.addEventListener('mousemove', (e) => {
-        this.lastMouse.x = e.clientX;
-        this.lastMouse.y = e.clientY;
-      });
-
-      this.menuEl.querySelectorAll('[data-action]').forEach((item) => {
-        item.addEventListener('click', () => {
-          const action = item.getAttribute('data-action');
-
-          // Find the closest menu-section parent to know the mode
-          const section = item.closest('.menu-section');
-          const mode = section ? section.dataset.mode : 'object';
-
-          if (mode === 'object') {
-            this.objectActions.handleAction(action);
-          } else if (mode === 'delete') {
-            this.editActions.handleAction(action);
-          }
-
-          this.hide();
-        });
+        this.hide();
       });
     });
   }

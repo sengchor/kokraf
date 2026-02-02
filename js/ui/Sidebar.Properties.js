@@ -8,27 +8,27 @@ export default class SidebarProperties {
     this.activeTabIndex = 0;
     this.tabs = [];
     this.panels = [];
-    this.load(editor);
+    this.ready = this.load(editor);
   }
 
-  load(editor) {
-    this.uiLoader.loadComponent('#details-panel-container', 'components/details-panel.html', () => {
-      this.tabs = document.querySelectorAll('.details-panel .tab');
-      this.panels = document.querySelectorAll('.properties-content');
+  async load(editor) {
+    await this.uiLoader.loadComponent('#details-panel-container', 'components/details-panel.html');
 
-      this.tabs.forEach((tab, index) => {
-        tab.addEventListener('click', () => {
-          this.activeTabIndex = index;
-          this.showActiveTab();
-        });
+    this.tabs = document.querySelectorAll('.details-panel .tab');
+    this.panels = document.querySelectorAll('.properties-content');
+
+    this.tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => {
+        this.activeTabIndex = index;
+        this.showActiveTab();
       });
-
-      new SidebarObject(editor);
-      new SidebarMaterial(editor);
-
-      this.showActiveTab();
-      this.updateTabVisibility([]);
     });
+
+    new SidebarObject(editor);
+    new SidebarMaterial(editor);
+
+    this.showActiveTab();
+    this.updateTabVisibility([]);
 
     this.signals.objectSelected.add(selectedObjects => {
       this.updateTabVisibility(selectedObjects);

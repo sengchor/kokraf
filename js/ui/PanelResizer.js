@@ -101,6 +101,7 @@ export default class PanelResizer {
 
     const leftControls = document.getElementById('left-controls-container');
     const rightControls = document.getElementById('right-controls-container');
+    if (!leftControls || !rightControls) return;
 
     const controlsWidth = rightControls.clientWidth + leftControls.clientWidth;
     rightControls.style.marginLeft = `${width - controlsWidth - 15}px`;

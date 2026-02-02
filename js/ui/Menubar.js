@@ -12,53 +12,53 @@ export default class Menubar {
     this.uiLoader = editor.uiLoader;
     this.signals = editor.signals;
 
-    this.load(editor);
+    this.ready = this.load(editor);
   }
 
-  load(editor) {
-    this.uiLoader.loadComponent('#menu-container', 'components/menu-bar.html', () => {
-      // Initialize submenus
-      new MenubarFile(editor);
-      new MenubarEdit(editor);
-      new MenubarAdd(editor);
-      new MenubarView(editor);
-      new MenubarHelp(editor);
+  async load(editor) {
+    await this.uiLoader.loadComponent('#menu-container', 'components/menu-bar.html');
 
-      // Buttons
-      this.loginButton = document.querySelector('.login-button');
-      this.accountButton = document.querySelector('.account-button');
-      this.pricingButton = document.querySelector('.pricing-button');
+    // Initialize submenus
+    new MenubarFile(editor);
+    new MenubarEdit(editor);
+    new MenubarAdd(editor);
+    new MenubarView(editor);
+    new MenubarHelp(editor);
 
-      this.loginPanel = new LoginPanel();
-      this.accountPanel = new AccountPanel();
+    // Buttons
+    this.loginButton = document.querySelector('.login-button');
+    this.accountButton = document.querySelector('.account-button');
+    this.pricingButton = document.querySelector('.pricing-button');
 
-      this.loginButton.onclick = () => this.loginPanel.open();
-      this.accountButton.onclick = () => this.accountPanel.open();
+    this.loginPanel = new LoginPanel();
+    this.accountPanel = new AccountPanel();
 
-      auth.signals.login.add(() => {
-        this.loginButton.classList.add('hidden');
-        this.accountButton.classList.remove('hidden');
-      });
+    this.loginButton.onclick = () => this.loginPanel.open();
+    this.accountButton.onclick = () => this.accountPanel.open();
 
-      auth.signals.logout.add(() => {
-        this.accountButton.classList.add('hidden');
-        this.loginButton.classList.remove('hidden');
-      });
-
-      this.signals.showLoginPanel.add(() => {
-        this.loginPanel.open();
-      })
-
-      this.signals.showAccountPanel.add(() => {
-        this.accountPanel.open();
-      })
-
-      this.pricingButton.addEventListener('click', () => {
-        window.open('/pricing', '_blank');
-      });
-
-      this.initMenuBar();
+    auth.signals.login.add(() => {
+      this.loginButton.classList.add('hidden');
+      this.accountButton.classList.remove('hidden');
     });
+
+    auth.signals.logout.add(() => {
+      this.accountButton.classList.add('hidden');
+      this.loginButton.classList.remove('hidden');
+    });
+
+    this.signals.showLoginPanel.add(() => {
+      this.loginPanel.open();
+    })
+
+    this.signals.showAccountPanel.add(() => {
+      this.accountPanel.open();
+    })
+
+    this.pricingButton.addEventListener('click', () => {
+      window.open('/pricing', '_blank');
+    });
+
+    this.initMenuBar();
   }
 
   initMenuBar() {
