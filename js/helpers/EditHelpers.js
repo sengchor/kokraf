@@ -36,18 +36,22 @@ export default class EditHelpers {
     const meshData = selectedObject.userData.meshData;
     const positions = [];
     const colors = [];
-    const indices = [];
+    const vertexIds = [];
+    const vertexIdToBufferIndex = new Map();
 
+    let i = 0;
     for (let v of meshData.vertices.values()) {
       positions.push(v.position.x, v.position.y, v.position.z);
       colors.push(0, 0, 0);
-      indices.push(v.id);
+      vertexIds.push(v.id);
+      vertexIdToBufferIndex.set(v.id, i);
+      i++;
     }
     
     const pointGeometry = new THREE.BufferGeometry();
     pointGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     pointGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    pointGeometry.setAttribute('vertexId', new THREE.Uint16BufferAttribute(indices, 1));
+    pointGeometry.setAttribute('vertexId', new THREE.Uint16BufferAttribute(vertexIds, 1));
 
     const pointMaterial = new THREE.PointsMaterial({
       size: 3.5,
@@ -62,6 +66,7 @@ export default class EditHelpers {
     const vertexPoints = new THREE.Points(pointGeometry, pointMaterial);
     vertexPoints.renderOrder = 11;
     vertexPoints.userData.isEditorOnly = true;
+    vertexPoints.userData.vertexIdToBufferIndex = vertexIdToBufferIndex;
     vertexPoints.name = '__VertexPoints';
     this.sceneManager.sceneHelpers.add(vertexPoints);
     vertexPoints.matrix.copy(selectedObject.matrixWorld);
@@ -296,10 +301,12 @@ export default class EditHelpers {
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (vertexPoints) {
       const posAttr = vertexPoints.geometry.getAttribute('position');
+      const vertexIdToBufferIndex = vertexPoints.userData.vertexIdToBufferIndex;
 
       for (let vertexId of affectedVertices) {
+        const bufferIndex = vertexIdToBufferIndex.get(vertexId);
         const v = meshData.getVertex(vertexId);
-        posAttr.setXYZ(vertexId, v.position.x, v.position.y, v.position.z);
+        posAttr.setXYZ(bufferIndex, v.position.x, v.position.y, v.position.z);
       }
       posAttr.needsUpdate = true;
     }

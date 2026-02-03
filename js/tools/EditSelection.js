@@ -65,7 +65,9 @@ export default class EditSelection {
     if (this.subSelectionMode === 'vertex') {
       const nearestVertexId = this.pickNearestVertexOnMouse(event, this.renderer, this.camera);
       if (nearestVertexId === null) {
-        this.clearSelection();
+        if (!this.multiSelectEnabled) {
+          this.clearSelection();
+        }
         return;
       }
 
@@ -73,7 +75,9 @@ export default class EditSelection {
     } else if (this.subSelectionMode === 'edge') {
       const nearestEdgeId = this.pickNearestEdgeOnMouse(event, this.renderer, this.camera);
       if (nearestEdgeId === null) {
-        this.clearSelection();
+        if (!this.multiSelectEnabled) {
+          this.clearSelection();
+        }
         return;
       }
 
@@ -81,7 +85,9 @@ export default class EditSelection {
     } else if (this.subSelectionMode === 'face') {
       const nearestFaceId = this.pickNearestFaceOnMouse(event, this.renderer, this.camera);
       if (nearestFaceId === null) {
-        this.clearSelection();
+        if (!this.multiSelectEnabled) {
+          this.clearSelection();
+        }
         return;
       }
 
@@ -95,7 +101,9 @@ export default class EditSelection {
     if (this.subSelectionMode === 'vertex') {
       const vertexIndices = this.getBoxSelectedVertexIds();
       if (vertexIndices === null) {
-        this.clearSelection();
+        if (!this.multiSelectEnabled) {
+          this.clearSelection();
+        }
         return;
       }
 
@@ -103,7 +111,9 @@ export default class EditSelection {
     } else if (this.subSelectionMode === 'edge') {
       const edgeIndices = this.getBoxSelectedEdgeIds();
       if (edgeIndices === null) {
-        this.clearSelection();
+        if (!this.multiSelectEnabled) {
+          this.clearSelection();
+        }
         return;
       }
 
@@ -111,7 +121,9 @@ export default class EditSelection {
     } else if (this.subSelectionMode === 'face') {
       const faceIndices = this.getBoxSelectedFaceIds();
       if (faceIndices === null) {
-        this.clearSelection();
+        if (!this.multiSelectEnabled) {
+          this.clearSelection();
+        }
         return;
       }
 
@@ -133,7 +145,7 @@ export default class EditSelection {
 
     const dx = event.clientX - this.mouseDownPos.x;
     const dy = event.clientY - this.mouseDownPos.y;
-    const dragThreshold = 1;
+    const dragThreshold = 5;
 
     if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
       this.dragging = true;
@@ -161,7 +173,7 @@ export default class EditSelection {
     this.mouseDownPos = null;
   }
 
-  pickNearestVertexOnMouse(event, renderer, camera, threshold = 0.1) {
+  pickNearestVertexOnMouse(event, renderer, camera, threshold = 0.2) {
     const rect = renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -172,14 +184,15 @@ export default class EditSelection {
     this.raycaster.setFromCamera(this.mouse, camera);
     this.raycaster.params.Points.threshold = threshold;
 
-    const vertexHits = this.raycaster.intersectObject(vertexPoints);
+    const vertexHits = this.raycaster.intersectObject(vertexPoints, false);
     if (vertexHits.length === 0) return null;
 
     const xrayMode = this.sceneManager.xrayMode;
-    const visibleVertices = xrayMode ? vertexHits : this.filterVisibleVertices(vertexHits, vertexPoints, camera);
+    const vertexCandidates = this.buildVertexCandidates(vertexHits, vertexPoints);
+    const visibleVertices = xrayMode ? vertexCandidates : this.filterVisibleVertices(vertexCandidates, vertexPoints, camera);
     if (visibleVertices.length === 0) return null;
 
-    const nearestVertexId = this.pickNearestVertex(visibleVertices, camera, rect, vertexPoints);
+    const nearestVertexId = this.pickNearestVertex(visibleVertices, camera, rect);
 
     return nearestVertexId;
   }
@@ -235,7 +248,7 @@ export default class EditSelection {
   }
 
   getBoxSelectedVertexIds() {
-    const frustum = this.selectionBox.computeFrustumFromSelection(this.camera);
+    const frustum = this.selectionBox.computeFrustumFromSelection();
     if (!frustum) return null;
 
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
@@ -248,7 +261,7 @@ export default class EditSelection {
     const visibleVertices = xrayMode ? vertexHits : this.filterVisibleVertices(vertexHits, vertexPoints, this.camera);
     if (visibleVertices.length === 0) return null;
 
-    const vertexIndices = visibleVertices.map(v => v.index);
+    const vertexIndices = visibleVertices.map(v => v.vertexId);
     return vertexIndices;
   }
 
@@ -450,26 +463,35 @@ export default class EditSelection {
     const visibleVertices = [];
 
     const posAttr = vertexPoints.geometry.getAttribute('position');
+    const vertexIdToBufferIndex = vertexPoints.userData.vertexIdToBufferIndex;
     const epsilon = 0.001;
+
     const occluders = mainObjects.filter(obj => obj !== vertexPoints);
 
+    const dirToCamera = new THREE.Vector3();
+    const rayOrigin = new THREE.Vector3();
+    const vertexPos = new THREE.Vector3();
+
     for (const hit of vertexHits) {
-      const vertexPos = new THREE.Vector3(
-        posAttr.getX(hit.index),
-        posAttr.getY(hit.index),
-        posAttr.getZ(hit.index)
-      ).applyMatrix4(vertexPoints.matrixWorld);
+      const bufferIndex = vertexIdToBufferIndex.get(hit.vertexId);
 
-      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, vertexPos).normalize();
-      const rayOrigin = vertexPos.clone().add(dirToCamera.clone().multiplyScalar(epsilon));
+      // Read vertex position from buffer
+      vertexPos.fromBufferAttribute(posAttr, bufferIndex);
+      vertexPos.applyMatrix4(vertexPoints.matrixWorld);
+
+      dirToCamera.subVectors(cameraPos, vertexPos).normalize();
+      rayOrigin.copy(vertexPos).add(dirToCamera.clone().multiplyScalar(epsilon));
+
       reverseRay.set(rayOrigin, dirToCamera);
-
       const hits = reverseRay.intersectObjects(occluders, true);
       const maxDist = vertexPos.distanceTo(cameraPos);
       const blocked = hits.some(h => h.distance < maxDist - epsilon);
 
       if (!blocked) {
-        visibleVertices.push({ ...hit, point: vertexPos });
+        visibleVertices.push({
+          vertexId: hit.vertexId,
+          point: vertexPos.clone()
+        });
       }
     }
 
@@ -553,6 +575,16 @@ export default class EditSelection {
     return visibleFaces;
   }
 
+  buildVertexCandidates(vertexHits, vertexPoints) {
+    const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
+    const vertices = vertexHits.map(hit => ({
+      vertexId: vertexIdAttr.getX(hit.index),
+      point: hit.point
+    }));
+
+    return vertices;
+  }
+
   buildEdgeCandidates(edgeHits) {
     const edges = [];
 
@@ -585,11 +617,9 @@ export default class EditSelection {
     return edges;
   }
 
-  pickNearestVertex(vertexHits, camera, rect, vertexPoints) {
+  pickNearestVertex(vertexHits, camera, rect) {
     let nearestVertexId = null;
     let minScreenDistSq = Infinity;
-
-    const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
 
     const clickX = (this.mouse.x * 0.5 + 0.5) * rect.width;
     const clickY = (-this.mouse.y * 0.5 + 0.5) * rect.height;
@@ -606,7 +636,7 @@ export default class EditSelection {
 
       if (distPxSq < minScreenDistSq) {
         minScreenDistSq = distPxSq;
-        nearestVertexId = vertexIdAttr.getX(hit.index);
+        nearestVertexId = hit.vertexId;
       }
     });
     

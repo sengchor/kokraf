@@ -66,7 +66,7 @@ export default class Selection {
     
     const dx = event.clientX - this.mouseDownPos.x;
     const dy = event.clientY - this.mouseDownPos.y;
-    const dragThreshold = 1;
+    const dragThreshold = 5;
 
     if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
       this.dragging = true;
@@ -87,16 +87,20 @@ export default class Selection {
     if (this.dragging) {  
       const objects = this.getBoxSelectedObjects();
       if (objects === null || objects.length === 0) {
-        this.deselect();
-        return;
+        if (!this.multiSelectEnabled) {
+          this.deselect();
+          return;
+        }
       }
 
       this.select(objects, true);
     } else {
       const object = this.getSingleSelectedObject(event);
       if (object === null) {
-        this.deselect();
-        return;
+        if (!this.multiSelectEnabled) {
+          this.deselect();
+          return;
+        }
       }
 
       this.select(object);

@@ -40,14 +40,13 @@ export class VertexTransform {
     const affectedEdges = new Set();
     const affectedFaces = new Set();
 
-    // Update vertex positions
-    for (let i = 0; i < vertexIds.length; i++) {
-      const vertexId = vertexIds[i];
+    vertexIds.forEach((vertexId, i) => {
       const worldPos = worldPositions[i];
+      if (!worldPos) return;
       const localPos = worldPos.clone().applyMatrix4(inverseW);
 
       const indices = vertexIndexMap.get(vertexId);
-      if (!indices) continue;
+      if (!indices) return;
 
       for (let bufferIndex of indices) {
         this.positionAttr.setXYZ(bufferIndex, localPos.x, localPos.y, localPos.z);
@@ -67,7 +66,7 @@ export class VertexTransform {
           affectedFaces.add(faceId);
         }
       }
-    }
+    });
 
     this.positionAttr.needsUpdate = true;
 

@@ -126,7 +126,7 @@ export class SelectionBox {
 
       if (frustum.containsPoint(worldPos)) {
         vertexHits.push({
-          index: vertexIdAttr.getX(i),
+          vertexId: vertexIdAttr.getX(i),
           point: worldPos
         });
       }
