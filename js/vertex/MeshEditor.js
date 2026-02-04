@@ -38,4 +38,90 @@ export class MeshEditor {
 
     return merged;
   }
+
+  extractMeshData(meshData, mode, selection) {
+    const extracted = new MeshData();
+
+    const selectedVertices = new Set(selection.selectedVertexIds);
+    const selectedEdges = new Set(selection.selectedEdgeIds);
+    const selectedFaces = new Set(selection.selectedFaceIds);
+
+    const verticesToExtract = new Set();
+    const edgesToExtract = new Set();
+    const facesToExtract = new Set();
+
+    if (mode === 'vertex') {
+      selectedVertices.forEach(vId => verticesToExtract.add(vId));
+
+      for (const edge of meshData.edges.values()) {
+        if (
+          verticesToExtract.has(edge.v1Id) &&
+          verticesToExtract.has(edge.v2Id)
+        ) {
+          edgesToExtract.add(edge.id);
+        }
+      }
+
+      for (const face of meshData.faces.values()) {
+        if (face.vertexIds.every(vId => verticesToExtract.has(vId))) {
+          facesToExtract.add(face.id);
+        }
+      }
+    }
+
+    if (mode === 'edge') {
+      selectedEdges.forEach(eId => edgesToExtract.add(eId));
+
+      for (const eId of edgesToExtract) {
+        const e = meshData.edges.get(eId);
+        verticesToExtract.add(e.v1Id);
+        verticesToExtract.add(e.v2Id);
+      }
+
+      for (const face of meshData.faces.values()) {
+        if ([...face.edgeIds].every(eId => edgesToExtract.has(eId))) {
+          facesToExtract.add(face.id);
+        }
+      }
+    }
+
+    if (mode === 'face') {
+      selectedFaces.forEach(fId => facesToExtract.add(fId));
+
+      for (const fId of facesToExtract) {
+        const f = meshData.faces.get(fId);
+        f.vertexIds.forEach(vId => verticesToExtract.add(vId));
+        [...f.edgeIds].forEach(eId => edgesToExtract.add(eId));
+      }
+    }
+
+    const vertexIdMap = new Map();
+
+    for (const vId of verticesToExtract) {
+      const v = meshData.getVertex(vId);
+      const newId = extracted.addVertex({
+        x: v.position.x,
+        y: v.position.y,
+        z: v.position.z
+      });
+      vertexIdMap.set(vId, newId);
+    }
+
+    for (const eId of edgesToExtract) {
+      const e = meshData.edges.get(eId);
+      extracted.addEdge(
+        vertexIdMap.get(e.v1Id),
+        vertexIdMap.get(e.v2Id)
+      );
+    }
+
+    for (const fId of facesToExtract) {
+      const f = meshData.faces.get(fId);
+      extracted.addFace(
+        f.vertexIds.map(vId => vertexIdMap.get(vId))
+      );
+    }
+
+    return extracted;
+  }
 }

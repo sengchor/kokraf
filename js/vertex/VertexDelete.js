@@ -97,7 +97,7 @@ export class VertexDelete {
     }
 
     const deletedEdges = this.cleanupOrphanEdges(this.meshData, candidateEdges);
-    const deletedVertices = this.cleanupOrphanEdges(this.meshData, candidateVertices);
+    const deletedVertices = this.cleanupOrphanVertices(this.meshData, candidateVertices);
 
     return {
       deletedFaces: Array.from(deletedFaces),
@@ -131,7 +131,7 @@ export class VertexDelete {
     }
 
     const deletedEdges = this.cleanupOrphanEdges(this.meshData, candidateEdges);
-    const deletedVertices = this.cleanupOrphanEdges(this.meshData, candidateVertices);
+    const deletedVertices = this.cleanupOrphanVertices(this.meshData, candidateVertices);
 
     return {
       deletedFaces: [...deletedFaces],
@@ -165,7 +165,7 @@ export class VertexDelete {
     }
 
     const deletedEdges = this.cleanupOrphanEdges(this.meshData, candidateEdges);
-    const deletedVertices = this.cleanupOrphanEdges(this.meshData, candidateVertices);
+    const deletedVertices = this.cleanupOrphanVertices(this.meshData, candidateVertices);
 
     return {
       deletedFaces: Array.from(deletedFaces),

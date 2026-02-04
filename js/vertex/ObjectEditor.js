@@ -86,4 +86,32 @@ export class ObjectEditor {
 
     return mesh;
   }
+
+  createObjectFromMeshData(meshData, object) {
+    if (!meshData || !object) return null;
+
+    if (!(meshData instanceof MeshData)) {
+      meshData = MeshData.getRehydratedMeshData(meshData);
+    }
+
+    const shading = object.userData.shading;
+    const material = object.material;
+
+    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+
+    const clonedMaterial = Array.isArray(material) ? material.map(m => m.clone()) : material.clone();
+
+    const mesh = new THREE.Mesh(geometry, clonedMaterial);
+
+    mesh.position.copy(object.position);
+    mesh.quaternion.copy(object.quaternion);
+    mesh.scale.copy(object.scale);
+    mesh.updateMatrixWorld(true);
+
+    mesh.userData.meshData = meshData;
+    mesh.userData.shading = shading;
+    mesh.name = `${object.name}_copy`;
+
+    return mesh;
+  }
 }

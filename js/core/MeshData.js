@@ -227,59 +227,64 @@ export class MeshData {
   }
 
   static rehydrateMeshData(object) {
-    if (object.userData.meshData && !(object.userData.meshData instanceof MeshData)) {
-      const raw = object.userData.meshData;
-      const meshData = Object.assign(new MeshData(), raw);
-
-      if (raw.vertices instanceof Map) {
-        meshData.vertices = raw.vertices;
-      } else if (Array.isArray(raw.vertices)) {
-        meshData.vertices = new Map(
-          raw.vertices.map(([id, v]) => {
-            const vertex = Object.assign(new Vertex(v.id, v.position), v);
-            vertex.edgeIds = new Set(v.edgeIds || []);
-            vertex.faceIds = new Set(v.faceIds || []);
-            return [id, vertex];
-          })
-        );
-      }
-
-      if (raw.edges instanceof Map) {
-        meshData.edges = raw.edges;
-      } else if (Array.isArray(raw.edges)) {
-        meshData.edges = new Map(
-          raw.edges.map(([id, e]) => {
-            const edge = Object.assign(new Edge(e.id, e.v1Id, e.v2Id), e);
-            edge.faceIds = new Set(e.faceIds || []);
-            return [id, edge];
-          })
-        );
-      }
-
-      if (raw.faces instanceof Map) {
-        meshData.faces = raw.faces;
-      } else if (Array.isArray(raw.faces)) {
-        meshData.faces = new Map(
-          raw.faces.map(([id, f]) => {
-            const face = Object.assign(new Face(f.id, f.vertexIds), f);
-            face.edgeIds = new Set(f.edgeIds || []);
-            return [id, face];
-          })
-        );
-      }
-
-      meshData.vertexIndexMap = new Map(raw.vertexIndexMap);
-      meshData.bufferIndexToVertexId = new Map(raw.bufferIndexToVertexId);
-      meshData.nextVertexId = raw.nextVertexId;
-      meshData.nextEdgeId = raw.nextEdgeId;
-      meshData.nextFaceId = raw.nextFaceId;
-
-      object.userData.meshData = meshData;
+    if (object.userData?.meshData) {
+      object.userData.meshData = this.getRehydratedMeshData(object.userData.meshData);
     }
 
     for (const child of object.children) {
       this.rehydrateMeshData(child);
     }
+  }
+
+  static getRehydratedMeshData(raw) {
+    if (!raw || raw instanceof MeshData) return raw;
+
+    const meshData = Object.assign(new MeshData(), raw);
+
+    if (raw.vertices instanceof Map) {
+      meshData.vertices = raw.vertices;
+    } else if (Array.isArray(raw.vertices)) {
+      meshData.vertices = new Map(
+        raw.vertices.map(([id, v]) => {
+          const vertex = Object.assign(new Vertex(v.id, v.position), v);
+          vertex.edgeIds = new Set(v.edgeIds || []);
+          vertex.faceIds = new Set(v.faceIds || []);
+          return [id, vertex];
+        })
+      );
+    }
+
+    if (raw.edges instanceof Map) {
+      meshData.edges = raw.edges;
+    } else if (Array.isArray(raw.edges)) {
+      meshData.edges = new Map(
+        raw.edges.map(([id, e]) => {
+          const edge = Object.assign(new Edge(e.id, e.v1Id, e.v2Id), e);
+          edge.faceIds = new Set(e.faceIds || []);
+          return [id, edge];
+        })
+      );
+    }
+
+    if (raw.faces instanceof Map) {
+      meshData.faces = raw.faces;
+    } else if (Array.isArray(raw.faces)) {
+      meshData.faces = new Map(
+        raw.faces.map(([id, f]) => {
+          const face = Object.assign(new Face(f.id, f.vertexIds), f);
+          face.edgeIds = new Set(f.edgeIds || []);
+          return [id, face];
+        })
+      );
+    }
+
+    meshData.vertexIndexMap = new Map(raw.vertexIndexMap);
+    meshData.bufferIndexToVertexId = new Map(raw.bufferIndexToVertexId);
+    meshData.nextVertexId = raw.nextVertexId;
+    meshData.nextEdgeId = raw.nextEdgeId;
+    meshData.nextFaceId = raw.nextFaceId;
+
+    return meshData;
   }
 
   toDuplicatedVertexGeometry(useEarcut = true) {
