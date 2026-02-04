@@ -51,8 +51,8 @@
 .selection-mode {
   display: flex;
   flex-direction: row;
-  position: absolute;
-  margin-left: 142px;
+  position: relative;
+  margin-left: 10px;
   z-index: 9;
 }
 
@@ -284,4 +284,20 @@
   margin: 4px 0;
   background-color: #ccc;
   pointer-events: none;
+}
+
+.viewport-controls .submenu-item {
+  position: relative;
+}
+
+.viewport-controls .submenu.right {
+  position: absolute;
+  top: -6px;
+  left: 100%;
+  min-width: 160px;
+  visibility: hidden;
+}
+
+.viewport-controls .submenu-item:hover > .submenu.right {
+  visibility: visible;
 }

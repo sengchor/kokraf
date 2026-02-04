@@ -11,6 +11,7 @@ export default class ViewportControls {
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
     this.objectActions = editor.objectActions;
+    this.editActions = editor.editActions;
     this.editHelpers = editor.editHelpers;
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
@@ -38,6 +39,7 @@ export default class ViewportControls {
     this.transformOrientationSelect = document.getElementById('transform-orientation');
     this.xrayButton = document.getElementById('xray-button');
     this.objectMenu = document.getElementById('object-menu');
+    this.meshMenu = document.getElementById('mesh-menu');
     this.leftControls = document.getElementById('left-controls-container');
 
     if (this.cameraDropdown) {
@@ -128,11 +130,11 @@ export default class ViewportControls {
     }
 
     if (this.objectMenu) {
-      this.objectMenu.querySelectorAll('[data-action]').forEach(item => {
-        item.addEventListener('click', () => {
-          this.objectActions.handleAction(item.dataset.action);
-        });
-      });
+      this.initMenu(this.objectMenu, this.objectActions);
+    }
+
+    if (this.meshMenu) {
+      this.initMenu(this.meshMenu, this.editActions);
     }
   }
 
@@ -159,6 +161,11 @@ export default class ViewportControls {
       if (this.objectMenu) {
         this.objectMenu.classList.toggle('hidden', newMode === 'edit');
         this.objectMenu.classList.remove('active');
+      }
+
+      if (this.meshMenu) {
+        this.meshMenu.classList.toggle('hidden', newMode == 'object');
+        this.meshMenu.classList.remove('active');
       }
     });
 
@@ -280,6 +287,21 @@ switchMode(newMode) {
     } else {
       this.xrayButton.classList.remove('disabled');
     }
+  }
+
+  initMenu(menu, actions) {
+    menu.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-action]');
+      if (!item) return;
+
+      e.stopPropagation();
+      actions.handleAction(item.dataset.action);
+
+      menu.classList.remove('active');
+      menu.classList.add('menu-closing');
+
+      requestAnimationFrame(() => menu.classList.remove('menu-closing'));
+    });
   }
 
   toJSON() {

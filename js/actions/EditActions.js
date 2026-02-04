@@ -17,6 +17,16 @@ export class EditActions {
   }
 
   handleAction(action) {
+    if (action === 'create-edge-face') {
+      this.signals.createElementFromVertices.dispatch();
+      return;
+    }
+
+    if (action === 'separate-selection') {
+      this.signals.separateSelection.dispatch();
+      return;
+    }
+
     if (action.startsWith('delete-') || action.startsWith('dissolve-')) {
       this.signals.deleteSelectedFaces.dispatch(action);
       return;

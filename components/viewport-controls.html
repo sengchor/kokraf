@@ -8,6 +8,19 @@
       </select>
     </div>
 
+    <!-- Selection Buttons -->
+    <div class="selection-mode hidden">
+      <button class="selection-button active" data-tool="vertex" data-tooltip="Vertex Select">
+        <img src="assets/icons/point-select.svg" alt="Vertex Select" />
+      </button>
+      <button class="selection-button" data-tool="edge" data-tooltip="Edge Select">
+        <img src="assets/icons/edge-select.svg" alt="Edge Select" />
+      </button>
+      <button class="selection-button" data-tool="face" data-tooltip="Face Select">
+        <img src="assets/icons/face-select.svg" alt="Face Select" />
+      </button>
+    </div>
+
     <div class="menu-item" id="object-menu">OBJECT
       <ul class="submenu">
         <li data-action="join-object">Join</li>
@@ -20,17 +33,26 @@
       </ul>
     </div>
 
-    <!-- Selection Buttons -->
-    <div class="selection-mode hidden">
-      <button class="selection-button active" data-tool="vertex" data-tooltip="Vertex Select">
-        <img src="assets/icons/point-select.svg" alt="Vertex Select" />
-      </button>
-      <button class="selection-button" data-tool="edge" data-tooltip="Edge Select">
-        <img src="assets/icons/edge-select.svg" alt="Edge Select" />
-      </button>
-      <button class="selection-button" data-tool="face" data-tooltip="Face Select">
-        <img src="assets/icons/face-select.svg" alt="Face Select" />
-      </button>
+    <div class="menu-item hidden" id="mesh-menu">MESH
+      <ul class="submenu">
+        <li data-action="create-edge-face">New Edge/Face</li>
+        <li data-action="separate-selection">Separate</li>
+        <li class="divider"></li>
+        <li class="submenu-item">
+          Delete <span class="arrow">&#9656;</span>
+          <ul class="submenu right">
+            <li data-action="delete-vertices">Vertices</li>
+            <li data-action="delete-edges">Edges</li>
+            <li data-action="delete-faces">Faces</li>
+            <li data-action="delete-only-edges-faces">Only Edges & Faces</li>
+            <li data-action="delete-only-faces">Only Faces</li>
+            <li class="divider"></li>
+            <li data-action="dissolve-vertices">Dissolve Vertices</li>
+            <li data-action="dissolve-edges">Dissolve Edges</li>
+            <li data-action="dissolve-faces">Dissolve Faces</li>
+          </ul>
+        </li>
+      </ul>
     </div>
   </div>
 

@@ -101,6 +101,7 @@
 .menu-closing .submenu,
 .menu-closing .submenu.right {
   visibility: hidden !important;
+  display: none !important;
 }
 
 .arrow {

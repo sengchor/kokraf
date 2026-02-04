@@ -35,8 +35,6 @@ export default class ContextMenu {
       if (e.button === 2) {
         e.preventDefault();
 
-        if (!this.editor.keyHandler.startInteraction('context-menu')) return;
-
         this.menuTrigger = 'mouse';
         this.show(e.clientX, e.clientY);
       }
@@ -124,11 +122,12 @@ export default class ContextMenu {
   }
 
   showSection(mode) {
+    if (!this.editor.keyHandler.startInteraction('context-menu')) return;
     const section = this.menuEl.querySelector(`.menu-section[data-mode="${mode}"]`);
     if (section) section.style.display = 'block';
   }
 
-  hide() {
+  hide() {  
     if (this.menuEl) {
       this.menuEl.style.display = 'none';
       this.editor.keyHandler.endInteraction('context-menu');
