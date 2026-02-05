@@ -17,6 +17,12 @@ export class EditActions {
   }
 
   handleAction(action) {
+    if (action === 'duplicate-selection') {
+      this.editor.toolbar.setActiveTool('select');
+      this.signals.duplicateSelection.dispatch();
+      return;
+    }
+
     if (action === 'create-edge-face') {
       this.signals.createElementFromVertices.dispatch();
       return;

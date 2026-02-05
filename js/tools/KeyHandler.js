@@ -146,6 +146,10 @@ export class KeyHandler {
       } else if (event.key === 'k') {
         this.editor.toolbar.setActiveTool('knife');
         handled = true;
+      } else if (event.shiftKey && event.key.toLowerCase() === 'd') {
+        this.editor.toolbar.setActiveTool('select');
+        this.signals.duplicateSelection.dispatch();
+        handled = true;
       }
     }
 

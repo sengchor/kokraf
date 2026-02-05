@@ -3,6 +3,7 @@ import { EditTransformTool } from '../tools/EditTransformTool.js';
 import { ExtrudeTool } from '../tools/ExtrudeTool.js';
 import { LoopCutTool } from '../tools/LoopCutTool.js';
 import { KnifeTool } from '../tools/KnifeTool.js';
+import { DuplicateTool } from '../tools/DuplicateTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
@@ -31,6 +32,7 @@ export default class Toolbar {
     this.extrudeTool = new ExtrudeTool(this.editor);
     this.loopCutTool = new LoopCutTool(this.editor);
     this.knifeTool = new KnifeTool(this.editor);
+    this.DuplicateTool = new DuplicateTool(this.editor);
 
     this.ready = this.load();
   }
