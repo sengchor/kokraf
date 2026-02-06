@@ -10,6 +10,7 @@ export default class ContextMenu {
     this.editActions = editor.editActions;
     this.menuEl = null;
     this.currentMode = 'object';
+    this.closeTimeout = null;
 
     this.lastMouse = { x: 0, y: 0 };
     this.menuTrigger = null;
@@ -24,6 +25,7 @@ export default class ContextMenu {
     if (!container) return;
 
     this.menuEl = container.querySelector('.context-menu');
+    this.wrapper = this.menuEl.closest('.context-menu-wrapper');
 
     const appContainer = document.querySelector('.app-container');
     appContainer.addEventListener('contextmenu', (e) => {
@@ -81,6 +83,19 @@ export default class ContextMenu {
         this.hide();
       });
     });
+
+    this.wrapper.addEventListener('mouseenter', () => {
+      if (this.closeTimeout) {
+        clearTimeout(this.closeTimeout);
+        this.closeTimeout = null;
+      }
+    });
+
+    this.wrapper.addEventListener('mouseleave', () => {
+      this.closeTimeout = setTimeout(() => {
+        this.hide();
+      }, 250);
+    });
   }
 
   setupListeners() {
@@ -97,7 +112,7 @@ export default class ContextMenu {
   }
 
   show(x, y) {
-    if (!this.menuEl) return;
+    if (!this.menuEl || !this.wrapper) return;
 
     this.menuEl.querySelectorAll('.menu-section').forEach(section => {
       section.style.display = 'none';
@@ -116,9 +131,9 @@ export default class ContextMenu {
 
     if (!visible) return;
 
-    this.menuEl.style.display = 'block';
-    this.menuEl.style.left = `${x}px`;
-    this.menuEl.style.top = `${y}px`;
+    this.wrapper.style.display = 'block';
+    this.wrapper.style.left = `${x - 15}px`;
+    this.wrapper.style.top = `${y - 15}px`;
   }
 
   showSection(mode) {
@@ -128,8 +143,8 @@ export default class ContextMenu {
   }
 
   hide() {  
-    if (this.menuEl) {
-      this.menuEl.style.display = 'none';
+    if (this.wrapper) {
+      this.wrapper.style.display = 'none';
       this.editor.keyHandler.endInteraction('context-menu');
     }
   }

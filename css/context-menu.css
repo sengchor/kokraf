@@ -1,5 +1,12 @@
-.context-menu {
+.context-menu-wrapper {
   position: absolute;
+  padding: 15px;
+  display: none;
+  z-index: 20;
+}
+
+.context-menu {
+  position: relative;
   background-color: #ffffff;
   color: #222;
   font-family: sans-serif;
@@ -7,7 +14,6 @@
   border: 1px solid #e6e8eb;
   min-width: 180px;
   z-index: 200;
-  display: none;
   padding: 6px 0;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   list-style: none;
