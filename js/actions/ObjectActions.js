@@ -4,6 +4,7 @@ import { SetShadingCommand } from "../commands/SetShadingCommand.js";
 import { JoinObjectsCommand } from '../commands/JoinObjectsCommand.js';
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 import { DuplicateObjectCommand } from '../commands/DuplicateObjectCommand.js';
+import { SetPositionCommand } from "../commands/SetPositionCommand.js";
 
 export class ObjectActions {
   constructor(editor) {
@@ -25,6 +26,16 @@ export class ObjectActions {
   }
 
   handleAction(action) {
+    if (action === 'center-object') {
+      this.centerSelectedObjects();
+      return;
+    }
+
+    if (action === 'duplicate-object') {
+      this.duplicateSelectedObjects();
+      return;
+    }
+
     if (action === 'join-object') {
       this.joinSelectedObjects();
       return;
@@ -92,5 +103,16 @@ export class ObjectActions {
     const joined = this.objectEditor.joinObjects(objects);
     
     this.editor.execute(new JoinObjectsCommand(this.editor, objects, joined));
+  }
+
+  centerSelectedObjects() {
+    const newPos = new THREE.Vector3(0, 0, 0);
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    const oldPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
+    const newPositions = objects.map(() => newPos.clone());
+
+    this.editor.execute(new SetPositionCommand(this.editor, objects, newPositions, oldPositions));
   }
 }
