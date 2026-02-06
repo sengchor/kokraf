@@ -66,6 +66,7 @@ export default class Editor {
       separateSelection: new Signal(),
       duplicateSelection: new Signal(),
       mergeSelection: new Signal(),
+      splitSelection: new Signal(),
 
       editSelectionChanged: new Signal(),
       editSelectionCleared: new Signal(),

@@ -5,6 +5,7 @@ import { CreateFaceCommand } from '../commands/CreateFaceCommand.js';
 import { DeleteSelectionCommand } from '../commands/DeleteSelectionCommand.js';
 import { SeparateSelectionCommand } from '../commands/SeparateSelectionCommand.js';
 import { MergeSelectionCommand } from '../commands/MergeSelectionCommand.js';
+import { SplitSelectionCommand } from '../commands/SplitSelectionCommand.js';
 
 export class EditActions {
   constructor(editor) {
@@ -34,6 +35,11 @@ export class EditActions {
       return;
     }
 
+    if (action === 'split-selection') {
+      this.signals.splitSelection.dispatch();
+      return;
+    }
+
     if (action === 'separate-selection') {
       this.signals.separateSelection.dispatch();
       return;
@@ -52,6 +58,7 @@ export class EditActions {
     this.signals.deleteSelectedFaces.add((action) => this.deleteSelected(action));
     this.signals.separateSelection.add(() => this.separateSelection());
     this.signals.mergeSelection.add(() => this.mergeSelection());
+    this.signals.splitSelection.add(() => this.splitSelection());
   }
 
   createElementFromVertices() {
@@ -204,5 +211,56 @@ export class EditActions {
     this.editor.execute(new MergeSelectionCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
 
     this.editSelection.selectVertices(targetVertexId);
+  }
+
+  splitSelection() {
+    const editedObject = this.editSelection.editedObject;
+    const mode = this.editSelection.subSelectionMode;
+
+    const selectedVertexIds = this.editSelection.selectedVertexIds;
+    const selectedEdgeIds = this.editSelection.selectedEdgeIds;
+    const selectedFaceIds = this.editSelection.selectedFaceIds;
+
+    if (
+      (mode === 'vertex' && selectedVertexIds.size === 0) ||
+      (mode === 'edge' && selectedEdgeIds.size === 0) ||
+      (mode === 'face' && selectedFaceIds.size === 0)
+    ) return;
+
+    const meshData = editedObject.userData.meshData;
+    const beforeMeshData = structuredClone(meshData);
+
+    this.vertexEditor.setObject(editedObject);
+    let duplicationResult;
+    if (mode === 'vertex') {
+      duplicationResult = this.vertexEditor.duplicate.duplicateSelectionVertices(selectedVertexIds);
+    } else if (mode === 'edge') {
+      duplicationResult = this.vertexEditor.duplicate.duplicateSelectionEdges(selectedEdgeIds);
+    } else if (mode === 'face') {
+      duplicationResult = this.vertexEditor.duplicate.duplicateSelectionFaces(selectedFaceIds);
+    }
+
+    const newVertexIds = duplicationResult.newVertexIds;
+    const newEdgeIds = duplicationResult.newEdgeIds;
+    const newFaceIds = duplicationResult.newFaceIds;
+
+    if (mode === 'vertex') {
+      this.vertexEditor.delete.deleteSelectionVertices(selectedVertexIds);
+    } else if (mode === 'edge') {
+      this.vertexEditor.delete.deleteSelectionEdges(selectedEdgeIds);
+    } else if (mode === 'face') {
+      this.vertexEditor.delete.deleteSelectionFaces(selectedFaceIds);
+    }
+
+    const afterMeshData = structuredClone(meshData);
+    this.editor.execute(new SplitSelectionCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
+
+    if (mode === 'vertex') {
+      this.editSelection.selectVertices(newVertexIds);
+    } else if (mode === 'edge') {
+      this.editSelection.selectEdges(newEdgeIds);
+    } else if (mode === 'face') {
+      this.editSelection.selectFaces(newFaceIds)
+    }
   }
 }

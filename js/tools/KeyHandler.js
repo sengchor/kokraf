@@ -153,6 +153,9 @@ export class KeyHandler {
       } else if (event.key === 'm') {
         this.signals.mergeSelection.dispatch();
         handled = true;
+      } else if (event.key === 'y') {
+        this.signals.splitSelection.dispatch();
+        handled = true;
       }
     }
 
