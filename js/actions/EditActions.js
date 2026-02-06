@@ -4,6 +4,7 @@ import { getNeighborFaces, shouldFlipNormal } from '../utils/AlignedNormalUtils.
 import { CreateFaceCommand } from '../commands/CreateFaceCommand.js';
 import { DeleteSelectionCommand } from '../commands/DeleteSelectionCommand.js';
 import { SeparateSelectionCommand } from '../commands/SeparateSelectionCommand.js';
+import { MergeSelectionCommand } from '../commands/MergeSelectionCommand.js';
 
 export class EditActions {
   constructor(editor) {
@@ -28,6 +29,11 @@ export class EditActions {
       return;
     }
 
+    if (action === 'merge-selection') {
+      this.signals.mergeSelection.dispatch();
+      return;
+    }
+
     if (action === 'separate-selection') {
       this.signals.separateSelection.dispatch();
       return;
@@ -45,6 +51,7 @@ export class EditActions {
     this.signals.createElementFromVertices.add(() => this.createElementFromVertices());
     this.signals.deleteSelectedFaces.add((action) => this.deleteSelected(action));
     this.signals.separateSelection.add(() => this.separateSelection());
+    this.signals.mergeSelection.add(() => this.mergeSelection());
   }
 
   createElementFromVertices() {
@@ -180,5 +187,22 @@ export class EditActions {
 
     const afterMeshData = structuredClone(meshData);
     this.editor.execute(new SeparateSelectionCommand(this.editor, editedObject, beforeMeshData, afterMeshData, newMeshData));
+  }
+
+  mergeSelection() {
+    const editedObject = this.editSelection.editedObject
+    const meshData = editedObject.userData.meshData;
+    const beforeMeshData = structuredClone(meshData);
+    
+    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+    if (!selectedVertexIds || selectedVertexIds.length < 2) return;
+
+    this.vertexEditor.setObject(editedObject);
+    const targetVertexId = this.vertexEditor.topology.mergeVertices(selectedVertexIds);
+
+    const afterMeshData = structuredClone(meshData);
+    this.editor.execute(new MergeSelectionCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
+
+    this.editSelection.selectVertices(targetVertexId);
   }
 }

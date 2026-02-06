@@ -24,6 +24,7 @@ import { JoinObjectsCommand } from './JoinObjectsCommand.js';
 import { SequentialMultiCommand } from './SequentialMultiCommand.js';
 import { DuplicateObjectCommand } from './DuplicateObjectCommand.js';
 import { DuplicateSelectionCommand } from './DuplicateSelectionCommand.js';
+import { MergeSelectionCommand } from './MergeSelectionCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -52,4 +53,5 @@ export const commands = new Map([
   [SequentialMultiCommand.type, SequentialMultiCommand],
   [DuplicateObjectCommand.type, DuplicateObjectCommand],
   [DuplicateSelectionCommand.type, DuplicateSelectionCommand],
+  [MergeSelectionCommand.type, MergeSelectionCommand],
 ]);

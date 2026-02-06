@@ -150,6 +150,9 @@ export class KeyHandler {
         this.editor.toolbar.setActiveTool('select');
         this.signals.duplicateSelection.dispatch();
         handled = true;
+      } else if (event.key === 'm') {
+        this.signals.mergeSelection.dispatch();
+        handled = true;
       }
     }
 
