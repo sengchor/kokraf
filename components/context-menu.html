@@ -20,6 +20,44 @@
       </li>
     </div>
 
+    <div class="menu-section" data-mode="mesh">
+      <li class="menu-title">Mesh Context Menu</li>
+      <li class="divider"></li>
+      <li class="item" role="menu-item" data-action="duplicate-selection">Duplicate
+        <span class="shortcut">SHIFT+D</span>
+      </li>
+      <li class="item" role="menu-item" data-action="create-edge-face">New Edge/Face
+        <span class="shortcut">F</span>
+      </li>
+      <li class="divider"></li>
+      <li class="item" role="menu-item" data-action="merge-selection">Merge
+        <span class="shortcut">M</span>
+      </li>
+      <li class="item" role="menu-item" data-action="split-selection">Split
+        <span class="shortcut">Y</span>
+      </li>
+      <li class="item" role="menu-item" data-action="separate-selection">Separate
+        <span class="shortcut">P</span>
+      </li>
+      <li class="divider"></li>
+      <li class="item" role="menu-item" class="submenu-item">
+        Delete
+        <span class="shortcut">DEL</span>
+        <span class="arrow">&#9656;</span>
+        <ul class="submenu right">
+          <li data-action="delete-vertices">Vertices</li>
+          <li data-action="delete-edges">Edges</li>
+          <li data-action="delete-faces">Faces</li>
+          <li data-action="delete-only-edges-faces">Only Edges & Faces</li>
+          <li data-action="delete-only-faces">Only Faces</li>
+          <li class="divider"></li>
+          <li data-action="dissolve-vertices">Dissolve Vertices</li>
+          <li data-action="dissolve-edges">Dissolve Edges</li>
+          <li data-action="dissolve-faces">Dissolve Faces</li>
+        </ul>
+      </li>
+    </div>
+
     <div class="menu-section" data-mode="delete">
       <li class="menu-title">Delete</li>
       <li class="divider"></li>

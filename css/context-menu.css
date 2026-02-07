@@ -50,3 +50,43 @@
   background-color: #e6e8eb;
   pointer-events: none;
 }
+
+.context-menu li:hover .shortcut {
+  border-color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.context-menu .arrow {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.context-menu .submenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 1px;
+  padding: 0px;
+}
+
+.context-menu .submenu li {
+  line-height: 30px;
+  padding: 0 8px;
+  gap: 6px;
+}
+
+.context-menu .item {
+  position: relative;
+}
+
+.context-menu .submenu.right {
+  position: absolute;
+  top: -6px;
+  left: 100%;
+  min-width: 180px;
+  visibility: hidden;
+}
+
+.context-menu .item:hover > .submenu.right {
+  visibility: visible;
+}

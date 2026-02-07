@@ -76,6 +76,8 @@ export default class ContextMenu {
 
         if (mode === 'object') {
           this.objectActions.handleAction(action);
+        } else if (mode === 'mesh') {
+          this.editActions.handleAction(action);
         } else if (mode === 'delete') {
           this.editActions.handleAction(action);
         }
@@ -121,6 +123,11 @@ export default class ContextMenu {
     let visible = false;
     if (this.menuTrigger === 'mouse' && this.currentMode === 'object') {
       this.showSection('object');
+      visible = true;
+    }
+
+    if (this.menuTrigger === 'mouse' && this.currentMode === 'edit') {
+      this.showSection('mesh');
       visible = true;
     }
 
