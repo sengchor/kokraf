@@ -27,6 +27,7 @@ import { SnapManager } from './core/SnapManager.js';
 import { VertexEditor } from './vertex/VertexEditor.js';
 import { MeshEditor } from "./vertex/MeshEditor.js";
 import { ObjectEditor } from './vertex/ObjectEditor.js';
+import OriginHelper from './helpers/OriginHelper.js';
 
 export default class Editor {
   constructor() {
@@ -99,6 +100,7 @@ export default class Editor {
 
     // Helpers
     this.viewportViewHelper = new ViewportViewHelper(this);
+    this.originHelper = new OriginHelper(this);
     this.selectionBox = new SelectionBox(this);
     this.selection = new Selection(this);
     this.editSelection = new EditSelection(this);

@@ -5,6 +5,7 @@ export default class Selection {
     this.editor = editor;
     this.signals = editor.signals;
     this.keyHandler = editor.keyHandler;
+    this.originHelper = editor.originHelper;
     this.selectionBoxes = new Map();
     this.sceneManager = editor.sceneManager;
 
@@ -195,6 +196,8 @@ export default class Selection {
         boxHelper.visible = false;
       }
     }
+
+    this.originHelper.updateOrginHelpers(this.selectedObjects);
   }
 
   getSelectedObject() {
@@ -226,6 +229,8 @@ export default class Selection {
       if (boxHelper) {
         boxHelper.visible = false;
       }
+
+      this.originHelper.removeOriginHelper(object);
     }
   }
 
@@ -307,6 +312,8 @@ export default class Selection {
       boxHelper.visible = true;
       boxHelper.updateMatrixWorld(true);
     }
+
+    this.originHelper.addOriginHelper(object);
   }
 
   unhighlightObject(object) {
@@ -323,6 +330,8 @@ export default class Selection {
       const boxHelper = this.selectionBoxes.get(object.id);
       boxHelper.visible = false;
     }
+
+    this.originHelper.removeOriginHelper(object);
   }
 
   updatePivotHandle() {
