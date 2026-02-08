@@ -27,6 +27,7 @@ import { DuplicateSelectionCommand } from './DuplicateSelectionCommand.js';
 import { MergeSelectionCommand } from './MergeSelectionCommand.js';
 import { SplitSelectionCommand } from './SplitSelectionCommand.js';
 import { SetOriginToGeometryCommand } from './SetOriginToGeometryCommand.js';
+import { SetGeometryToOriginCommand } from './SetGeometryToOriginCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -58,4 +59,5 @@ export const commands = new Map([
   [MergeSelectionCommand.type, MergeSelectionCommand],
   [SplitSelectionCommand.type, SplitSelectionCommand],
   [SetOriginToGeometryCommand.type, SetOriginToGeometryCommand],
+  [SetGeometryToOriginCommand.type, SetGeometryToOriginCommand],
 ]);

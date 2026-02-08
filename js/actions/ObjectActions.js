@@ -6,6 +6,7 @@ import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 import { DuplicateObjectCommand } from '../commands/DuplicateObjectCommand.js';
 import { SetPositionCommand } from "../commands/SetPositionCommand.js";
 import { SetOriginToGeometryCommand } from '../commands/SetOriginToGeometryCommand.js';
+import { SetGeometryToOriginCommand } from '../commands/SetGeometryToOriginCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -34,6 +35,7 @@ export class ObjectActions {
     }
 
     if (action === 'geometry-origin') {
+      this.setGeometryToOrigin();
       return;
     }
 
@@ -125,6 +127,22 @@ export class ObjectActions {
     const newPositions = objects.map(() => newPos.clone());
 
     this.editor.execute(new SetPositionCommand(this.editor, objects, newPositions, oldPositions));
+  }
+
+  setGeometryToOrigin() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    const multi = new SequentialMultiCommand(this.editor, 'Origin to Geometry');
+
+    for (const object of objects) {
+      multi.add(() => new SetGeometryToOriginCommand(this.editor, object));
+    }
+
+    this.editor.execute(multi);
+
+    this.editor.selection.select(objects);
+    this.editor.toolbar.updateTools();
   }
 
   setOriginToGeometry() {
