@@ -59,6 +59,7 @@ export class EditActions {
     this.signals.separateSelection.add(() => this.separateSelection());
     this.signals.mergeSelection.add(() => this.mergeSelection());
     this.signals.splitSelection.add(() => this.splitSelection());
+    this.signals.editSelectAll.add(() => this.editSelectAll());
   }
 
   createElementFromVertices() {
@@ -261,6 +262,31 @@ export class EditActions {
       this.editSelection.selectEdges(newEdgeIds);
     } else if (mode === 'face') {
       this.editSelection.selectFaces(newFaceIds)
+    }
+  }
+
+  editSelectAll() {
+    const editedObject = this.editSelection.editedObject;
+    if (!editedObject) return;
+
+    const meshData = editedObject.userData.meshData;
+    if (!meshData) return;
+
+    const mode = this.editSelection.subSelectionMode;
+
+    if (mode === 'vertex') {
+      const allVertexIds = Array.from(meshData.vertices.keys());
+      this.editSelection.selectVertices(allVertexIds);
+    }
+
+    else if (mode === 'edge') {
+      const allEdgeIds = Array.from(meshData.edges.keys());
+      this.editSelection.selectEdges(allEdgeIds);
+    }
+
+    else if (mode === 'face') {
+      const allFaceIds = Array.from(meshData.faces.keys());
+      this.editSelection.selectFaces(allFaceIds);
     }
   }
 }

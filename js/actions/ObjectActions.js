@@ -25,7 +25,7 @@ export class ObjectActions {
     this.signals.objectFocused.add(() => this.focusSelectedObjects());
     this.signals.objectDuplicated.add(() => this.duplicateSelectedObjects());
     this.signals.objectJoined.add(() => this.joinSelectedObjects());
-    this.signals.originToGeometry.add(() => this.setOriginToGeometry());
+    this.signals.objectSelectAll.add(() => this.objectSelectAll());
   }
 
   handleAction(action) {
@@ -158,6 +158,23 @@ export class ObjectActions {
     this.editor.execute(multi);
 
     this.editor.selection.select(objects);
+    this.editor.toolbar.updateTools();
+  }
+
+  objectSelectAll() {
+    const objects = [];
+
+    const scene = this.sceneManager.mainScene;
+
+    scene.traverse(child => {
+      if (child !== scene) {
+        objects.push(child);
+      }
+    });
+
+    if (objects.length === 0) return;
+
+    this.selection.select(objects);
     this.editor.toolbar.updateTools();
   }
 }
