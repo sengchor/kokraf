@@ -5,6 +5,7 @@ import { JoinObjectsCommand } from '../commands/JoinObjectsCommand.js';
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 import { DuplicateObjectCommand } from '../commands/DuplicateObjectCommand.js';
 import { SetPositionCommand } from "../commands/SetPositionCommand.js";
+import { SetOriginToGeometryCommand } from '../commands/SetOriginToGeometryCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -23,11 +24,21 @@ export class ObjectActions {
     this.signals.objectFocused.add(() => this.focusSelectedObjects());
     this.signals.objectDuplicated.add(() => this.duplicateSelectedObjects());
     this.signals.objectJoined.add(() => this.joinSelectedObjects());
+    this.signals.originToGeometry.add(() => this.setOriginToGeometry());
   }
 
   handleAction(action) {
     if (action === 'center-object') {
       this.centerSelectedObjects();
+      return;
+    }
+
+    if (action === 'geometry-origin') {
+      return;
+    }
+
+    if (action === 'origin-geometry') {
+      this.setOriginToGeometry();
       return;
     }
 
@@ -114,5 +125,21 @@ export class ObjectActions {
     const newPositions = objects.map(() => newPos.clone());
 
     this.editor.execute(new SetPositionCommand(this.editor, objects, newPositions, oldPositions));
+  }
+
+  setOriginToGeometry() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    const multi = new SequentialMultiCommand(this.editor, 'Origin to Geometry');
+
+    for (const object of objects) {
+      multi.add(() => new SetOriginToGeometryCommand(this.editor, object));
+    }
+
+    this.editor.execute(multi);
+
+    this.editor.selection.select(objects);
+    this.editor.toolbar.updateTools();
   }
 }

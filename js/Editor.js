@@ -83,6 +83,8 @@ export default class Editor {
       objectTransformStart: new Signal(),
       editTransformStart: new Signal(),
       editExtrudeStart: new Signal(),
+
+      originToGeometry: new Signal(),
     }
 
     this.helpers = {};

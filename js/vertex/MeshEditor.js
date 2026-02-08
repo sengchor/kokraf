@@ -124,4 +124,26 @@ export class MeshEditor {
 
     return extracted;
   }
+
+  setOriginToGeometry(meshData) {
+    if (!meshData || meshData.vertices.size === 0) return;
+
+    const center = new THREE.Vector3();
+    const vertex = new THREE.Vector3();
+
+    for (const v of meshData.vertices.values()) {
+      vertex.set(v.position.x, v.position.y, v.position.z);
+      center.add(vertex);
+    }
+
+    center.divideScalar(meshData.vertices.size);
+
+    for (const v of meshData.vertices.values()) {
+      v.position.x -= center.x;
+      v.position.y -= center.y;
+      v.position.z -= center.z;
+    }
+
+    return center;
+  }
 }

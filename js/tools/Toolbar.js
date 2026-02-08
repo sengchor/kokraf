@@ -121,8 +121,10 @@ export default class Toolbar {
     let attachObject = null;
 
     if (this.currentMode === 'object') {
+      this.selection.updatePivotHandle();
       attachObject = this.selection.pivotHandle;
     } else {
+      this.editSelection.updateVertexHandle();
       attachObject = this.editSelection.vertexHandle;
     }
     if (!attachObject.visible) attachObject = null;
