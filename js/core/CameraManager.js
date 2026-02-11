@@ -3,9 +3,11 @@ import * as THREE from 'three';
 export default class CameraManager {
   constructor(editor) {
     this.editor = editor;
+    this.signals = editor.signals;
 
-    this.camera = this.createDefaultCamera();
-    this.cameras = {[this.camera.uuid]: this.camera};
+    this.viewportCamera = this.createDefaultCamera();
+    this.camera = this.viewportCamera;
+    this.cameras = {[this.viewportCamera.uuid]: this.viewportCamera};
   }
 
   createDefaultCamera({
@@ -38,7 +40,7 @@ export default class CameraManager {
     this.camera.updateProjectionMatrix();
   }
 
-  setCamera(newCamera) {
+  replaceCameraInstance(newCamera) {
     const oldUuid = this.camera.uuid;
     const newUuid = newCamera.uuid;
 
@@ -48,10 +50,12 @@ export default class CameraManager {
     delete this.cameras?.[oldUuid];
     this.cameras = this.cameras || {};
     this.cameras[newUuid] = this.camera;
+    
+    this.signals.cameraAdded.dispatch(this.cameras);
   }
 
   resetCamera() {
     const defaultCam = this.createDefaultCamera();
-    this.setCamera(defaultCam);
+    this.replaceCameraInstance(defaultCam);
   }
 }

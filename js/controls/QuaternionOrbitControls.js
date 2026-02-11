@@ -176,4 +176,28 @@ export class QuaternionOrbitControls {
 		this.camera.position.copy(this.target).add(this.eye);
 		this.camera.lookAt(this.target);
 	}
+
+	reset() {
+		this.target.set(0, 0, 0);
+		this.eye.set(0, 0, 0);
+
+		this.moveCurr.set(0, 0);
+		this.movePrev.set(0, 0);
+
+		this._state = null;
+	}
+
+	toJSON() {
+		return {
+			target: this.target.toArray(),
+			eye: this.eye.toArray()
+		};
+	}
+
+	fromJSON(json) {
+		if (!json) return;
+
+		this.target.fromArray(json.target);
+		this.eye.fromArray(json.eye);
+	}
 }

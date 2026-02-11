@@ -201,10 +201,11 @@ export default class Editor {
     this.sceneManager.setScene(scene);
 
     const camera = await loader.parseAsync(json.camera);
-    this.cameraManager.setCamera(camera);
+    this.cameraManager.replaceCameraInstance(camera);
 
     await this.viewportControls.ready;
     this.viewportControls.fromJSON(json.viewportControls);
+    this.controlsManager.fromJSON(json.controlsManager);
     
     if (this.config.get('history')) {
       this.history.fromJSON(json.history);
@@ -219,8 +220,9 @@ export default class Editor {
         type: 'Project',
       },
       scene: this.sceneManager.mainScene.toJSON(),
-      camera: this.cameraManager.camera.toJSON(),
+      camera: this.cameraManager.viewportCamera.toJSON(),
       viewportControls: this.viewportControls.toJSON(),
+      controlsManager: this.controlsManager.toJSON(),
     };
 
     if (this.config.get('history')) {
