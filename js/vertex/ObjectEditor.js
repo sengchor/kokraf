@@ -40,6 +40,7 @@ export class ObjectEditor {
         clone.userData.meshData = JSON.parse(
           JSON.stringify(object.userData.meshData.toJSON())
         );
+        MeshData.rehydrateMeshData(clone);
       }
 
       clones.push(clone);

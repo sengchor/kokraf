@@ -47,6 +47,7 @@ export default class ViewportControls {
         const value = e.target.value;
         this.cameraDropdown.value = value;
         const camera = this.cameraManager.cameras[value];
+        this.selection.deselect();
         this.signals.viewportCameraChanged.dispatch(camera);
       });
     }

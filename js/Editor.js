@@ -148,16 +148,6 @@ export default class Editor {
   }
 
   setupListeners() {
-    this.signals.viewportCameraChanged.add((camera) => {
-      this.cameraManager.camera = camera;
-      this.panelResizer.onWindowResize();
-
-      this.viewportViewHelper.setVisible(camera.isDefault);
-
-      this.selection.deselect();
-      this.toolbar.updateTools();
-    });
-
     this.signals.historyChanged.add(async () => {
       await Storage.set('scene', this.toJSON());
     });

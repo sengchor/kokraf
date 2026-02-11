@@ -20,6 +20,10 @@ export default class PanelResizer {
     this.signals.layoutChanged.add(() => {
       this.onWindowResize();
     });
+
+    this.signals.viewportCameraChanged.add(() => {
+      this.onWindowResize();
+    });
   }
 
   initRightPanelResizer() {

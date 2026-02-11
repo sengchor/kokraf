@@ -8,6 +8,14 @@ export default class CameraManager {
     this.viewportCamera = this.createDefaultCamera();
     this.camera = this.viewportCamera;
     this.cameras = {[this.viewportCamera.uuid]: this.viewportCamera};
+
+    this.setupListeners();
+  }
+
+  setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      this.camera = camera;
+    });
   }
 
   createDefaultCamera({

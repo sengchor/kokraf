@@ -3,6 +3,7 @@ import { ViewHelper } from '../helpers/ViewHelper.js';
 
 export class ViewportViewHelper {
   constructor(editor) {
+    this.signals = editor.signals;
     this.camera = editor.cameraManager.camera;
     this.orbitControls = editor.controlsManager.orbit;
     this.viewHelperContainer = document.getElementById('viewHelper');
@@ -21,6 +22,13 @@ export class ViewportViewHelper {
     this.viewHelper = new ViewHelper(this.camera, this.helperRenderer.domElement, this.orbitControls);
 
     this._setupEvents();
+    this.setupListeners();
+  }
+
+  setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      this.setVisible(camera.isDefault);
+    });
   }
 
   updatePosition(canvas) {
