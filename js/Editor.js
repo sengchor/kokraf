@@ -47,6 +47,7 @@ export default class Editor {
 
       objectSelected: new Signal(),
       objectFocused: new Signal(),
+      originFocused: new Signal(),
       objectChanged: new Signal(),
       objectDeleted: new Signal(),
       objectDuplicated: new Signal(),

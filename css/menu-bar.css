@@ -37,7 +37,7 @@
   border: 1px solid #e6e8eb;
   padding: 6px 0;
   flex-direction: column;
-  min-width: 150px;
+  min-width: 160px;
   z-index: 100;
   visibility: hidden;
   box-shadow: 0 6px 20px rgba(0,0,0,0.08);
@@ -58,6 +58,7 @@
   display: flex;
   align-items: center;
   color: #222;
+  gap: 10px;
 }
 
 .toggle-item {

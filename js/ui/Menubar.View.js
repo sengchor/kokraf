@@ -35,6 +35,14 @@ export class MenubarView {
     document.querySelector('.fullscreen').addEventListener('click', () => {
       this.toggleFullscreen();
     });
+
+    document.querySelector('.focus-selected').addEventListener('click', () => {
+      this.signals.objectFocused.dispatch();
+    });
+
+    document.querySelector('.focus-origin').addEventListener('click', () => {
+      this.signals.originFocused.dispatch();
+    });
   }
 
   findHelperToggle(labelText) {

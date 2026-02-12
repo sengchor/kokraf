@@ -13,7 +13,6 @@ export class ObjectActions {
     this.editor = editor;
     this.signals = editor.signals;
     this.selection = editor.selection;
-    this.controlsManager = editor.controlsManager;
     this.sceneManager = editor.sceneManager;
     this.objectEditor = editor.objectEditor;
 
@@ -22,7 +21,6 @@ export class ObjectActions {
 
   setupListeners() {
     this.signals.objectDeleted.add(() => this.deleteSelectedObjects());
-    this.signals.objectFocused.add(() => this.focusSelectedObjects());
     this.signals.objectDuplicated.add(() => this.duplicateSelectedObjects());
     this.signals.objectJoined.add(() => this.joinSelectedObjects());
     this.signals.objectSelectAll.add(() => this.objectSelectAll());
@@ -92,12 +90,6 @@ export class ObjectActions {
     }
 
     this.editor.execute(multi);
-  }
-
-  focusSelectedObjects() {
-    const objects = this.selection.selectedObjects;
-    if (!objects || objects.length === 0) return;
-    this.controlsManager.focus(objects);
   }
 
   duplicateSelectedObjects() {

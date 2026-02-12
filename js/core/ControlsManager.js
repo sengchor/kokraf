@@ -12,9 +12,11 @@ export default class ControlsManager {
   }
 
   setupListeners() {
-    this.signals.emptyScene.add(() => {
-      this.orbit.reset();
-    });
+    this.signals.emptyScene.add(() => this.orbit.reset());
+
+    this.signals.originFocused.add(() => this.focusOrigin());
+
+    this.signals.objectFocused.add(() => this.focusObjects());
   }
 
   enable() {
@@ -25,8 +27,14 @@ export default class ControlsManager {
     this.orbit.enabled = false;
   }
 
-  focus(objects) {
-    this.orbit._focus(objects);
+  focusObjects() {
+    const objects = this.editor.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+    this.orbit._focusObjects(objects);
+  }
+
+  focusOrigin() {
+    this.orbit._focusOrigin();
   }
 
   toJSON() {

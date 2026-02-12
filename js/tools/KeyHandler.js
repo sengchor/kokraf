@@ -91,6 +91,9 @@ export class KeyHandler {
     } else if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(true);
       handled = true;
+    } else if (event.shiftKey && event.key.toLowerCase() === 'c') {
+      this.signals.originFocused.dispatch(true);
+      handled = true;
     }
 
     /* ---------- Object mode ---------- */

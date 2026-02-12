@@ -150,7 +150,7 @@ export class QuaternionOrbitControls {
     this.movePrev.copy(this.moveCurr);
 	}
 
-	_focus(targetObjects) {
+	_focusObjects(targetObjects) {
 		const box = new Box3();
 		const sphere = new Sphere();
 
@@ -173,6 +173,22 @@ export class QuaternionOrbitControls {
 		this.eye.applyQuaternion(this.camera.quaternion);
 		this.eye.multiplyScalar(distance * 4);
 
+		this.camera.position.copy(this.target).add(this.eye);
+		this.camera.lookAt(this.target);
+	}
+
+	_focusOrigin() {
+		const distance = 10;
+		this.eye.subVectors(this.camera.position, this.target);
+		this.target.set(0, 0, 0);
+
+		if (this.eye.lengthSq() === 0) {
+			this.eye.set(0, 0, 1);
+		}
+
+		this.eye.normalize().multiplyScalar(distance);
+
+		this.camera.up.set(0, 1, 0);
 		this.camera.position.copy(this.target).add(this.eye);
 		this.camera.lookAt(this.target);
 	}
