@@ -25,7 +25,6 @@ export class LoopCutTool {
   enable() {
     if (this.active) return;
     this.active = true;
-    this.editSelection.enable = false;
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
   }
@@ -33,7 +32,6 @@ export class LoopCutTool {
   disable() {
     if (!this.active) return;
     this.active = false;
-    this.editSelection.enable = true;
     this.clearPreview();
   }
 
@@ -125,15 +123,23 @@ export class LoopCutTool {
     let minDistance = Infinity;
     const closestPoint = new THREE.Vector3();
 
+    const edgeStart = new THREE.Vector3();
+    const edgeEnd = new THREE.Vector3();
+    const worldMatrix = this.editedObject.matrixWorld;
+    const line = new THREE.Line3();
+
     for (const edge of edges) {
       const v1 = meshData.getVertex(edge.v1Id);
       const v2 = meshData.getVertex(edge.v2Id);
       if (!v1 || !v2) continue;
 
-      const edgeStart = new THREE.Vector3(v1.position.x, v1.position.y, v1.position.z);
-      const edgeEnd = new THREE.Vector3(v2.position.x, v2.position.y, v2.position.z);
+      edgeStart.set(v1.position.x, v1.position.y, v1.position.z)
+        .applyMatrix4(worldMatrix);
+      edgeEnd.set(v2.position.x, v2.position.y, v2.position.z)
+        .applyMatrix4(worldMatrix);
 
-      new THREE.Line3(edgeStart, edgeEnd).closestPointToPoint(point, true, closestPoint);
+      line.set(edgeStart, edgeEnd);
+      line.closestPointToPoint(point, true, closestPoint);
       const dist = closestPoint.distanceTo(point);
 
       if (dist < minDistance) {

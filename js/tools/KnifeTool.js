@@ -51,7 +51,6 @@ export class KnifeTool {
     this.cutPoints = [];
     this.intersections = [];
     this.edgeIntersections = [];
-    this.editSelection.enable = false;
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
     window.addEventListener('keydown', this._onKeyDown);
@@ -60,7 +59,6 @@ export class KnifeTool {
   disable() {
     if (!this.active) return;
     this.active = false;
-    this.editSelection.enable = true;
     this.cancelCut();
   }
 
