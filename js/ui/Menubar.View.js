@@ -37,7 +37,7 @@ export class MenubarView {
     });
 
     document.querySelector('.focus-selected').addEventListener('click', () => {
-      this.signals.objectFocused.dispatch();
+      this.signals.focusSelection.dispatch();
     });
 
     document.querySelector('.focus-origin').addEventListener('click', () => {

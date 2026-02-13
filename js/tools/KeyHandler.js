@@ -165,6 +165,9 @@ export class KeyHandler {
       } else if (event.key === 'a') {
         this.signals.editSelectAll.dispatch();
         handled = true;
+      } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
+        this.signals.vertexFocused.dispatch();
+        handled = true;
       }
     }
 

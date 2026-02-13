@@ -192,6 +192,14 @@ export default class ViewportControls {
       this.enterObjectMode();
       this.signals.modeChanged.dispatch('object');
     });
+
+    this.signals.focusSelection.add(() => {
+      if (this.currentMode === 'edit') {
+        this.signals.vertexFocused.dispatch();
+      } else {
+        this.signals.objectFocused.dispatch();
+      }
+    });
   }
 
   resetCameraOption(cameras) {

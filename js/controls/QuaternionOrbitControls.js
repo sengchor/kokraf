@@ -177,6 +177,28 @@ export class QuaternionOrbitControls {
 		this.camera.lookAt(this.target);
 	}
 
+	_focusPoint(point, distance) {
+		if (!point) return;
+
+		const viewDir = new Vector3()
+			.subVectors(this.camera.position, this.target)
+			.normalize();
+
+		if (viewDir.lengthSq() === 0) {
+			viewDir.set(0, 0, 1).applyQuaternion(this.camera.quaternion);
+		}
+
+		const minDistance = 0.05;
+		const finalDistance = Math.max(distance ?? 1, minDistance);
+
+		this.target.copy(point);
+
+		this.eye.copy(viewDir).multiplyScalar(finalDistance);
+
+		this.camera.position.copy(this.target).add(this.eye);
+		this.camera.lookAt(this.target);
+	}
+
 	_focusOrigin() {
 		const distance = 10;
 		this.eye.subVectors(this.camera.position, this.target);
