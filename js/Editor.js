@@ -25,9 +25,10 @@ import EditHelpers from './helpers/EditHelpers.js';
 import { SelectionBox } from './tools/SelectionBox.js';
 import { SnapManager } from './core/SnapManager.js';
 import { VertexEditor } from './vertex/VertexEditor.js';
-import { MeshEditor } from "./vertex/MeshEditor.js";
+import { MeshEditor } from './vertex/MeshEditor.js';
 import { ObjectEditor } from './vertex/ObjectEditor.js';
 import OriginHelper from './helpers/OriginHelper.js';
+import { ClipboardManager } from './core/ClipboardManager.js';
 
 export default class Editor {
   constructor() {
@@ -89,6 +90,9 @@ export default class Editor {
 
       objectSelectAll: new Signal(),
       editSelectAll: new Signal(),
+
+      objectsCopied: new Signal(),
+      objectsPasted: new Signal(),
     }
 
     this.helpers = {};
@@ -103,6 +107,7 @@ export default class Editor {
     this.keyHandler = new KeyHandler(this);
     this.controlsManager = new ControlsManager(this);
     this.snapManager = new SnapManager(this);
+    this.clipboardManager = new ClipboardManager(this);
 
     // Helpers
     this.viewportViewHelper = new ViewportViewHelper(this);

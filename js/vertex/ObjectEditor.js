@@ -88,7 +88,7 @@ export class ObjectEditor {
     return mesh;
   }
 
-  createObjectFromMeshData(meshData, object) {
+  cloneObjectFromMeshData(meshData, object) {
     if (!meshData || !object) return null;
 
     if (!(meshData instanceof MeshData)) {

@@ -15,6 +15,7 @@ export class ObjectActions {
     this.selection = editor.selection;
     this.sceneManager = editor.sceneManager;
     this.objectEditor = editor.objectEditor;
+    this.clipboardManager = editor.clipboardManager;
 
     this.setupListeners();
   }
@@ -24,6 +25,8 @@ export class ObjectActions {
     this.signals.objectDuplicated.add(() => this.duplicateSelectedObjects());
     this.signals.objectJoined.add(() => this.joinSelectedObjects());
     this.signals.objectSelectAll.add(() => this.objectSelectAll());
+    this.signals.objectsCopied.add(() => this.copyObjects());
+    this.signals.objectsPasted.add(() => this.pasteObjects());
   }
 
   handleAction(action) {
@@ -168,5 +171,16 @@ export class ObjectActions {
 
     this.selection.select(objects);
     this.editor.toolbar.updateTools();
+  }
+
+  copyObjects() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    this.clipboardManager.copyObjects(objects);
+  }
+
+  pasteObjects() {
+    this.clipboardManager.pasteObjects();
   }
 }

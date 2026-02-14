@@ -121,6 +121,12 @@ export class KeyHandler {
       } else if (event.key === 'a') {
         this.signals.objectSelectAll.dispatch();
         handled = true;
+      } else if (event.ctrlKey && event.key.toLowerCase() === 'c') {
+        this.signals.objectsCopied.dispatch();
+        handled = true;
+      } else if (event.ctrlKey && event.key.toLowerCase() === 'v') {
+        this.signals.objectsPasted.dispatch();
+        handled = true;
       }
     }
 

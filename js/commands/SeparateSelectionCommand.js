@@ -36,7 +36,7 @@ export class SeparateSelectionCommand {
     const object = this.editor.objectByUuid(this.objectUuid);
     if (!object || !this.newMeshData) return;
 
-    const newObject = this.editor.objectEditor.createObjectFromMeshData(this.newMeshData, object);
+    const newObject = this.editor.objectEditor.cloneObjectFromMeshData(this.newMeshData, object);
 
     if (!this.newObjectUuid) {
       this.newObjectUuid = newObject.uuid;
