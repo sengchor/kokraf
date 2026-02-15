@@ -16,6 +16,7 @@ export class AddObjectCommand {
 
   execute() {
     this.editor.sceneManager.addObject(this.object);
+    this.editor.selection.deselect();
     this.editor.selection.select(this.object);
     this.editor.toolbar.updateTools();
   }

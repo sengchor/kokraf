@@ -13,85 +13,179 @@ export class ClipboardManager {
     this.memoryPayload = null;
   }
 
+  buildBaseClipboardItem(obj) {
+    return {
+      id: obj.uuid,
+      parentId: obj.parent && !obj.parent.isScene
+        ? obj.parent.uuid : null,
+      name: obj.name || '',
+      transform: {
+        position: obj.position.toArray(),
+        rotation: obj.quaternion.toArray(),
+        scale: obj.scale.toArray(),
+      },
+    };
+  }
+
+  buildMeshClipboardItem(obj) {
+    return {
+      ...this.buildBaseClipboardItem(obj),
+      type: 'mesh',
+      meshData: obj.userData.meshData.toJSON(),
+      materialData: obj.material?.toJSON(),
+      shading: obj.userData.shading || 'flat',
+    };
+  }
+
+  buildLightClipboardItem(obj) {
+    return {
+      ...this.buildBaseClipboardItem(obj),
+      type: 'light',
+      lightData: obj.toJSON(),
+    }
+  }
+
+  buildCameraClipboardItem(obj) {
+    return {
+      ...this.buildBaseClipboardItem(obj),
+      type: 'camera',
+      cameraData: obj.toJSON(),
+    };
+  }
+
+  buildGroupClipboardItem(obj) {
+    return {
+      ...this.buildBaseClipboardItem(obj),
+      type: 'group',
+    };
+  }
+
+  applyTransform(obj, transform) {
+    obj.position.fromArray(transform.position);
+    obj.quaternion.fromArray(transform.rotation);
+    obj.scale.fromArray(transform.scale);
+  }
+
+  pasteMesh(item) {
+    let meshData = structuredClone(item.meshData);
+    if (!(meshData instanceof MeshData)) {
+      meshData = MeshData.getRehydratedMeshData(meshData);
+    }
+
+    const material = item.materialData
+      ? new THREE.MaterialLoader().parse(item.materialData)
+      : new THREE.MeshStandardMaterial({
+        color: 0xcccccc,
+        metalness: 0.5,
+        roughness: 0.2,
+        side: THREE.DoubleSide,
+      });
+
+    const geometry = ShadingUtils.createGeometryWithShading(meshData, item.shading);
+
+    const obj = new THREE.Mesh(geometry, material);
+    obj.userData.meshData = meshData;
+    obj.userData.shading = item.shading;
+
+    return obj;
+  }
+
+  pasteLight(item) {
+    return new THREE.ObjectLoader().parse(item.lightData);
+  }
+
+  pasteCamera(item) {
+    return new THREE.ObjectLoader().parse(item.cameraData);
+  }
+
+  pasteGroup(item) {
+    return new THREE.Group();
+  }
+
   copyObjects(objects) {
     if (!objects || objects.length === 0) return;
 
     const data = [];
 
-    for (const obj of objects) {
-      const meshData = obj?.userData?.meshData;
-      if (!meshData) continue;
-
-      data.push({
-        type: 'mesh',
-        name: obj.name || '',
-        transform: {
-          position: obj.position.toArray(),
-          rotation: obj.quaternion.toArray(),
-          scale: obj.scale.toArray(),
-        },
-        meshData: meshData.toJSON(),
-        materialData: obj.material?.toJSON(),
-        shading: obj.userData.shading,
-      });
-
-      if (data.length === 0) return;
-
-      const payload = {
-        app: "kokraf",
-        version: 1,
-        type: "object",
-        timestamp: Date.now(),
-        data,
-      };
-
-      this.memeoryPayload = payload;
-      this._saveToStorage(payload);
+    const allObjects = this.collectWithParents(objects);
+    for (const obj of allObjects) {
+      if (obj.isMesh && obj.userData?.meshData) {
+        data.push(this.buildMeshClipboardItem(obj));
+      } else if (obj.isLight) {
+        data.push(this.buildLightClipboardItem(obj));
+      } else if (obj.isCamera) {
+        data.push(this.buildCameraClipboardItem(obj));
+      } else if (obj.isGroup) {
+        data.push(this.buildGroupClipboardItem(obj));
+      }
     }
+
+    if (data.length === 0) return;
+
+    const payload = {
+      app: "kokraf",
+      version: 1,
+      type: "object",
+      timestamp: Date.now(),
+      data,
+    };
+
+    this.memeoryPayload = payload;
+    this._saveToStorage(payload);
   }
 
   pasteObjects() {
     const payload = this._getPayload();
     if (!payload || payload.type !== "object") return [];
 
+    const objectMap = new Map();
     const createdObjects = [];
 
     for (const item of payload.data) {
-      let meshData = structuredClone(item.meshData);
-      if (!(meshData instanceof MeshData)) {
-        meshData = MeshData.getRehydratedMeshData(meshData);
+      let obj = null;
+
+      switch (item.type) {
+        case 'mesh': obj = this.pasteMesh(item); break;
+        case 'light': obj = this.pasteLight(item); break;
+        case 'camera': obj = this.pasteCamera(item); break;
+        case 'group': obj = this.pasteGroup(item); break;
+        default: continue;
       }
 
-      let material;
-      if (item.materialData) {
-        material = new THREE.MaterialLoader().parse(item.materialData);
-      } else {
-        material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
-      }
-      
-      const geometry = ShadingUtils.createGeometryWithShading(meshData, item.shading);
-      const obj = new THREE.Mesh(geometry, material);
-
-      obj.position.fromArray(item.transform.position);
-      obj.quaternion.fromArray(item.transform.rotation);
-      obj.scale.fromArray(item.transform.scale);
-
-      obj.userData.meshData = meshData;
-      obj.userData.shading = item.shading;
-
+      this.applyTransform(obj, item.transform);
+      obj.name = item.name || '';
       obj.uuid = THREE.MathUtils.generateUUID();
-      obj.name = item.name || 'object';
 
+      objectMap.set(item.id, obj);
       createdObjects.push(obj);
     }
 
-    const multi = new SequentialMultiCommand(this.editor, 'Add Objects');
-    for (const object of createdObjects) {
-      multi.add(() => new AddObjectCommand(this.editor, object));
+    // hierarchy reconstruction
+    for (const item of payload.data) {
+      const obj = objectMap.get(item.id);
+      if (!obj) continue;
+
+      if (item.parentId) {
+        const parent = objectMap.get(item.parentId);
+        if (parent) parent.add(obj);
+      }
+    }
+
+    // find root objects
+    const roots = [];
+    for (const item of payload.data) {
+      if (!item.parentId) {
+        const root = objectMap.get(item.id);
+        if (root) roots.push(root);
+      }
+    }
+
+    const multi = new SequentialMultiCommand(this.editor, 'Paste Objects');
+    for (const root of roots) {
+      multi.add(() => new AddObjectCommand(this.editor, root));
     }
 
     this.editor.execute(multi);
-
     this.editor.selection.select(createdObjects);
     this.editor.toolbar.updateTools();
 
@@ -130,5 +224,20 @@ export class ClipboardManager {
     const stored = this._loadFromStorage();
     this.memeoryPayload = stored;
     return stored;
+  }
+
+  collectWithParents(objects) {
+    const result = new Set();
+
+    for (const obj of objects) {
+      let current = obj;
+      while (current) {
+        result.add(current);
+        current = current.parent && !current.parent.isScene
+          ? current.parent : null;
+      }
+    }
+
+    return Array.from(result);
   }
 }
