@@ -55,6 +55,16 @@ export class ObjectActions {
       return;
     }
 
+    if (action === 'copy-objects') {
+      this.copyObjects();
+      return;
+    }
+
+    if (action === 'paste-objects') {
+      this.pasteObjects();
+      return;
+    }
+
     if (action === 'delete-object') {
       this.deleteSelectedObjects();
       return;

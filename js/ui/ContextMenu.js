@@ -139,8 +139,7 @@ export default class ContextMenu {
     if (!visible) return;
 
     this.wrapper.style.display = 'block';
-    this.wrapper.style.left = `${x - 15}px`;
-    this.wrapper.style.top = `${y - 15}px`;
+    this.positionMenu(x, y);
   }
 
   showSection(mode) {
@@ -154,5 +153,31 @@ export default class ContextMenu {
       this.wrapper.style.display = 'none';
       this.editor.keyHandler.endInteraction('context-menu');
     }
+  }
+
+  positionMenu(x, y) {
+    const padding = 0;
+
+    // Default position
+    let left = x - 15;
+    let top = y - 10;
+
+    const rect = this.wrapper.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    if (top + rect.height + padding > vh) {
+      top = vh - rect.height - padding;
+    }
+
+    if (left + rect.width + padding > vw) {
+      left = vw - rect.width - padding;
+    }
+
+    top = Math.max(padding, top);
+    left = Math.max(padding, left);
+
+    this.wrapper.style.left = `${left}px`;
+    this.wrapper.style.top = `${top}px`;
   }
 }

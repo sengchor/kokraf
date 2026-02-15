@@ -38,18 +38,24 @@ export class ClipboardManager {
   }
 
   buildLightClipboardItem(obj) {
+    const clone = obj.clone(false);
+    clone.children.length = 0;
+
     return {
       ...this.buildBaseClipboardItem(obj),
       type: 'light',
-      lightData: obj.toJSON(),
+      lightData: clone.toJSON(),
     }
   }
 
   buildCameraClipboardItem(obj) {
+    const clone = obj.clone(false);
+    clone.children.length = 0;
+
     return {
       ...this.buildBaseClipboardItem(obj),
       type: 'camera',
-      cameraData: obj.toJSON(),
+      cameraData: clone.toJSON(),
     };
   }
 
