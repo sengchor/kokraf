@@ -107,6 +107,12 @@ export class ObjectActions {
   joinSelectedObjects() {
     const objects = this.selection.selectedObjects;
     if (!objects || objects.length < 2) return;
+    
+    const allMeshes = objects.every(obj => obj?.isMesh === true);
+    if (!allMeshes) {
+      console.warn('Join aborted: selection contains non-mesh objects');
+      return;
+    }
 
     const joined = this.objectEditor.joinObjects(objects);
     

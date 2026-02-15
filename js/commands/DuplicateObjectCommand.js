@@ -51,6 +51,9 @@ export class DuplicateObjectCommand {
       }
 
       sceneManager.attachObjectLocal(duplicate, parent);
+
+      sceneManager.addHelper(duplicate);
+      sceneManager.addCamera(duplicate);
     }
 
     this.editor.selection.deselect();

@@ -16,6 +16,7 @@ export class ObjectEditor {
       if (!object) continue;
 
       const clone = object.clone(false);
+      clone.children.length = 0;
 
       if (clone.isMesh) {
         if (clone.geometry) {
