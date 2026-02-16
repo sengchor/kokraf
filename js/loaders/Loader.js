@@ -35,6 +35,7 @@ export class Loader {
       const meshObjects = OBJLoader.fromOBJText(text);
       const shadingObjects = ShadingUtils.getShadingFromOBJ(text);
 
+      const reservedNames = new Set();
       const meshes = meshObjects.map(({ name, meshData }, i) => {
         const shading = shadingObjects[i] || 'flat';
         const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
@@ -47,7 +48,11 @@ export class Loader {
         });
 
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.name = name || file.name;
+        const baseName = this.editor.nameManager.getBaseName(name || file.name);
+        const uniqueName = this.editor.nameManager.generateUniqueNameWithReserved(baseName, reservedNames);
+        mesh.name = uniqueName;
+        reservedNames.add(uniqueName);
+
         mesh.userData.meshData = meshData;
         mesh.userData.shading = shading;
         mesh.geometry.computeBoundingSphere();
@@ -61,6 +66,11 @@ export class Loader {
       } else {
         finalObject = new THREE.Group();
         meshes.forEach(m => finalObject.add(m));
+
+        finalObject.name = this.editor.nameManager.generateUniqueNameWithReserved(
+          file.name.replace(/\.[^.]+$/, ''),
+          reservedNames
+        );
       }
 
       this.editor.execute(new AddObjectCommand(this.editor, finalObject));

@@ -42,7 +42,7 @@ export class ObjectFactory {
     mesh.userData.meshData = meshData;
     mesh.userData.shading = 'flat';
     mesh.position.set(0, 0, 0);
-    mesh.name = type;
+    mesh.name = this.editor.nameManager.generateUniqueName(type);
     return mesh;
   }
 
@@ -78,7 +78,7 @@ export class ObjectFactory {
 
       default: return null;
     }
-    light.name = type;
+    light.name = this.editor.nameManager.generateUniqueName(type);
     return light;
   }
 
@@ -105,14 +105,14 @@ export class ObjectFactory {
 
     camera.position.set(0, 0, 0);
     camera.lookAt(0, 0, -1);
-    camera.name = type;
+    camera.name = this.editor.nameManager.generateUniqueName(type);
 
     return camera;
   }
 
   createGroup(type = 'Group') {
     const group = new THREE.Group();
-    group.name = type;
+    group.name = this.editor.nameManager.generateUniqueName(type);
     group.position.set(0, 0, 0);
     return group;
   }

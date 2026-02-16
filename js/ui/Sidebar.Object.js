@@ -505,7 +505,14 @@ export class SidebarObject {
       switch (option) {
         case 'name':
           this.bindInput(f.name, () => f.name.value, (object, value) => {
-            this.editor.execute(new SetValueCommand(this.editor, object, 'name', value));
+            const finalName = this.editor.nameManager.generateRenameName(value, object);
+
+            if (finalName === object.name) {
+              f.name.value = object.name;
+              return;
+            }
+
+            this.editor.execute(new SetValueCommand(this.editor, object, 'name', finalName));
           });
           break;
 

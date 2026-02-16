@@ -146,6 +146,7 @@ export class ClipboardManager {
 
     const objectMap = new Map();
     const createdObjects = [];
+    const reservedNames = new Set();
 
     for (const item of payload.data) {
       let obj = null;
@@ -159,7 +160,12 @@ export class ClipboardManager {
       }
 
       this.applyTransform(obj, item.transform);
-      obj.name = item.name || '';
+      
+      const baseName = this.editor.nameManager.getBaseName(item.name || '');
+      const uniqueName = this.editor.nameManager.generateUniqueNameWithReserved(baseName, reservedNames);
+      obj.name = uniqueName;
+      reservedNames.add(uniqueName);
+
       obj.uuid = THREE.MathUtils.generateUUID();
 
       objectMap.set(item.id, obj);

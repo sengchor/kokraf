@@ -11,6 +11,7 @@ export class ObjectEditor {
 
   duplicateObjects(objects) {
     const clones = [];
+    const reservedNames = new Set();
 
     for (const object of objects) {
       if (!object) continue;
@@ -43,6 +44,11 @@ export class ObjectEditor {
         );
         MeshData.rehydrateMeshData(clone);
       }
+      
+      const baseName = this.editor.nameManager.getBaseName(object.name);
+      const uniqueName = this.editor.nameManager.generateUniqueNameWithReserved(baseName, reservedNames);
+      clone.name = uniqueName;
+      reservedNames.add(uniqueName);
 
       clones.push(clone);
     }
@@ -112,7 +118,9 @@ export class ObjectEditor {
 
     mesh.userData.meshData = meshData;
     mesh.userData.shading = shading;
-    mesh.name = `${object.name}_copy`;
+
+    const baseName = this.editor.nameManager.getBaseName(object.name);
+    mesh.name = this.editor.nameManager.generateUniqueName(baseName);
 
     return mesh;
   }

@@ -29,6 +29,7 @@ import { MeshEditor } from './vertex/MeshEditor.js';
 import { ObjectEditor } from './vertex/ObjectEditor.js';
 import OriginHelper from './helpers/OriginHelper.js';
 import { ClipboardManager } from './core/ClipboardManager.js';
+import { NameManager } from './utils/NameManager.js';
 
 export default class Editor {
   constructor() {
@@ -104,6 +105,7 @@ export default class Editor {
     this.objectFactory = new ObjectFactory(this);
     this.cameraManager = new CameraManager(this);
     this.sceneManager = new SceneManager(this);
+    this.nameManager = new NameManager(this);
     this.keyHandler = new KeyHandler(this);
     this.controlsManager = new ControlsManager(this);
     this.snapManager = new SnapManager(this);
