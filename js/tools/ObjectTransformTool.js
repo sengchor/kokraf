@@ -200,6 +200,8 @@ export class ObjectTransformTool {
     if (this.snapManager.enabled) {
       this.oldPositions = this.snapManager.getBoundingBoxVertexPositions(objects);
     }
+
+    this.signals.onToolStarted.dispatch(this.getTransformDisplayText(this.mode));
   }
 
   applyTransformSession() {
@@ -209,6 +211,8 @@ export class ObjectTransformTool {
     if (this.mode === 'translate') this.applyTranslation(objects, this.handle);
     else if (this.mode === 'rotate') this.applyRotation(objects, this.handle);
     else if (this.mode === 'scale') this.applyScale(objects, this.handle);
+
+    this.signals.onToolUpdated.dispatch(this.getTransformDisplayText(this.mode));
   }
 
   commitTransformSession() {
@@ -220,6 +224,8 @@ export class ObjectTransformTool {
     else if (this.mode === 'scale') this.commitScale(objects, this.handle);
 
     this.clearStartData();
+
+    this.signals.onToolEnded.dispatch();
   }
 
   cancelTransformSession() {
@@ -239,6 +245,8 @@ export class ObjectTransformTool {
     this.handle.quaternion.copy(this.startPivotQuaternion);
     this.handle.scale.copy(this.startPivotScale);
     this.handle.updateMatrixWorld(true);
+
+    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -509,5 +517,48 @@ export class ObjectTransformTool {
       );
       this.transformControls.setSpace('local');
     }
+  }
+
+  getTransformDisplayText(mode) {
+    if (!this.handle) return '';
+
+    if (mode === 'translate') {
+      return this.getTranslationDisplayText();
+    }
+  }
+
+  getTranslationDisplayText() {
+    const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
+    const deltaWorld = currentPivotPosition.clone().sub(this.startPivotPosition);
+
+    const delta = deltaWorld.clone();
+    if (this.transformControls.space === 'local') {
+      const invQuat = this.startPivotQuaternion.clone().invert();
+      delta.applyQuaternion(invQuat);
+    }
+
+    const distance = delta.length();
+    const space = this.viewportControls.transformOrientation;
+    const axis = this.transformControls.axis;
+
+    if (axis === 'X') {
+      return `Dy: ${delta.x.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
+    }
+    if (axis === 'Y') {
+      return `Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
+    }
+    if (axis === 'Z') {
+      return `Dx: ${delta.z.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
+    }
+    if (axis === 'XY') {
+      return `Dy: ${delta.x.toFixed(3)}  Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
+    }
+    if (axis === 'XZ') {
+      return `Dx: ${delta.z.toFixed(3)}  Dy: ${delta.x.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
+    }
+    if (axis === 'YZ') {
+      return `Dx: ${delta.z.toFixed(3)}  Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
+    }
+    return `Dx: ${delta.z.toFixed(3)} Dy: ${delta.x.toFixed(3)}  Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
   }
 }

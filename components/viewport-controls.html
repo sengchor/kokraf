@@ -126,23 +126,29 @@
 
   <!-- Right Controls -->
   <div class="right-controls-container" id="right-controls-container">
-    <button class="xray-button" id="xray-button" data-tooltip="X-Ray Display">
-      <img src="assets/icons/xray.svg" alt="X-Ray"/>
-    </button>
+    <div class="top-controls-row">
+      <button class="xray-button" id="xray-button" data-tooltip="X-Ray Display">
+        <img src="assets/icons/xray.svg" alt="X-Ray"/>
+      </button>
 
-    <div class="tooltip-wrapper" data-tooltip="Camera View">
-      <select class="camera-select" id="cameraDropdown">
-        <option value="perspective-camera" selected>CAMERA</option>
-      </select>
+      <div class="tooltip-wrapper" data-tooltip="Camera View">
+        <select class="camera-select" id="cameraDropdown">
+          <option value="perspective-camera" selected>CAMERA</option>
+        </select>
+      </div>
+      
+      <div class="tooltip-wrapper" data-tooltip="Viewport Shading">
+        <select class="shading-select" id="shading-modes">
+          <option value="material">MATERIAL</option>
+          <option value="solid" selected>SOLID</option>
+          <option value="normal">NORMAL</option>
+          <option value="wireframe">WIREFRAME</option>
+        </select>
+      </div>
     </div>
-    
-    <div class="tooltip-wrapper" data-tooltip="Viewport Shading">
-      <select class="shading-select" id="shading-modes">
-        <option value="material">MATERIAL</option>
-        <option value="solid" selected>SOLID</option>
-        <option value="normal">NORMAL</option>
-        <option value="wireframe">WIREFRAME</option>
-      </select>
+
+    <div class="tooltip-wrapper" data-tooltip="Tool Input Display">
+      <div id="tool-input-display" class="tool-input-display">Translation: 2m (2m) along global Z</div>
     </div>
   </div>
 </div>

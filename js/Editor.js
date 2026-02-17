@@ -30,6 +30,7 @@ import { ObjectEditor } from './vertex/ObjectEditor.js';
 import OriginHelper from './helpers/OriginHelper.js';
 import { ClipboardManager } from './core/ClipboardManager.js';
 import { NameManager } from './utils/NameManager.js';
+import { ToolInputDisplay } from './ui/ToolInputDisplay.js';
 
 export default class Editor {
   constructor() {
@@ -94,6 +95,10 @@ export default class Editor {
 
       objectsCopied: new Signal(),
       objectsPasted: new Signal(),
+
+      onToolStarted: new Signal(),
+      onToolEnded: new Signal(),
+      onToolUpdated: new Signal(),
     }
 
     this.helpers = {};
@@ -138,6 +143,7 @@ export default class Editor {
     this.viewportControls = new ViewportControls(this);
     await this.viewportControls.ready;
 
+    this.toolInputDisplay = new ToolInputDisplay(this);
     this.toolbar = new Toolbar(this);
     this.menubar = new Menubar(this);
 
