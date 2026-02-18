@@ -6,6 +6,7 @@ import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 import { MultiCommand } from '../commands/MultiCommand.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { TransformUtils } from '../utils/TransformUtils.js';
+import { TransformNumericInput } from './TransformNumericInput.js';
 
 export class ObjectTransformTool {
   constructor(editor, mode = 'translate') {
@@ -32,6 +33,7 @@ export class ObjectTransformTool {
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
+    this.transformNumericInput = new TransformNumericInput(this);
 
     this.transformSolver.changeTransformControlsColor();
     this.setupTransformListeners();
@@ -141,7 +143,7 @@ export class ObjectTransformTool {
 
   // Command Control
   onPointerMove() {
-    if (this.activeTransformSource !== 'command') return;
+    if (this.activeTransformSource !== 'command' || this.transformNumericInput.active) return;
     this.transformSolver.updateHandleFromCommandInput(this.mode, this.event);
     this.applyTransformSession();
     this.signals.objectChanged.dispatch();
@@ -157,6 +159,7 @@ export class ObjectTransformTool {
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
     this.clearCommandTransformState();
+    this.transformNumericInput.reset();
   }
 
   onKeyDown(event) {
@@ -164,6 +167,7 @@ export class ObjectTransformTool {
 
     const key = event.key.toLowerCase();
     if (key === 'x' || key === 'y' || key === 'z') {
+      this.transformNumericInput.reset();
       this.transformSolver.setAxisConstraintFromKey(key);
 
       this.transformSolver.updateHandleFromCommandInput(this.mode, this.event);
@@ -171,14 +175,20 @@ export class ObjectTransformTool {
       return;
     }
 
+    if (this.transformNumericInput.handleKey(event, this.mode)) {
+      return;
+    }
+
     if (event.key === 'Escape') {
       this.cancelTransformSession();
       this.clearCommandTransformState();
+      this.transformNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitTransformSession();
       this.clearCommandTransformState();
+      this.transformNumericInput.reset();
     }
   }
 
@@ -201,7 +211,7 @@ export class ObjectTransformTool {
       this.oldPositions = this.snapManager.getBoundingBoxVertexPositions(objects);
     }
 
-    this.signals.onToolStarted.dispatch(this.getTransformDisplayText(this.mode));
+    this.signals.onToolStarted.dispatch(this.transformNumericInput.getTransformDisplayText(this.mode));
   }
 
   applyTransformSession() {
@@ -212,7 +222,7 @@ export class ObjectTransformTool {
     else if (this.mode === 'rotate') this.applyRotation(objects, this.handle);
     else if (this.mode === 'scale') this.applyScale(objects, this.handle);
 
-    this.signals.onToolUpdated.dispatch(this.getTransformDisplayText(this.mode));
+    this.signals.onToolUpdated.dispatch(this.transformNumericInput.getTransformDisplayText(this.mode));
   }
 
   commitTransformSession() {
@@ -509,124 +519,5 @@ export class ObjectTransformTool {
       );
       this.transformControls.setSpace('local');
     }
-  }
-
-  getTransformDisplayText(mode) {
-    if (!this.handle) return '';
-
-    if (mode === 'translate') {
-      return this.getTranslationDisplayText();
-    } else if (mode === 'rotate') {
-      return this.getRotationDisplayText();
-    } else if (mode === 'scale') {
-      return this.getScaleDisplayText();
-    }
-  }
-
-  getTranslationDisplayText() {
-    if (!this.startPivotPosition) return '';
-
-    const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    const deltaWorld = currentPivotPosition.clone().sub(this.startPivotPosition);
-
-    const delta = deltaWorld.clone();
-    if (this.transformControls.space === 'local') {
-      const invQuat = this.startPivotQuaternion.clone().invert();
-      delta.applyQuaternion(invQuat);
-    }
-
-    const distance = delta.length();
-    const space = this.viewportControls.transformOrientation;
-    const axis = this.transformControls.axis;
-
-    if (axis === 'X') {
-      return `Dy: ${delta.x.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
-    }
-    if (axis === 'Y') {
-      return `Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
-    }
-    if (axis === 'Z') {
-      return `Dx: ${delta.z.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
-    }
-    if (axis === 'XY') {
-      return `Dy: ${delta.x.toFixed(3)}  Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
-    }
-    if (axis === 'XZ') {
-      return `Dx: ${delta.z.toFixed(3)}  Dy: ${delta.x.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
-    }
-    if (axis === 'YZ') {
-      return `Dx: ${delta.z.toFixed(3)}  Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
-    }
-    return `Dx: ${delta.z.toFixed(3)} Dy: ${delta.x.toFixed(3)}  Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
-  }
-
-  getRotationDisplayText() {
-    if (!this.startPivotQuaternion) return '';
-
-    const currentQuat = this.handle.getWorldQuaternion(new THREE.Quaternion());
-
-    const deltaQuat = currentQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
-
-    let angle = 2 * Math.acos(THREE.MathUtils.clamp(deltaQuat.w, -1, 1));
-    if (angle < 1e-6) angle = 0;
-
-    const angleDeg = THREE.MathUtils.radToDeg(angle);
-
-    const space = this.viewportControls.transformOrientation;
-    const axis = this.transformControls.axis;
-
-    if (axis === 'X') {
-      return `Ry: ${angleDeg.toFixed(2)}°  ${space}`;
-    }
-    if (axis === 'Y') {
-      return `Rz: ${angleDeg.toFixed(2)}°  ${space}`;
-    }
-    if (axis === 'Z') {
-      return `Rx: ${angleDeg.toFixed(2)}°  ${space}`;
-    }
-    if (axis === 'XY') {
-      return `Ryz: ${angleDeg.toFixed(2)}°  ${space}`;
-    }
-    if (axis === 'XZ') {
-      return `Rxy: ${angleDeg.toFixed(2)}°  ${space}`;
-    }
-    if (axis === 'YZ') {
-      return `Rxz: ${angleDeg.toFixed(2)}°  ${space}`;
-    }
-    return `R: ${angleDeg.toFixed(2)}°  ${space}`;
-  }
-
-  getScaleDisplayText() {
-    if (!this.startPivotScale) return '';
-
-    const currentScale = this.handle.getWorldScale(new THREE.Vector3());
-    const scaleDelta = currentScale.clone().divide(this.startPivotScale);
-
-    const space = this.viewportControls.transformOrientation;
-    const axis = this.transformControls.axis;
-
-    const uniform = Math.cbrt(
-      scaleDelta.x * scaleDelta.y * scaleDelta.z
-    );
-
-    if (axis === 'X') {
-      return `Sy: ${scaleDelta.x.toFixed(3)}  ${space}`;
-    }
-    if (axis === 'Y') {
-      return `Sz: ${scaleDelta.y.toFixed(3)}  ${space}`;
-    }
-    if (axis === 'Z') {
-      return `Sx: ${scaleDelta.z.toFixed(3)}  ${space}`;
-    }
-    if (axis === 'XY') {
-      return `Sy: ${scaleDelta.x.toFixed(3)}  Sz: ${scaleDelta.y.toFixed(3)}  ${space}`;
-    }
-    if (axis === 'XZ') {
-      return `Sx: ${scaleDelta.z.toFixed(3)}  Sy: ${scaleDelta.x.toFixed(3)}  ${space}`;
-    }
-    if (axis === 'YZ') {
-      return `Sx: ${scaleDelta.z.toFixed(3)}  Sz: ${scaleDelta.y.toFixed(3)}  ${space}`;
-    }
-    return `S: ${uniform.toFixed(3)}  ${space}`;
   }
 }
