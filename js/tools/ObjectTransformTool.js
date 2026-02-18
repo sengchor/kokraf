@@ -402,7 +402,8 @@ export class ObjectTransformTool {
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
 
-      const worldScale = this.startScales[i].clone().multiply(scaleFactor);
+      const worldScaleFactor = this.getWorldScaleFactor(object, scaleFactor, this.viewportControls.transformOrientation);
+      const worldScale = this.startScales[i].clone().multiply(worldScaleFactor);
       TransformUtils.setWorldScale(objects[i], worldScale);
 
       if (objects.length > 1) {
@@ -476,29 +477,20 @@ export class ObjectTransformTool {
     }
   }
 
-  // Utilities
-  applyScaleToObject(object, scaleFactor, startScale, orientation) {
+  getWorldScaleFactor(object, scaleFactor, orientation) {
     if (orientation === 'global') {
       const localX = new THREE.Vector3(1, 0, 0).applyQuaternion(object.quaternion);
       const localY = new THREE.Vector3(0, 1, 0).applyQuaternion(object.quaternion);
       const localZ = new THREE.Vector3(0, 0, 1).applyQuaternion(object.quaternion);
 
-      const newScaleX = localX.clone().multiply(scaleFactor).length();
-      const newScaleY = localY.clone().multiply(scaleFactor).length();
-      const newScaleZ = localZ.clone().multiply(scaleFactor).length();
-
-      object.scale.set(
-        startScale.x * newScaleX,
-        startScale.y * newScaleY,
-        startScale.z * newScaleZ
-      );
-    } else {
-      object.scale.set(
-        startScale.x * scaleFactor.x,
-        startScale.y * scaleFactor.y,
-        startScale.z * scaleFactor.z
+      return new THREE.Vector3(
+        localX.clone().multiply(scaleFactor).length(),
+        localY.clone().multiply(scaleFactor).length(),
+        localZ.clone().multiply(scaleFactor).length()
       );
     }
+
+    return scaleFactor.clone();
   }
 
   applyTransformOrientation(orientation) {
@@ -524,10 +516,16 @@ export class ObjectTransformTool {
 
     if (mode === 'translate') {
       return this.getTranslationDisplayText();
+    } else if (mode === 'rotate') {
+      return this.getRotationDisplayText();
+    } else if (mode === 'scale') {
+      return this.getScaleDisplayText();
     }
   }
 
   getTranslationDisplayText() {
+    if (!this.startPivotPosition) return '';
+
     const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
     const deltaWorld = currentPivotPosition.clone().sub(this.startPivotPosition);
 
@@ -560,5 +558,75 @@ export class ObjectTransformTool {
       return `Dx: ${delta.z.toFixed(3)}  Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
     }
     return `Dx: ${delta.z.toFixed(3)} Dy: ${delta.x.toFixed(3)}  Dz: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
+  }
+
+  getRotationDisplayText() {
+    if (!this.startPivotQuaternion) return '';
+
+    const currentQuat = this.handle.getWorldQuaternion(new THREE.Quaternion());
+
+    const deltaQuat = currentQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
+
+    let angle = 2 * Math.acos(THREE.MathUtils.clamp(deltaQuat.w, -1, 1));
+    if (angle < 1e-6) angle = 0;
+
+    const angleDeg = THREE.MathUtils.radToDeg(angle);
+
+    const space = this.viewportControls.transformOrientation;
+    const axis = this.transformControls.axis;
+
+    if (axis === 'X') {
+      return `Ry: ${angleDeg.toFixed(2)}°  ${space}`;
+    }
+    if (axis === 'Y') {
+      return `Rz: ${angleDeg.toFixed(2)}°  ${space}`;
+    }
+    if (axis === 'Z') {
+      return `Rx: ${angleDeg.toFixed(2)}°  ${space}`;
+    }
+    if (axis === 'XY') {
+      return `Ryz: ${angleDeg.toFixed(2)}°  ${space}`;
+    }
+    if (axis === 'XZ') {
+      return `Rxy: ${angleDeg.toFixed(2)}°  ${space}`;
+    }
+    if (axis === 'YZ') {
+      return `Rxz: ${angleDeg.toFixed(2)}°  ${space}`;
+    }
+    return `R: ${angleDeg.toFixed(2)}°  ${space}`;
+  }
+
+  getScaleDisplayText() {
+    if (!this.startPivotScale) return '';
+
+    const currentScale = this.handle.getWorldScale(new THREE.Vector3());
+    const scaleDelta = currentScale.clone().divide(this.startPivotScale);
+
+    const space = this.viewportControls.transformOrientation;
+    const axis = this.transformControls.axis;
+
+    const uniform = Math.cbrt(
+      scaleDelta.x * scaleDelta.y * scaleDelta.z
+    );
+
+    if (axis === 'X') {
+      return `Sy: ${scaleDelta.x.toFixed(3)}  ${space}`;
+    }
+    if (axis === 'Y') {
+      return `Sz: ${scaleDelta.y.toFixed(3)}  ${space}`;
+    }
+    if (axis === 'Z') {
+      return `Sx: ${scaleDelta.z.toFixed(3)}  ${space}`;
+    }
+    if (axis === 'XY') {
+      return `Sy: ${scaleDelta.x.toFixed(3)}  Sz: ${scaleDelta.y.toFixed(3)}  ${space}`;
+    }
+    if (axis === 'XZ') {
+      return `Sx: ${scaleDelta.z.toFixed(3)}  Sy: ${scaleDelta.x.toFixed(3)}  ${space}`;
+    }
+    if (axis === 'YZ') {
+      return `Sx: ${scaleDelta.z.toFixed(3)}  Sz: ${scaleDelta.y.toFixed(3)}  ${space}`;
+    }
+    return `S: ${uniform.toFixed(3)}  ${space}`;
   }
 }
