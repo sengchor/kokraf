@@ -520,4 +520,114 @@ export class ObjectTransformTool {
       this.transformControls.setSpace('local');
     }
   }
+
+  applyNumericTranslation(value) {
+    const axis = this.transformControls.axis;
+    if (!axis || !this.startPivotPosition || !this.handle) return;
+
+    const offset = new THREE.Vector3();
+    
+    if (axis === 'XYZ') offset.set(value, value, value);
+    else if (axis === 'X') offset.x = value;
+    else if (axis === 'Y') offset.y = value;
+    else if (axis === 'Z') offset.z = value;
+    else { return; }
+
+    if (this.transformControls.space === 'local') {
+      offset.applyQuaternion(this.startPivotQuaternion);
+    }
+
+    const worldPos = this.startPivotPosition.clone().add(offset);
+    this.handle.position.copy(worldPos);
+
+    this.transformControls.update();
+    this.applyTransformSession();
+  }
+
+  applyNumericRotation(value) {
+    const axis = this.transformControls.axis;
+    if (!axis || !this.startPivotQuaternion || !this.handle) return;
+
+    const angleRad = THREE.MathUtils.degToRad(value);
+
+    let rotAxis = new THREE.Vector3();
+
+    if (axis === 'XYZ') {
+      this.camera.getWorldDirection(rotAxis);
+      rotAxis.normalize();
+    }
+    else if (axis === 'X') rotAxis.set(1, 0, 0);
+    else if (axis === 'Y') rotAxis.set(0, 1, 0);
+    else if (axis === 'Z') rotAxis.set(0, 0, 1);
+    else { return; }
+
+    const deltaQuat = new THREE.Quaternion().setFromAxisAngle(rotAxis, angleRad);
+
+    let resultQuat;
+
+    if (this.transformControls.space === 'local' && axis !== 'XYZ') {
+      resultQuat = this.startPivotQuaternion.clone().multiply(deltaQuat);
+    } else {
+      resultQuat = deltaQuat.clone().multiply(this.startPivotQuaternion);
+    }
+
+    this.handle.quaternion.copy(resultQuat);
+
+    this.transformControls.update();
+    this.applyTransformSession();
+  }
+
+  applyNumericScale(value) {
+    const axis = this.transformControls.axis;
+    if (!axis || !this.startPivotScale || !this.handle) return;
+
+    const scaleFactor = new THREE.Vector3(1, 1, 1);
+
+    if (axis === 'XYZ') scaleFactor.set(value, value, value);
+    else if (axis === 'X') scaleFactor.x = value;
+    else if (axis === 'Y') scaleFactor.y = value;
+    else if (axis === 'Z') scaleFactor.z = value;
+    else { return; }
+
+    const pivotQuat = this.startPivotQuaternion;
+    const invPivotQuat = pivotQuat.clone().invert();
+
+    const objects = this.selection.getAffectedObjects();
+
+    for (let i = 0; i < objects.length; i++) {
+      const object = objects[i];
+
+      let worldScaleFactor = scaleFactor.clone();
+      if (this.transformControls.space === 'local') {
+        worldScaleFactor.applyQuaternion(invPivotQuat);
+        worldScaleFactor.applyQuaternion(pivotQuat);
+      }
+
+      const newWorldScale = this.startScales[i].clone().multiply(worldScaleFactor);
+      TransformUtils.setWorldScale(object, newWorldScale);
+
+      if (objects.length > 1) {
+        let offset = this.startPositions[i].clone().sub(this.startPivotPosition);
+
+        if (this.transformControls.space === 'local') {
+          offset.applyQuaternion(invPivotQuat);
+          offset.multiply(scaleFactor);
+          offset.applyQuaternion(pivotQuat);
+        } else {
+          offset.multiply(scaleFactor);
+        }
+
+        const worldPos = this.startPivotPosition.clone().add(offset);
+        TransformUtils.setWorldPosition(object, worldPos);
+      }
+
+      object.updateMatrixWorld(true);
+    }
+
+    const newPivotScale = this.startPivotScale.clone().multiply(scaleFactor);
+    this.handle.scale.copy(newPivotScale);
+
+    this.transformControls.update();
+    this.applyTransformSession();
+  }
 }

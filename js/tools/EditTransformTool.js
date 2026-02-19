@@ -3,6 +3,7 @@ import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { SetVertexPositionCommand } from '../commands/SetVertexPositionCommand.js';
 import { ShadingUtils } from '../utils/ShadingUtils.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
+import { TransformNumericInput } from './TransformNumericInput.js';
 
 export class EditTransformTool {
   constructor(editor, mode = 'translate') {
@@ -30,6 +31,7 @@ export class EditTransformTool {
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
+    this.transformNumericInput = new TransformNumericInput(this);
 
     this.transformSolver.changeTransformControlsColor();
     this.setupTransformListeners();
@@ -138,7 +140,7 @@ export class EditTransformTool {
 
   // Command Control
   onPointerMove() {
-    if (this.activeTransformSource !== 'command') return;
+    if (this.activeTransformSource !== 'command' || this.transformNumericInput.active) return;
     this.transformSolver.updateHandleFromCommandInput(this.mode, this.event);
     this.applyTransformSession();
     this.signals.objectChanged.dispatch();
@@ -154,6 +156,7 @@ export class EditTransformTool {
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
     this.clearCommandTransformState();
+    this.transformNumericInput.reset();
   }
 
   onKeyDown(event) {
@@ -161,6 +164,7 @@ export class EditTransformTool {
 
     const key = event.key.toLowerCase();
     if (key === 'x' || key === 'y' || key === 'z') {
+      this.transformNumericInput.reset();
       this.transformSolver.setAxisConstraintFromKey(key);
 
       this.transformSolver.updateHandleFromCommandInput(this.mode, this.event);
@@ -168,14 +172,20 @@ export class EditTransformTool {
       return;
     }
 
+    if (this.transformNumericInput.handleKey(event, this.mode)) {
+      return;
+    }
+
     if (event.key === 'Escape') {
       this.cancelTransformSession();
       this.clearCommandTransformState();
+      this.transformNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitTransformSession();
       this.clearCommandTransformState();
+      this.transformNumericInput.reset();
     }
   }
 
@@ -195,6 +205,8 @@ export class EditTransformTool {
 
     this.vertexEditor.setObject(editedObject);
     this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
+
+    this.signals.onToolStarted.dispatch(this.transformNumericInput.getTransformDisplayText(this.mode));
   }
 
   applyTransformSession() {
@@ -209,6 +221,8 @@ export class EditTransformTool {
     if (this.mode === 'translate') this.applyTranslate(selectedVertexIds, this.handle);
     else if (this.mode === 'rotate') this.applyRotate(selectedVertexIds, this.handle);
     else if (this.mode === 'scale') this.applyScale(selectedVertexIds, this.handle);
+
+    this.signals.onToolUpdated.dispatch(this.transformNumericInput.getTransformDisplayText(this.mode));
   }
 
   commitTransformSession() {
@@ -230,6 +244,8 @@ export class EditTransformTool {
       ShadingUtils.applyShading(editedObject, 'auto');
     }
     this.clearStartData();
+
+    this.signals.onToolEnded.dispatch();
   }
 
   cancelTransformSession() {
@@ -253,6 +269,8 @@ export class EditTransformTool {
     this.handle.quaternion.copy(this.startPivotQuaternion);
     this.handle.scale.copy(this.startPivotScale);
     this.handle.updateMatrixWorld(true);
+
+    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -342,7 +360,7 @@ export class EditTransformTool {
       return local.add(pivot);
     });
 
-    handle.quaternion.copy(this.startPivotQuaternion);
+    handle.quaternion.copy(deltaQuat).multiply(this.startPivotQuaternion);
     this.transformControls.update();
 
     this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, newPositions);
@@ -473,5 +491,80 @@ export class EditTransformTool {
       );
       this.transformControls.setSpace('local');
     }
+  }
+
+  applyNumericTranslation(value) {
+    const axis = this.transformControls.axis;
+    if (!axis || !this.startPivotPosition || !this.handle) return;
+
+    const offset = new THREE.Vector3();
+
+    if (axis === 'XYZ') offset.set(value, value, value);
+    else if (axis === 'X') offset.x = value;
+    else if (axis === 'Y') offset.y = value;
+    else if (axis === 'Z') offset.z = value;
+    else { return; }
+
+    if (this.transformControls.space === 'local') {
+      offset.applyQuaternion(this.startPivotQuaternion);
+    }
+
+    const worldPosition = this.startPivotPosition.clone().add(offset);
+    this.handle.position.copy(worldPosition);
+
+    this.transformControls.update();
+    this.applyTransformSession();
+  }
+
+  applyNumericRotation(value) {
+    const axis = this.transformControls.axis;
+    if (!axis || !this.startPivotQuaternion || !this.handle) return;
+
+    const angleRad = THREE.MathUtils.degToRad(value);
+
+    const rotAxis = new THREE.Vector3();
+
+    if (axis === 'XYZ') {
+      this.camera.getWorldDirection(rotAxis);
+      rotAxis.normalize();
+    } 
+    else if (axis === 'X') rotAxis.set(1, 0, 0);
+    else if (axis === 'Y') rotAxis.set(0, 1, 0);
+    else if (axis === 'Z') rotAxis.set(0, 0, 1);
+    else { return; }
+
+    const deltaQuat = new THREE.Quaternion().setFromAxisAngle(rotAxis, angleRad);
+
+    let resultQuat;
+
+    if (this.transformControls.space === 'local' && axis !== 'XYZ') {
+      resultQuat = this.startPivotQuaternion.clone().multiply(deltaQuat);
+    } else {
+      resultQuat = deltaQuat.clone().multiply(this.startPivotQuaternion);
+    }
+
+    this.handle.quaternion.copy(resultQuat);
+
+    this.transformControls.update();
+    this.applyTransformSession();
+  }
+
+  applyNumericScale(value) {
+    const axis = this.transformControls.axis;
+    if (!axis || !this.startPivotScale || !this.handle) return;
+
+    const scaleFactor = new THREE.Vector3(1, 1, 1);
+
+    if (axis === 'XYZ') scaleFactor.set(value, value, value);
+    else if (axis === 'X') scaleFactor.x = value;
+    else if (axis === 'Y') scaleFactor.y = value;
+    else if (axis === 'Z') scaleFactor.z = value;
+    else { return; }
+
+    const newPivotScale = this.startPivotScale.clone().multiply(scaleFactor);
+    this.handle.scale.copy(newPivotScale);
+
+    this.transformControls.update();
+    this.applyTransformSession();
   }
 }

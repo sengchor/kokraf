@@ -90,143 +90,29 @@ export class TransformNumericInput {
 
     if (mode === 'translate') {
       if (!Number.isNaN(value)) {
-        this.applyNumericTranslation(value);
+        this.tool.applyNumericTranslation(value);
       } else {
-        this.applyNumericTranslation(0);
+        this.tool.applyNumericTranslation(0);
       }
     }
 
     if (mode === 'rotate') {
       if (!Number.isNaN(value)) {
-        this.applyNumericRotation(value);
+        this.tool.applyNumericRotation(value);
       } else {
-        this.applyNumericRotation(0);
+        this.tool.applyNumericRotation(0);
       }
     }
 
     if (mode === 'scale') {
       if (!Number.isNaN(value)) {
-        this.applyNumericScale(value);
+        this.tool.applyNumericScale(value);
       } else {
-        this.applyNumericScale(0);
+        this.tool.applyNumericScale(1);
       }
     }
 
     this.signals.onToolUpdated.dispatch(this.getEditTransformDisplayText(mode));
-  }
-
-  applyNumericTranslation(value) {
-    const axis = this.tool.transformControls.axis;
-    if (!axis) return;
-
-    const offset = new THREE.Vector3();
-    
-    if (axis.includes('XYZ')) offset.set(value, value, value);
-    else if (axis.includes('X')) offset.x = value;
-    else if (axis.includes('Y')) offset.y = value;
-    else if (axis.includes('Z')) offset.z = value;
-    else { return; }
-
-    if (this.tool.transformControls.space === 'local') {
-      offset.applyQuaternion(this.tool.startPivotQuaternion);
-    }
-
-    const worldPos = this.tool.startPivotPosition.clone().add(offset);
-    this.tool.handle.position.copy(worldPos);
-    this.tool.transformControls.update();
-
-    this.tool.applyTransformSession();
-  }
-
-  applyNumericRotation(value) {
-    const axis = this.tool.transformControls.axis;
-    if (!axis) return;
-
-    const angleRad = THREE.MathUtils.degToRad(value);
-
-    let rotAxis = new THREE.Vector3();
-
-    if (axis === 'XYZ') {
-      this.tool.camera.getWorldDirection(rotAxis);
-      rotAxis.normalize();
-    }
-    else if (axis === 'X') rotAxis.set(1, 0, 0);
-    else if (axis === 'Y') rotAxis.set(0, 1, 0);
-    else if (axis === 'Z') rotAxis.set(0, 0, 1);
-    else { return; }
-
-    const deltaQuat = new THREE.Quaternion().setFromAxisAngle(rotAxis, angleRad);
-
-    let resultQuat;
-
-    if (this.tool.transformControls.space === 'local' && axis !== 'XYZ') {
-      resultQuat = this.tool.startPivotQuaternion.clone().multiply(deltaQuat);
-    } else {
-      resultQuat = deltaQuat.clone().multiply(this.tool.startPivotQuaternion);
-    }
-
-    this.tool.handle.quaternion.copy(resultQuat);
-    this.tool.transformControls.update();
-
-    this.tool.applyTransformSession();
-  }
-
-  applyNumericScale(value) {
-    const axis = this.tool.transformControls.axis;
-    if (!axis) return;
-
-    const scaleFactor = new THREE.Vector3(1, 1, 1);
-
-    if (axis.includes('XYZ')) scaleFactor.set(value, value, value);
-    else if (axis.includes('X')) scaleFactor.x = value;
-    else if (axis.includes('Y')) scaleFactor.y = value;
-    else if (axis.includes('Z')) scaleFactor.z = value;
-    else { return; }
-
-    const pivotQuat = this.tool.startPivotQuaternion;
-    const invPivotQuat = pivotQuat.clone().invert();
-
-    const objects = this.tool.selection.getAffectedObjects();
-
-    for (let i = 0; i < objects.length; i++) {
-      const object = objects[i];
-
-      // Compute world scale factor
-      let worldScaleFactor = scaleFactor.clone();
-      if (this.tool.transformControls.space === 'local') {
-        // Rotate scale factor into local axes
-        worldScaleFactor.applyQuaternion(invPivotQuat);
-        worldScaleFactor.applyQuaternion(pivotQuat);
-      }
-
-      const newWorldScale = this.tool.startScales[i].clone().multiply(worldScaleFactor);
-      TransformUtils.setWorldScale(object, newWorldScale);
-
-      // Adjust object position relative to pivot if multi-object
-      if (objects.length > 1) {
-        let offset = this.tool.startPositions[i].clone().sub(this.tool.startPivotPosition);
-
-        if (this.tool.transformControls.space === 'local') {
-          offset.applyQuaternion(invPivotQuat);
-          offset.multiply(scaleFactor);
-          offset.applyQuaternion(pivotQuat);
-        } else {
-          offset.multiply(scaleFactor);
-        }
-
-        const worldPos = this.tool.startPivotPosition.clone().add(offset);
-        TransformUtils.setWorldPosition(object, worldPos);
-      }
-
-      object.updateMatrixWorld(true);
-    }
-
-    // Apply scale to handle itself
-    const newPivotScale = this.tool.startPivotScale.clone().multiply(scaleFactor);
-    this.tool.handle.scale.copy(newPivotScale);
-    this.tool.transformControls.update();
-
-    this.tool.applyTransformSession();
   }
 
   getTransformDisplayText(mode) {
