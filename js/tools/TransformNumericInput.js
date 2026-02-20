@@ -4,6 +4,7 @@ export class TransformNumericInput {
   constructor(tool) {
     this.tool = tool;
     this.signals = tool.signals;
+    this.transformType = 'axis'; // 'axis' | 'normal'
     this.reset();
   }
 
@@ -44,11 +45,16 @@ export class TransformNumericInput {
     return false;
   }
 
+  setTransformType(type) {
+    this.transformType = type;
+  }
+
   reset() {
     this.active = false;
     this.buffer = '';
     this.sign = 1;
     this.cursor = 0;
+    this.transformType = 'axis';
   }
 
   begin() {
@@ -145,6 +151,8 @@ export class TransformNumericInput {
 
     const { delta, distance, space, axis } = data;
 
+    if (this.transformType === 'normal') return `D: ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  normal`;
+
     if (axis === 'X') {
       return `Dy: ${delta.x.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
     }
@@ -174,6 +182,8 @@ export class TransformNumericInput {
 
     const raw = this.getDisplayBufferWithCaret();
     const displayValue = this.sign === 1 ? raw : `-(${raw})`;
+
+    if (this.transformType === 'normal') return `D: [${displayValue}] = ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  normal`;
 
     if (axis === 'X') return `Dy: [${displayValue}] = ${delta.x.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
     if (axis === 'Y') return `Dz: [${displayValue}] = ${delta.y.toFixed(3)}  (${distance.toFixed(3)} m)  ${space}`;
@@ -306,6 +316,10 @@ export class TransformNumericInput {
     const currentPivotPosition = this.tool.handle.getWorldPosition(new THREE.Vector3());
     const deltaWorld = currentPivotPosition.clone().sub(this.tool.startPivotPosition);
 
+    if (this.transformType === 'normal') {
+      return this.getNormalTranslationData(deltaWorld);
+    }
+
     const delta = deltaWorld.clone();
     if (this.tool.transformControls.space === 'local') {
       const invQuat = this.tool.startPivotQuaternion.clone().invert();
@@ -347,5 +361,19 @@ export class TransformNumericInput {
     const uniform = Math.cbrt(scaleDelta.x * scaleDelta.y * scaleDelta.z);
 
     return { scaleDelta, uniform, space, axis };
+  }
+
+  getNormalTranslationData(deltaWorld) {
+    const normal = this.tool.getCustomAxisConstraint();
+    if (!normal) return null;
+
+    const distance = deltaWorld.dot(normal);
+
+    return {
+      delta: new THREE.Vector3(0, distance, 0),
+      distance,
+      space: this.tool.viewportControls.transformOrientation,
+      axis: this.tool.transformControls.axis
+    };
   }
 }

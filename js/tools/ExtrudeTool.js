@@ -3,6 +3,7 @@ import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint, computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
 import { ExtrudeCommand } from '../commands/ExtrudeCommand.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
+import { TransformNumericInput } from './TransformNumericInput.js';
 
 export class ExtrudeTool {
   constructor(editor) {
@@ -29,6 +30,7 @@ export class ExtrudeTool {
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
+    this.transformNumericInput = new TransformNumericInput(this);
 
     this.transformSolver.changeTransformControlsColor();
     this.setupTransformListeners();
@@ -131,7 +133,7 @@ export class ExtrudeTool {
 
   // Command Control
   onPointerMove() {
-    if (this.activeTransformSource !== 'command') return;
+    if (this.activeTransformSource !== 'command' || this.transformNumericInput.active) return;
     this.transformSolver.updateHandleFromCommandInput('translate', this.event);
     this.applyExtrudeSession();
     this.signals.objectChanged.dispatch();
@@ -147,6 +149,7 @@ export class ExtrudeTool {
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
     this.clearCommandExtrudeState();
+    this.transformNumericInput.reset();
   }
 
   onKeyDown(event) {
@@ -154,6 +157,8 @@ export class ExtrudeTool {
 
     const key = event.key.toLowerCase();
     if (key === 'x' || key === 'y' || key === 'z') {
+      this.transformNumericInput.reset();
+      this.transformNumericInput.setTransformType('axis');
       this.applyTransformOrientation(this.viewportControls.transformOrientation);
       this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion()).clone();
       this.transformSolver.startPivotQuaternion = this.startPivotQuaternion;
@@ -165,15 +170,21 @@ export class ExtrudeTool {
       return;
     }
 
+    if (this.transformNumericInput.handleKey(event, 'translate')) {
+      return;
+    }
+
     if (event.key === 'Escape') {
       this.cancelExtrudeSession();
       this.clearCommandExtrudeState();
       this.commitExtrudeSession();
+      this.transformNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitExtrudeSession();
       this.clearCommandExtrudeState();
+      this.transformNumericInput.reset();
     }
   }
 
@@ -189,19 +200,22 @@ export class ExtrudeTool {
     this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
 
     this.transformSolver.beginSession(this.startPivotPosition, this.startPivotQuaternion, this.startPivotScale);
-
     this.extrudeStarted = false;
+
+    this.signals.onToolStarted.dispatch(this.transformNumericInput.getTransformDisplayText('translate'));
   }
 
   applyExtrudeSession() {
     if (!this.startPivotPosition) return;
 
     if (!this.extrudeStarted) {
+      this.transformNumericInput.setTransformType('axis');
       this.startExtrude();
       this.extrudeStarted = true;
     }
-
     this.updateExtrude();
+
+    this.signals.onToolUpdated.dispatch(this.transformNumericInput.getTransformDisplayText('translate'));
   }
 
   commitExtrudeSession() {
@@ -227,6 +241,8 @@ export class ExtrudeTool {
     if (!this.applyFaceNormalExtrudeOrientation()) {
       this.applyTransformOrientation(this.viewportControls.transformOrientation);
     }
+
+    this.signals.onToolEnded.dispatch();
   }
 
   cancelExtrudeSession() {
@@ -250,6 +266,8 @@ export class ExtrudeTool {
     this.handle.quaternion.copy(this.startPivotQuaternion);
     this.handle.scale.copy(this.startPivotScale);
     this.handle.updateMatrixWorld(true);
+
+    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandExtrudeState() {
@@ -336,6 +354,7 @@ export class ExtrudeTool {
         if (testNormal.dot(sideFaceNormal) < 0) {
           sideFaceVertexIds.reverse();
         }
+        this.transformNumericInput.setTransformType('normal');
       }
 
       this.vertexEditor.topology.createFaceFromVertices(sideFaceVertexIds);
@@ -457,5 +476,44 @@ export class ExtrudeTool {
     this.applyTransformOrientation('custom', this.startPivotQuaternion);
 
     return true;
+  }
+
+  applyNumericTranslation(value) {
+    if (!this.startPivotPosition || !this.handle) return;
+
+    let offset = new THREE.Vector3();
+    const normal = this.getCustomAxisConstraint();
+
+    if (this.transformNumericInput.transformType === 'normal' && normal) {
+      offset.copy(normal).multiplyScalar(value);
+    }
+    else {
+      const axis = this.transformControls.axis;
+      if (!axis) return;
+
+      if (axis === 'XYZ') offset.set(value, value, value);
+      else if (axis === 'X') offset.x = value;
+      else if (axis === 'Y') offset.y = value;
+      else if (axis === 'Z') offset.z = value;
+      else return;
+
+      if (this.transformControls.space === 'local') {
+        offset.applyQuaternion(this.startPivotQuaternion);
+      }
+    }
+
+    const worldPosition = this.startPivotPosition.clone().add(offset);
+    this.handle.position.copy(worldPosition);
+
+    this.transformControls.update();
+    this.applyExtrudeSession();
+  }
+
+  getCustomAxisConstraint() {
+    if (this.transformSolver.customAxisConstraint) {
+      return this.transformSolver.customAxisConstraint.clone().normalize();
+    }
+
+    return null;
   }
 }
