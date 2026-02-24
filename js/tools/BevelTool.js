@@ -99,6 +99,10 @@ export class BevelTool {
 
     this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
     this.extrudeStarted = false;
+
+    this.newVertexIds = [];
+    this.newEdgeIds = [];
+    this.newFaceIds = [];
   }
 
   applyBevelSession() {
@@ -112,11 +116,19 @@ export class BevelTool {
   }
 
   commitBevelSession() {
+    const mode = this.editSelection.subSelectionMode;
     this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.updateGeometryAndHelpers();
 
     this.editSelection.clearSelection();
-    this.editSelection.selectVertices(this.newVertexIds);
+
+    if (mode === 'vertex') {
+      this.editSelection.selectVertices(this.newVertexIds);
+    } else if (mode === 'edge') {
+      this.editSelection.selectEdges(this.newEdgeIds);
+    } else if (mode === 'face') {
+      this.editSelection.selectFaces(this.newFaceIds);
+    }
   }
 
   startBevel() {
@@ -159,7 +171,7 @@ export class BevelTool {
 
         for (const [faceId, newVertexIds] of faceVertexMap) {
 
-          if (!adjacentFaceIds.has(faceId)) {
+          if (!adjacentFaceIds.has(faceId) || newVertexIds.length >= 2) {
             this.splitVertexInFace(meshData, faceId, originalVertexId, newVertexIds[0], newVertexIds[1]);
           }
           else {
@@ -168,7 +180,7 @@ export class BevelTool {
         }
       }
 
-      this.createBridgeFaces(meshData, edgeGroup, bevelResults);
+      const bridgeFaceIds = this.createBridgeFaces(meshData, edgeGroup, bevelResults);
 
       for (const faceId of vertexNeighborFaceIds) {
         const face = meshData.faces.get(faceId);
@@ -177,10 +189,12 @@ export class BevelTool {
         this.rebuildFaceTopology(meshData, face);
       }
 
-      this.fillBevelCornerFaces(meshData, bevelResults);
+      const fillFaceIds = this.fillBevelCornerFaces(meshData, bevelResults);
 
       this.deleteOldEdgeVertices(meshData, edgeGroup);
       this.newVertexIds = this.getAllBevelNewVertexIds(bevelResults);
+      this.newFaceIds = [...bridgeFaceIds, ...fillFaceIds];
+      this.newEdgeIds = this.getEdgeIdsFromFaces(meshData, this.newFaceIds);
     }
   }
 
@@ -393,12 +407,23 @@ export class BevelTool {
     const connectedEdges = Array.from(vertex.edgeIds).map(edgeId => meshData.edges.get(edgeId));
 
     if (sharedFaceIds.length > 0) {
-      for (const faceId of sharedFaceIds) {
-        const slide1 = dir1.clone().multiplyScalar(distance);
-        const slide2 = dir2.clone().multiplyScalar(distance);
+      // compute corner bevel position
+      const dot = THREE.MathUtils.clamp(dir1.dot(dir2), -1, 1);
+      const theta = Math.acos(dot);
 
-        const newPos = p0.clone().add(slide1).add(slide2);
-        const newVertex = meshData.addVertex(newPos);
+      if (theta < 1e-5) return null;
+
+      const sinHalf = Math.sin(theta / 2);
+      if (Math.abs(sinHalf) < 1e-5) return null;
+      const scale = distance / sinHalf;
+
+      const bisector = dir1.clone().add(dir2).normalize();
+      const newPos = p0.clone().add(
+        bisector.multiplyScalar(scale)
+      );
+
+      for (const faceId of sharedFaceIds) {
+        const newVertex = meshData.addVertex(newPos.clone());
         newVertexIds.push(newVertex.id);
 
         if (!faceVertexMap.has(faceId)) {
@@ -677,6 +702,8 @@ export class BevelTool {
   }
 
   createBridgeFaces(meshData, edgeGroup, bevelResults) {
+    const newFaceIds = [];
+
     for (const edgeId of edgeGroup) {
       const edge = meshData.edges.get(edgeId);
       if (!edge || edge.faceIds.size !== 2) continue;
@@ -716,10 +743,16 @@ export class BevelTool {
       const vertices = quadIds.map(id => meshData.getVertex(id));
       const newFace = meshData.addFace(vertices);
       this.rebuildFaceTopology(meshData, newFace);
+
+      newFaceIds.push(newFace.id);
     }
+
+    return newFaceIds;
   }
 
   fillBevelCornerFaces(meshData, bevelResults) {
+    const newFaceIds = [];
+
     for (const [vertexId, result] of bevelResults.entries()) {
       const { newVertexIds } = result;
       if (!newVertexIds || newVertexIds.length < 3) continue;
@@ -740,7 +773,11 @@ export class BevelTool {
       const vertices = orderedVertexIds.map(id => meshData.getVertex(id));
       const newFace = meshData.addFace(vertices);
       this.rebuildFaceTopology(meshData, newFace);
+
+      newFaceIds.push(newFace.id);
     }
+
+    return newFaceIds;
   }
 
   deleteOldEdgeVertices(meshData, edgeGroup) {
@@ -826,5 +863,20 @@ export class BevelTool {
       orderedVertexIds,
       orderedEdgeIds
     };
+  }
+
+  getEdgeIdsFromFaces(meshData, faceIds) {
+    const edgeIds = new Set();
+
+    for (const faceId of faceIds) {
+      const face = meshData.faces.get(faceId);
+      if (!face) continue;
+
+      for (const edgeId of face.edgeIds) {
+        edgeIds.add(edgeId);
+      }
+    }
+
+    return Array.from(edgeIds);
   }
 }

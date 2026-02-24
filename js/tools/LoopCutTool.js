@@ -53,6 +53,7 @@ export class LoopCutTool {
     const meshData = this.editedObject.userData.meshData;
     this.beforeMeshData = structuredClone(meshData);
     const startEdge = this.getStartEdgeFromIntersect(meshData, intersects[0]);
+    if (!startEdge) return;
     const loopEdges = this.getLoopEdges(meshData, startEdge);
 
     if (!loopEdges || loopEdges.length < 2) return;
