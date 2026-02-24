@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { getEdgeMidpoint, calculateFaceNormal } from '../utils/AlignedNormalUtils.js';
+import { getNeighborFaces, shouldFlipNormal, calculateVertexIdsNormal } from '../utils/AlignedNormalUtils.js';
 
 export class BevelTool {
   constructor(editor) {
@@ -112,10 +112,11 @@ export class BevelTool {
   }
 
   commitBevelSession() {
-    const editedObject = this.editSelection.editedObject;
-    this.vertexEditor.setObject(editedObject);
+    this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.updateGeometryAndHelpers();
 
+    this.editSelection.clearSelection();
+    this.editSelection.selectVertices(this.newVertexIds);
   }
 
   startBevel() {
@@ -125,30 +126,16 @@ export class BevelTool {
     const meshData = this.editedObject.userData.meshData;
     if (!meshData) return;
 
-    const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
+    const rawEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
+    const selectedEdgeIds = this.filterValidBevelEdges(meshData, rawEdgeIds);
     if (selectedEdgeIds.length <= 0) return;
+
     const edgeGroups = this.groupConnectedSelectedEdges(meshData, selectedEdgeIds);
 
-    const distance = 0.2;
+    const distance = 0.15;
     for (const edgeGroup of edgeGroups) {
       const adjacentFaceIds = this.getFacesAdjacentToEdges(meshData, edgeGroup);
       const vertexNeighborFaceIds = this.getFacesAdjacentToEdgeVertices(meshData, edgeGroup);
-
-      for (const edgeId of edgeGroup) {
-        const edge = meshData.edges.get(edgeId);
-        if (!edge) continue;
-
-        const vertexIds = [edge.v1Id, edge.v2Id];
-
-        for (const vId of vertexIds) {
-          const vertex = meshData.getVertex(vId);
-          if (!vertex) continue;
-
-          for (const faceId of vertex.faceIds) {
-            vertexNeighborFaceIds.add(faceId);
-          }
-        }
-      }
 
       const graph = this.buildSelectedEdgeGraph(meshData, edgeGroup);
       const bevelResults = new Map();
@@ -164,7 +151,6 @@ export class BevelTool {
         else {
           result = this.bevelJunctionVertex(meshData, info, distance);
         }
-        console.log(result);
         if (result) bevelResults.set(vId, result);
       }
 
@@ -182,6 +168,8 @@ export class BevelTool {
         }
       }
 
+      this.createBridgeFaces(meshData, edgeGroup, bevelResults);
+
       for (const faceId of vertexNeighborFaceIds) {
         const face = meshData.faces.get(faceId);
         if (!face) continue;
@@ -189,21 +177,10 @@ export class BevelTool {
         this.rebuildFaceTopology(meshData, face);
       }
 
-      // Delete all old vertices
-      const oldVertices = []; 
-      for (const edgeId of edgeGroup) {
-        const edge = meshData.edges.get(edgeId);
-        if (!edge) return;
+      this.fillBevelCornerFaces(meshData, bevelResults);
 
-        const vertex1 = meshData.getVertex(edge.v1Id);
-        const vertex2 = meshData.getVertex(edge.v2Id);
-        oldVertices.push(vertex1);
-        oldVertices.push(vertex2);
-      }
-
-      for (const oldVertice of oldVertices) {
-        meshData.deleteVertex(oldVertice);
-      }
+      this.deleteOldEdgeVertices(meshData, edgeGroup);
+      this.newVertexIds = this.getAllBevelNewVertexIds(bevelResults);
     }
   }
 
@@ -218,6 +195,21 @@ export class BevelTool {
 
   commitBevel() {
 
+  }
+
+  filterValidBevelEdges(meshData, selectedEdgeIds) {
+    const valid = [];
+
+    for (const edgeId of selectedEdgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      if (edge.faceIds && edge.faceIds.size === 2) {
+        valid.push(edgeId);
+      }
+    }
+
+    return valid;
   }
 
   groupConnectedSelectedEdges(meshData, selectedEdgeIds) {
@@ -682,5 +674,157 @@ export class BevelTool {
     }
 
     return adjacentFaceIds;
+  }
+
+  createBridgeFaces(meshData, edgeGroup, bevelResults) {
+    for (const edgeId of edgeGroup) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge || edge.faceIds.size !== 2) continue;
+
+      const [sharedFaceId1, sharedFaceId2] = [...edge.faceIds];
+      const face1 = meshData.faces.get(sharedFaceId1);
+      const face2 = meshData.faces.get(sharedFaceId2);
+      if (!face1 || !face2) continue;
+
+      const v1Result = bevelResults.get(edge.v1Id);
+      const v2Result = bevelResults.get(edge.v2Id);
+      if (!v1Result || !v2Result) continue;
+
+      // For each vertex, pick the new vertex associated with face1 and face2
+      const nv1Face1 = v1Result.faceVertexMap.get(sharedFaceId1)?.[0];
+      const nv1Face2 = v1Result.faceVertexMap.get(sharedFaceId2)?.[0];
+      const nv2Face1 = v2Result.faceVertexMap.get(sharedFaceId1)?.[0];
+      const nv2Face2 = v2Result.faceVertexMap.get(sharedFaceId2)?.[0];
+
+      if (!nv1Face1 || !nv1Face2 || !nv2Face1 || !nv2Face2) continue;
+
+      // Determine direction of edge in face1 loop
+      const loop = face1.vertexIds
+      const i1 = loop.indexOf(nv1Face1);
+      const i2 = loop.indexOf(nv2Face1);
+      if (i1 === -1 || i2 === -1) continue;
+      const len = loop.length;
+      const isForward = (i1 + 1) % len === i2;
+
+      let quadIds;
+      if (isForward) {
+        quadIds = [nv2Face1, nv1Face1, nv1Face2, nv2Face2];
+      } else {
+        quadIds = [nv1Face1, nv2Face1, nv2Face2, nv1Face2];
+      }
+
+      const vertices = quadIds.map(id => meshData.getVertex(id));
+      const newFace = meshData.addFace(vertices);
+      this.rebuildFaceTopology(meshData, newFace);
+    }
+  }
+
+  fillBevelCornerFaces(meshData, bevelResults) {
+    for (const [vertexId, result] of bevelResults.entries()) {
+      const { newVertexIds } = result;
+      if (!newVertexIds || newVertexIds.length < 3) continue;
+
+      const { orderedVertexIds, orderedEdgeIds } = this.buildOrderedVertexLoop(meshData, newVertexIds);
+
+      if (orderedVertexIds.length < 3) continue;
+
+      // winding order check
+      const normal = calculateVertexIdsNormal(meshData, orderedVertexIds);
+      const neighbors = getNeighborFaces(meshData, orderedEdgeIds);
+      const shouldFlip = shouldFlipNormal(meshData, orderedVertexIds, normal, neighbors);
+      if (shouldFlip) {
+        orderedVertexIds.reverse();
+      }
+
+      // create face
+      const vertices = orderedVertexIds.map(id => meshData.getVertex(id));
+      const newFace = meshData.addFace(vertices);
+      this.rebuildFaceTopology(meshData, newFace);
+    }
+  }
+
+  deleteOldEdgeVertices(meshData, edgeGroup) {
+    const vertexIdsToDelete = new Set();
+
+    for (const edgeId of edgeGroup) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      vertexIdsToDelete.add(edge.v1Id);
+      vertexIdsToDelete.add(edge.v2Id);
+    }
+
+    for (const vertexId of vertexIdsToDelete) {
+      const vertex = meshData.getVertex(vertexId);
+      if (!vertex) continue;
+
+      meshData.deleteVertex(vertex);
+    }
+  }
+
+  getAllBevelNewVertexIds(bevelResults) {
+    const allNewVertexIds = new Set();
+
+    for (const result of bevelResults.values()) {
+      if (!result.newVertexIds) continue;
+
+      for (const id of result.newVertexIds) {
+        allNewVertexIds.add(id);
+      }
+    }
+
+    return Array.from(allNewVertexIds);
+  }
+
+  buildOrderedVertexLoop(meshData, newVertexIds) {
+    if (!newVertexIds || newVertexIds.length === 0) {
+      return { orderedVertexIds: [], edgeIds: [] };
+    }
+
+    // Build adjacency map from edges to walk the loop
+    const newVertexSet = new Set(newVertexIds);
+    const adjacency = new Map();
+    
+    for (const vId of newVertexIds) {
+      const vertex = meshData.getVertex(vId);
+      adjacency.set(vId, []);
+      for (const edgeId of vertex.edgeIds) {
+        const edge = meshData.edges.get(edgeId);
+        const otherId =
+          edge.v1Id === vId ? edge.v2Id :
+          edge.v2Id === vId ? edge.v1Id : null;
+
+        if (newVertexSet.has(otherId)) adjacency.get(vId).push(otherId);
+      }
+    }
+
+    // Walk the loop
+    const orderedVertexIds = [];
+    const orderedEdgeIds = [];
+    const visited = new Set();
+
+    let current = newVertexIds[0];
+    let prev = null;
+
+    while (current && !visited.has(current)) {
+      orderedVertexIds.push(current);
+      visited.add(current);
+
+      const neighbors = adjacency.get(current) || [];
+      const next = neighbors.find(n => n !== prev);
+      
+      if (next) {
+        const edge = meshData.getEdge(current, next);
+        if (edge) orderedEdgeIds.push(edge.id);
+      }
+      
+      prev = current;
+      current = next;
+    }
+
+    return {
+      orderedVertexIds,
+      orderedEdgeIds
+    };
   }
 }
