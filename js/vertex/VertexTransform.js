@@ -117,7 +117,7 @@ export class VertexTransform {
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
-    this.editHelpers.refreshHelpers();
+    this.editHelpers.refreshHelpers(useEarcut);
   }
 
   applyMeshData(newMeshData) {
