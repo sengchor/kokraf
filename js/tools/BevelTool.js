@@ -110,7 +110,10 @@ export class BevelTool {
 
     const rawEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
     this.selectedEdgeIds = this.filterValidBevelEdges(meshData, rawEdgeIds);
-    if (this.selectedEdgeIds.length <= 0) return;
+    if (this.selectedEdgeIds.length <= 0) {
+      this.clearStartData();
+      return;
+    }
 
     this.startScreen = this.projectToScreen(
       this.startPivotPosition,
@@ -127,6 +130,7 @@ export class BevelTool {
     if (!this.bevelStarted) {
       this.startBevel();
       this.editSelection.selectFaces(this.newFaceIds);
+      this.handle.position.copy(this.startPivotPosition);
       this.bevelStarted = true;
     }
     this.updateBevel();
@@ -135,6 +139,12 @@ export class BevelTool {
   commitBevelSession() {
     this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.updateGeometryAndHelpers();
+
+    if (this.selectedEdgeIds.length <= 0) {
+      this.editSelection.clearSelection();
+      this.disable();
+      return;
+    }
 
     this.updateSelectionAfterBevel();
     this.clearStartData();
@@ -147,16 +157,15 @@ export class BevelTool {
     this.newEdgeIds = null;
     this.newFaceIds = null;
     this.bevelMoveData = null;
-    this.selectedEdgeIds = null;
     this.startScreen = null;
 
     this.bevelStarted = false;
   }
 
   startBevel() {
-    console.log('startBevel');
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
+    if (this.selectedEdgeIds.length <= 0) return;
 
     const meshData = this.editedObject.userData.meshData;
     if (!meshData) return;
@@ -226,6 +235,7 @@ export class BevelTool {
   updateBevel() {
     const meshData = this.editedObject.userData.meshData;
     if (!meshData) return;
+    if (this.selectedEdgeIds.length <= 0) return;
 
     const currentWorld = this.handle.getWorldPosition(new THREE.Vector3());
 
@@ -387,7 +397,15 @@ export class BevelTool {
     const edge = meshData.edges.get(selectedEdgeId);
     if (!edge) return null;
 
+    const otherEdgeId = edge.v1Id === vertexId ? edge.v2Id : edge.v1Id;
+    const otherEdgeV = meshData.getVertex(otherEdgeId);
+
+    const edgeDirection = new THREE.Vector3()
+      .subVectors(otherEdgeV.position, vertex.position)
+      .normalize();
+
     const connectedEdges = Array.from(vertex.edgeIds).map(edgeId => meshData.edges.get(edgeId));
+    const EPS = 0.001;
 
     const newVertexIds = [];
     const faceVertexMap = new Map();
@@ -403,6 +421,10 @@ export class BevelTool {
       const basePosition = p1.clone();
       const direction = p2.clone().sub(p1).normalize();
 
+      const dot = THREE.MathUtils.clamp(edgeDirection.dot(direction), -1, 1);
+      const sin = Math.sqrt(1 - dot * dot);
+      const scaleFactor = sin > EPS ? 1 / sin : 1;
+
       const newVertex = meshData.addVertex(basePosition.clone());
       newVertexIds.push(newVertex.id);
 
@@ -410,7 +432,7 @@ export class BevelTool {
         vertexId: newVertex.id,
         basePosition,
         direction: direction.clone(),
-        scaleFactor: 1
+        scaleFactor
       });
 
       for (const faceId of connectedEdge.faceIds) {
@@ -420,7 +442,7 @@ export class BevelTool {
         if (!face.vertexIds.includes(vertexId)) continue;
 
         if (!faceVertexMap.has(faceId)) {
-            faceVertexMap.set(faceId, []);
+          faceVertexMap.set(faceId, []);
         }
         faceVertexMap.get(faceId).push(newVertex.id);
       }
@@ -432,7 +454,7 @@ export class BevelTool {
       newVertexIds,
       selectedEdgeId,
       faceVertexMap
-    }
+    };
   }
 
   bevelCornerVertex(meshData, info) {
@@ -471,16 +493,13 @@ export class BevelTool {
     );
 
     const connectedEdges = Array.from(vertex.edgeIds).map(edgeId => meshData.edges.get(edgeId));
+    const EPS = 0.001;
 
     if (sharedFaceIds.length > 0) {
       // compute corner bevel position
       const dot = THREE.MathUtils.clamp(dir1.dot(dir2), -1, 1);
-      const theta = Math.acos(dot);
-
-      if (theta < 1e-5) return null;
-
-      const sinHalf = Math.sin(theta / 2);
-      if (Math.abs(sinHalf) < 1e-5) return null;
+      const sinHalf = Math.sqrt((1 - dot) * 0.5);
+      const scaleFactor = sinHalf > EPS ? 1 / sinHalf : 1;
 
       const bisector = dir1.clone().add(dir2).normalize();
 
@@ -493,7 +512,7 @@ export class BevelTool {
           vertexId: newVertex.id,
           basePosition,
           direction: bisector.clone(),
-          scaleFactor: 1 / sinHalf
+          scaleFactor
         });
 
         if (!faceVertexMap.has(faceId)) {
@@ -560,6 +579,7 @@ export class BevelTool {
     const faceVertexMap = new Map();
     const selectedEdges = selectedEdgeIds.map(id => meshData.edges.get(id));
     const processedFaceIds = new Set();
+    const EPS = 0.001;
 
     // Check all pairs of selected edges for shared faces
     for (let i = 0; i < selectedEdges.length; i++) {
@@ -592,11 +612,10 @@ export class BevelTool {
           const dirB = pB.sub(p0).normalize();
 
           const combined = dirA.clone().add(dirB);
-          const angle = dirA.angleTo(dirB);
 
-          // Prevent divide by zero
-          const sinHalf = Math.sin(angle / 2);
-          const scaleFactor = sinHalf > 0.0001 ? 1 / sinHalf : 1;
+          const dot = THREE.MathUtils.clamp(dirA.dot(dirB), -1, 1);
+          const sinHalf = Math.sqrt((1 - dot) * 0.5);
+          const scaleFactor = sinHalf > EPS ? 1 / sinHalf : 1;
 
           const direction = combined.normalize();
 
