@@ -174,6 +174,10 @@ export class KeyHandler {
       } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
         this.signals.vertexFocused.dispatch();
         handled = true;
+      } else if (event.ctrlKey && event.key.toLowerCase() === 'b') {
+        this.editor.toolbar.setActiveTool('bevel');
+        this.signals.editBevelStart.dispatch();
+        handled = true;
       }
     }
 

@@ -24,9 +24,15 @@ export class TransformCommandSolver {
   }
 
   beginSession(position, quaternion, scale) {
-    this.startPivotPosition = position.clone();
-    this.startPivotQuaternion = quaternion.clone();
-    this.startPivotScale = scale.clone();
+    if (position) {
+      this.startPivotPosition = position.clone();
+    }
+    if (quaternion) {
+      this.startPivotQuaternion = quaternion.clone();
+    }
+    if (scale) {
+      this.startPivotScale = scale.clone();
+    }
 
     this.startTranslateVector = null;
     this.startRotateVector = null;

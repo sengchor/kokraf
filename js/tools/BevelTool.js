@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { getNeighborFaces, shouldFlipNormal, calculateVertexIdsNormal } from '../utils/AlignedNormalUtils.js';
+import { TransformCommandSolver } from './TransformCommandSolver.js';
 
 export class BevelTool {
   constructor(editor) {
@@ -14,6 +15,8 @@ export class BevelTool {
     this.editSelection = editor.editSelection;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
+    this.activeTransformSource = null;
+
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
     this.transformControls.visible = false;
@@ -21,7 +24,15 @@ export class BevelTool {
     this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
+    this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
+
     this.setupTransformListeners();
+    this.setupListeners();
+
+    this._onPointerDown = this.onPointerDown.bind(this);
+    this._onPointerMove = this.onPointerMove.bind(this);
+    this._onPointerUp = this.onPointerUp.bind(this);
+    this._onKeyDown = this.onKeyDown.bind(this);
   }
 
   enableFor(object) {
@@ -32,11 +43,37 @@ export class BevelTool {
 
     this.showCenterOnly();
     this.handle = this.transformControls.object;
+
+    this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
+    this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
+    this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
+    window.addEventListener('keydown', this._onKeyDown);
   }
 
   disable() {
     this.transformControls.detach();
     this.transformControls.visible = false;
+  }
+
+  setupListeners() {
+    this.signals.editBevelStart.add(() => {
+      this.editedObject = this.editSelection.editedObject;
+      if (!this.editedObject || !this.handle) return;
+
+      if (this.activeTransformSource !== null) return;
+
+      if (this.handle && this.transformControls.worldPositionStart) {
+        this.handle.getWorldPosition(this.transformControls.worldPositionStart);
+      }
+
+      this.activeTransformSource = 'command';
+      this.startBevelSession();
+
+      this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+      this.applyBevelSession();
+
+      this.signals.transformDragStarted.dispatch('edit');
+    });
   }
 
   showCenterOnly() {
@@ -62,16 +99,24 @@ export class BevelTool {
 
   setupTransformListeners() {
     this.transformControls.addEventListener('mouseDown', () => {
+      if (this.activeTransformSource !== null) return;
+
+      this.activeTransformSource = 'gizmo';
       this.startBevelSession();
     });
 
     this.transformControls.addEventListener('change', () => {
       if (!this.transformControls.dragging) return;
+      if (this.activeTransformSource !== 'gizmo') return;
+
       this.applyBevelSession();
     });
 
     this.transformControls.addEventListener('mouseUp', () => {
+      if (this.activeTransformSource !== 'gizmo') return;
+
       this.commitBevelSession();
+      this.activeTransformSource = null;
     });
 
     // Signal dispatch
@@ -90,6 +135,40 @@ export class BevelTool {
         this.signals.transformDragEnded.dispatch('edit');
       });
     });
+  }
+
+  // Command Control
+  onPointerMove() {
+    if (this.activeTransformSource !== 'command') return;
+    this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+    this.applyBevelSession();
+    this.signals.objectChanged.dispatch();
+  }
+
+  onPointerDown() {
+    if (this.activeTransformSource !== 'command') return;
+    this.commitBevelSession();
+    this.transformSolver.clearGizmoActiveVisualState();
+    this.transformSolver.clear();
+  }
+
+  onPointerUp() {
+    if (this.activeTransformSource !== 'command') return;
+    this.clearCommandTransformState();
+  }
+
+  onKeyDown(event) {
+    if (this.activeTransformSource !== 'command') return;
+
+    if (event.key === 'Escape') {
+      this.cancelBevelSession();
+      this.clearCommandTransformState();
+    }
+
+    if (event.key === 'Enter') {
+      this.commitBevelSession();
+      this.clearCommandTransformState();
+    }
   }
 
   // Bevel session
@@ -114,6 +193,8 @@ export class BevelTool {
       this.clearStartData();
       return;
     }
+    
+    this.transformSolver.beginSession(this.startPivotPosition, null, null);
 
     this.startScreen = this.projectToScreen(
       this.startPivotPosition,
@@ -148,6 +229,21 @@ export class BevelTool {
 
     this.updateSelectionAfterBevel();
     this.clearStartData();
+  }
+
+  cancelBevelSession() {
+    console.log('cancel');
+  }
+
+  clearCommandTransformState() {
+    this.activeTransformSource = null;
+
+    this.transformSolver.clear();
+    this.transformSolver.clearGizmoActiveVisualState();
+
+    requestAnimationFrame(() => {
+      this.signals.transformDragEnded.dispatch('edit');
+    });
   }
 
   clearStartData() {
@@ -400,9 +496,10 @@ export class BevelTool {
     const otherEdgeId = edge.v1Id === vertexId ? edge.v2Id : edge.v1Id;
     const otherEdgeV = meshData.getVertex(otherEdgeId);
 
-    const edgeDirection = new THREE.Vector3()
-      .subVectors(otherEdgeV.position, vertex.position)
-      .normalize();
+    const vPos = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
+    const oPos = new THREE.Vector3().copy(otherEdgeV.position).applyMatrix4(this.editedObject.matrixWorld);
+
+    const edgeDirection = new THREE.Vector3().subVectors(oPos, vPos).normalize();
 
     const connectedEdges = Array.from(vertex.edgeIds).map(edgeId => meshData.edges.get(edgeId));
     const EPS = 0.001;
@@ -415,8 +512,8 @@ export class BevelTool {
       const otherId = connectedEdge.v1Id === vertexId ? connectedEdge.v2Id : connectedEdge.v1Id;
       const otherV = meshData.getVertex(otherId);
 
-      const p1 = new THREE.Vector3().copy(vertex.position);
-      const p2 = new THREE.Vector3().copy(otherV.position);
+      const p1 = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
+      const p2 = new THREE.Vector3().copy(otherV.position).applyMatrix4(this.editedObject.matrixWorld);
 
       const basePosition = p1.clone();
       const direction = p2.clone().sub(p1).normalize();
@@ -425,7 +522,8 @@ export class BevelTool {
       const sin = Math.sqrt(1 - dot * dot);
       const scaleFactor = sin > EPS ? 1 / sin : 1;
 
-      const newVertex = meshData.addVertex(basePosition.clone());
+      const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
+      const newVertex = meshData.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
       this.bevelMoveData.push({
@@ -477,9 +575,9 @@ export class BevelTool {
     const v2 = meshData.getVertex(v2Id);
     if (!v1 || !v2) return null;
 
-    const p0 = new THREE.Vector3().copy(vertex.position);
-    const p1 = new THREE.Vector3().copy(v1.position);
-    const p2 = new THREE.Vector3().copy(v2.position);
+    const p0 = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
+    const p1 = new THREE.Vector3().copy(v1.position).applyMatrix4(this.editedObject.matrixWorld);
+    const p2 = new THREE.Vector3().copy(v2.position).applyMatrix4(this.editedObject.matrixWorld);
 
     const dir1 = p1.sub(p0).normalize();
     const dir2 = p2.sub(p0).normalize();
@@ -505,7 +603,8 @@ export class BevelTool {
 
       for (const faceId of sharedFaceIds) {
         const basePosition = p0.clone();
-        const newVertex = meshData.addVertex(basePosition.clone());
+        const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
+        const newVertex = meshData.addVertex(baseLocal);
         newVertexIds.push(newVertex.id);
 
         this.bevelMoveData.push({
@@ -529,13 +628,14 @@ export class BevelTool {
       const otherId = connectedEdge.v1Id === vertexId ? connectedEdge.v2Id : connectedEdge.v1Id;
       const otherV = meshData.getVertex(otherId);
 
-      const p1 = new THREE.Vector3().copy(vertex.position);
-      const p2 = new THREE.Vector3().copy(otherV.position);
+      const p1 = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
+      const p2 = new THREE.Vector3().copy(otherV.position).applyMatrix4(this.editedObject.matrixWorld);
 
       const basePosition = p1.clone();
       const direction = p2.clone().sub(p1).normalize();
 
-      const newVertex = meshData.addVertex(basePosition.clone());
+      const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
+      const newVertex = meshData.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
       this.bevelMoveData.push({
@@ -574,7 +674,7 @@ export class BevelTool {
     const vertex = meshData.getVertex(vertexId);
     if (!vertex) return null;
 
-    const p0 = new THREE.Vector3().copy(vertex.position);
+    const p0 = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
     const newVertexIds = [];
     const faceVertexMap = new Map();
     const selectedEdges = selectedEdgeIds.map(id => meshData.edges.get(id));
@@ -605,8 +705,8 @@ export class BevelTool {
           const vB = meshData.getVertex(vBId);
           if (!vA || !vB) continue;
 
-          const pA = new THREE.Vector3().copy(vA.position);
-          const pB = new THREE.Vector3().copy(vB.position);
+          const pA = new THREE.Vector3().copy(vA.position).applyMatrix4(this.editedObject.matrixWorld);
+          const pB = new THREE.Vector3().copy(vB.position).applyMatrix4(this.editedObject.matrixWorld);
 
           const dirA = pA.sub(p0).normalize();
           const dirB = pB.sub(p0).normalize();
@@ -620,7 +720,8 @@ export class BevelTool {
           const direction = combined.normalize();
 
           const basePosition = p0.clone();
-          const newVertex = meshData.addVertex(basePosition.clone());
+          const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
+          const newVertex = meshData.addVertex(baseLocal);
           newVertexIds.push(newVertex.id);
 
           this.bevelMoveData.push({
@@ -656,13 +757,14 @@ export class BevelTool {
       const otherV = meshData.getVertex(otherId);
       if (!otherV) continue;
 
-      const p1 = new THREE.Vector3().copy(vertex.position);
-      const p2 = new THREE.Vector3().copy(otherV.position);
+      const p1 = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
+      const p2 = new THREE.Vector3().copy(otherV.position).applyMatrix4(this.editedObject.matrixWorld);
 
       const direction = p2.clone().sub(p1).normalize();
 
       const basePosition = p1.clone();
-      const newVertex = meshData.addVertex(basePosition.clone());
+      const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
+      const newVertex = meshData.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
       this.bevelMoveData.push({

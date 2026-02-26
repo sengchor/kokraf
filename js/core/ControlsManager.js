@@ -43,7 +43,7 @@ export default class ControlsManager {
     const editedObject = editSelection.editedObject;
     if (!editedObject) return;
 
-    const vertexIds = editSelection.getSelectedVertexIds();
+    const vertexIds = Array.from(editSelection.selectedVertexIds);
     if (!vertexIds || vertexIds.length === 0) return;
 
     const meshData = editedObject.userData.meshData;

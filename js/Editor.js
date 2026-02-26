@@ -89,6 +89,7 @@ export default class Editor {
       objectTransformStart: new Signal(),
       editTransformStart: new Signal(),
       editExtrudeStart: new Signal(),
+      editBevelStart: new Signal(),
 
       objectSelectAll: new Signal(),
       editSelectAll: new Signal(),
