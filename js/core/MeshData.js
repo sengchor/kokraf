@@ -1,7 +1,3 @@
-import * as THREE from 'three';
-import { generateDuplicatedVertexGeometry, generateSharedVertexGeometry, generateAngleBasedGeometry
-} from '../geometry/GeometryGenerator.js';
-
 class Vertex {
   constructor(id, position) {
     this.id = id;
@@ -285,17 +281,5 @@ export class MeshData {
     meshData.nextFaceId = raw.nextFaceId;
 
     return meshData;
-  }
-
-  toDuplicatedVertexGeometry(useEarcut = true) {
-    return generateDuplicatedVertexGeometry(this, useEarcut);
-  }
-
-  toSharedVertexGeometry(useEarcut = true) {
-    return generateSharedVertexGeometry(this, useEarcut);
-  }
-
-  toAngleBasedGeometry(angleDegree = 60, useEarcut = true) {
-    return generateAngleBasedGeometry(this, angleDegree, useEarcut);
   }
 }

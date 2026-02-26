@@ -3,7 +3,7 @@ import { LineSegmentsGeometry } from 'jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 import earcut from 'earcut';
-import { computePlaneNormal, projectTo2D, removeCollinearVertices } from "../geometry/GeometryGenerator.js";
+import { computePlaneNormal, projectTo2D, removeCollinearVertices } from '../geometry/TriangulationUtils.js';
 import { MeshData } from '../core/MeshData.js';
 
 export default class EditHelpers {

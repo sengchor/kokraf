@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MeshDataBuilders } from './MeshDataBuilders.js';
+import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 
 export class ObjectFactory {
   constructor(editor) {
@@ -7,7 +8,6 @@ export class ObjectFactory {
   }
 
   createGeometry(type) {
-    let geometry;
     let meshData;
 
     switch (type) {
@@ -35,7 +35,7 @@ export class ObjectFactory {
       default: return null;
     }
 
-    geometry = meshData.toDuplicatedVertexGeometry();
+    const geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat" });
     
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);

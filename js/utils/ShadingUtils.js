@@ -1,3 +1,5 @@
+import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+
 export class ShadingUtils {
   static applyShading(object, mode) {
     const meshData = object.userData.meshData;
@@ -11,11 +13,11 @@ export class ShadingUtils {
   static createGeometryWithShading(meshData, mode, useEarcut = true) {
     let geometry;
     if (mode === 'smooth') {
-      geometry = meshData.toSharedVertexGeometry(useEarcut);
+      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "smooth", useEarcut: useEarcut });
     } else if (mode === 'flat') {
-      geometry = meshData.toDuplicatedVertexGeometry(useEarcut);
+      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat", useEarcut: useEarcut });
     } else if (mode === 'auto') {
-      geometry = meshData.toAngleBasedGeometry(undefined, useEarcut);
+      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "auto", useEarcut: useEarcut });
     }
     geometry.computeVertexNormals();
     return geometry;
