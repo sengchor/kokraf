@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { getNeighborFaces, shouldFlipNormal, calculateVertexIdsNormal } from '../utils/AlignedNormalUtils.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
+import { BevelCommand } from '../commands/BevelCommand.js';
 
 export class BevelTool {
   constructor(editor) {
@@ -227,12 +228,26 @@ export class BevelTool {
       return;
     }
 
+    const meshData = this.editedObject.userData.meshData;
+    this.afterMeshData = structuredClone(meshData);
+    this.editor.execute(new BevelCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
+
     this.updateSelectionAfterBevel();
     this.clearStartData();
   }
 
   cancelBevelSession() {
-    console.log('cancel');
+    this.editedObject = this.editSelection.editedObject;
+    if (!this.editedObject) return;
+
+    this.vertexEditor.setObject(this.editedObject);
+    this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
+
+    this.handle.position.copy(this.startPivotPosition);
+    this.handle.updateMatrixWorld(true);
+
+    this.editSelection.selectEdges(this.selectedEdgeIds);
   }
 
   clearCommandTransformState() {
@@ -749,10 +764,7 @@ export class BevelTool {
       if (!connectedEdge) continue;
       if (selectedEdgeSet.has(connectedEdge.id)) continue;
 
-      const otherId =
-        connectedEdge.v1Id === vertexId
-          ? connectedEdge.v2Id
-          : connectedEdge.v1Id;
+      const otherId = connectedEdge.v1Id === vertexId ? connectedEdge.v2Id : connectedEdge.v1Id;
 
       const otherV = meshData.getVertex(otherId);
       if (!otherV) continue;

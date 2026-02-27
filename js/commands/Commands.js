@@ -28,6 +28,7 @@ import { MergeSelectionCommand } from './MergeSelectionCommand.js';
 import { SplitSelectionCommand } from './SplitSelectionCommand.js';
 import { SetOriginToGeometryCommand } from './SetOriginToGeometryCommand.js';
 import { SetGeometryToOriginCommand } from './SetGeometryToOriginCommand.js';
+import { BevelCommand } from './BevelCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -60,4 +61,5 @@ export const commands = new Map([
   [SplitSelectionCommand.type, SplitSelectionCommand],
   [SetOriginToGeometryCommand.type, SetOriginToGeometryCommand],
   [SetGeometryToOriginCommand.type, SetGeometryToOriginCommand],
+  [BevelCommand.type, BevelCommand],
 ]);
