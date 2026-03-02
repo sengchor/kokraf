@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { getNeighborFaces, shouldFlipNormal, calculateVertexIdsNormal } from '../utils/AlignedNormalUtils.js';
+import { getNeighborFaces, shouldFlipNormal, calculateVertexIdsNormal, calculateFaceNormal, getCentroidFromVertices, calculateVertexNormal } from '../utils/AlignedNormalUtils.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { BevelCommand } from '../commands/BevelCommand.js';
 
@@ -284,40 +284,26 @@ export class BevelTool {
     const edgeGroups = this.groupConnectedSelectedEdges(meshData, this.selectedEdgeIds);
 
     for (const edgeGroup of edgeGroups) {
-      const adjacentFaceIds = this.getFacesAdjacentToEdges(meshData, edgeGroup);
       const vertexNeighborFaceIds = this.getFacesAdjacentToEdgeVertices(meshData, edgeGroup);
 
-      const graph = this.buildSelectedEdgeGraph(meshData, edgeGroup);
+      const vertexGraph = this.buildSelectedVertexGraph(meshData, edgeGroup);
       const bevelResults = new Map();
 
       let result = null;
-      for (const [vId, info] of graph.vertexInfo) {
-        if (info.valence === 1) {
-          result = this.bevelEndVertex(meshData, info);
+      for (const [vId, vertexInfo] of vertexGraph) {
+        if (vertexInfo.valence === 1) {
+          result = this.bevelEndVertex(meshData, vertexInfo);
         }
-        else if (info.valence === 2) {
-          result = this.bevelCornerVertex(meshData, info);
+        else if (vertexInfo.valence === 2) {
+          result = this.bevelCornerVertex(meshData, vertexInfo);
         }
         else {
-          result = this.bevelJunctionVertex(meshData, info);
+          result = this.bevelJunctionVertex(meshData, vertexInfo);
         }
         if (result) bevelResults.set(vId, result);
       }
 
-      for (const [originalVertexId, result] of bevelResults) {
-        const { faceVertexMap } = result;
-
-        for (const [faceId, newVertexIds] of faceVertexMap) {
-
-          if (!adjacentFaceIds.has(faceId) || newVertexIds.length >= 2) {
-            this.splitVertexInFace(meshData, faceId, originalVertexId, newVertexIds[0], newVertexIds[1]);
-          }
-          else {
-            this.replaceVertexInFace(meshData, faceId, originalVertexId, newVertexIds[0]);
-          }
-        }
-      }
-
+      this.applyBevelFaceSubstitutions(meshData, bevelResults);
       const bridgeFaceIds = this.createBridgeFaces(meshData, edgeGroup, bevelResults);
 
       for (const faceId of vertexNeighborFaceIds) {
@@ -338,6 +324,8 @@ export class BevelTool {
       this.newVertexIds.push(...groupVertexIds);
       this.newEdgeIds.push(...groupEdgeIds);
       this.newFaceIds.push(...groupFaceIds);
+
+      this.solveBevelScales(meshData, vertexGraph);
     }
 
     this.vertexEditor.transform.updateGeometryAndHelpers(false);
@@ -373,6 +361,114 @@ export class BevelTool {
 
     const newVertexIds = this.bevelMoveData.map(moveData => moveData.vertexId);
     this.vertexEditor.transform.setVerticesWorldPositions(newVertexIds, newPositions);
+  }
+
+  solveBevelScales() {
+    const MITER_LIMIT = 5.0;
+
+    // Pre-calculate Efficiency for each constrained edge
+    for (const moveData of this.bevelMoveData) {
+      moveData.efficiencies = new Map();
+      const edgeIds = Array.from(moveData.edgeScaleConstraints.keys());
+
+      // Map each edgeId to its sin(theta) efficiency
+      edgeIds.forEach((edgeId, index) => {
+        const edgeDir = moveData.edgeDirections[index];
+        if (!edgeDir) return;
+
+        // Efficiency is the sine of the angle (magnitude of cross product of unit vectors)
+        const sinTheta = new THREE.Vector3().crossVectors(moveData.direction, edgeDir).length();
+        
+        // Store efficiency, clamped to prevent infinite spikes
+        const EPS = 1e-6;
+        if (Math.abs(sinTheta) < EPS) {
+          moveData.efficiencies.set(edgeId, 1);
+        } else {
+          moveData.efficiencies.set(edgeId, Math.max(sinTheta, 1 / MITER_LIMIT));
+        }
+      });
+
+      // Set initial scaleFactor based on average of its local 1/sin(theta) requirements
+      const localScales = Array.from(moveData.efficiencies.values()).map(eff => 1 / eff);
+      moveData.scaleFactor = localScales.reduce((a, b) => a + b, 0) / localScales.length;
+    }
+
+    // Global Harmonization
+    const iterations = 1000; 
+    for (let i = 0; i < iterations; i++) {
+      const nextScales = new Map();
+
+      for (const moveData of this.bevelMoveData) {
+        let accumulatedScale = moveData.scaleFactor;
+        let weightSum = 1;
+
+        for (const neighborId of moveData.neighborNewVertexIds) {
+          const neighborData = this.bevelMoveData.find(m => m.vertexId === neighborId);
+          if (!neighborData) continue;
+
+          // Find shared beveled edges
+          const sharedEdges = Array.from(moveData.efficiencies.keys()).filter(id => 
+            neighborData.efficiencies.has(id)
+          );
+
+          for (const edgeId of sharedEdges) {
+            const myEff = moveData.efficiencies.get(edgeId);
+            const neighborEff = neighborData.efficiencies.get(edgeId);
+            
+            const idealScale = neighborData.scaleFactor * (neighborEff / myEff);
+            
+            accumulatedScale += idealScale;
+            weightSum++;
+          }
+        }
+
+        nextScales.set(moveData.vertexId, accumulatedScale / weightSum);
+      }
+
+      for (const moveData of this.bevelMoveData) {
+        if (nextScales.has(moveData.vertexId)) {
+          moveData.scaleFactor = Math.min(nextScales.get(moveData.vertexId), MITER_LIMIT);
+        }
+      }
+    }
+  }
+
+  applyBevelFaceSubstitutions(meshData, bevelResults) {
+    const pendingFaceUpdates = new Map();
+    for (const [originalVertexId, result] of bevelResults) {
+      const { faceVertexMap, edgeVertexMap } = result;
+
+      for (const [faceId, newVertexIds] of faceVertexMap) {
+        if (!pendingFaceUpdates.has(faceId)) {
+          pendingFaceUpdates.set(faceId, new Map());
+        }
+
+        let orderedSplit;
+        if (newVertexIds.length >= 2) {
+          orderedSplit = this.getOrderedSplit(meshData, faceId, originalVertexId, edgeVertexMap);
+        }
+        else {
+          orderedSplit = [newVertexIds[0]];
+        }
+
+        pendingFaceUpdates.get(faceId).set(originalVertexId, orderedSplit);
+      }
+    }
+
+    for (const [faceId, substitutions] of pendingFaceUpdates) {
+      const face = meshData.faces.get(faceId);
+      const finalVertexIds = [];
+
+      for (const oldVId of face.vertexIds) {
+        if (substitutions.has(oldVId)) {
+          finalVertexIds.push(...substitutions.get(oldVId));
+        } else {
+          finalVertexIds.push(oldVId);
+        }
+      }
+
+      face.vertexIds = finalVertexIds;
+    }
   }
 
   projectToScreen(worldPosition, camera, domElement) {
@@ -459,42 +555,38 @@ export class BevelTool {
     return componentSet;
   }
 
-  buildSelectedEdgeGraph(meshData, selectedSet) {
-    const vertexToSelectedEdges = new Map();
+  buildSelectedVertexGraph(meshData, selectedEdges) {
+    const vertexToEdges = new Map();
     const selectedVertices = new Set();
 
-    for (const edgeId of selectedSet) {
+    for (const edgeId of selectedEdges) {
       const edge = meshData.edges.get(edgeId);
       if (!edge) continue;
 
       for (const vId of [edge.v1Id, edge.v2Id]) {
         selectedVertices.add(vId);
 
-        if (!vertexToSelectedEdges.has(vId)) {
-          vertexToSelectedEdges.set(vId, new Set());
+        if (!vertexToEdges.has(vId)) {
+          vertexToEdges.set(vId, new Set());
         }
 
-        vertexToSelectedEdges.get(vId).add(edgeId);
+        vertexToEdges.get(vId).add(edgeId);
       }
     }
 
     const vertexInfo = new Map();
 
     for (const vId of selectedVertices) {
-      const connectedEdges = vertexToSelectedEdges.get(vId) || new Set();
+      const connectedEdges = vertexToEdges.get(vId) || new Set();
 
       vertexInfo.set(vId, {
         vertexId: vId,
-        selectedEdgeIds: [...connectedEdges],
-        valence: connectedEdges.size
+        valence: connectedEdges.size,
+        selectedEdgeIds: [...connectedEdges]
       });
     }
 
-    return {
-      selectedEdges: selectedSet,
-      selectedVertices,
-      vertexInfo
-    };
+    return vertexInfo;
   }
 
   bevelEndVertex(meshData, info) {
@@ -508,22 +600,22 @@ export class BevelTool {
     const edge = meshData.edges.get(selectedEdgeId);
     if (!edge) return null;
 
-    const otherEdgeId = edge.v1Id === vertexId ? edge.v2Id : edge.v1Id;
-    const otherEdgeV = meshData.getVertex(otherEdgeId);
+    const otherVertexId = edge.v1Id === vertexId ? edge.v2Id : edge.v1Id;
+    const otherEdgeV = meshData.getVertex(otherVertexId);
 
     const vPos = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
     const oPos = new THREE.Vector3().copy(otherEdgeV.position).applyMatrix4(this.editedObject.matrixWorld);
 
     const edgeDirection = new THREE.Vector3().subVectors(oPos, vPos).normalize();
 
-    const connectedEdges = Array.from(vertex.edgeIds).map(edgeId => meshData.edges.get(edgeId));
-    const EPS = 0.001;
+    const connectedEdges = Array.from(vertex.edgeIds)
+      .filter(edgeId => edgeId !== selectedEdgeId)
+      .map(edgeId => meshData.edges.get(edgeId));
 
     const newVertexIds = [];
     const faceVertexMap = new Map();
+    const edgeVertexMap = new Map();
     for (const connectedEdge of connectedEdges) {
-      if (connectedEdge === edge) continue;
-
       const otherId = connectedEdge.v1Id === vertexId ? connectedEdge.v2Id : connectedEdge.v1Id;
       const otherV = meshData.getVertex(otherId);
 
@@ -531,34 +623,62 @@ export class BevelTool {
       const p2 = new THREE.Vector3().copy(otherV.position).applyMatrix4(this.editedObject.matrixWorld);
 
       const basePosition = p1.clone();
-      const direction = p2.clone().sub(p1).normalize();
-
-      const dot = THREE.MathUtils.clamp(edgeDirection.dot(direction), -1, 1);
-      const sin = Math.sqrt(1 - dot * dot);
-      const scaleFactor = sin > EPS ? 1 / sin : 1;
+      let direction = p2.clone().sub(p1).normalize();
 
       const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
       const newVertex = meshData.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
+      if (Math.abs(direction.dot(edgeDirection)) === 1) {
+        const sharedFaceIds = [...connectedEdge.faceIds].filter(fid =>
+          edge.faceIds.has(fid)
+        );
+
+        if (sharedFaceIds.length > 0) {
+          const face = meshData.faces.get(sharedFaceIds[0]);
+          const faceNormal = calculateFaceNormal(meshData, face);
+
+          direction = new THREE.Vector3().crossVectors(faceNormal, direction).normalize();
+
+          const centroid = getCentroidFromVertices(face.vertexIds, meshData).applyMatrix4(this.editedObject.matrixWorld);
+          const inwardGuide = new THREE.Vector3().subVectors(centroid, p1);
+          if (direction.dot(inwardGuide) < 0) {
+            direction.negate();
+          }
+        }
+      }
+
+      const scale = this.calculateScaleFactor(direction, edgeDirection);
+      const edgeScaleConstraints = new Map();
+      edgeScaleConstraints.set(selectedEdgeId, scale);
+
       this.bevelMoveData.push({
+        originalVertexId: vertexId,
         vertexId: newVertex.id,
         basePosition,
         direction: direction.clone(),
-        scaleFactor
+        scaleFactor: 1,
+        edgeScaleConstraints,
+        neighborNewVertexIds: [],
+        edgeDirections: [edgeDirection]
       });
 
       for (const faceId of connectedEdge.faceIds) {
         const face = meshData.faces.get(faceId);
         if (!face) continue;
-
         if (!face.vertexIds.includes(vertexId)) continue;
 
         if (!faceVertexMap.has(faceId)) {
           faceVertexMap.set(faceId, []);
         }
-        faceVertexMap.get(faceId).push(newVertex.id);
+
+        const vertices = faceVertexMap.get(faceId);
+        if (!vertices.includes(newVertex.id)) {
+          vertices.push(newVertex.id);
+        }
       }
+
+      edgeVertexMap.set(connectedEdge.id, newVertex.id);
     }
 
     return {
@@ -566,7 +686,8 @@ export class BevelTool {
       originalVertexId: vertexId,
       newVertexIds,
       selectedEdgeId,
-      faceVertexMap
+      faceVertexMap,
+      edgeVertexMap
     };
   }
 
@@ -597,24 +718,23 @@ export class BevelTool {
     const dir1 = p1.sub(p0).normalize();
     const dir2 = p2.sub(p0).normalize();
 
+    const faceNormal = new THREE.Vector3().crossVectors(dir1, dir2).normalize();
+
     const newVertexIds = [];
     const faceVertexMap = new Map();
+    const edgeVertexMap = new Map();
 
     // Faces shared by BOTH selected edges
     const sharedFaceIds = [...edge1.faceIds].filter(fid =>
       edge2.faceIds.has(fid)
     );
 
-    const connectedEdges = Array.from(vertex.edgeIds).map(edgeId => meshData.edges.get(edgeId));
-    const EPS = 0.001;
+    const connectedEdges = Array.from(vertex.edgeIds)
+      .filter(edgeId => edgeId !== edgeId1 && edgeId !== edgeId2)
+      .map(edgeId => meshData.edges.get(edgeId));
 
     if (sharedFaceIds.length > 0) {
-      // compute corner bevel position
-      const dot = THREE.MathUtils.clamp(dir1.dot(dir2), -1, 1);
-      const sinHalf = Math.sqrt((1 - dot) * 0.5);
-      const scaleFactor = sinHalf > EPS ? 1 / sinHalf : 1;
-
-      const bisector = dir1.clone().add(dir2).normalize();
+      let bisector = dir1.clone().add(dir2).normalize();
 
       for (const faceId of sharedFaceIds) {
         const basePosition = p0.clone();
@@ -622,11 +742,34 @@ export class BevelTool {
         const newVertex = meshData.addVertex(baseLocal);
         newVertexIds.push(newVertex.id);
 
+        const face = meshData.faces.get(faceId);
+        const EPS = 1e-8;
+        if ((dir1.clone().add(dir2)).lengthSq() < EPS) {
+          const faceNormal = calculateFaceNormal(meshData, face);
+          bisector = new THREE.Vector3().crossVectors(faceNormal, dir1).normalize();
+        }
+
+        const centroid = getCentroidFromVertices(face.vertexIds, meshData).applyMatrix4(this.editedObject.matrixWorld);
+        const inwardGuide = new THREE.Vector3().subVectors(centroid, p0);
+        if (bisector.dot(inwardGuide) < 0) {
+          bisector.negate();
+        }
+
+        const scale1 = this.calculateScaleFactor(bisector, dir1);
+        const scale2 = this.calculateScaleFactor(bisector, dir2);
+        const edgeScaleConstraints = new Map();
+        edgeScaleConstraints.set(edgeId1, scale1);
+        edgeScaleConstraints.set(edgeId2, scale2);
+
         this.bevelMoveData.push({
+          originalVertexId: vertexId,
           vertexId: newVertex.id,
           basePosition,
           direction: bisector.clone(),
-          scaleFactor
+          scaleFactor: 1,
+          edgeScaleConstraints,
+          neighborNewVertexIds: [],
+          edgeDirections: [dir1, dir2]
         });
 
         if (!faceVertexMap.has(faceId)) {
@@ -636,41 +779,63 @@ export class BevelTool {
       }
     }
 
-    // Slide along unselected connected edges
-    for (const connectedEdge of connectedEdges) {
-      if (connectedEdge === edge1 || connectedEdge === edge2) continue;
+    const edgeGroups = this.groupEdgesBySharedFace(connectedEdges);
 
-      const otherId = connectedEdge.v1Id === vertexId ? connectedEdge.v2Id : connectedEdge.v1Id;
+    // Slide along unselected connected edges
+    for (const group of edgeGroups) {
+      const bestEdgeId = this.chooseBestEdge(meshData, group, faceNormal);
+      const bestEdge = meshData.edges.get(bestEdgeId);
+
+      const otherId = bestEdge.v1Id === vertexId ? bestEdge.v2Id : bestEdge.v1Id;
       const otherV = meshData.getVertex(otherId);
 
       const p1 = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
       const p2 = new THREE.Vector3().copy(otherV.position).applyMatrix4(this.editedObject.matrixWorld);
 
       const basePosition = p1.clone();
-      const direction = p2.clone().sub(p1).normalize();
+      let direction = p2.clone().sub(p1).normalize();
 
       const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
       const newVertex = meshData.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
+      const scale1 = this.calculateScaleFactor(direction, dir1);
+      const scale2 = this.calculateScaleFactor(direction, dir2);
+      const edgeScaleConstraints = new Map();
+      edgeScaleConstraints.set(edgeId1, scale1);
+      edgeScaleConstraints.set(edgeId2, scale2);
+
       this.bevelMoveData.push({
+        originalVertexId: vertexId,
         vertexId: newVertex.id,
         basePosition,
         direction: direction.clone(),
-        scaleFactor: 1
+        scaleFactor: 1,
+        edgeScaleConstraints,
+        neighborNewVertexIds: [],
+        edgeDirections: [dir1, dir2]
       });
 
       // Map to all faces of that edge that include the vertex
-      for (const faceId of connectedEdge.faceIds) {
-        const face = meshData.faces.get(faceId);
-        if (!face) continue;
-        if (!face.vertexIds.includes(vertexId)) continue;
+      for (const edgeId of group) {
+        const edge = meshData.edges.get(edgeId);
+        for (const faceId of edge.faceIds) {
+          const face = meshData.faces.get(faceId);
+          if (!face) continue;
+          if (!face.vertexIds.includes(vertexId)) continue;
 
-        if (!faceVertexMap.has(faceId)) {
-          faceVertexMap.set(faceId, []);
+          if (!faceVertexMap.has(faceId)) {
+            faceVertexMap.set(faceId, []);
+          }
+
+          const vertices = faceVertexMap.get(faceId);
+          if (!vertices.includes(newVertex.id)) {
+            vertices.push(newVertex.id);
+          }
         }
-        faceVertexMap.get(faceId).push(newVertex.id);
       }
+
+      edgeVertexMap.set(bestEdge.id, newVertex.id);
     }
 
     return {
@@ -678,7 +843,8 @@ export class BevelTool {
       originalVertexId: vertexId,
       newVertexIds,
       selectedEdgeIds,
-      faceVertexMap
+      faceVertexMap,
+      edgeVertexMap
     };
   }
 
@@ -690,11 +856,16 @@ export class BevelTool {
     if (!vertex) return null;
 
     const p0 = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
+
     const newVertexIds = [];
     const faceVertexMap = new Map();
+    const edgeVertexMap = new Map();
     const selectedEdges = selectedEdgeIds.map(id => meshData.edges.get(id));
     const processedFaceIds = new Set();
-    const EPS = 0.001;
+
+    const connectedEdges = Array.from(vertex.edgeIds)
+      .filter(edgeId => !selectedEdgeIds.includes(edgeId))
+      .map(edgeId => meshData.edges.get(edgeId));
 
     // Check all pairs of selected edges for shared faces
     for (let i = 0; i < selectedEdges.length; i++) {
@@ -726,24 +897,42 @@ export class BevelTool {
           const dirA = pA.sub(p0).normalize();
           const dirB = pB.sub(p0).normalize();
 
-          const combined = dirA.clone().add(dirB);
-
-          const dot = THREE.MathUtils.clamp(dirA.dot(dirB), -1, 1);
-          const sinHalf = Math.sqrt((1 - dot) * 0.5);
-          const scaleFactor = sinHalf > EPS ? 1 / sinHalf : 1;
-
-          const direction = combined.normalize();
+          let direction = dirA.clone().add(dirB).normalize();
 
           const basePosition = p0.clone();
           const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
           const newVertex = meshData.addVertex(baseLocal);
           newVertexIds.push(newVertex.id);
 
+          const EPS = 1e-8;
+          if (dirA.clone().add(dirB).lengthSq() < EPS) {
+            const face = meshData.faces.get(faceId);
+            const faceNormal = calculateFaceNormal(meshData, face);
+
+            direction = new THREE.Vector3().crossVectors(faceNormal, dirA).normalize();
+
+            const centroid = getCentroidFromVertices(face.vertexIds, meshData).applyMatrix4(this.editedObject.matrixWorld);
+            const inwardGuide = new THREE.Vector3().subVectors(centroid, p0);
+            if (direction.dot(inwardGuide) < 0) {
+              direction.negate();
+            }
+          }
+
+          const scale1 = this.calculateScaleFactor(direction, dirA);
+          const scale2 = this.calculateScaleFactor(direction, dirB);
+          const edgeScaleConstraints = new Map();
+          edgeScaleConstraints.set(edgeA.id, scale1);
+          edgeScaleConstraints.set(edgeB.id, scale2);
+
           this.bevelMoveData.push({
+            originalVertexId: vertexId,
             vertexId: newVertex.id,
             basePosition,
             direction: direction.clone(),
-            scaleFactor
+            scaleFactor: 1,
+            edgeScaleConstraints,
+            neighborNewVertexIds: [],
+            edgeDirections: [dirA, dirB]
           });
 
           if (!faceVertexMap.has(faceId)) {
@@ -754,20 +943,16 @@ export class BevelTool {
       }
     }
 
+    const vertexNormal = calculateVertexNormal(meshData, vertexId);
+    const edgeGroups = this.groupEdgesBySharedFace(connectedEdges);
+
     // Slide along unselected connected edges
-    const connectedEdges = Array.from(vertex.edgeIds).map(edgeId =>
-      meshData.edges.get(edgeId)
-    );
-    const selectedEdgeSet = new Set(selectedEdgeIds);
+     for (const group of edgeGroups) {
+      const bestEdgeId = this.chooseBestEdge(meshData, group, vertexNormal);
+      const bestEdge = meshData.edges.get(bestEdgeId);
 
-    for (const connectedEdge of connectedEdges) {
-      if (!connectedEdge) continue;
-      if (selectedEdgeSet.has(connectedEdge.id)) continue;
-
-      const otherId = connectedEdge.v1Id === vertexId ? connectedEdge.v2Id : connectedEdge.v1Id;
-
+      const otherId = bestEdge.v1Id === vertexId ? bestEdge.v2Id : bestEdge.v1Id;
       const otherV = meshData.getVertex(otherId);
-      if (!otherV) continue;
 
       const p1 = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
       const p2 = new THREE.Vector3().copy(otherV.position).applyMatrix4(this.editedObject.matrixWorld);
@@ -779,24 +964,53 @@ export class BevelTool {
       const newVertex = meshData.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
+      const edgeScaleConstraints = new Map();
+      const edgeDirections = [];
+      for (const selEdge of selectedEdges) {
+        const otherSelId = selEdge.v1Id === vertexId ? selEdge.v2Id : selEdge.v1Id;
+
+        const otherSelV = meshData.getVertex(otherSelId);
+        if (!otherSelV) continue;
+
+        const pSel = new THREE.Vector3().copy(otherSelV.position).applyMatrix4(this.editedObject.matrixWorld);
+
+        const dirSel = pSel.sub(p0).normalize();
+        edgeDirections.push(dirSel);
+
+        edgeScaleConstraints.set(selEdge.id, this.calculateScaleFactor(direction, dirSel));
+      }
+
       this.bevelMoveData.push({
+        originalVertexId: vertexId,
         vertexId: newVertex.id,
         basePosition,
         direction: direction.clone(),
-        scaleFactor: 1
+        scaleFactor: 1,
+        edgeScaleConstraints,
+        neighborNewVertexIds: [],
+        edgeDirections
       });
 
       // Map to all faces of that edge that include the vertex
-      for (const faceId of connectedEdge.faceIds) {
-        const face = meshData.faces.get(faceId);
-        if (!face) continue;
-        if (!face.vertexIds.includes(vertexId)) continue;
+      for (const edgeId of group) {
+        const edge = meshData.edges.get(edgeId);
+        for (const faceId of edge.faceIds) {
+          const face = meshData.faces.get(faceId);
+          if (!face) continue;
+          if (!face.vertexIds.includes(vertexId)) continue;
 
-        if (!faceVertexMap.has(faceId)) {
-          faceVertexMap.set(faceId, []);
+          if (!faceVertexMap.has(faceId)) {
+            faceVertexMap.set(faceId, []);
+          }
+
+          const vertices = faceVertexMap.get(faceId);
+          if (!vertices.includes(newVertex.id)) {
+            vertices.push(newVertex.id);
+          }
         }
-        faceVertexMap.get(faceId).push(newVertex.id);
       }
+
+      edgeVertexMap.set(bestEdge.id, newVertex.id);
     }
 
     return {
@@ -804,7 +1018,8 @@ export class BevelTool {
       originalVertexId: vertexId,
       newVertexIds,
       selectedEdgeIds,
-      faceVertexMap
+      faceVertexMap,
+      edgeVertexMap
     };
   }
 
@@ -852,64 +1067,24 @@ export class BevelTool {
     }
   }
 
-  replaceVertexInFace(meshData, faceId, oldVertexId, newVertexId) {
+  getOrderedSplit(meshData, faceId, oldVertexId, edgeVertexMap) {
     const face = meshData.faces.get(faceId);
-    if (!face) return false;
-
-    const index = face.vertexIds.indexOf(oldVertexId);
-    if (index === -1) return false;
-
-    face.vertexIds[index] = newVertexId;
-    return true;
-  }
-
-  splitVertexInFace(meshData, faceId, oldVertexId, nvAId, nvBId) {
-    const face = meshData.faces.get(faceId);
-    if (!face) return false;
-
-    const oldVertex = meshData.getVertex(oldVertexId);
-    
     const vIds = face.vertexIds;
     const oldIdx = vIds.indexOf(oldVertexId);
-    if (oldIdx === -1) return false;
 
-    const prevV = meshData.getVertex(vIds[(oldIdx - 1 + vIds.length) % vIds.length]);
-    
-    const dirToPrev = new THREE.Vector3().subVectors(prevV.position, oldVertex.position).normalize();
+    const prevVId = vIds[(oldIdx - 1 + vIds.length) % vIds.length];
+    const nextVId = vIds[(oldIdx + 1) % vIds.length];
 
-    const moveA = this.bevelMoveData.find(m => m.vertexId === nvAId);
-    const moveB = this.bevelMoveData.find(m => m.vertexId === nvBId);
+    const oldVertex = meshData.getVertex(oldVertexId);
+    let edgeInId, edgeOutId;
 
-    if (!moveA || !moveB) {
-      console.warn("Could not find bevel move data for new vertices.");
-      return false;
+    for (const eId of oldVertex.edgeIds) {
+      const edge = meshData.edges.get(eId);
+      if (edge.v1Id === prevVId || edge.v2Id === prevVId) edgeInId = eId;
+      if (edge.v1Id === nextVId || edge.v2Id === nextVId) edgeOutId = eId;
     }
 
-    const dotA = dirToPrev.dot(moveA.direction);
-    const dotB = dirToPrev.dot(moveB.direction);
-
-    const [firstId, secondId] = (dotA > dotB) ? [nvAId, nvBId] : [nvBId, nvAId];
-
-    const newIds = [...vIds];
-    newIds.splice(oldIdx, 1, firstId, secondId);
-
-    face.vertexIds = newIds;
-    return true;
-  }
-
-  getFacesAdjacentToEdges(meshData, edges) {
-    const adjacentFaceIds = new Set();
-
-    for (const edgeId of edges) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      for (const faceId of edge.faceIds) {
-        adjacentFaceIds.add(faceId);
-      }
-    }
-
-    return adjacentFaceIds;
+    return [edgeVertexMap.get(edgeInId), edgeVertexMap.get(edgeOutId)];
   }
 
   getFacesAdjacentToEdgeVertices(meshData, edges) {
@@ -973,6 +1148,9 @@ export class BevelTool {
         quadIds = [nv1Face1, nv2Face1, nv2Face2, nv1Face2];
       }
 
+      this.link(quadIds[0], quadIds[1]);
+      this.link(quadIds[2], quadIds[3]);
+
       const vertices = quadIds.map(id => meshData.getVertex(id));
       const newFace = meshData.addFace(vertices);
       this.rebuildFaceTopology(meshData, newFace);
@@ -981,6 +1159,26 @@ export class BevelTool {
     }
 
     return newFaceIds;
+  }
+
+  link(a, b) {
+    const mA = this.bevelMoveData.find(m => m.vertexId === a);
+    const mB = this.bevelMoveData.find(m => m.vertexId === b);
+    if (!mA || !mB) return;
+
+    if (!mA.neighborNewVertexIds.includes(b))
+      mA.neighborNewVertexIds.push(b);
+
+    if (!mB.neighborNewVertexIds.includes(a))
+      mB.neighborNewVertexIds.push(a);
+  }
+
+  calculateScaleFactor(dir1, dir2) {
+    const EPS = 0.001;
+    const dot = THREE.MathUtils.clamp(dir1.dot(dir2), -1, 1);
+    const sin = Math.sqrt(1 - dot * dot);
+    const scaleFactor = sin > EPS ? 1 / sin : 1;
+    return scaleFactor;
   }
 
   fillBevelCornerFaces(meshData, bevelResults) {
@@ -1127,5 +1325,89 @@ export class BevelTool {
     else if (mode === 'face') {
       this.editSelection.selectFaces(this.newFaceIds);
     }
+  }
+
+  groupEdgesBySharedFace(edges) {
+    const groups = [];
+    const visited = new Set();
+
+    // Build adjacency: edgeId → Set of connected edgeIds
+    const adjacency = new Map();
+
+    for (const edge of edges) {
+      adjacency.set(edge.id, new Set());
+    }
+
+    for (let i = 0; i < edges.length; i++) {
+      for (let j = i + 1; j < edges.length; j++) {
+        const e1 = edges[i];
+        const e2 = edges[j];
+
+        // Check if they share a face
+        const sharesFace = [...e1.faceIds].some(fid =>
+          e2.faceIds.has(fid)
+        );
+
+        if (sharesFace) {
+          adjacency.get(e1.id).add(e2.id);
+          adjacency.get(e2.id).add(e1.id);
+        }
+      }
+    }
+
+    for (const edge of edges) {
+      if (visited.has(edge.id)) continue;
+
+      const stack = [edge.id];
+      const group = [];
+
+      while (stack.length > 0) {
+        const currentId = stack.pop();
+        if (visited.has(currentId)) continue;
+
+        visited.add(currentId);
+        group.push(currentId);
+
+        for (const neighborId of adjacency.get(currentId)) {
+          if (!visited.has(neighborId)) {
+            stack.push(neighborId);
+          }
+        }
+      }
+
+      groups.push(group);
+    }
+
+    return groups;
+  }
+
+  chooseBestEdge(meshData, group, normal) {
+    let bestEdgeId = null;
+    let bestDot = -Infinity;
+
+    for (const edgeId of group) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      const vA = meshData.getVertex(edge.v1Id);
+      const vB = meshData.getVertex(edge.v2Id);
+      if (!vA || !vB) continue;
+
+      // Compute edge direction in world space
+      const posA = new THREE.Vector3(vA.position.x, vA.position.y, vA.position.z);
+      const posB = new THREE.Vector3(vB.position.x, vB.position.y, vB.position.z);
+
+      const dir = posB.clone().sub(posA).normalize();
+
+      // Compute dot with normal
+      const dot = dir.dot(normal);
+
+      if (Math.abs(dot) > bestDot) {
+        bestDot = Math.abs(dot);
+        bestEdgeId = edgeId;
+      }
+    }
+
+    return bestEdgeId;
   }
 }

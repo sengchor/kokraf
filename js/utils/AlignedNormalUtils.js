@@ -165,3 +165,24 @@ export function shouldFlipNormal(meshData, sortedVertexIds, candidateNormal, nei
 
   return reverseScore > 0;
 }
+
+export function calculateVertexNormal(meshData, vertexId) {
+  const vertex = meshData.getVertex(vertexId);
+  if (!vertex) return new THREE.Vector3(0, 0, 0);
+
+  const vertexNormal = new THREE.Vector3(0, 0, 0);
+
+  for (const faceId of vertex.faceIds) {
+    const face = meshData.faces.get(faceId);
+    if (!face) continue;
+
+    const faceNormal = calculateFaceNormal(meshData, face);
+    vertexNormal.add(faceNormal);
+  }
+
+  if (vertexNormal.lengthSq() > 0) {
+    vertexNormal.normalize();
+  }
+
+  return vertexNormal;
+}
