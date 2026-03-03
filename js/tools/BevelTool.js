@@ -1180,27 +1180,39 @@ export class BevelTool {
       const { newVertexIds } = result;
       if (!newVertexIds || newVertexIds.length < 3) continue;
 
-      const { orderedVertexIds, orderedEdgeIds } = this.buildOrderedVertexLoop(meshData, newVertexIds);
-
+      const { orderedVertexIds } = this.buildOrderedVertexLoop(meshData, newVertexIds);
       if (orderedVertexIds.length < 3) continue;
 
-      // winding order check
-      const normal = calculateVertexIdsNormal(meshData, orderedVertexIds);
-      const neighbors = getNeighborFaces(meshData, orderedEdgeIds);
-      const shouldFlip = shouldFlipNormal(meshData, orderedVertexIds, normal, neighbors);
-      if (shouldFlip) {
+      const referenceNormal = calculateVertexNormal(meshData, vertexId);
+      const virtualNormal = this.calculateVirtualNormalFromDirections(orderedVertexIds);
+
+      if (virtualNormal.dot(referenceNormal) < 0) {
         orderedVertexIds.reverse();
       }
 
-      // create face
       const vertices = orderedVertexIds.map(id => meshData.getVertex(id));
       const newFace = meshData.addFace(vertices);
-      this.rebuildFaceTopology(meshData, newFace);
-
-      newFaceIds.push(newFace.id);
+      
+      if (newFace) {
+        this.rebuildFaceTopology(meshData, newFace);
+        newFaceIds.push(newFace.id);
+      }
     }
 
     return newFaceIds;
+  }
+
+  calculateVirtualNormalFromDirections(orderedVertexIds) {
+    const moveData0 = this.bevelMoveData.get(orderedVertexIds[0]);
+    const moveData1 = this.bevelMoveData.get(orderedVertexIds[1]);
+    const moveData2 = this.bevelMoveData.get(orderedVertexIds[2]);
+
+    if (!moveData0 || !moveData1 || !moveData2) return new THREE.Vector3(0, 1, 0);
+
+    const v1 = new THREE.Vector3().subVectors(moveData1.direction, moveData0.direction);
+    const v2 = new THREE.Vector3().subVectors(moveData2.direction, moveData0.direction);
+    
+    return new THREE.Vector3().crossVectors(v1, v2).normalize();
   }
 
   linkVertexNeighbors(a, b) {
@@ -1424,13 +1436,54 @@ export class BevelTool {
   }
 
   computeAlignedBisector(meshData, vertexId, group, bisector) {
-    let direction = new THREE.Vector3();
-    const groupDirection = this.calculateAverageGroupDirection(meshData, group, vertexId);
+    const groupSurfaceNormal = new THREE.Vector3(0, 0, 0);
+    const allFaceIds = [];
 
-    if (bisector.dot(groupDirection) < 0) {
-      direction = bisector.clone().negate();
+    for (const edgeId of group) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+      for (const fid of edge.faceIds) {
+        allFaceIds.push(fid);
+      }
+    }
+
+    // Count occurrences
+    const faceCountMap = new Map();
+    for (const fid of allFaceIds) {
+      faceCountMap.set(fid, (faceCountMap.get(fid) || 0) + 1);
+    }
+
+    const sharedFaceIds = [];
+    for (const [fid, count] of faceCountMap) {
+      if (count >= 2) {
+        sharedFaceIds.push(fid);
+      }
+    }
+
+    let faceCount = 0;
+    for (const fid of sharedFaceIds) {
+      const face = meshData.faces.get(fid);
+      if (face && face.vertexIds.includes(vertexId)) {
+        const normal = calculateFaceNormal(meshData, face);
+        groupSurfaceNormal.add(normal);
+        faceCount++;
+      }
+    }
+
+    if (faceCount > 0) {
+      groupSurfaceNormal.normalize();
     } else {
-      direction = null;
+      return null;
+    }
+
+    // This ensures the direction "slides" along the surface
+    const direction = bisector.clone().projectOnPlane(groupSurfaceNormal).normalize();
+
+    const avgGroupDir = this.calculateAverageGroupDirection(meshData, group, vertexId);
+    if (direction.dot(avgGroupDir) < 0) {
+      direction.negate();
+    } else {
+      return null;
     }
 
     return direction;
@@ -1479,6 +1532,10 @@ export class BevelTool {
       groupDirection.add(edgeDir);
     }
 
-    return groupDirection.divideScalar(edgeIds.length);
+    if (groupDirection.lengthSq() === 0) {
+      return groupDirection;
+    }
+
+    return groupDirection.divideScalar(edgeIds.length).normalize();
   }
 }
