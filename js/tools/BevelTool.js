@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { getNeighborFaces, shouldFlipNormal, calculateVertexIdsNormal, calculateFaceNormal, getCentroidFromVertices, calculateVertexNormal } from '../utils/AlignedNormalUtils.js';
+import { calculateFaceNormal, getCentroidFromVertices, calculateVertexNormal } from '../utils/AlignedNormalUtils.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { BevelCommand } from '../commands/BevelCommand.js';
+import { ToolNumericInput } from './ToolNumericInput.js';
 
 export class BevelTool {
   constructor(editor) {
@@ -26,6 +27,12 @@ export class BevelTool {
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
+    this.toolNumericInput = new ToolNumericInput({
+      tool: this,
+      label: 'Width',
+      getter: () => this.width,
+      setter: (v) => this.applyBevelWidth(v),
+    });
 
     this.setupTransformListeners();
     this.setupListeners();
@@ -140,7 +147,7 @@ export class BevelTool {
 
   // Command Control
   onPointerMove() {
-    if (this.activeTransformSource !== 'command') return;
+    if (this.activeTransformSource !== 'command' || this.toolNumericInput.active) return;
     this.transformSolver.updateHandleFromCommandInput('translate', this.event);
     this.applyBevelSession();
     this.signals.objectChanged.dispatch();
@@ -156,19 +163,26 @@ export class BevelTool {
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
     this.clearCommandTransformState();
+    this.toolNumericInput.reset();
   }
 
   onKeyDown(event) {
     if (this.activeTransformSource !== 'command') return;
 
+    if (this.toolNumericInput.handleKey(event, this.mode)) {
+      return;
+    }
+
     if (event.key === 'Escape') {
       this.cancelBevelSession();
       this.clearCommandTransformState();
+      this.toolNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitBevelSession();
       this.clearCommandTransformState();
+      this.toolNumericInput.reset();
     }
   }
 
@@ -204,6 +218,8 @@ export class BevelTool {
     );
 
     this.bevelStarted = false;
+
+    this.signals.onToolStarted.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   applyBevelSession() {
@@ -216,9 +232,17 @@ export class BevelTool {
       this.bevelStarted = true;
     }
     this.updateBevel();
+
+    this.signals.onToolUpdated.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   commitBevelSession() {
+    if (!this.width || this.width === 0) {
+      this.cancelBevelSession();
+      this.clearCommandTransformState();
+      this.toolNumericInput.reset();
+    }
+
     this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.updateGeometryAndHelpers();
 
@@ -234,6 +258,8 @@ export class BevelTool {
 
     this.updateSelectionAfterBevel();
     this.clearStartData();
+
+    this.signals.onToolEnded.dispatch();
   }
 
   cancelBevelSession() {
@@ -248,6 +274,8 @@ export class BevelTool {
     this.handle.updateMatrixWorld(true);
 
     this.editSelection.selectEdges(this.selectedEdgeIds);
+
+    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -269,6 +297,7 @@ export class BevelTool {
     this.newFaceIds = null;
     this.bevelMoveData = null;
     this.startScreen = null;
+    this.width = null;
 
     this.bevelStarted = false;
   }
@@ -349,24 +378,8 @@ export class BevelTool {
     if (pixelDistance <= 1) return;
 
     const depth = this.startPivotPosition.distanceTo(this.camera.position);
-    const distance = this.pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
-    if (distance < 0.01) return;
-
-    const newPositions = [];
-    const newVertexIds = [];
-
-    for (const moveData of this.bevelMoveData.values()) {
-      const scale = moveData.scaleFactor;
-
-      const newPosition = moveData.basePosition.clone().add(
-        moveData.direction.clone().multiplyScalar(distance * scale)
-      );
-
-      newPositions.push(newPosition);
-      newVertexIds.push(moveData.vertexId);
-    }
-
-    this.vertexEditor.transform.setVerticesWorldPositions(newVertexIds, newPositions);
+    this.width = this.pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
+    this.applyBevelWidth(this.width);
   }
 
   solveBevelScales() {
@@ -1537,5 +1550,26 @@ export class BevelTool {
     }
 
     return groupDirection.divideScalar(edgeIds.length).normalize();
+  }
+
+  applyBevelWidth(value) {
+    if (!value) { value = 0 };
+    this.width = value;
+
+    const newPositions = [];
+    const newVertexIds = [];
+
+    for (const moveData of this.bevelMoveData.values()) {
+      const scale = moveData.scaleFactor;
+
+      const newPosition = moveData.basePosition.clone().add(
+        moveData.direction.clone().multiplyScalar(this.width * scale)
+      );
+
+      newPositions.push(newPosition);
+      newVertexIds.push(moveData.vertexId);
+    }
+
+    this.vertexEditor.transform.setVerticesWorldPositions(newVertexIds, newPositions);
   }
 }
