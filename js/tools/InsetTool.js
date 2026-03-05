@@ -204,7 +204,7 @@ export class InsetTool {
 
     const boundaryEdges = this.vertexEditor.topology.getBoundaryEdges(selectedVertexIds, selectedEdgeIds, selectedFaceIds);
 
-    for (const [originalVertexId, newVertexId] of Object.entries(mappedVertexIds)) {
+    for (const [originalVertexId, newVertexId] of mappedVertexIds) {
       const newVertex = meshData.getVertex(newVertexId);
       const basePosition = new THREE.Vector3().copy(newVertex.position);
 
@@ -216,8 +216,8 @@ export class InsetTool {
 
     // Bridge boundary edges
     for (const edge of boundaryEdges) {
-      const nv1Id = mappedVertexIds[edge.v1Id];
-      const nv2Id = mappedVertexIds[edge.v2Id];
+      const nv1Id = mappedVertexIds.get(edge.v1Id);
+      const nv2Id = mappedVertexIds.get(edge.v2Id);
 
       const sideFaceVertexIds = [edge.v1Id, edge.v2Id, nv2Id, nv1Id];
 

@@ -65,9 +65,10 @@ export class VertexDuplicate {
       }
     }
 
-    const mappedVertexIds = {};
+    // Map old vertex IDs to new ones
+    const mappedVertexIds = new Map();
     for (let [oldId, newVertex] of duplicatedVertices.entries()) {
-      mappedVertexIds[oldId] = newVertex.id;
+      mappedVertexIds.set(oldId, newVertex.id);
     }
 
     const newVertexIds = Array.from(duplicatedVertices.values()).map(v => v.id);
@@ -129,9 +130,9 @@ export class VertexDuplicate {
     }
 
     // Map old vertex IDs to new ones
-    const mappedVertexIds = {};
+    const mappedVertexIds = new Map();
     for (let [oldId, newVertex] of duplicatedVertices.entries()) {
-      mappedVertexIds[oldId] = newVertex.id;
+      mappedVertexIds.set(oldId, newVertex.id);
     }
 
     const newVertexIds = Array.from(duplicatedVertices.values()).map(v => v.id);
@@ -202,9 +203,9 @@ export class VertexDuplicate {
     }
 
     // Map old vertex IDs to new ones
-    const mappedVertexIds = {};
+    const mappedVertexIds = new Map();
     for (let [oldId, newVertex] of duplicatedVertices.entries()) {
-      mappedVertexIds[oldId] = newVertex.id;
+      mappedVertexIds.set(oldId, newVertex.id);
     }
 
     const newVertexIds = Array.from(duplicatedVertices.values()).map(v => v.id);
