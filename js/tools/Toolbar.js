@@ -5,6 +5,7 @@ import { LoopCutTool } from '../tools/LoopCutTool.js';
 import { KnifeTool } from '../tools/KnifeTool.js';
 import { DuplicateTool } from '../tools/DuplicateTool.js';
 import { BevelTool } from '../tools/BevelTool.js';
+import { InsetTool } from '../tools/InsetTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
@@ -35,6 +36,7 @@ export default class Toolbar {
     this.knifeTool = new KnifeTool(this.editor);
     this.duplicateTool = new DuplicateTool(this.editor);
     this.bevelTool = new BevelTool(this.editor);
+    this.insetTool = new InsetTool(this.editor);
 
     this.ready = this.load();
   }
@@ -78,7 +80,7 @@ export default class Toolbar {
       if (this.isTransformDragging) return;
 
       const activeTool = this.getActiveTool();
-      if (['move', 'rotate', 'scale', 'extrude', 'bevel'].includes(activeTool)) {
+      if (['move', 'rotate', 'scale', 'extrude', 'bevel', 'inset'].includes(activeTool)) {
         this.updateTools();
       }
     };
@@ -150,6 +152,7 @@ export default class Toolbar {
     this.loopCutTool.disable();
     this.knifeTool.disable();
     this.bevelTool.disable();
+    this.insetTool.disable();
   }
 
   updateActiveTools(activeTool, attachObject) {
@@ -180,6 +183,7 @@ export default class Toolbar {
       case 'loopcut' : this.loopCutTool.enable(); break;
       case 'knife' : this.knifeTool.enable(); break;
       case 'bevel' : this.bevelTool.enableFor(attachObject); break;
+      case 'inset' : this.insetTool.enableFor(attachObject); break;
     }
   }
 }

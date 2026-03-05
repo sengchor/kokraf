@@ -72,7 +72,8 @@
 
 .toolbar-button[data-tool="extrude"] img,
 .toolbar-button[data-tool="loopcut"] img,
-.toolbar-button[data-tool="knife"] img {
+.toolbar-button[data-tool="knife"] img,
+.toolbar-button[data-tool="inset"] img {
   width: 20px;
   height: 20px;
 }

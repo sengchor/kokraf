@@ -59,11 +59,17 @@ export default class EditSelection {
     this.subSelectionMode = mode;
 
     if (this.subSelectionMode === 'vertex') {
-      this.resolveSelectionGraphFromVertices();
+      const { edgeSet, faceSet } = this.resolveSelectionGraphFromVertices(this.selectedVertexIds);
+      this.selectedEdgeIds = edgeSet;
+      this.selectedFaceIds = faceSet;
     } else if (this.subSelectionMode === 'edge') {
-      this.resolveSelectionGraphFromEdges();
+      const { vertexSet, faceSet } = this.resolveSelectionGraphFromEdges(this.selectedEdgeIds);
+      this.selectedVertexIds = vertexSet;
+      this.selectedFaceIds = faceSet;
     } else if (this.subSelectionMode === 'face') {
-      this.resolveSelectionGraphFromFaces();
+      const { vertexSet, edgeSet } = this.resolveSelectionGraphFromFaces(this.selectedFaceIds);
+      this.selectedVertexIds = vertexSet;
+      this.selectedEdgeIds = edgeSet;
     }
   }
 
@@ -343,7 +349,10 @@ export default class EditSelection {
       vertexIds.forEach(id => this.selectedVertexIds.add(id));
     }
 
-    this.resolveSelectionGraphFromVertices();
+    const { edgeSet, faceSet } = this.resolveSelectionGraphFromVertices(this.selectedVertexIds);
+    this.selectedEdgeIds = edgeSet;
+    this.selectedFaceIds = faceSet;
+
     this.updateVertexHandle();
     this.signals.editSelectionChanged.dispatch('vertex');
   }
@@ -371,7 +380,10 @@ export default class EditSelection {
       edgeIds.forEach(id => this.selectedEdgeIds.add(id));
     }
 
-    this.resolveSelectionGraphFromEdges();
+    const { vertexSet, faceSet } = this.resolveSelectionGraphFromEdges(this.selectedEdgeIds);
+    this.selectedVertexIds = vertexSet;
+    this.selectedFaceIds = faceSet;
+
     this.updateVertexHandle();
     this.signals.editSelectionChanged.dispatch('edge');
   }
@@ -399,7 +411,10 @@ export default class EditSelection {
       faceIds.forEach(id => this.selectedFaceIds.add(id));
     }
 
-    this.resolveSelectionGraphFromFaces();
+    const { vertexSet, edgeSet } = this.resolveSelectionGraphFromFaces(this.selectedFaceIds);
+    this.selectedVertexIds = vertexSet;
+    this.selectedEdgeIds = edgeSet;
+
     this.updateVertexHandle();
     this.signals.editSelectionChanged.dispatch('face');
   }
@@ -745,96 +760,100 @@ export default class EditSelection {
     };
   }
 
-  resolveSelectionGraphFromVertices() {
-    if (!this.editedObject) return;
-    const meshData = this.editedObject.userData.meshData;
+  resolveSelectionGraphFromVertices(vertexSet) {
+    if (!this.editedObject) return { edgeSet: new Set(), faceSet: new Set() };
 
-    // --- Edges ---
-    this.selectedEdgeIds.clear();
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return { edgeSet: new Set(), faceSet: new Set() };
+
+    const edgeSet = new Set();
+    const faceSet = new Set();
+
     for (const edge of meshData.edges.values()) {
       if (
-        this.selectedVertexIds.has(edge.v1Id) &&
-        this.selectedVertexIds.has(edge.v2Id)
+        vertexSet.has(edge.v1Id) &&
+        vertexSet.has(edge.v2Id)
       ) {
-        this.selectedEdgeIds.add(edge.id);
+        edgeSet.add(edge.id);
       }
     }
 
-    // --- Faces ---
-    this.selectedFaceIds.clear();
     for (const face of meshData.faces.values()) {
-      const allSelected = face.vertexIds.every(v =>
-        this.selectedVertexIds.has(v)
-      );
+      let allVerticesSelected = true;
 
-      if (allSelected) {
-        this.selectedFaceIds.add(face.id);
+      for (const vId of face.vertexIds) {
+        if (!vertexSet.has(vId)) {
+          allVerticesSelected = false;
+          break;
+        }
+      }
+
+      if (allVerticesSelected) {
+        faceSet.add(face.id);
       }
     }
+
+
+    return { edgeSet, faceSet };
   }
 
-  resolveSelectionGraphFromEdges() {
-    if (!this.editedObject) return;
+  resolveSelectionGraphFromEdges(edgeSet) {
+    if (!this.editedObject) return { vertexSet: new Set(), faceSet: new Set() };
+
     const meshData = this.editedObject.userData.meshData;
-    if (!meshData) return;
+    if (!meshData) return { vertexSet: new Set(), faceSet: new Set() };
 
-    // --- Vertices ---
-    this.selectedVertexIds.clear();
+    const vertexSet = new Set();
+    const faceSet = new Set();
 
-    for (const edgeId of this.selectedEdgeIds) {
+    for (const edgeId of edgeSet) {
       const edge = meshData.edges.get(edgeId);
       if (!edge) continue;
 
-      this.selectedVertexIds.add(edge.v1Id);
-      this.selectedVertexIds.add(edge.v2Id);
+      vertexSet.add(edge.v1Id);
+      vertexSet.add(edge.v2Id);
     }
-
-    // --- Faces ---
-    this.selectedFaceIds.clear();
 
     for (const face of meshData.faces.values()) {
       let allEdgesSelected = true;
 
       for (const eId of face.edgeIds) {
-        if (!this.selectedEdgeIds.has(eId)) {
+        if (!edgeSet.has(eId)) {
           allEdgesSelected = false;
           break;
         }
       }
 
       if (allEdgesSelected) {
-        this.selectedFaceIds.add(face.id);
+        faceSet.add(face.id);
       }
     }
+
+    return { vertexSet, faceSet };
   }
 
-  resolveSelectionGraphFromFaces() {
-    if (!this.editedObject) return;
+  resolveSelectionGraphFromFaces(faceSet) {
+    if (!this.editedObject) return { vertexSet: new Set(), edgeSet: new Set() };
+
     const meshData = this.editedObject.userData.meshData;
-    if (!meshData) return;
+    if (!meshData) return { vertexSet: new Set(), edgeSet: new Set() };
 
-    // --- Edges ---
-    this.selectedEdgeIds.clear();
+    const vertexSet = new Set();
+    const edgeSet = new Set();
 
-    for (const faceId of this.selectedFaceIds) {
+    for (const faceId of faceSet) {
       const face = meshData.faces.get(faceId);
       if (!face) continue;
 
       for (const edgeId of face.edgeIds) {
-        this.selectedEdgeIds.add(edgeId);
+        edgeSet.add(edgeId);
       }
-    }
-
-    // --- Vertices ---
-    this.selectedVertexIds.clear();
-
-    for (const faceId of this.selectedFaceIds) {
-      const face = meshData.faces.get(faceId);
-      if (!face) continue;
 
       for (const vId of face.vertexIds) {
-        this.selectedVertexIds.add(vId);
+        vertexSet.add(vId);
       }
     }
+
+    return { vertexSet, edgeSet };
   }
 }
