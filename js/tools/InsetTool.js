@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
+import { computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
 
 export class InsetTool {
   constructor(editor) {
@@ -151,6 +152,9 @@ export class InsetTool {
   }
 
   commitInsetSession() {
+    const meshData = this.editedObject.userData.meshData;
+    this.afterMeshData = structuredClone(meshData);
+
     this.clearCommandTransformState();
 
     this.vertexEditor.setObject(this.editedObject);
@@ -189,6 +193,7 @@ export class InsetTool {
 
   startInset() {
     const meshData = this.editedObject.userData.meshData;
+    this.beforeMeshData = structuredClone(meshData);
 
     const faceSet = this.editSelection.selectedFaceIds;
     const { vertexSet, edgeSet } = this.editSelection.resolveSelectionGraphFromFaces(faceSet);
@@ -196,30 +201,121 @@ export class InsetTool {
     const selectedEdgeIds = Array.from(edgeSet);
     const selectedFaceIds = Array.from(faceSet);
 
+    const selectedEdges = selectedEdgeIds.map(edgeId => meshData.edges.get(edgeId));
+
     const duplicationResult = this.vertexEditor.duplicate.duplicateSelectionFaces(selectedFaceIds);
     const mappedVertexIds = duplicationResult.mappedVertexIds;
     this.newVertexIds = duplicationResult.newVertexIds;
     this.newEdgeIds = duplicationResult.newEdgeIds;
     this.newFaceIds = duplicationResult.newFaceIds;
 
-    const boundaryEdges = this.vertexEditor.topology.getBoundaryEdges(selectedVertexIds, selectedEdgeIds, selectedFaceIds);
+    this.boundaryEdges = this.vertexEditor.topology.getBoundaryEdges(selectedVertexIds, selectedEdgeIds, selectedFaceIds);
+
+    this.boundaryVertexIdsSet = new Set();
+    for (const edge of this.boundaryEdges) {
+      for (const vId of [edge.v1Id, edge.v2Id]) {
+        const newId = mappedVertexIds.get(vId);
+        if (newId !== undefined) this.boundaryVertexIdsSet.add(newId);
+      }
+    }
 
     for (const [originalVertexId, newVertexId] of mappedVertexIds) {
-      const newVertex = meshData.getVertex(newVertexId);
-      const basePosition = new THREE.Vector3().copy(newVertex.position);
+      if (!this.boundaryVertexIdsSet.has(newVertexId)) continue;
+
+      let insetDir = new THREE.Vector3();
+
+      const vertex = meshData.getVertex(originalVertexId);
+      const basePosition = new THREE.Vector3().copy(vertex.position);
+
+      const faceIds = this.getConnectedFaces(meshData, originalVertexId, faceSet);
+
+      const center = this.computeFacesCenter(meshData, faceIds);
+      const toCenter = new THREE.Vector3().subVectors(center, basePosition).normalize();
+
+      const neighbors = this.getConnectedVertices(originalVertexId, this.boundaryEdges);
+      const selectedNeighbors = this.getConnectedVertices(originalVertexId, selectedEdges);
+
+      if (neighbors.length !== 2) continue;
+
+      const prev = meshData.getVertex(neighbors[0]);
+      const next = meshData.getVertex(neighbors[1]);
+
+      const e1 = new THREE.Vector3().subVectors(vertex.position, prev.position).normalize();
+      const e2 = new THREE.Vector3().subVectors(next.position, vertex.position).normalize();
+
+      const edge1 = meshData.getEdge(vertex.id, prev.id);
+      const edge2 = meshData.getEdge(next.id, vertex.id);
+
+      const sharedFaceIds = [...edge1.faceIds].filter(fid =>
+        (edge2.faceIds.has(fid) && !faceSet.has(fid))
+      );
+
+      if (sharedFaceIds.length > 0 && selectedNeighbors.length > 2) {
+        const faceNormal = computeFacesAverageNormal(meshData, sharedFaceIds);
+        insetDir = faceNormal;
+      } else {
+        const faceNormal = computeFacesAverageNormal(meshData, faceIds);
+
+        const n1 = new THREE.Vector3().crossVectors(faceNormal, e1).normalize();
+        const n2 = new THREE.Vector3().crossVectors(faceNormal, e2).normalize();
+
+        insetDir = new THREE.Vector3().addVectors(n1, n2).normalize();
+
+        if (insetDir.lengthSq() < 1e-6) {
+          insetDir.copy(n1);
+        } else {
+          insetDir.normalize();
+        }
+      }
+
+      if (insetDir.dot(toCenter) < 0) {
+        insetDir.negate();
+      }
+
+      const miterScale = (this.calculateScaleFactor(insetDir, e1) + this.calculateScaleFactor(insetDir, e2)) * 0.5;
 
       this.insetMoveData.set(newVertexId, {
         originalVertexId,
-        basePosition,
+        basePosition: basePosition.clone(),
+        direction: insetDir,
+        scale: miterScale
       });
     }
 
     // Bridge boundary edges
-    for (const edge of boundaryEdges) {
+    for (const edge of this.boundaryEdges) {
       const nv1Id = mappedVertexIds.get(edge.v1Id);
       const nv2Id = mappedVertexIds.get(edge.v2Id);
 
       const sideFaceVertexIds = [edge.v1Id, edge.v2Id, nv2Id, nv1Id];
+
+      const dir1 = this.insetMoveData.get(nv1Id).direction;
+      const dir2 = this.insetMoveData.get(nv2Id).direction;
+      const normal = new THREE.Vector3().crossVectors(dir1, dir2).normalize();
+
+      if (normal.lengthSq() < 1e-8) {
+        const v1 = meshData.getVertex(edge.v1Id).position;
+        const v2 = meshData.getVertex(edge.v2Id).position;
+        const v3 = new THREE.Vector3()
+          .copy(meshData.getVertex(nv2Id).position)
+          .addScaledVector(dir2, 1);
+
+        normal.crossVectors(
+          new THREE.Vector3().subVectors(v2, v1),
+          new THREE.Vector3().subVectors(v3, v1)
+        );
+        normal.normalize();
+      }
+
+      const sharedFaceIds = [...edge.faceIds].filter(fid =>
+        faceSet.has(fid)
+      );
+
+      const faceNormal = computeFacesAverageNormal(meshData, sharedFaceIds);
+      
+      if (normal.dot(faceNormal) < 0) {
+        sideFaceVertexIds.reverse();
+      }
 
       this.vertexEditor.topology.createFaceFromVertices(sideFaceVertexIds);
     }
@@ -248,27 +344,20 @@ export class InsetTool {
     const depth = this.startPivotPosition.distanceTo(this.camera.position);
     this.width = this.pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
 
-    // Compute island center
-    const center = new THREE.Vector3();
-    for (const vId of this.newVertexIds) {
-      const v = meshData.getVertex(vId);
-      center.add(v.position);
-    }
-    center.divideScalar(this.newVertexIds.length);
-
     const newPositions = [];
-    for (const vId of this.newVertexIds) {
-      const vertex = meshData.getVertex(vId);
-
-      const dir = new THREE.Vector3().subVectors(center, vertex.position).normalize();
+    const newBoundaryVertexIds = Array.from(this.boundaryVertexIdsSet);
+    for (const vId of newBoundaryVertexIds) {
       const moveData = this.insetMoveData.get(vId);
+      if (!moveData) continue;
+
       const basePosition = moveData.basePosition;
-      const newPos = new THREE.Vector3().copy(basePosition).addScaledVector(dir, this.width);
+      const direction = moveData.direction;
+      const newPos = basePosition.clone().addScaledVector(direction, this.width * moveData.scale);
 
       newPositions.push(newPos);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(this.newVertexIds, newPositions);
+    this.vertexEditor.transform.setVerticesWorldPositions(newBoundaryVertexIds, newPositions);
   }
 
   projectToScreen(worldPosition, camera, domElement) {
@@ -313,5 +402,62 @@ export class InsetTool {
     this.insetMoveData = null;
 
     this.insetStarted = false;
+  }
+
+  getConnectedVertices(vertexId, edges) {
+    const connected = [];
+
+    for (const edge of edges) {
+      if (edge.v1Id === vertexId) {
+        connected.push(edge.v2Id);
+      } 
+      else if (edge.v2Id === vertexId) {
+        connected.push(edge.v1Id);
+      }
+    }
+
+    return connected;
+  }
+
+  getConnectedFaces(meshData, vertexId, selectedFaceIds) {
+    const vertex = meshData.getVertex(vertexId);
+
+    const faceIds = [];
+    for (const faceId of vertex.faceIds) {
+      if (selectedFaceIds.has(faceId)) {
+        faceIds.push(faceId);
+      }
+    }
+
+    return faceIds;
+  }
+
+  calculateScaleFactor(dir1, dir2) {
+    const EPS = 0.001;
+    const dot = THREE.MathUtils.clamp(dir1.dot(dir2), -1, 1);
+    const sin = Math.sqrt(1 - dot * dot);
+    const scaleFactor = sin > EPS ? 1 / sin : 1;
+    return scaleFactor;
+  }
+
+  computeFacesCenter(meshData, faceIds) {
+    const vertexSet = new Set();
+    for (const faceId of faceIds) {
+      const face = meshData.faces.get(faceId);
+
+      for (const vId of face.vertexIds) {
+        vertexSet.add(vId);
+      }
+    }
+
+    const center = new THREE.Vector3();
+    for (const vId of vertexSet) {
+      const v = meshData.getVertex(vId);
+      center.add(v.position);
+    }
+
+    center.divideScalar(vertexSet.size);
+
+    return center;
   }
 }
