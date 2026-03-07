@@ -229,11 +229,19 @@ export class InsetTool {
 
       const faceIds = this.getConnectedFaces(meshData, originalVertexId, faceSet);
 
-      const center = this.computeFacesCenter(meshData, faceIds);
-      const toCenter = new THREE.Vector3().subVectors(center, basePosition).normalize();
-
       const neighbors = this.getConnectedVertices(originalVertexId, this.boundaryEdges);
       const selectedNeighbors = this.getConnectedVertices(originalVertexId, selectedEdges);
+      const unselectedNeighbors = selectedNeighbors.filter(vId => !neighbors.includes(vId));
+
+      let toCenter = new THREE.Vector3();
+      const insideNeighbors = selectedNeighbors.filter(vId => !neighbors.includes(vId));
+      if (insideNeighbors.length > 0) {
+        const center = this.computeAverageMidpoint(meshData, originalVertexId, insideNeighbors)
+        toCenter = new THREE.Vector3().subVectors(center, basePosition).normalize();
+      } else {
+        const center = this.computeFacesCenter(meshData, faceIds);
+        toCenter = new THREE.Vector3().subVectors(center, basePosition).normalize();
+      }
 
       if (neighbors.length !== 2) continue;
 
@@ -250,21 +258,46 @@ export class InsetTool {
         (edge2.faceIds.has(fid) && !faceSet.has(fid))
       );
 
-      if (sharedFaceIds.length > 0 && selectedNeighbors.length > 2) {
-        const faceNormal = computeFacesAverageNormal(meshData, sharedFaceIds);
-        insetDir = faceNormal;
+      const sharedFaceNormal = computeFacesAverageNormal(meshData, sharedFaceIds);
+      const faceNormal = computeFacesAverageNormal(meshData, faceIds);
+
+      const crossDirection = new THREE.Vector3().crossVectors(e1, e2).normalize();
+
+      const n1 = new THREE.Vector3().crossVectors(faceNormal, e1).normalize();
+      const n2 = new THREE.Vector3().crossVectors(faceNormal, e2).normalize();
+
+      let bisector = new THREE.Vector3().addVectors(n1, n2).normalize();
+
+      if (bisector.lengthSq() < 1e-6) {
+        bisector.copy(n1);
       } else {
-        const faceNormal = computeFacesAverageNormal(meshData, faceIds);
+        bisector.normalize();
+      }
 
-        const n1 = new THREE.Vector3().crossVectors(faceNormal, e1).normalize();
-        const n2 = new THREE.Vector3().crossVectors(faceNormal, e2).normalize();
+      insetDir.copy(bisector);
 
-        insetDir = new THREE.Vector3().addVectors(n1, n2).normalize();
+      // choose a more stable inset direction
+      const dotNormal = insetDir.dot(faceNormal);
+      const dotCross = insetDir.dot(crossDirection);
 
-        if (insetDir.lengthSq() < 1e-6) {
-          insetDir.copy(n1);
-        } else {
-          insetDir.normalize();
+      if (selectedNeighbors.length > 2 && (Math.abs(dotNormal) > 1e-4 || Math.abs(dotCross) > 1e-4)) {
+        
+        if (unselectedNeighbors.length > 0) {
+          const slideDir = new THREE.Vector3();
+          for (const vId of unselectedNeighbors) {
+            const anchorVertex = meshData.getVertex(vId);
+            const direction = new THREE.Vector3().subVectors(anchorVertex.position, vertex.position).normalize();
+            slideDir.add(direction);
+          }
+          slideDir.divideScalar(unselectedNeighbors.length);
+          slideDir.normalize();
+          
+          const projectionDot = slideDir.dot(bisector);
+          if (Math.abs(projectionDot) > 0.01) {
+            insetDir.copy(slideDir);
+          }
+        } else if (sharedFaceIds.length > 0 && Math.abs(sharedFaceNormal.clone().dot(faceNormal)) < 0.9) {
+          insetDir.copy(sharedFaceNormal);
         }
       }
 
@@ -457,6 +490,25 @@ export class InsetTool {
     }
 
     center.divideScalar(vertexSet.size);
+
+    return center;
+  }
+
+  computeAverageMidpoint(meshData, vertexId, neighborIds) {
+    const vertex = meshData.getVertex(vertexId);
+    const center = new THREE.Vector3();
+
+    for (const nId of neighborIds) {
+      const neighbor = meshData.getVertex(nId);
+
+      const mid = new THREE.Vector3()
+        .addVectors(neighbor.position, vertex.position)
+        .multiplyScalar(0.5);
+
+      center.add(mid);
+    }
+
+    center.divideScalar(neighborIds.length);
 
     return center;
   }
