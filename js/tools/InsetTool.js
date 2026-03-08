@@ -28,6 +28,12 @@ export class InsetTool {
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
 
     this.setupTransformListeners();
+    this.setupListeners();
+
+    this._onPointerDown = this.onPointerDown.bind(this);
+    this._onPointerMove = this.onPointerMove.bind(this);
+    this._onPointerUp = this.onPointerUp.bind(this);
+    this._onKeyDown = this.onKeyDown.bind(this);
   }
 
   enableFor(object) {
@@ -48,6 +54,27 @@ export class InsetTool {
   disable() {
     this.transformControls.detach();
     this.transformControls.visible = false;
+  }
+
+  setupListeners() {
+    this.signals.editInsetStart.add(() => {
+      this.editedObject = this.editSelection.editedObject;
+      if (!this.editedObject || !this.handle) return;
+
+      if (this.activeTransformSource !== null) return;
+
+      if (this.handle && this.transformControls.worldPositionStart) {
+        this.handle.getWorldPosition(this.transformControls.worldPositionStart);
+      }
+
+      this.activeTransformSource = 'command';
+      this.startInsetSession();
+
+      this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+      this.applyInsetSession();
+
+      this.signals.transformDragStarted.dispatch('edit');
+    });
   }
 
   showCenterOnly() {
@@ -111,6 +138,41 @@ export class InsetTool {
     });
   }
 
+  // Command Control
+  onPointerMove() {
+    if (this.activeTransformSource !== 'command') return;
+    this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+    this.applyInsetSession();
+    this.signals.objectChanged.dispatch();
+  }
+
+  onPointerDown() {
+    if (this.activeTransformSource !== 'command') return;
+    this.commitInsetSession();
+    this.transformSolver.clearGizmoActiveVisualState();
+    this.transformSolver.clear();
+  }
+
+  onPointerUp() {
+    if (this.activeTransformSource !== 'command') return;
+    this.clearCommandTransformState();
+  }
+
+  onKeyDown(event) {
+    if (this.activeTransformSource !== 'command') return;
+
+    if (event.key === 'Escape') {
+      this.cancelInsetSession();
+      this.clearCommandTransformState();
+    }
+
+    if (event.key === 'Enter') {
+      this.commitInsetSession();
+      this.clearCommandTransformState();
+    }
+  }
+
+  // Inset Session
   startInsetSession() {
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject || !this.handle) return;
@@ -148,7 +210,7 @@ export class InsetTool {
 
     if (!this.insetStarted) {
       this.startInset();
-      this.editSelection.selectFaces(this.newFaceIds);
+      this.editSelection.selectFaces(Array.from(this.newFaceIds));
       this.handle.position.copy(this.startPivotPosition);
       this.insetStarted = true;
     }
@@ -156,7 +218,6 @@ export class InsetTool {
   }
 
   commitInsetSession() {
-    console.log(this.width);
     if (!this.width || this.width === 0) {
       this.cancelInsetSession();
       this.clearCommandTransformState();
@@ -183,7 +244,7 @@ export class InsetTool {
 
   cancelInsetSession() {
     this.editedObject = this.editSelection.editedObject;
-    if (!this.editedObject) return;
+    if (!this.editedObject || !this.startPivotPosition) return;
 
     this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
@@ -258,7 +319,7 @@ export class InsetTool {
         let insetDir = new THREE.Vector3();
 
         const vertex = meshData.getVertex(originalVertexId);
-        const basePosition = new THREE.Vector3().copy(vertex.position);
+        const basePosition = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
 
         const faceIds = this.getConnectedFaces(meshData, originalVertexId, groupFaceIdsSet);
 
@@ -269,10 +330,12 @@ export class InsetTool {
         let toCenter = new THREE.Vector3();
         const insideNeighbors = selectedNeighbors.filter(vId => !neighbors.includes(vId));
         if (insideNeighbors.length > 0) {
-          const center = this.computeAverageMidpoint(meshData, originalVertexId, insideNeighbors)
+          const center = this.computeAverageMidpoint(meshData, originalVertexId, insideNeighbors);
+          center.applyMatrix4(this.editedObject.matrixWorld);
           toCenter = new THREE.Vector3().subVectors(center, basePosition).normalize();
         } else {
           const center = this.computeFacesCenter(meshData, faceIds);
+          center.applyMatrix4(this.editedObject.matrixWorld);
           toCenter = new THREE.Vector3().subVectors(center, basePosition).normalize();
         }
 
@@ -339,6 +402,7 @@ export class InsetTool {
         }
 
         const miterScale = (this.calculateScaleFactor(insetDir, e1) + this.calculateScaleFactor(insetDir, e2)) * 0.5;
+        insetDir.transformDirection(this.editedObject.matrixWorld).normalize();
 
         this.insetMoveData.set(newVertexId, {
           originalVertexId,
@@ -467,9 +531,9 @@ export class InsetTool {
     this.newFaceIds = null;
     this.startScreen = null;
     this.insetMoveData = null;
+    this.width = null;
 
     this.insetStarted = false;
-    this.width = null;
   }
 
   getConnectedVertices(vertexId, edges) {

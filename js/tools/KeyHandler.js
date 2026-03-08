@@ -178,6 +178,10 @@ export class KeyHandler {
         this.editor.toolbar.setActiveTool('bevel');
         this.signals.editBevelStart.dispatch();
         handled = true;
+      } else if (event.key === 'i') {
+        this.editor.toolbar.setActiveTool('inset');
+        this.signals.editInsetStart.dispatch();
+        handled = true;
       }
     }
 
