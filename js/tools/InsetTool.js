@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
+import { InsetCommand } from '../commands/InsetCommand.js';
 
 export class InsetTool {
   constructor(editor) {
@@ -122,6 +123,9 @@ export class InsetTool {
     this.newFaceIds = [];
     this.insetMoveData = new Map();
 
+    const meshData = this.editedObject.userData.meshData;
+    this.beforeMeshData = structuredClone(meshData);
+
     this.selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
     if (this.selectedFaceIds.length <= 0) {
       this.clearStartData();
@@ -152,10 +156,13 @@ export class InsetTool {
   }
 
   commitInsetSession() {
-    const meshData = this.editedObject.userData.meshData;
-    this.afterMeshData = structuredClone(meshData);
-
-    this.clearCommandTransformState();
+    console.log(this.width);
+    if (!this.width || this.width === 0) {
+      this.cancelInsetSession();
+      this.clearCommandTransformState();
+      this.clearStartData();
+      return;
+    }
 
     this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.updateGeometryAndHelpers();
@@ -166,8 +173,26 @@ export class InsetTool {
       return;
     }
 
+    const meshData = this.editedObject.userData.meshData;
+    this.afterMeshData = structuredClone(meshData);
+    this.editor.execute(new InsetCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
+
     this.updateSelectionAfterInset();
     this.clearStartData();
+  }
+
+  cancelInsetSession() {
+    this.editedObject = this.editSelection.editedObject;
+    if (!this.editedObject) return;
+
+    this.vertexEditor.setObject(this.editedObject);
+    this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
+
+    this.handle.position.copy(this.startPivotPosition);
+    this.handle.updateMatrixWorld(true);
+
+    this.editSelection.selectFaces(this.selectedFaceIds);
   }
 
   clearCommandTransformState() {
@@ -175,7 +200,6 @@ export class InsetTool {
 
     this.transformSolver.clear();
     this.transformSolver.clearGizmoActiveVisualState();
-    this.transformControls;
 
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('edit');
@@ -193,8 +217,6 @@ export class InsetTool {
 
   startInset() {
     const meshData = this.editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
-
     const faceSet = this.editSelection.selectedFaceIds;
     const selectedFaceIds = Array.from(faceSet);
     
@@ -447,6 +469,7 @@ export class InsetTool {
     this.insetMoveData = null;
 
     this.insetStarted = false;
+    this.width = null;
   }
 
   getConnectedVertices(vertexId, edges) {
