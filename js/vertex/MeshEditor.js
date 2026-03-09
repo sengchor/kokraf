@@ -146,4 +146,14 @@ export class MeshEditor {
 
     return center;
   }
+
+  applyLocationToGeometry(meshData, offset) {
+    if (!meshData || meshData.vertices.size === 0) return;
+
+    for (const v of meshData.vertices.values()) {
+      v.position.x += offset.x;
+      v.position.y += offset.y;
+      v.position.z += offset.z;
+    }
+  }
 }

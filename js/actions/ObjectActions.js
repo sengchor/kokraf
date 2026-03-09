@@ -7,6 +7,7 @@ import { DuplicateObjectCommand } from '../commands/DuplicateObjectCommand.js';
 import { SetPositionCommand } from "../commands/SetPositionCommand.js";
 import { SetOriginToGeometryCommand } from '../commands/SetOriginToGeometryCommand.js';
 import { SetGeometryToOriginCommand } from '../commands/SetGeometryToOriginCommand.js';
+import { ApplyLocationCommand } from '../commands/ApplyLocationCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -42,6 +43,23 @@ export class ObjectActions {
 
     if (action === 'origin-geometry') {
       this.setOriginToGeometry();
+      return;
+    }
+
+    if (action === 'apply-location') {
+      this.applyLocationToObjects();
+      return;
+    }
+
+    if (action === 'apply-rotation') {
+      return;
+    }
+
+    if (action === 'apply-scale') {
+      return;
+    }
+
+    if (action === 'apply-transform') {
       return;
     }
 
@@ -198,5 +216,21 @@ export class ObjectActions {
 
   pasteObjects() {
     this.clipboardManager.pasteObjects();
+  }
+
+  applyLocationToObjects() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    const multi = new SequentialMultiCommand(this.editor, 'Apply Location');
+
+    for (const object of objects) {
+      multi.add(() => new ApplyLocationCommand(this.editor, object));
+    }
+
+    this.editor.execute(multi);
+
+    this.editor.selection.select(objects);
+    this.editor.toolbar.updateTools();
   }
 }
