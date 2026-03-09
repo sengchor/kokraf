@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-export class ApplyLocationCommand {
-  static type = 'ApplyLocationCommand';
+export class ApplyScaleCommand {
+  static type = 'ApplyScaleCommand';
 
   /**
    * @param {Editor} editor
@@ -9,14 +9,14 @@ export class ApplyLocationCommand {
    */
   constructor(editor, object = null) {
     this.editor = editor;
-    this.name = 'Apply Location';
-    
+    this.name = 'Apply Scale';
+
     this.meshEditor = editor.meshEditor;
     this.vertexEditor = editor.vertexEditor;
 
     if (object) {
       this.objectUuid = object.uuid;
-      this.offset = object.position.clone();
+      this.scale = object.scale.clone();
     }
   }
 
@@ -24,9 +24,9 @@ export class ApplyLocationCommand {
     const object = this.editor.objectByUuid(this.objectUuid);
     const meshData = object.userData.meshData;
 
-    this.meshEditor.applyLocationToGeometry(meshData, this.offset);
+    this.meshEditor.applyScaleToGeometry(meshData, this.scale);
 
-    object.position.sub(this.offset);
+    object.scale.set(1, 1, 1);
     object.updateMatrixWorld(true);
 
     this.vertexEditor.setObject(object);
@@ -39,9 +39,15 @@ export class ApplyLocationCommand {
     const object = this.editor.objectByUuid(this.objectUuid);
     const meshData = object.userData.meshData;
 
-    this.meshEditor.applyLocationToGeometry(meshData, this.offset.clone().negate());
+    const inverseScale = new THREE.Vector3(
+      1 / this.scale.x,
+      1 / this.scale.y,
+      1 / this.scale.z
+    );
 
-    object.position.add(this.offset);
+    this.meshEditor.applyScaleToGeometry(meshData, inverseScale);
+
+    object.scale.copy(this.scale);
     object.updateMatrixWorld(true);
 
     this.vertexEditor.setObject(object);
@@ -52,17 +58,17 @@ export class ApplyLocationCommand {
 
   toJSON() {
     return {
-      type: ApplyLocationCommand.type,
+      type: ApplyScaleCommand.type,
       objectUuid: this.objectUuid,
-      offset: this.offset.toArray()
+      scale: this.scale.toArray()
     };
   }
 
   static fromJSON(editor, json) {
-    const cmd = new ApplyLocationCommand(editor);
+    const cmd = new ApplyScaleCommand(editor);
 
     cmd.objectUuid = json.objectUuid;
-    cmd.offset = new THREE.Vector3().fromArray(json.offset);
+    cmd.scale = new THREE.Vector3().fromArray(json.scale);
 
     return cmd;
   }

@@ -31,6 +31,8 @@ import { SetGeometryToOriginCommand } from './SetGeometryToOriginCommand.js';
 import { BevelCommand } from './BevelCommand.js';
 import { InsetCommand } from './InsetCommand.js';
 import { ApplyLocationCommand } from './ApplyLocationCommand.js';
+import { ApplyRotationCommand } from './ApplyRotationCommand.js';
+import { ApplyScaleCommand } from './ApplyScaleCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -66,4 +68,6 @@ export const commands = new Map([
   [BevelCommand.type, BevelCommand],
   [InsetCommand.type, InsetCommand],
   [ApplyLocationCommand.type, ApplyLocationCommand],
+  [ApplyRotationCommand.type, ApplyRotationCommand],
+  [ApplyScaleCommand.type, ApplyScaleCommand],
 ]);

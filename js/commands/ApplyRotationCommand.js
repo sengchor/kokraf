@@ -1,22 +1,22 @@
 import * as THREE from 'three';
 
-export class ApplyLocationCommand {
-  static type = 'ApplyLocationCommand';
+export class ApplyRotationCommand {
+  static type = 'ApplyRotationCommand';
 
   /**
-   * @param {Editor} editor
+   * @param {Editor} edtior
    * @param {THREE.Object3D|null} object
    */
   constructor(editor, object = null) {
     this.editor = editor;
-    this.name = 'Apply Location';
+    this.name = 'Apply Rotation';
     
     this.meshEditor = editor.meshEditor;
     this.vertexEditor = editor.vertexEditor;
 
     if (object) {
       this.objectUuid = object.uuid;
-      this.offset = object.position.clone();
+      this.quaternion = object.quaternion.clone();
     }
   }
 
@@ -24,9 +24,9 @@ export class ApplyLocationCommand {
     const object = this.editor.objectByUuid(this.objectUuid);
     const meshData = object.userData.meshData;
 
-    this.meshEditor.applyLocationToGeometry(meshData, this.offset);
+    this.meshEditor.applyRotationToGeometry(meshData, this.quaternion);
 
-    object.position.sub(this.offset);
+    object.quaternion.multiply(this.quaternion.clone().invert());
     object.updateMatrixWorld(true);
 
     this.vertexEditor.setObject(object);
@@ -39,9 +39,9 @@ export class ApplyLocationCommand {
     const object = this.editor.objectByUuid(this.objectUuid);
     const meshData = object.userData.meshData;
 
-    this.meshEditor.applyLocationToGeometry(meshData, this.offset.clone().negate());
+    this.meshEditor.applyRotationToGeometry(meshData, this.quaternion.clone().invert());
 
-    object.position.add(this.offset);
+    object.quaternion.multiply(this.quaternion);
     object.updateMatrixWorld(true);
 
     this.vertexEditor.setObject(object);
@@ -52,17 +52,17 @@ export class ApplyLocationCommand {
 
   toJSON() {
     return {
-      type: ApplyLocationCommand.type,
+      type: ApplyRotationCommand.type,
       objectUuid: this.objectUuid,
-      offset: this.offset.toArray()
+      quaternion: this.quaternion.toArray()
     };
   }
 
   static fromJSON(editor, json) {
-    const cmd = new ApplyLocationCommand(editor);
+    const cmd = new ApplyRotationCommand(editor);
 
     cmd.objectUuid = json.objectUuid;
-    cmd.offset = new THREE.Vector3().fromArray(json.offset);
+    cmd.quaternion = new THREE.Quaternion().fromArray(json.quaternion);
 
     return cmd;
   }

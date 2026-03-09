@@ -8,6 +8,8 @@ import { SetPositionCommand } from "../commands/SetPositionCommand.js";
 import { SetOriginToGeometryCommand } from '../commands/SetOriginToGeometryCommand.js';
 import { SetGeometryToOriginCommand } from '../commands/SetGeometryToOriginCommand.js';
 import { ApplyLocationCommand } from '../commands/ApplyLocationCommand.js';
+import { ApplyRotationCommand } from '../commands/ApplyRotationCommand.js';
+import { ApplyScaleCommand } from '../commands/ApplyScaleCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -52,10 +54,12 @@ export class ObjectActions {
     }
 
     if (action === 'apply-rotation') {
+      this.applyRotationToObjects();
       return;
     }
 
     if (action === 'apply-scale') {
+      this.applyScaleToObjects();
       return;
     }
 
@@ -226,6 +230,38 @@ export class ObjectActions {
 
     for (const object of objects) {
       multi.add(() => new ApplyLocationCommand(this.editor, object));
+    }
+
+    this.editor.execute(multi);
+
+    this.editor.selection.select(objects);
+    this.editor.toolbar.updateTools();
+  }
+
+  applyRotationToObjects() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    const multi = new SequentialMultiCommand(this.editor, 'Apply Rotation');
+
+    for (const object of objects) {
+      multi.add(() => new ApplyRotationCommand(this.editor, object));
+    }
+
+    this.editor.execute(multi);
+
+    this.editor.selection.select(objects);
+    this.editor.toolbar.updateTools();
+  }
+
+  applyScaleToObjects() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    const multi = new SequentialMultiCommand(this.editor, 'Apply Scale');
+
+    for (const object of objects) {
+      multi.add(() => new ApplyScaleCommand(this.editor, object));
     }
 
     this.editor.execute(multi);

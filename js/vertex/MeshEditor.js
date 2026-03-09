@@ -156,4 +156,29 @@ export class MeshEditor {
       v.position.z += offset.z;
     }
   }
+
+  applyRotationToGeometry(meshData, quaternion) {
+    if (!meshData || meshData.vertices.size === 0) return;
+
+    const v = new THREE.Vector3();
+
+    for (const vert of meshData.vertices.values()) {
+      v.set(vert.position.x, vert.position.y, vert.position.z);
+      v.applyQuaternion(quaternion);
+
+      vert.position.x = v.x;
+      vert.position.y = v.y;
+      vert.position.z = v.z;
+    }
+  }
+
+  applyScaleToGeometry(meshData, scale) {
+    if (!meshData || meshData.vertices.size === 0) return;
+
+    for (const v of meshData.vertices.values()) {
+      v.position.x *= scale.x;
+      v.position.y *= scale.y;
+      v.position.z *= scale.z;
+    }
+  }
 }
