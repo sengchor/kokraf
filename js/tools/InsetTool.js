@@ -3,6 +3,7 @@ import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
 import { InsetCommand } from '../commands/InsetCommand.js';
+import { ToolNumericInput } from './ToolNumericInput.js';
 
 export class InsetTool {
   constructor(editor) {
@@ -26,6 +27,12 @@ export class InsetTool {
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
+    this.toolNumericInput = new ToolNumericInput({
+      tool: this,
+      label: 'Width',
+      getter: () => this.width,
+      setter: (v) => this.applyInsetWidth(v),
+    });
 
     this.setupTransformListeners();
     this.setupListeners();
@@ -140,7 +147,7 @@ export class InsetTool {
 
   // Command Control
   onPointerMove() {
-    if (this.activeTransformSource !== 'command') return;
+    if (this.activeTransformSource !== 'command' || this.toolNumericInput.active) return;
     this.transformSolver.updateHandleFromCommandInput('translate', this.event);
     this.applyInsetSession();
     this.signals.objectChanged.dispatch();
@@ -156,19 +163,26 @@ export class InsetTool {
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
     this.clearCommandTransformState();
+    this.toolNumericInput.reset();
   }
 
   onKeyDown(event) {
     if (this.activeTransformSource !== 'command') return;
 
+    if (this.toolNumericInput.handleKey(event, this.mode)) {
+      return;
+    }
+
     if (event.key === 'Escape') {
       this.cancelInsetSession();
       this.clearCommandTransformState();
+      this.toolNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitInsetSession();
       this.clearCommandTransformState();
+      this.toolNumericInput.reset();
     }
   }
 
@@ -203,6 +217,8 @@ export class InsetTool {
     );
 
     this.insetStarted = false;
+
+    this.signals.onToolStarted.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   applyInsetSession() {
@@ -215,6 +231,8 @@ export class InsetTool {
       this.insetStarted = true;
     }
     this.updateInset();
+
+    this.signals.onToolUpdated.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   commitInsetSession() {
@@ -222,6 +240,7 @@ export class InsetTool {
       this.cancelInsetSession();
       this.clearCommandTransformState();
       this.clearStartData();
+      this.toolNumericInput.reset();
       return;
     }
 
@@ -240,6 +259,8 @@ export class InsetTool {
 
     this.updateSelectionAfterInset();
     this.clearStartData();
+
+    this.signals.onToolEnded.dispatch();
   }
 
   cancelInsetSession() {
@@ -254,6 +275,8 @@ export class InsetTool {
     this.handle.updateMatrixWorld(true);
 
     this.editSelection.selectFaces(this.selectedFaceIds);
+
+    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -474,21 +497,7 @@ export class InsetTool {
 
     const depth = this.startPivotPosition.distanceTo(this.camera.position);
     this.width = this.pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
-
-    const newPositions = [];
-    const newBoundaryVertexIds = Array.from(this.boundaryVertexIdsSet);
-    for (const vId of newBoundaryVertexIds) {
-      const moveData = this.insetMoveData.get(vId);
-      if (!moveData) continue;
-
-      const basePosition = moveData.basePosition;
-      const direction = moveData.direction;
-      const newPos = basePosition.clone().addScaledVector(direction, this.width * moveData.scale);
-
-      newPositions.push(newPos);
-    }
-
-    this.vertexEditor.transform.setVerticesWorldPositions(newBoundaryVertexIds, newPositions);
+    this.applyInsetWidth(this.width);
   }
 
   projectToScreen(worldPosition, camera, domElement) {
@@ -610,5 +619,25 @@ export class InsetTool {
     center.divideScalar(neighborIds.length);
 
     return center;
+  }
+
+  applyInsetWidth(value) {
+    if (!value) { value = 0 };
+    this.width = value;
+
+    const newPositions = [];
+    const newBoundaryVertexIds = Array.from(this.boundaryVertexIdsSet);
+    for (const vId of newBoundaryVertexIds) {
+      const moveData = this.insetMoveData.get(vId);
+      if (!moveData) continue;
+
+      const basePosition = moveData.basePosition;
+      const direction = moveData.direction;
+      const newPos = basePosition.clone().addScaledVector(direction, this.width * moveData.scale);
+
+      newPositions.push(newPos);
+    }
+
+    this.vertexEditor.transform.setVerticesWorldPositions(newBoundaryVertexIds, newPositions);
   }
 }
