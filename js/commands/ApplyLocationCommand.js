@@ -11,6 +11,7 @@ export class ApplyLocationCommand {
     this.editor = editor;
     this.name = 'Apply Location';
     
+    this.signals = editor.signals;
     this.meshEditor = editor.meshEditor;
     this.vertexEditor = editor.vertexEditor;
 
@@ -33,6 +34,7 @@ export class ApplyLocationCommand {
     this.vertexEditor.transform.updateGeometryAndHelpers();
 
     this.editor.toolbar.updateTools();
+    this.signals.objectChanged.dispatch();
   }
 
   undo() {
@@ -48,6 +50,7 @@ export class ApplyLocationCommand {
     this.vertexEditor.transform.updateGeometryAndHelpers();
 
     this.editor.toolbar.updateTools();
+    this.signals.objectChanged.dispatch();
   }
 
   toJSON() {

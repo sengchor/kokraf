@@ -11,6 +11,7 @@ export class ApplyScaleCommand {
     this.editor = editor;
     this.name = 'Apply Scale';
 
+    this.signals = editor.signals;
     this.meshEditor = editor.meshEditor;
     this.vertexEditor = editor.vertexEditor;
 
@@ -33,6 +34,7 @@ export class ApplyScaleCommand {
     this.vertexEditor.transform.updateGeometryAndHelpers();
 
     this.editor.toolbar.updateTools();
+    this.signals.objectChanged.dispatch();
   }
 
   undo() {
@@ -54,6 +56,7 @@ export class ApplyScaleCommand {
     this.vertexEditor.transform.updateGeometryAndHelpers();
 
     this.editor.toolbar.updateTools();
+    this.signals.objectChanged.dispatch();
   }
 
   toJSON() {

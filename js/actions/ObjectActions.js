@@ -64,6 +64,7 @@ export class ObjectActions {
     }
 
     if (action === 'apply-transform') {
+      this.applyTransformToObjects();
       return;
     }
 
@@ -262,6 +263,24 @@ export class ObjectActions {
 
     for (const object of objects) {
       multi.add(() => new ApplyScaleCommand(this.editor, object));
+    }
+
+    this.editor.execute(multi);
+
+    this.editor.selection.select(objects);
+    this.editor.toolbar.updateTools();
+  }
+
+  applyTransformToObjects() {
+    const objects = this.selection.selectedObjects;
+    if (!objects || objects.length === 0) return;
+
+    const multi = new SequentialMultiCommand(this.editor, 'Apply Transform');
+
+    for (const object of objects) {
+      multi.add(() => new ApplyScaleCommand(this.editor, object));
+      multi.add(() => new ApplyRotationCommand(this.editor, object));
+      multi.add(() => new ApplyLocationCommand(this.editor, object));
     }
 
     this.editor.execute(multi);
