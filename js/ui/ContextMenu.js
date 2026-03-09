@@ -80,6 +80,8 @@ export default class ContextMenu {
           this.editActions.handleAction(action);
         } else if (mode === 'delete') {
           this.editActions.handleAction(action);
+        } else if (mode === 'apply') {
+          this.objectActions.handleAction(action);
         }
 
         this.hide();
@@ -109,6 +111,9 @@ export default class ContextMenu {
       if (e.key === 'Delete') {
         this.menuTrigger = 'delete';
         this.show(this.lastMouse.x, this.lastMouse.y);
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'a') {
+        this.menuTrigger = 'apply';
+        this.show(this.lastMouse.x, this.lastMouse.y);
       }
     })
   }
@@ -123,6 +128,11 @@ export default class ContextMenu {
     let visible = false;
     if (this.menuTrigger === 'mouse' && this.currentMode === 'object') {
       this.showSection('object');
+      visible = true;
+    }
+
+    if (this.menuTrigger === 'apply' && this.currentMode === 'object') {
+      this.showSection('apply');
       visible = true;
     }
 

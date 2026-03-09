@@ -118,6 +118,8 @@ export class KeyHandler {
         event.preventDefault();
         this.signals.objectJoined.dispatch();
         handled = true;
+      } else if (event.ctrlKey && event.key.toLowerCase() === 'a') {
+        handled = true;
       } else if (event.key === 'a') {
         this.signals.objectSelectAll.dispatch();
         handled = true;
@@ -167,6 +169,8 @@ export class KeyHandler {
         handled = true;
       } else if (event.key === 'y') {
         this.signals.splitSelection.dispatch();
+        handled = true;
+      } else if (event.ctrlKey && event.key.toLowerCase() === 'a') {
         handled = true;
       } else if (event.key === 'a') {
         this.signals.editSelectAll.dispatch();
