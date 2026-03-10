@@ -17,9 +17,12 @@ export class LoopCutTool {
     this.active = false;
     this.editSelection = editor.editSelection;
     this.editedObject = null;
+    this.previewLines = [];
+    this.cutCount = 2;
 
     this._onPointerDown = this.onPointerDown.bind(this);
     this._onPointerMove = this.onPointerMove.bind(this);
+    this._onMouseWheel = this.onMouseWheel.bind(this);
   }
 
   enable() {
@@ -27,6 +30,7 @@ export class LoopCutTool {
     this.active = true;
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
+    this.renderer.domElement.addEventListener('wheel', this._onMouseWheel, { passive: false, capture: true });
   }
 
   disable() {
@@ -39,24 +43,12 @@ export class LoopCutTool {
     if (event.button !== 0) return;
     if (!this.active) return;
 
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
-
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObject(this.editedObject, false);
-    if (intersects.length === 0) return;
-
     const meshData = this.editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
-    const startEdge = this.getStartEdgeFromIntersect(meshData, intersects[0]);
-    if (!startEdge) return;
-    const loopEdges = this.getLoopEdges(meshData, startEdge);
 
-    if (!loopEdges || loopEdges.length < 2) return;
+    const loopEdges = this.getLoopEdgesFromMouse(event, meshData);
+    if (!loopEdges) return;
 
     const isClosedLoop = loopEdges[0].id === loopEdges[loopEdges.length - 1].id;
     const count = isClosedLoop ? loopEdges.length - 1 : loopEdges.length;
@@ -89,32 +81,39 @@ export class LoopCutTool {
   onPointerMove(event) {
     if (!this.active) return;
 
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    this.editedObject = this.editSelection.editedObject;
+    if (!this.editedObject) return;
+    const meshData = this.editedObject.userData.meshData;
+
+    const loopEdges = this.getLoopEdgesFromMouse(event, meshData);
+    if (!loopEdges) {
+      this.clearPreview();
+      return;
+    }
+
+    this.showPreview(meshData, loopEdges);
+  }
+
+  onMouseWheel(event) {
+    if (!this.active) return;
 
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
-
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObject(this.editedObject, false);
-    if (intersects.length === 0) {
-      this.clearPreview();
-      return;
-    }
-
     const meshData = this.editedObject.userData.meshData;
-    const startEdge = this.getStartEdgeFromIntersect(meshData, intersects[0]);
-    if (!startEdge) {
+
+    const loopEdges = this.getLoopEdgesFromMouse(event, meshData);
+    if (!loopEdges) {
       this.clearPreview();
       return;
     }
 
-    const loopEdges = this.getLoopEdges(meshData, startEdge);
-    if (!loopEdges || loopEdges.length < 2) {
-      this.clearPreview();
-      return;
-    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    if (event.deltaY < 0) this.cutCount++;
+    else this.cutCount--;
+
+    this.cutCount = Math.max(1, this.cutCount);
 
     this.showPreview(meshData, loopEdges);
   }
@@ -373,45 +372,88 @@ export class LoopCutTool {
   }
 
   showPreview(meshData, loopEdges) {
-    if (this.previewLine) this.scene.remove(this.previewLine);
+    this.clearPreview();
 
-    const points = [];
-    for (const edge of loopEdges) {
-      const v1 = meshData.getVertex(edge.v1Id).position;
-      const v2 = meshData.getVertex(edge.v2Id).position;
-      const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
-      points.push(mid.x, mid.y, mid.z);
+    for (let c = 0; c < this.cutCount; c++) {
+      const t = (c + 1) / (this.cutCount + 1);
+
+      const points = [];
+
+      let lastVertex = null;
+      for (const edge of loopEdges) {
+        let v1 = meshData.getVertex(edge.v1Id);
+        let v2 = meshData.getVertex(edge.v2Id);
+
+        if (lastVertex) {
+          const verifyEdge = meshData.getEdge(lastVertex.id, v1.id);
+
+          if (!verifyEdge) {
+            [v1, v2] = [v2, v1];
+          }
+        }
+
+        const p = new THREE.Vector3().lerpVectors(v1.position, v2.position, t);
+        points.push(p.x, p.y, p.z);
+
+        lastVertex = v1;
+      }
+
+      const geometry = new LineGeometry();
+      geometry.setPositions(points);
+
+      const material = new LineMaterial({
+        color: 0xffff00,
+        linewidth: 1,
+        transparent: false,
+        opacity: 0.9,
+        depthTest: false,
+      });
+      material.resolution.set(window.innerWidth, window.innerHeight);
+
+      const line = new Line2(geometry, material);
+      line.computeLineDistances();
+
+      line.matrix.copy(this.editedObject.matrixWorld);
+      line.matrix.decompose(
+        line.position,
+        line.quaternion,
+        line.scale
+      );
+
+      this.scene.add(line);
+      this.previewLines.push(line);
     }
-
-    const geometry = new LineGeometry();
-    geometry.setPositions(points);
-
-    const material = new LineMaterial({
-      color: 0xffff00,
-      linewidth: 1,
-      transparent: false,
-      opacity: 0.9,
-      depthTest: false,
-    });
-    material.resolution.set(window.innerWidth, window.innerHeight);
-
-    this.previewLine = new Line2(geometry, material);
-    this.previewLine.computeLineDistances();
-    this.previewLine.matrix.copy(this.editedObject.matrixWorld);
-    this.previewLine.matrix.decompose(
-      this.previewLine.position,
-      this.previewLine.quaternion,
-      this.previewLine.scale
-    );
-    this.scene.add(this.previewLine);
   }
 
   clearPreview() {
-    if (!this.previewLine) return;
+    if (!this.previewLines || this.previewLines.length === 0) return;
 
-    this.scene.remove(this.previewLine);
-    this.previewLine.geometry.dispose();
-    this.previewLine.material.dispose();
-    this.previewLine = null;
+    for (const line of this.previewLines) {
+      this.scene.remove(line);
+      line.geometry.dispose();
+      line.material.dispose();
+    }
+
+    this.previewLines = [];
+  }
+
+  getLoopEdgesFromMouse(event, meshData) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    const intersects = this.raycaster.intersectObject(this.editedObject, false);
+    if (intersects.length === 0) return null;
+
+    const startEdge = this.getStartEdgeFromIntersect(meshData, intersects[0]);
+    if (!startEdge) return null;
+
+    const loopEdges = this.getLoopEdges(meshData, startEdge);
+    if (!loopEdges || loopEdges.length < 2) return null;
+
+    return loopEdges;
   }
 }

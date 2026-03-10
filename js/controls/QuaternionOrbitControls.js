@@ -75,6 +75,8 @@ export class QuaternionOrbitControls {
 
 		if (this.keyHandler.activeInteraction) return;
 
+		if (event.defaultPrevented) return;
+
 		if (event.deltaY === 0) {
 			event.preventDefault();
 			return;
