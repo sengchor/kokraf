@@ -18,7 +18,7 @@ export class LoopCutTool {
     this.editSelection = editor.editSelection;
     this.editedObject = null;
     this.previewLines = [];
-    this.cutCount = 2;
+    this.cutCount = 1;
 
     this._onPointerDown = this.onPointerDown.bind(this);
     this._onPointerMove = this.onPointerMove.bind(this);
@@ -46,6 +46,7 @@ export class LoopCutTool {
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
     const meshData = this.editedObject.userData.meshData;
+    this.beforeMeshData = structuredClone(meshData);
 
     const loopEdges = this.getLoopEdgesFromMouse(event, meshData);
     if (!loopEdges) return;
@@ -54,12 +55,30 @@ export class LoopCutTool {
     const count = isClosedLoop ? loopEdges.length - 1 : loopEdges.length;
 
     const newVertices = [];
-    for (let i = 0; i < count; i++) {
-      const edge = loopEdges[i];
-      const v1 = meshData.getVertex(edge.v1Id).position;
-      const v2 = meshData.getVertex(edge.v2Id).position;
-      const newPos = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
-      newVertices.push(meshData.addVertex(newPos));
+    for (let c = 0; c < this.cutCount; c++) {
+      const t = (c + 1) / (this.cutCount + 1);
+
+      const edgeVertices = [];
+      let lastVertex = null;
+      for (let i = 0; i < count; i++) {
+        const edge = loopEdges[i];
+        let v1 = meshData.getVertex(edge.v1Id);
+        let v2 = meshData.getVertex(edge.v2Id);
+
+        if (lastVertex) {
+          const verifyEdge = meshData.getEdge(lastVertex.id, v1.id);
+
+          if (!verifyEdge) {
+            [v1, v2] = [v2, v1];
+          }
+        }
+
+        const pos = new THREE.Vector3().lerpVectors(v1.position, v2.position, t);
+        edgeVertices.push(meshData.addVertex(pos));
+
+        lastVertex = v1;
+      }
+      newVertices.push(edgeVertices);
     }
 
     const newEdges = this.applyLoopCut(meshData, loopEdges, newVertices, isClosedLoop);
@@ -70,7 +89,7 @@ export class LoopCutTool {
 
     const mode = this.editSelection.subSelectionMode;
     if (mode === 'vertex') {
-      this.editSelection.selectVertices(newVertices.map(v => v.id));
+      this.editSelection.selectVertices(newVertices.flat().map(v => v.id));
     } else if (mode === 'edge') {
       this.editSelection.selectEdges(newEdges.map(e => e.id));
     } else if (mode === 'face') {
@@ -172,17 +191,6 @@ export class LoopCutTool {
     return null;
   }
 
-  isClosedLoop(leftLoop, rightLoop) {
-    if (leftLoop.length !== rightLoop.length) return false;
-
-    for (let i = 0; i < leftLoop.length; i++) {
-      if (leftLoop[i].id !== rightLoop[rightLoop.length - 1 - i].id) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   traverseEdgeLoop(meshData, startEdge, startFace) {
     const visitedLocal = new Set();
     let closedLoop = false;
@@ -282,54 +290,75 @@ export class LoopCutTool {
 
   applyLoopCut(meshData, loopEdges, newVertices, isClosedLoop) {
     const newEdges = [];
-    for (let i = 0; i < loopEdges.length; i++) {
+    const cutCount = newVertices.length;
+    const count = isClosedLoop ? loopEdges.length - 1 : loopEdges.length;
+
+    const alignedVertices = this.getAlignedEdgeVertices(meshData, loopEdges);
+
+    for (let i = 0; i < loopEdges.length - 1; i++) {
       const edge = loopEdges[i];
-      const nextEdge = loopEdges[(i + 1) % loopEdges.length];
+      const nextEdge = loopEdges[i + 1];
 
       const face = this.findSharedFace(meshData, edge, nextEdge);
-      const originalFaceNormal = calculateFaceNormal(meshData, face);
-
-      if (face) {
-        meshData.deleteFace(face);
-      }
-
-      const midVertex = newVertices[i];
-      const nextMidVertex = (isClosedLoop && i === newVertices.length - 1) ? newVertices[0] : newVertices[(i + 1) % loopEdges.length];
-
       if (!face) continue;
-      const sameDirection = !!meshData.getEdge(edge.v1Id, nextEdge.v1Id);
+      const originalFaceNormal = calculateFaceNormal(meshData, face);
+      meshData.deleteFace(face);
 
-      let quad1, quad2;
+      // Get correctly aligned vertices for this face segment
+      const alignA = alignedVertices[i];
+      const alignB = (isClosedLoop && i === loopEdges.length - 1) ? alignedVertices[0]
+        : alignedVertices[(i + 1) % count];
 
-      const v1 = meshData.getVertex(edge.v1Id);
-      const v2 = meshData.getVertex(edge.v2Id);
-      const nextV1 = meshData.getVertex(nextEdge.v1Id);
-      const nextV2 = meshData.getVertex(nextEdge.v2Id);
+      const chainA = [alignA.v1];
+      const chainB = [alignB.v1];
 
-      if (sameDirection) {
-        quad1 = [v1, nextV1, nextMidVertex, midVertex];
-        quad2 = [v2, nextV2, nextMidVertex, midVertex];
-      } else {
-        quad1 = [v1, nextV2, nextMidVertex, midVertex];
-        quad2 = [v2, nextV1, nextMidVertex, midVertex];
+      // Add cut vertices in correct order
+      for (let c = 0; c < cutCount; c++) {
+        const vA = newVertices[c][i];
+        const vB = (isClosedLoop && i === loopEdges.length - 1) ? newVertices[c][0]
+          : newVertices[c][(i + 1) % count];
+
+        chainA.push(vA);
+        chainB.push(vB);
       }
 
-      [quad1, quad2].forEach(quad => {
+      chainA.push(alignA.v2);
+      chainB.push(alignB.v2);
+
+      // create quads
+      for (let j = 0; j < chainA.length - 1; j++) {
+        const quad = [chainA[j], chainB[j], chainB[j + 1], chainA[j + 1]];
+
         const normal = calculateVerticesNormal(quad);
         if (normal.dot(originalFaceNormal) < 0) {
           quad.reverse();
         }
-        meshData.addFace(quad);
-      });
 
-      const splitEdge = meshData.getEdge(midVertex.id, nextMidVertex.id);
-      if (splitEdge) newEdges.push(splitEdge);
+        meshData.addFace(quad);
+      }
+
+      // collect new loop edges
+      for (let c = 0; c < cutCount; c++) {
+        const a = newVertices[c][i];
+        const b = (isClosedLoop && i === loopEdges.length - 1) ? newVertices[c][0]
+          : newVertices[c][(i + 1) % count];
+
+        const splitEdge = meshData.getEdge(a.id, b.id);
+
+        if (splitEdge) newEdges.push(splitEdge);
+      }
     }
 
     // Handle the first and last edges for open loops
-    if (!isClosedLoop) { 
-      this.handleEdgeRebuild(meshData, loopEdges[0], newVertices[0]);
-      this.handleEdgeRebuild(meshData, loopEdges[loopEdges.length - 1], newVertices[newVertices.length - 1]);
+    if (!isClosedLoop && loopEdges.length > 0) {
+      const firstEdge = loopEdges[0];
+      const lastEdge = loopEdges[loopEdges.length - 1];
+
+      const firstEdgeVertices = newVertices.map(c => c[0]);
+      const lastEdgeVertices = newVertices.map(c => c[loopEdges.length - 1]);
+
+      this.insertEdgeVertices(meshData, firstEdge, firstEdgeVertices, alignedVertices[0]);
+      this.insertEdgeVertices(meshData, lastEdge, lastEdgeVertices, alignedVertices[loopEdges.length - 1]);
     }
 
     for (const edge of loopEdges) {
@@ -339,9 +368,31 @@ export class LoopCutTool {
     return newEdges;
   }
 
-  handleEdgeRebuild(meshData, edge, midVertex) {
-    const v1 = meshData.getVertex(edge.v1Id);
-    const v2 = meshData.getVertex(edge.v2Id);
+  getAlignedEdgeVertices(meshData, loopEdges) {
+    const alignedVertices = [];
+    let lastVertex = null;
+
+    for (let i = 0; i < loopEdges.length; i++) {
+      const edge = loopEdges[i];
+      let v1 = meshData.getVertex(edge.v1Id);
+      let v2 = meshData.getVertex(edge.v2Id);
+
+      if (lastVertex) {
+        const verifyEdge = meshData.getEdge(lastVertex.id, v1.id);
+        if (!verifyEdge) {
+          [v1, v2] = [v2, v1];
+        }
+      }
+      alignedVertices.push({ v1, v2 });
+      lastVertex = v1;
+    }
+
+    return alignedVertices;
+  }
+
+  insertEdgeVertices(meshData, edge, edgeVertices, alignedVertices) {
+    const startId = alignedVertices.v1.id;
+    const endId = alignedVertices.v2.id;
 
     const neighbors = getNeighborFaces(meshData, [edge.id]);
     const neighborFaces = neighbors.map(n => n.face);
@@ -357,12 +408,16 @@ export class LoopCutTool {
         const current = face.vertexIds[i];
         const next = face.vertexIds[(i + 1) % face.vertexIds.length];
 
-        // Insert midpoint between v1 and v2 (in either direction)
-        if (
-          (current === v1.id && next === v2.id) ||
-          (current === v2.id && next === v1.id)
-        ) {
-          newVertexIds.push(midVertex.id);
+        // Insert new vertices between v1 and v2
+        if (current === startId && next === endId) {
+          for (let j = 0; j < edgeVertices.length; j++) {
+            newVertexIds.push(edgeVertices[j].id);
+          }
+        }
+        else if (current === endId && next === startId) {
+          for (let j = edgeVertices.length - 1; j >= 0; j--) {
+            newVertexIds.push(edgeVertices[j].id);
+          }
         }
       }
 
