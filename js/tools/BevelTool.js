@@ -1215,7 +1215,7 @@ export class BevelTool {
       const { newVertexIds } = result;
       if (!newVertexIds || newVertexIds.length < 3) continue;
 
-      const { orderedVertexIds } = this.buildOrderedVertexLoop(meshData, newVertexIds);
+      const orderedVertexIds = this.buildOrderedVertexLoop(meshData, newVertexIds);
       if (orderedVertexIds.length < 3) continue;
 
       const referenceNormal = calculateVertexNormal(meshData, vertexId);
@@ -1225,7 +1225,8 @@ export class BevelTool {
         orderedVertexIds.reverse();
       }
 
-      const vertices = orderedVertexIds.map(id => meshData.getVertex(id));
+      const faceVertexIds = this.insertSegmentsIntoLoop(orderedVertexIds);
+      const vertices = faceVertexIds.map(id => meshData.getVertex(id));
       const newFace = meshData.addFace(vertices);
       
       if (newFace) {
@@ -1321,13 +1322,30 @@ export class BevelTool {
           edge.v1Id === vId ? edge.v2Id :
           edge.v2Id === vId ? edge.v1Id : null;
 
-        if (newVertexSet.has(otherId)) adjacency.get(vId).push(otherId);
+        if (!otherId) continue;
+
+        if (newVertexSet.has(otherId)) {
+          adjacency.get(vId).push(otherId);
+          continue;
+        }
+
+        // Check if this is a segment vertex
+        const segData = this.segmentMoveData.get(otherId);
+        if (!segData) continue;
+
+        const [a, b] = segData.endVertexIds;
+        const nextCorner =
+          vId === a ? b :
+          vId === b ? a : null;
+        
+        if (nextCorner && newVertexSet.has(nextCorner)) {
+          adjacency.get(vId).push(nextCorner);
+        }
       }
     }
 
     // Walk the loop
     const orderedVertexIds = [];
-    const orderedEdgeIds = [];
     const visited = new Set();
 
     let current = newVertexIds[0];
@@ -1340,19 +1358,11 @@ export class BevelTool {
       const neighbors = adjacency.get(current) || [];
       const next = neighbors.find(n => n !== prev);
       
-      if (next) {
-        const edge = meshData.getEdge(current, next);
-        if (edge) orderedEdgeIds.push(edge.id);
-      }
-      
       prev = current;
       current = next;
     }
 
-    return {
-      orderedVertexIds,
-      orderedEdgeIds
-    };
+    return orderedVertexIds;
   }
 
   getEdgeIdsFromFaces(meshData, faceIds) {
@@ -1575,22 +1585,22 @@ export class BevelTool {
   }
 
   findExistingSegmentVertex(startId, endId, segmentIndex) {
-    for (const data of this.segmentMoveData.values()) {
+    for (const segData of this.segmentMoveData.values()) {
 
-      const a = data.endVertexIds[0];
-      const b = data.endVertexIds[1];
+      const a = segData.endVertexIds[0];
+      const b = segData.endVertexIds[1];
 
       if (a === startId && b === endId) {
-        if (data.segmentIndex === segmentIndex) {
-          return data.vertexId;
+        if (segData.segmentIndex === segmentIndex) {
+          return segData.vertexId;
         }
       }
 
       if (a === endId && b === startId) {
         const reversedIndex = this.segments - segmentIndex;
 
-        if (data.segmentIndex === reversedIndex) {
-          return data.vertexId;
+        if (segData.segmentIndex === reversedIndex) {
+          return segData.vertexId;
         }
       }
     }
@@ -1602,35 +1612,39 @@ export class BevelTool {
     for (const faceId of splitedFaces) {
       const face = meshData.faces.get(faceId);
       if (!face) continue;
-
-      const loop = face.vertexIds;
-      const newLoop = [];
-
-      const len = loop.length;
-      for (let i = 0; i < len; i++) {
-        const v1 = loop[i];
-        const v2 = loop[(i + 1) % len];
-
-        newLoop.push(v1);
-
-        const key = this.getEdgeKey(v1, v2);
-        const chain = this.segmentEdgeMap.get(key);
-
-        if (!chain) continue;
-
-        if (v1 === chain[0] && v2 === chain[chain.length - 1]) {
-          for (let j = 1; j < chain.length - 1; j++) {
-            newLoop.push(chain[j]);
-          }
-        } else if (v2 === chain[0] && v1 === chain[chain.length - 1]) {
-          for (let j = chain.length - 2; j > 0; j--) {
-            newLoop.push(chain[j]);
-          }
-        }
-      }
+      const newLoop = this.insertSegmentsIntoLoop(face.vertexIds);
 
       face.vertexIds = newLoop;
     }
+  }
+
+  insertSegmentsIntoLoop(vertexIds) {
+    const newLoop = [];
+    const len = vertexIds.length;
+
+    for (let i = 0; i < len; i++) {
+      const v1 = vertexIds[i];
+      const v2 = vertexIds[(i + 1) % len];
+
+      newLoop.push(v1);
+
+      const key = this.getEdgeKey(v1, v2);
+      const chain = this.segmentEdgeMap.get(key);
+
+      if (!chain) continue;
+
+      if (v1 === chain[0] && v2 === chain[chain.length - 1]) {
+        for (let j = 1; j < chain.length - 1; j++) {
+          newLoop.push(chain[j]);
+        }
+      } else if (v2 === chain[0] && v1 === chain[chain.length - 1]) {
+        for (let j = chain.length - 2; j > 0; j--) {
+          newLoop.push(chain[j]);
+        }
+      }
+    }
+
+    return newLoop;
   }
 
   buildSegmentChains(meshData, verts, edge) {
@@ -1642,6 +1656,7 @@ export class BevelTool {
     const oPos = new THREE.Vector3().copy(edgeVertex2.position);
 
     const edgeDirection = new THREE.Vector3().subVectors(oPos, vPos).normalize();
+    edgeDirection.transformDirection(this.editedObject.matrixWorld);
 
     const v1a = meshData.getVertex(nv1Face1);
     const v1b = meshData.getVertex(nv1Face2);
@@ -1730,8 +1745,8 @@ export class BevelTool {
     const newSegmentVertexIds = [];
 
     // move segment vertices
-    for (const data of this.segmentMoveData.values()) {
-      const { vertexId, endVertexIds, segmentIndex, edgeDirection } = data;
+    for (const segData of this.segmentMoveData.values()) {
+      const { vertexId, endVertexIds, segmentIndex, edgeDirection } = segData;
 
       const startVertex = meshData.getVertex(endVertexIds[0]);
       const endVertex = meshData.getVertex(endVertexIds[1]);
