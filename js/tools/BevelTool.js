@@ -708,7 +708,7 @@ export class BevelTool {
     }
 
     return {
-      type: "end",
+      valence,
       originalVertexId: vertexId,
       newVertexIds,
       selectedEdgeId,
@@ -872,7 +872,7 @@ export class BevelTool {
     }
 
     return {
-      type: "corner",
+      valence,
       originalVertexId: vertexId,
       newVertexIds,
       selectedEdgeIds,
@@ -1057,7 +1057,7 @@ export class BevelTool {
     }
 
     return {
-      type: "junction",
+      valence,
       originalVertexId: vertexId,
       newVertexIds,
       selectedEdgeIds,
@@ -1212,7 +1212,7 @@ export class BevelTool {
     const newFaceIds = [];
 
     for (const [vertexId, result] of bevelResults.entries()) {
-      const { newVertexIds } = result;
+      const { valence, newVertexIds } = result;
       if (!newVertexIds || newVertexIds.length < 3) continue;
 
       const orderedVertexIds = this.buildOrderedVertexLoop(meshData, newVertexIds);
@@ -1223,6 +1223,13 @@ export class BevelTool {
 
       if (virtualNormal.dot(referenceNormal) < 0) {
         orderedVertexIds.reverse();
+      }
+
+      const edgeChains = this.insertSegmentChainsPerEdge(orderedVertexIds);
+      if (orderedVertexIds.length === 3 && valence === 1) {
+        const newFaceIds = this.triangulateEdgesCorner(meshData, edgeChains);
+        newFaceIds.push(...newFaceIds);
+        continue;
       }
 
       const faceVertexIds = this.insertSegmentsIntoLoop(orderedVertexIds);
@@ -1306,7 +1313,8 @@ export class BevelTool {
 
   buildOrderedVertexLoop(meshData, newVertexIds) {
     if (!newVertexIds || newVertexIds.length === 0) {
-      return { orderedVertexIds: [], edgeIds: [] };
+      const orderedVertexIds = [];
+      return orderedVertexIds;
     }
 
     // Build adjacency map from edges to walk the loop
@@ -1647,6 +1655,38 @@ export class BevelTool {
     return newLoop;
   }
 
+  insertSegmentChainsPerEdge(vertexIds) {
+    const edgeChains = [];
+    const len = vertexIds.length;
+
+    for (let i = 0; i < len; i++) {
+      const v1 = vertexIds[i];
+      const v2 = vertexIds[(i + 1) % len];
+
+      const edgeChain = [v1];
+
+      const key = this.getEdgeKey(v1, v2);
+      const chain = this.segmentEdgeMap.get(key);
+
+      if (chain) {
+        if (v1 === chain[0] && v2 === chain[chain.length - 1]) {
+          for (let j = 1; j < chain.length - 1; j++) {
+            edgeChain.push(chain[j]);
+          }
+        } else if (v2 === chain[0] && v1 === chain[chain.length - 1]) {
+          for (let j = chain.length - 2; j > 0; j--) {
+            edgeChain.push(chain[j]);
+          }
+        }
+      }
+
+      edgeChain.push(v2);
+      edgeChains.push(edgeChain);
+    }
+
+    return edgeChains;
+  }
+
   buildSegmentChains(meshData, verts, edge) {
     const { nv1Face1, nv1Face2, nv2Face1, nv2Face2 } = verts;
 
@@ -1778,5 +1818,56 @@ export class BevelTool {
     }
 
     this.vertexEditor.transform.setVerticesWorldPositions(newSegmentVertexIds, newSegmentPositions);
+  }
+
+  triangulateEdgesCorner(meshData, edgeChains) {
+    const newFaceIds = [];
+
+    // Flatten the chains into a single ordered loop without duplicates
+    const loop = [];
+    for (const chain of edgeChains) {
+      for (let i = 0; i < chain.length - 1; i++) {
+        loop.push(chain[i]);
+      }
+    }
+
+    // Find the origin vertex (shared by two non-segmented edges)
+    let originIndex = 0;
+    const numChains = edgeChains.length;
+
+    for (let i = 0; i < numChains; i++) {
+      const currentChain = edgeChains[i];
+      const nextChain = edgeChains[(i + 1) % numChains];
+
+      if (currentChain.length === 2 && nextChain.length === 2) {
+        const originId = currentChain[1];
+        originIndex = loop.indexOf(originId);
+        break; 
+      }
+    }
+
+    // Rotate the array so the origin vertex is at the very beginning (index 0)
+    const rotatedLoop = [
+      ...loop.slice(originIndex),
+      ...loop.slice(0, originIndex)
+    ];
+
+    // Generate the triangle fan
+    const originId = rotatedLoop[0];
+    
+    for (let i = 1; i < rotatedLoop.length - 1; i++) {
+      const v1Id = rotatedLoop[i];
+      const v2Id = rotatedLoop[i + 1];
+
+      const vertices = [originId, v1Id, v2Id].map(id => meshData.getVertex(id));
+      const newFace = meshData.addFace(vertices);
+
+      if (newFace) {
+        this.rebuildFaceTopology(meshData, newFace);
+        newFaceIds.push(newFace.id);
+      }
+    }
+
+    return newFaceIds;
   }
 }

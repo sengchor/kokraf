@@ -3,6 +3,7 @@ import { VertexDelete } from "./VertexDelete.js";
 import { VertexDissolve } from "./VertexDissolve.js";
 import { VertexTopologyUtils } from "./VertexTopologyUtils.js";
 import { VertexTransform } from "./VertexTransform.js";
+import { VertexSubdivide } from "./VertexSubdivide.js";
 import { MeshData } from '../core/MeshData.js';
 
 export class VertexEditor {
@@ -15,6 +16,7 @@ export class VertexEditor {
     this.duplicate = new VertexDuplicate(this);
     this.delete = new VertexDelete(this);
     this.dissolve = new VertexDissolve(this);
+    this.subdivide = new VertexSubdivide(this);
   }
 
   get meshData() {
