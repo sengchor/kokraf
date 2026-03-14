@@ -68,6 +68,95 @@ export class VertexSubdivide {
       allVertices.push(centerVertex);
     }
 
+    this.connectInsetLayers(vertexOrderPerLayer, segments);
+
+    this.vertexEditor.delete.deleteFaces([face.id]);
+    const boundaryVertices = vertexOrderPerLayer[0].flat();
+
+    return { allVertices, boundaryVertices };
+  }
+
+  insetSubdivideVertices(orderVertexIds, segments) {
+    if (segments < 2) return null;
+
+    const faceVertexIds = [];
+    const orderVertices = [];
+    for (const order of orderVertexIds) {
+      if (!Array.isArray(order)) {
+        faceVertexIds.push(order);
+        orderVertices.push(this.meshData.getVertex(order));
+      } else {
+        const vertices = order.map(vId => this.meshData.getVertex(vId));
+        orderVertices.push(vertices);
+      }
+    }
+    const faceVertices = faceVertexIds.map(vId => this.meshData.getVertex(vId));
+
+    const center = this.getCenterPoint(faceVertexIds);
+
+    const vertexOrderPerLayer = [];
+    const layers = Math.floor((segments - 1) / 2);
+    vertexOrderPerLayer.push(orderVertices);
+
+    for (let layer = 1; layer < layers + 1; layer++) {
+      const layerVertices = [];
+
+      const pointNums = segments - 2 * layer;
+      for (let vIndex = 0; vIndex < faceVertices.length; vIndex++) {
+        const vA = faceVertices[vIndex].position;
+        const vB = faceVertices[(vIndex + 1) % faceVertices.length].position;
+
+        const edgeLengthA = new THREE.Vector3().subVectors(vA, center).length();
+        const edgeLengthB = new THREE.Vector3().subVectors(vB, center).length();
+        const value = (segments % 2 === 0) ? 1 : 0.5;
+        const lengthA = (edgeLengthA * layer / (layers + value));
+        const lengthB = (edgeLengthB * layer / (layers + value));
+        const offsetDirectionA = new THREE.Vector3().copy(vA).sub(center).normalize();
+        const offsetDirectionB = new THREE.Vector3().copy(vB).sub(center).normalize();
+
+        // add the original vertex in correct order
+        const offsetVA = new THREE.Vector3().copy(vA).sub(offsetDirectionA.multiplyScalar(lengthA));
+        const offsetVB = new THREE.Vector3().copy(vB).sub(offsetDirectionB.multiplyScalar(lengthB));
+        const vertexA = this.meshData.addVertex(new THREE.Vector3().copy(offsetVA));
+        layerVertices.push(vertexA);
+
+        // add subdivided points along the edge
+        const edgeVertices = [];
+        for (let i = 0; i < pointNums - 1; i++) {
+          const t = (i + 1) / pointNums;
+
+          const pos = new THREE.Vector3().lerpVectors(offsetVA, offsetVB, t);
+          const vertex = this.meshData.addVertex(pos);
+          edgeVertices.push(vertex);
+        }
+        if (edgeVertices.length > 0) {
+          layerVertices.push(edgeVertices);
+        }
+      }
+      
+      vertexOrderPerLayer.push(layerVertices);
+    }
+
+    const allVertices = vertexOrderPerLayer.flat(2);
+
+    if (segments % 2 === 0) {
+      const centerVertex = this.meshData.addVertex(center);
+      const edgeVertices = [];
+      for (let i = 0; i < faceVertices.length; i++) {
+        edgeVertices.push(centerVertex);
+      }
+      vertexOrderPerLayer.push(edgeVertices);
+      allVertices.push(centerVertex);
+    }
+
+    this.connectInsetLayers(vertexOrderPerLayer, segments);
+
+    const boundaryVertices = vertexOrderPerLayer[0].flat();
+
+    return { allVertices, boundaryVertices };
+  }
+
+  connectInsetLayers(vertexOrderPerLayer, segments) {
     for (let layer = 0; layer < vertexOrderPerLayer.length - 1; layer ++) {
       const outer = vertexOrderPerLayer[layer];
       const inner = vertexOrderPerLayer[layer + 1];
@@ -149,10 +238,6 @@ export class VertexSubdivide {
       const lastLayer = vertexOrderPerLayer[vertexOrderPerLayer.length - 1];
       const face = this.meshData.addFace(lastLayer);
     }
-
-    this.vertexEditor.delete.deleteFaces([face.id]);
-    const boundaryVertices = vertexOrderPerLayer[0].flat();
-    return { allVertices, boundaryVertices };
   }
 
   smoothVertices(vertices, lambda, ignoreVertices) {

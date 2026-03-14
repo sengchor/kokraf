@@ -18,7 +18,7 @@ export class BevelTool {
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
     this.activeTransformSource = null;
-    this.segments = 4;
+    this.segments = 6;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
@@ -254,6 +254,16 @@ export class BevelTool {
       this.disable();
       return;
     }
+
+    //console.log(this.newOrderVertexIds);
+
+    this.editor.vertexEditor.setObject(this.editedObject);
+    //const { allVertices, boundaryVertices } = this.editor.vertexEditor.subdivide.insetSubdivide(this.newFace.id, this.segments);
+
+    const { allVertices, boundaryVertices } = this.editor.vertexEditor.subdivide.insetSubdivideVertices(this.newOrderVertexIds, this.segments);
+    //this.editor.vertexEditor.subdivide.smoothVertices(allVertices, 0.5, boundaryVertices);
+
+    this.editor.vertexEditor.transform.updateGeometryAndHelpers();
 
     const meshData = this.editedObject.userData.meshData;
     this.afterMeshData = structuredClone(meshData);
@@ -1225,6 +1235,9 @@ export class BevelTool {
         orderedVertexIds.reverse();
       }
 
+      const vertex = meshData.getVertex(vertexId);
+      const targetPosition = new THREE.Vector3().copy(vertex.position);
+
       const edgeChains = this.insertSegmentChainsPerEdge(orderedVertexIds);
       if (orderedVertexIds.length === 3 && valence === 1) {
         const newFaceIds = this.triangulateEdgesCorner(meshData, edgeChains);
@@ -1232,9 +1245,12 @@ export class BevelTool {
         continue;
       }
 
-      const faceVertexIds = this.insertSegmentsIntoLoop(orderedVertexIds);
-      const vertices = faceVertexIds.map(id => meshData.getVertex(id));
+      const { newLoop, newOrderVertexIds } = this.insertSegmentsIntoLoop(orderedVertexIds);
+      const vertices = orderedVertexIds.map(id => meshData.getVertex(id));
       const newFace = meshData.addFace(vertices);
+      this.newFace = newFace;
+      this.newOrderVertexIds = newOrderVertexIds;
+      // this.targetPosition = targetPosition;
       
       if (newFace) {
         this.rebuildFaceTopology(meshData, newFace);
@@ -1620,7 +1636,7 @@ export class BevelTool {
     for (const faceId of splitedFaces) {
       const face = meshData.faces.get(faceId);
       if (!face) continue;
-      const newLoop = this.insertSegmentsIntoLoop(face.vertexIds);
+      const { newLoop } = this.insertSegmentsIntoLoop(face.vertexIds);
 
       face.vertexIds = newLoop;
     }
@@ -1628,6 +1644,7 @@ export class BevelTool {
 
   insertSegmentsIntoLoop(vertexIds) {
     const newLoop = [];
+    const newOrderVertexIds = [];
     const len = vertexIds.length;
 
     for (let i = 0; i < len; i++) {
@@ -1635,24 +1652,33 @@ export class BevelTool {
       const v2 = vertexIds[(i + 1) % len];
 
       newLoop.push(v1);
+      newOrderVertexIds.push(v1);
 
       const key = this.getEdgeKey(v1, v2);
       const chain = this.segmentEdgeMap.get(key);
 
       if (!chain) continue;
 
+      const edgeVertices = [];
+
       if (v1 === chain[0] && v2 === chain[chain.length - 1]) {
         for (let j = 1; j < chain.length - 1; j++) {
           newLoop.push(chain[j]);
+          edgeVertices.push(chain[j]);
         }
       } else if (v2 === chain[0] && v1 === chain[chain.length - 1]) {
         for (let j = chain.length - 2; j > 0; j--) {
           newLoop.push(chain[j]);
+          edgeVertices.push(chain[j]);
         }
+      }
+
+      if (edgeVertices.length > 0) {
+        newOrderVertexIds.push(edgeVertices);
       }
     }
 
-    return newLoop;
+    return { newLoop, newOrderVertexIds };
   }
 
   insertSegmentChainsPerEdge(vertexIds) {
