@@ -18,7 +18,7 @@ export class BevelTool {
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
     this.activeTransformSource = null;
-    this.segments = 5;
+    this.segments = 4;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
@@ -198,6 +198,7 @@ export class BevelTool {
     this.newVertexIds = [];
     this.newEdgeIds = [];
     this.newFaceIds = [];
+    this.cornerPatches = [];
     this.bevelMoveData = new Map();
     this.segmentMoveData = new Map();
     this.segmentEdgeMap = new Map();
@@ -254,10 +255,6 @@ export class BevelTool {
       this.disable();
       return;
     }
-
-    this.editor.vertexEditor.setObject(this.editedObject);
-    const { allVertices, boundaryVertices } = this.editor.vertexEditor.subdivide.insetSubdivideVertices(this.newOrderVertexIds, this.segments, this.targetPosition);
-    this.editor.vertexEditor.transform.updateGeometryAndHelpers();
 
     const meshData = this.editedObject.userData.meshData;
     this.afterMeshData = structuredClone(meshData);
@@ -1234,19 +1231,23 @@ export class BevelTool {
 
       const edgeChains = this.insertSegmentChainsPerEdge(orderedVertexIds);
       if (orderedVertexIds.length === 3 && valence === 1) {
-        const newFaceIds = this.triangulateEdgesCorner(meshData, edgeChains);
-        newFaceIds.push(...newFaceIds);
+        const faceIds = this.triangulateEdgesCorner(meshData, edgeChains);
+        newFaceIds.push(...faceIds);
         continue;
       }
 
       const { newOrderVertexIds } = this.insertSegmentsIntoLoop(orderedVertexIds);
-      this.newOrderVertexIds = newOrderVertexIds;
-      this.targetPosition = targetPosition;
+      const { vertexOrderPerLayer, newFaces } = this.vertexEditor.subdivide.createInsetSubdivideVertices(newOrderVertexIds, this.segments, targetPosition);
+
+      this.cornerPatches.push({
+        vertexOrderPerLayer: vertexOrderPerLayer,
+        targetPosition: targetPosition
+      });
       
-      // if (newFace) {
-      //   this.rebuildFaceTopology(meshData, newFace);
-      //   newFaceIds.push(newFace.id);
-      // }
+      if (newFaces) {
+        const faceIds = newFaces.map(face => face.id);
+        newFaceIds.push(...faceIds);
+      }
     }
 
     return newFaceIds;
@@ -1792,14 +1793,9 @@ export class BevelTool {
         moveData.direction.clone().multiplyScalar(this.width * scale)
       );
 
-      newPositions.push(newPosition);
       newVertexIds.push(moveData.vertexId);
+      newPositions.push(newPosition);
     }
-
-    this.vertexEditor.transform.setVerticesWorldPositions(newVertexIds, newPositions);
-
-    const newSegmentPositions = [];
-    const newSegmentVertexIds = [];
 
     // move segment vertices
     for (const segData of this.segmentMoveData.values()) {
@@ -1823,13 +1819,20 @@ export class BevelTool {
 
       const t = segmentIndex / this.segments;
       // Quadratic Bezier Interpolation
-      const pos =  new THREE.QuadraticBezierCurve3(startVertexPos, controlPoint, endVertexPos).getPoint(t);
+      const pos = this.quadraticBezierPoint(startVertexPos, controlPoint, endVertexPos, t)
 
-      newSegmentPositions.push(pos);
-      newSegmentVertexIds.push(vertexId);
+      newVertexIds.push(vertexId);
+      newPositions.push(pos);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(newSegmentVertexIds, newSegmentPositions);
+    for (const patch of this.cornerPatches) {
+      const result = this.vertexEditor.subdivide.updateInsetSubdivideVertices(patch.vertexOrderPerLayer, this.segments, patch.targetPosition);
+
+      newVertexIds.push(...result.vertexIds);
+      newPositions.push(...result.vertexPositions);
+    }
+
+    this.vertexEditor.transform.setVerticesWorldPositions(newVertexIds, newPositions);
   }
 
   triangulateEdgesCorner(meshData, edgeChains) {
@@ -1881,5 +1884,15 @@ export class BevelTool {
     }
 
     return newFaceIds;
+  }
+
+  quadraticBezierPoint(v0, v1, v2, t) {
+    const invT = 1 - t;
+
+    const point = v0.clone().multiplyScalar(invT * invT)
+      .addScaledVector(v1, 2 * invT * t)
+      .addScaledVector(v2, t * t);
+
+    return point;
   }
 }
