@@ -18,7 +18,7 @@ export class BevelTool {
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
     this.activeTransformSource = null;
-    this.segments = 6;
+    this.segments = 5;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
@@ -255,14 +255,8 @@ export class BevelTool {
       return;
     }
 
-    //console.log(this.newOrderVertexIds);
-
     this.editor.vertexEditor.setObject(this.editedObject);
-    //const { allVertices, boundaryVertices } = this.editor.vertexEditor.subdivide.insetSubdivide(this.newFace.id, this.segments);
-
-    const { allVertices, boundaryVertices } = this.editor.vertexEditor.subdivide.insetSubdivideVertices(this.newOrderVertexIds, this.segments);
-    //this.editor.vertexEditor.subdivide.smoothVertices(allVertices, 0.5, boundaryVertices);
-
+    const { allVertices, boundaryVertices } = this.editor.vertexEditor.subdivide.insetSubdivideVertices(this.newOrderVertexIds, this.segments, this.targetPosition);
     this.editor.vertexEditor.transform.updateGeometryAndHelpers();
 
     const meshData = this.editedObject.userData.meshData;
@@ -1245,17 +1239,14 @@ export class BevelTool {
         continue;
       }
 
-      const { newLoop, newOrderVertexIds } = this.insertSegmentsIntoLoop(orderedVertexIds);
-      const vertices = orderedVertexIds.map(id => meshData.getVertex(id));
-      const newFace = meshData.addFace(vertices);
-      this.newFace = newFace;
+      const { newOrderVertexIds } = this.insertSegmentsIntoLoop(orderedVertexIds);
       this.newOrderVertexIds = newOrderVertexIds;
-      // this.targetPosition = targetPosition;
+      this.targetPosition = targetPosition;
       
-      if (newFace) {
-        this.rebuildFaceTopology(meshData, newFace);
-        newFaceIds.push(newFace.id);
-      }
+      // if (newFace) {
+      //   this.rebuildFaceTopology(meshData, newFace);
+      //   newFaceIds.push(newFace.id);
+      // }
     }
 
     return newFaceIds;
@@ -1831,13 +1822,8 @@ export class BevelTool {
       }
 
       const t = segmentIndex / this.segments;
-      const oneMinusT = 1 - t;
-
       // Quadratic Bezier Interpolation
-      const pos = new THREE.Vector3();
-      pos.addScaledVector(startVertexPos, oneMinusT * oneMinusT);
-      pos.addScaledVector(controlPoint, 2 * oneMinusT * t);
-      pos.addScaledVector(endVertexPos, t * t);
+      const pos =  new THREE.QuadraticBezierCurve3(startVertexPos, controlPoint, endVertexPos).getPoint(t);
 
       newSegmentPositions.push(pos);
       newSegmentVertexIds.push(vertexId);
