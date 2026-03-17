@@ -218,6 +218,7 @@ export class VertexSubdivide {
         const offsetVB = this.quadraticBezierPoint(vBPos, controlB, curvedCenter, t);
 
         const cornerVertex = innerLayer[vIndex * stride];
+        cornerVertex.position = offsetVA.clone();
         vertexIds.push(cornerVertex.id);
         vertexPositions.push(offsetVA);
 
@@ -242,6 +243,7 @@ export class VertexSubdivide {
           const innerPt = outerPt.clone().add(displacement);
 
           const edgeVertex = edgeGroup[i];
+          edgeVertex.position = innerPt.clone();
           vertexIds.push(edgeVertex.id);
           vertexPositions.push(innerPt);
         }
@@ -252,6 +254,7 @@ export class VertexSubdivide {
     if (segments % 2 === 0) {
       const centerLayer = vertexOrderPerLayer[layers + 1];
       const centerVertex = centerLayer[0];
+      centerVertex.position = curvedCenter.clone();
       vertexIds.push(centerVertex.id);
       vertexPositions.push(curvedCenter);
     }

@@ -18,7 +18,7 @@ export class BevelTool {
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
     this.activeTransformSource = null;
-    this.segments = 4;
+    this.segments = 1;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
@@ -42,6 +42,7 @@ export class BevelTool {
     this._onPointerMove = this.onPointerMove.bind(this);
     this._onPointerUp = this.onPointerUp.bind(this);
     this._onKeyDown = this.onKeyDown.bind(this);
+    this._onMouseWheel = this.onMouseWheel.bind(this);
   }
 
   enableFor(object) {
@@ -56,6 +57,7 @@ export class BevelTool {
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
     this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
+    this.renderer.domElement.addEventListener('wheel', this._onMouseWheel, { passive: false, capture: true });
     window.addEventListener('keydown', this._onKeyDown);
   }
 
@@ -165,6 +167,36 @@ export class BevelTool {
     if (this.activeTransformSource !== 'command') return;
     this.clearCommandTransformState();
     this.toolNumericInput.reset();
+  }
+
+  onMouseWheel(event) {
+    if (!this.activeTransformSource) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    if (event.deltaY < 0) this.segments++;
+    else this.segments--;
+
+    this.segments = Math.max(1, this.segments);
+
+    this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
+
+    this.newVertexIds = [];
+    this.newEdgeIds = [];
+    this.newFaceIds = [];
+    this.cornerPatches = [];
+    this.bevelMoveData = new Map();
+    this.segmentMoveData = new Map();
+    this.segmentEdgeMap = new Map();
+
+    this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
+
+    this.startBevel();
+    this.editSelection.selectFaces(this.newFaceIds);
+    this.handle.position.copy(this.startPivotPosition);
+
+    this.updateBevel();
   }
 
   onKeyDown(event) {
@@ -1229,10 +1261,16 @@ export class BevelTool {
       const vertex = meshData.getVertex(vertexId);
       const targetPosition = new THREE.Vector3().copy(vertex.position);
 
-      const edgeChains = this.insertSegmentChainsPerEdge(orderedVertexIds);
       if (orderedVertexIds.length === 3 && valence === 1) {
+        const edgeChains = this.insertSegmentChainsPerEdge(orderedVertexIds);
         const faceIds = this.triangulateEdgesCorner(meshData, edgeChains);
         newFaceIds.push(...faceIds);
+        continue;
+      } else if (orderedVertexIds.length > 3 && valence === 1) {
+        const { newLoop } = this.insertSegmentsIntoLoop(orderedVertexIds);
+        const vertices = newLoop.map(id => meshData.getVertex(id));
+        const newFace = meshData.addFace(vertices);
+        newFaceIds.push(newFace.id);
         continue;
       }
 
@@ -1782,8 +1820,8 @@ export class BevelTool {
     this.width = value;
     const meshData = this.editedObject.userData.meshData;
 
-    const newPositions = [];
-    const newVertexIds = [];
+    const newBoundaryVertexIds = [];
+    const newBoundaryPositions = [];
 
     // move boundary bevel vertices
     for (const moveData of this.bevelMoveData.values()) {
@@ -1793,9 +1831,14 @@ export class BevelTool {
         moveData.direction.clone().multiplyScalar(this.width * scale)
       );
 
-      newVertexIds.push(moveData.vertexId);
-      newPositions.push(newPosition);
+      newBoundaryVertexIds.push(moveData.vertexId);
+      newBoundaryPositions.push(newPosition);
     }
+
+    this.vertexEditor.transform.setVerticesWorldPositions(newBoundaryVertexIds, newBoundaryPositions);
+
+    const newSegmentVertexIds = [];
+    const newSegmentPositions = [];
 
     // move segment vertices
     for (const segData of this.segmentMoveData.values()) {
@@ -1821,18 +1864,23 @@ export class BevelTool {
       // Quadratic Bezier Interpolation
       const pos = this.quadraticBezierPoint(startVertexPos, controlPoint, endVertexPos, t)
 
-      newVertexIds.push(vertexId);
-      newPositions.push(pos);
+      newSegmentVertexIds.push(vertexId);
+      newSegmentPositions.push(pos);
     }
+
+    this.vertexEditor.transform.setVerticesWorldPositions(newSegmentVertexIds, newSegmentPositions);
+
+    const newCornerVertexIds = [];
+    const newCornerPositions = [];
 
     for (const patch of this.cornerPatches) {
       const result = this.vertexEditor.subdivide.updateInsetSubdivideVertices(patch.vertexOrderPerLayer, this.segments, patch.targetPosition);
 
-      newVertexIds.push(...result.vertexIds);
-      newPositions.push(...result.vertexPositions);
+      newCornerVertexIds.push(...result.vertexIds);
+      newCornerPositions.push(...result.vertexPositions);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(newVertexIds, newPositions);
+    this.vertexEditor.transform.setVerticesWorldPositions(newCornerVertexIds, newCornerPositions);
   }
 
   triangulateEdgesCorner(meshData, edgeChains) {
