@@ -386,9 +386,9 @@ export class BevelTool {
 
       this.deleteOldEdgeVertices(meshData, edgeGroup);
 
-      const groupVertexIds = this.getAllBevelNewVertexIds(bevelResults);
       const groupFaceIds = [...bridgeFaceIds, ...fillFaceIds];
       const groupEdgeIds = this.getEdgeIdsFromFaces(meshData, groupFaceIds);
+      const groupVertexIds = this.getVertexIdsFromFaces(meshData, groupFaceIds);
 
       this.newVertexIds.push(...groupVertexIds);
       this.newEdgeIds.push(...groupEdgeIds);
@@ -1417,6 +1417,21 @@ export class BevelTool {
     }
 
     return orderedVertexIds;
+  }
+
+  getVertexIdsFromFaces(meshData, faceIds) {
+    const vertexIds = new Set();
+
+    for (const faceId of faceIds) {
+      const face = meshData.faces.get(faceId);
+      if (!face) continue;
+
+      for (const vertexId of face.vertexIds) {
+        vertexIds.add(vertexId);
+      }
+    }
+
+    return Array.from(vertexIds);
   }
 
   getEdgeIdsFromFaces(meshData, faceIds) {

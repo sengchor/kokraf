@@ -26,7 +26,6 @@ export class MeshDataBuilders {
     const meshData = new MeshData();
     const segments = 32;
     const radius = 0.5;
-    const center = meshData.addVertex({ x: 0, y: 0, z: 0 });
 
     const vertices = [];
 
@@ -38,11 +37,7 @@ export class MeshDataBuilders {
       vertices.push(v);
     }
 
-    for (let i = 0; i < segments; i++) {
-      const v1 = vertices[i];
-      const v2 = vertices[(i + 1) % segments];
-      meshData.addFace([center, v2, v1]);
-    }
+    meshData.addFace(vertices);
     return meshData;
   }
 
@@ -141,10 +136,6 @@ export class MeshDataBuilders {
       topRing.push(meshData.addVertex({ x, y:  halfHeight, z }));
     }
 
-    // Centers for caps
-    const bottomCenter = meshData.addVertex({ x: 0, y: -halfHeight, z: 0 });
-    const topCenter = meshData.addVertex({ x: 0, y: halfHeight, z: 0 });
-
     // --- Create faces ---
     // Side quads (wrap around with %)
     for (let i = 0; i < radialSegments; i++) {
@@ -158,17 +149,11 @@ export class MeshDataBuilders {
       meshData.addFace([t0, t1, b1, b0]);
     }
 
-    // Bottom cap (triangles)
-    for (let i = 0; i < radialSegments; i++) {
-      const next = (i + 1) % radialSegments;
-      meshData.addFace([bottomRing[i], bottomRing[next], bottomCenter]);
-    }
+    // Bottom cap
+    meshData.addFace(bottomRing);
 
-    // Top cap (triangles)
-    for (let i = 0; i < radialSegments; i++) {
-      const next = (i + 1) % radialSegments;
-      meshData.addFace([topRing[next], topRing[i], topCenter]);
-    }
+    // Top cap
+    meshData.addFace([...topRing].reverse());
 
     return meshData;
   }
@@ -191,9 +176,8 @@ export class MeshDataBuilders {
       bottomRing.push(meshData.addVertex({ x, y: -halfHeight, z }));
     }
 
-    // --- Apex and base center vertices ---
+    // --- Apex ---
     const apex = meshData.addVertex({ x: 0, y: halfHeight, z: 0 });
-    const baseCenter = meshData.addVertex({ x: 0, y: -halfHeight, z: 0 });
 
     // --- Side faces (triangle fan from apex) ---
     for (let i = 0; i < radialSegments; i++) {
@@ -201,11 +185,8 @@ export class MeshDataBuilders {
       meshData.addFace([bottomRing[next], bottomRing[i], apex]);
     }
 
-    // --- Base cap (triangle fan) ---
-    for (let i = 0; i < radialSegments; i++) {
-      const next = (i + 1) % radialSegments;
-      meshData.addFace([bottomRing[i], bottomRing[next], baseCenter]);
-    }
+    // --- Base cap ---
+    meshData.addFace(bottomRing);
 
     return meshData;
   }
