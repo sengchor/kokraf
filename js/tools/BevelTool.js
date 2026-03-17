@@ -196,7 +196,7 @@ export class BevelTool {
     this.editSelection.selectFaces(this.newFaceIds);
     this.handle.position.copy(this.startPivotPosition);
 
-    this.updateBevel();
+    this.applyBevelWidth(this.width);
   }
 
   onKeyDown(event) {
