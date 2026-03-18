@@ -109,6 +109,11 @@ export class VertexSubdivide {
 
     const newFaces = this.connectInsetLayers(vertexOrderPerLayer, segments);
 
+    const worldMatrix = this.vertexEditor.object.matrixWorld;
+    for (const vertex of allVertices) {
+      vertex.position.copy(vertex.position.clone().applyMatrix4(worldMatrix));
+    }
+
     return { allVertices, vertexOrderPerLayer, newFaces };
   }
 
@@ -259,7 +264,10 @@ export class VertexSubdivide {
       vertexPositions.push(curvedCenter);
     }
 
-    return { vertexIds, vertexPositions };
+    const worldMatrix = this.vertexEditor.object.matrixWorld;
+    const worldPositions = vertexPositions.map(pos => pos.clone().applyMatrix4(worldMatrix));
+
+    return { vertexIds, vertexPositions: worldPositions };
   }
 
   connectInsetLayers(vertexOrderPerLayer, segments) {
