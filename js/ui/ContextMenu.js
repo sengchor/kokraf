@@ -114,6 +114,9 @@ export default class ContextMenu {
       } else if (e.ctrlKey && e.key.toLowerCase() === 'a') {
         this.menuTrigger = 'apply';
         this.show(this.lastMouse.x, this.lastMouse.y);
+      } else if (e.shiftKey && e.key.toLowerCase() === 'a') {
+        this.menuTrigger = 'add';
+        this.show(this.lastMouse.x, this.lastMouse.y);
       }
     })
   }
@@ -133,6 +136,11 @@ export default class ContextMenu {
 
     if (this.menuTrigger === 'apply' && this.currentMode === 'object') {
       this.showSection('apply');
+      visible = true;
+    }
+
+    if (this.menuTrigger === 'add' && (this.currentMode === 'object' || this.currentMode === 'edit')) {
+      this.showSection('add');
       visible = true;
     }
 

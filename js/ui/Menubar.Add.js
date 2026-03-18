@@ -9,10 +9,12 @@ export class MenubarAdd {
   }
 
   init() {
-    document.querySelector('[data-group]').addEventListener('click', (event) => {
-      const groupType = event.target.getAttribute('data-group');
-      const group = this.objectFactory.createGroup(groupType);
-      this.editor.execute(new AddObjectCommand(this.editor, group));
+    document.querySelectorAll('[data-group]').forEach(item => {
+      item.addEventListener('click', (event) => {
+        const groupType = event.target.getAttribute('data-group');
+        const group = this.objectFactory.createGroup(groupType);
+        this.editor.execute(new AddObjectCommand(this.editor, group));
+      });
     });
 
     document.querySelectorAll('[data-geometry]').forEach(item => {
