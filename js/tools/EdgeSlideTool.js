@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
+import { EdgeSlideCommand } from '../commands/EdgeSlideCommand.js';
 
 export class EdgeSlideTool {
   constructor(editor) {
@@ -117,6 +118,10 @@ export class EdgeSlideTool {
 
     this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
     this.slideData = new Map();
+
+    const meshData = this.editedObject.userData.meshData;
+    this.beforeMeshData = structuredClone(meshData);
+
     this.selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
 
     this.transformSolver.beginSession(this.startPivotPosition, null, null);
@@ -136,27 +141,77 @@ export class EdgeSlideTool {
   }
 
   commitEdgeSlideSession() {
+    if (!this.offset || this.offset === 0 || !this.slideData) {
+      this.cancelSlideEdgeSession();
+      this.clearCommandTransformState();
+      this.clearStartData();
+      return;
+    }
 
+    this.vertexEditor.setObject(this.editedObject);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
+
+    const meshData = this.editedObject.userData.meshData;
+    this.afterMeshData = structuredClone(meshData);
+    this.editor.execute(new EdgeSlideCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
+
+    this.editSelection.clearSelection();
+    this.editSelection.selectEdges(this.selectedEdgeIds);
+    this.clearStartData();
+  }
+
+  cancelSlideEdgeSession() {
+    this.editedObject = this.editSelection.editedObject;
+    if (!this.editedObject) return;
+
+    this.vertexEditor.setObject(this.editedObject);
+    this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
+
+    this.handle.position.copy(this.startPivotPosition);
+    this.handle.updateMatrixWorld(true);
+
+    this.editSelection.selectEdges(this.selectedEdgeIds);
+  }
+
+  clearCommandTransformState() {
+    this.activeTransformSource = null;
+
+    this.transformSolver.clear();
+    this.transformSolver.clearGizmoActiveVisualState();
+
+    requestAnimationFrame(() => {
+      this.signals.transformDragEnded.dispatch('edit');
+    });
+  }
+
+  clearStartData() {
+    this.startPivotPosition = null;
+    this.selectedEdgeIds = null;
+    this.slideData = null;
+    this.offset = null;
+
+    this.edgeSlideStarted = false;
   }
 
   startEdgeSlide() {
     const meshData = this.editedObject.userData.meshData;
-
-    const selectedEdges = this.selectedEdgeIds.map(id => meshData.edges.get(id));
-    const selectedEdgeSet = new Set(selectedEdges);
+    if (!meshData || !this.selectedEdgeIds.length) return;
 
     const vertexGraph = this.buildSelectedVertexGraph(meshData, this.selectedEdgeIds);
     for (const [vId, info] of vertexGraph) {
       if (info.valence > 2) {
         this.slideData = null;
-        return; 
+        return;
       }
     }
+
+    const selectedEdges = this.selectedEdgeIds.map(id => meshData.edges.get(id));
+    const selectedEdgeSet = new Set(selectedEdges);
 
     const edgeGroups = this.groupConnectedSelectedEdges(meshData, this.selectedEdgeIds);
     
     this.groupVertexIds = [];
-    this.slideData = new Map();
 
     for (const edgeGroup of edgeGroups) {
       const edgesInGroup = [...edgeGroup].map(edgeId => meshData.edges.get(edgeId));
@@ -313,7 +368,7 @@ export class EdgeSlideTool {
     if (!meshData || !this.selectedEdgeIds.length || !this.slideData) return;
 
     const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    const offset = new THREE.Vector3().subVectors(
+    this.offset = new THREE.Vector3().subVectors(
       currentPivotPosition,
       this.startPivotPosition
     );
@@ -324,8 +379,8 @@ export class EdgeSlideTool {
     const first = this.slideData.get(this.groupVertexIds[0][0]);
     if (!first || (!first.sideA && !first.sideB)) return;
 
-    let scoreA = first.sideA ? offset.dot(first.sideA.normalized) : -Infinity;
-    let scoreB = first.sideB ? offset.dot(first.sideB.normalized) : -Infinity;
+    let scoreA = first.sideA ? this.offset.dot(first.sideA.normalized) : -Infinity;
+    let scoreB = first.sideB ? this.offset.dot(first.sideB.normalized) : -Infinity;
 
     const activeSide = scoreA > scoreB ? 'sideA' : 'sideB';
     const activeScore = Math.max(scoreA, scoreB);
@@ -342,14 +397,14 @@ export class EdgeSlideTool {
 
         if (!activeRail) {
            vertexIds.push(vertexId);
-           newPositions.push(data.origin.clone());
+           newPositions.push(data.origin.clone().applyMatrix4(this.editedObject.matrixWorld));
            continue;
         }
 
         const newPos = new THREE.Vector3()
           .copy(activeRail.direction)
           .multiplyScalar(t)
-          .add(data.origin);
+          .add(data.origin).applyMatrix4(this.editedObject.matrixWorld);
 
         vertexIds.push(vertexId);
         newPositions.push(newPos.clone());
@@ -518,7 +573,7 @@ export class EdgeSlideTool {
 
         for (const vId of [edge.v1Id, edge.v2Id]) {
           const connectedEdges = vertexToEdges.get(vId);
-          if (!componentEdges) continue;
+          if (!connectedEdges) continue;
 
           for (const nextEdgeId of connectedEdges) {
             if (!visitedEdges.has(nextEdgeId)) {

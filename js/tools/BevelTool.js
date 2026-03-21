@@ -597,7 +597,7 @@ export class BevelTool {
 
         for (const vId of [edge.v1Id, edge.v2Id]) {
           const connectedEdges = vertexToEdges.get(vId);
-          if (!componentEdges) continue;
+          if (!connectedEdges) continue;
 
           for (const nextEdgeId of connectedEdges) {
             if (!visitedEdges.has(nextEdgeId)) {

@@ -33,6 +33,7 @@ import { InsetCommand } from './InsetCommand.js';
 import { ApplyLocationCommand } from './ApplyLocationCommand.js';
 import { ApplyRotationCommand } from './ApplyRotationCommand.js';
 import { ApplyScaleCommand } from './ApplyScaleCommand.js';
+import { EdgeSlideCommand } from './EdgeSlideCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -70,4 +71,5 @@ export const commands = new Map([
   [ApplyLocationCommand.type, ApplyLocationCommand],
   [ApplyRotationCommand.type, ApplyRotationCommand],
   [ApplyScaleCommand.type, ApplyScaleCommand],
+  [EdgeSlideCommand.type, EdgeSlideCommand],
 ]);
