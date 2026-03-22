@@ -96,6 +96,18 @@ export class EditTransformTool {
 
       this.signals.transformDragStarted.dispatch('edit');
     });
+
+    this.signals.editCancelTransform.add(() => {
+      this.cancelTransformSession();
+      
+      this.activeTransformSource = null;
+
+      this.transformSolver.clear();
+      this.transformSolver.clearGizmoActiveVisualState();
+      this.signals.transformDragEnded.dispatch('edit');
+
+      this.transformNumericInput.reset();
+    });
   }
 
   // Gizmo Control

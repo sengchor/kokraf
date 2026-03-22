@@ -5,13 +5,14 @@ export class KeyHandler {
     this.config = editor.config;
     this.shortcuts = null;
     this.currentMode = 'object';
+
     this.keysPressed = {};
+    this.lastKey = null;
+    this.lastKeyTime = 0;
+    this.doubleTapThreshold = 300;
     this.isTransformDragging = false;
 
     this.activeInteraction = null;
-
-    this.onKeyDown = this.onKeyDown.bind(this);
-    this.onKeyUp = this.onKeyUp.bind(this);
     
     this.init();
     this.setupListeners();
@@ -21,8 +22,8 @@ export class KeyHandler {
     await this.config.loadSettings();
     this.shortcuts = this.config.get('shortcuts');
 
-    window.addEventListener('keydown', this.onKeyDown);
-    window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('keydown', (e) => this.onKeyDown(e));
+    window.addEventListener('keyup', (e) => this.onKeyUp(e));
     window.addEventListener('blur', () => {
       this.signals.multiSelectChanged.dispatch(false);
     });
@@ -46,7 +47,8 @@ export class KeyHandler {
     if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
       return;
     }
-    if (this.isTransformDragging) return;
+    const key = event.key.toLowerCase();
+    if (this.isTransformDragging && key !== this.lastKey) return;
 
     // Prevent the active element from consuming keyboard shortcuts
     if (document.activeElement) {
@@ -54,7 +56,6 @@ export class KeyHandler {
     }
 
     // Ignore repeat while held down
-    const key = event.key.toLowerCase();
     if (this.keysPressed[key]) return;
     this.keysPressed[key] = true;
 
@@ -71,10 +72,23 @@ export class KeyHandler {
       this.editor.toolbar.setActiveTool('select');
       handled = true;
     } else if (event.key === this.shortcuts['translate']) {
-      this.editor.toolbar.setActiveTool('move');
-      this.currentMode === 'object'
-        ? this.signals.objectTransformStart.dispatch('translate')
-        : this.signals.editTransformStart.dispatch('translate');
+      const now = performance.now();
+      const isDoubleTap = this.isDoubleTap(this.shortcuts['translate'], now);
+      
+      if (this.currentMode === 'edit' && isDoubleTap) {
+        this.signals.editCancelTransform.dispatch();
+        this.editor.toolbar.setActiveTool('edge-slide');
+        this.signals.editEdgeSlideStart.dispatch();
+      } else {
+        this.editor.toolbar.setActiveTool('move');
+        this.currentMode === 'object'
+          ? this.signals.objectTransformStart.dispatch('translate')
+          : this.signals.editTransformStart.dispatch('translate');
+      }
+
+      this.lastKey = this.shortcuts['translate'];
+      this.lastKeyTime = now;
+
       handled = true;
     } else if (event.key === this.shortcuts['rotate']) {
       this.editor.toolbar.setActiveTool('rotate');
@@ -205,7 +219,7 @@ export class KeyHandler {
 
   onKeyUp(event) {
     const key = event.key.toLowerCase();
-    this.keysPressed[key] = false;
+    delete this.keysPressed[key];
 
     if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(false);
@@ -227,5 +241,9 @@ export class KeyHandler {
   endInteraction(type) {
     if (this.activeInteraction !== type) return;
     this.activeInteraction = null;
+  }
+
+  isDoubleTap(key, now) {
+    return this.lastKey === key && (now - this.lastKeyTime) < this.doubleTapThreshold;
   }
 }

@@ -27,6 +27,12 @@ export class EdgeSlideTool {
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
 
     this.setupTransformListeners();
+    this.setupListeners();
+
+    this._onPointerDown = this.onPointerDown.bind(this);
+    this._onPointerMove = this.onPointerMove.bind(this);
+    this._onPointerUp = this.onPointerUp.bind(this);
+    this._onKeyDown = this.onKeyDown.bind(this);
   }
 
   enableFor(object) {
@@ -47,6 +53,27 @@ export class EdgeSlideTool {
   disable() {
     this.transformControls.detach();
     this.transformControls.visible = false;
+  }
+
+  setupListeners() {
+    this.signals.editEdgeSlideStart.add(() => {
+      this.editedObject = this.editSelection.editedObject;
+      if (!this.editedObject || !this.handle) return;
+
+      if (this.activeTransformSource !== null) return;
+
+      if (this.handle && this.transformControls.worldPositionStart) {
+        this.handle.getWorldPosition(this.transformControls.worldPositionStart);
+      }
+
+      this.activeTransformSource = 'command';
+      this.startEdgeSlideSession();
+
+      this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+      this.applyEdgeSlideSession();
+
+      this.signals.transformDragStarted.dispatch('edit');
+    });
   }
 
   showCenterOnly() {
@@ -110,6 +137,40 @@ export class EdgeSlideTool {
     });
   }
 
+  // Command Control
+  onPointerMove() {
+    if (this.activeTransformSource !== 'command') return;
+    this.transformSolver.updateHandleFromCommandInput('translate', this.event);
+    this.applyEdgeSlideSession();
+    this.signals.objectChanged.dispatch();
+  }
+
+  onPointerDown() {
+    if (this.activeTransformSource !== 'command') return;
+    this.commitEdgeSlideSession();
+    this.transformSolver.clearGizmoActiveVisualState();
+    this.transformSolver.clear();
+  }
+
+  onPointerUp() {
+    if (this.activeTransformSource !== 'command') return;
+    this.clearCommandTransformState();
+  }
+
+  onKeyDown(event) {
+    if (this.activeTransformSource !== 'command') return;
+
+    if (event.key === 'Escape') {
+      this.cancelEdgeSlideSession();
+      this.clearCommandTransformState();
+    }
+
+    if (event.key === 'Enter') {
+      this.commitEdgeSlideSession();
+      this.clearCommandTransformState();
+    }
+  }
+
   // Edge Slide Session
   startEdgeSlideSession() {
     this.editedObject = this.editSelection.editedObject;
@@ -142,7 +203,7 @@ export class EdgeSlideTool {
 
   commitEdgeSlideSession() {
     if (!this.offset || this.offset === 0 || !this.slideData) {
-      this.cancelSlideEdgeSession();
+      this.cancelEdgeSlideSession();
       this.clearCommandTransformState();
       this.clearStartData();
       return;
@@ -160,7 +221,7 @@ export class EdgeSlideTool {
     this.clearStartData();
   }
 
-  cancelSlideEdgeSession() {
+  cancelEdgeSlideSession() {
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
 
