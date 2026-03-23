@@ -3,6 +3,9 @@ import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { EdgeSlideCommand } from '../commands/EdgeSlideCommand.js';
 import { ToolNumericInput } from './ToolNumericInput.js';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 
 export class EdgeSlideTool {
   constructor(editor) {
@@ -14,6 +17,7 @@ export class EdgeSlideTool {
     this.renderer = editor.renderer;
     this.controls = editor.controlsManager;
     this.editSelection = editor.editSelection;
+    this.snapManager = editor.snapManager;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
     this.activeTransformSource = null;
@@ -198,6 +202,7 @@ export class EdgeSlideTool {
     const meshData = this.editedObject.userData.meshData;
     this.beforeMeshData = structuredClone(meshData);
 
+    this.selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     this.selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
 
     this.transformSolver.beginSession(this.startPivotPosition, null, null);
@@ -260,6 +265,8 @@ export class EdgeSlideTool {
   }
 
   clearCommandTransformState() {
+    this.sceneEditorHelpers.remove(this.slideLine);
+    this.slideLine = null;
     this.activeTransformSource = null;
 
     this.transformSolver.clear();
@@ -272,10 +279,12 @@ export class EdgeSlideTool {
 
   clearStartData() {
     this.startPivotPosition = null;
+    this.selectedVertexIds = null;
     this.selectedEdgeIds = null;
     this.slideData = null;
     this.offset = null;
     this.slideFactor = null;
+    this.closestVertexId = null;
 
     this.edgeSlideStarted = false;
   }
@@ -308,6 +317,8 @@ export class EdgeSlideTool {
 
       this.buildTopologicalSlideData(meshData, vertices, edges, isClosed, selectedEdgeSet);
     }
+
+    this.closestVertexId = this.findClosestSlideDataOnMouse();
   }
 
   buildTopologicalSlideData(meshData, orderedVertices, orderedEdges, isClosed, selectedEdgeSet) {
@@ -459,19 +470,33 @@ export class EdgeSlideTool {
       this.startPivotPosition
     );
 
-    const first = this.slideData.get(this.groupVertexIds[0][0]);
-    if (!first || (!first.sideA && !first.sideB)) return;
+    const referenceVertexData = this.slideData.get(this.closestVertexId);
+    if (!referenceVertexData || (!referenceVertexData.sideA && !referenceVertexData.sideB)) return;
 
-    let scoreA = first.sideA ? this.offset.dot(first.sideA.normalized) : -Infinity;
-    let scoreB = first.sideB ? this.offset.dot(first.sideB.normalized) : -Infinity;
+    let scoreA = referenceVertexData.sideA ? this.offset.dot(referenceVertexData.sideA.normalized) : -Infinity;
+    let scoreB = referenceVertexData.sideB ? this.offset.dot(referenceVertexData.sideB.normalized) : -Infinity;
 
     const activeSide = scoreA > scoreB ? 'sideA' : 'sideB';
     const activeScore = Math.max(scoreA, scoreB);
-    const activeLength = first[activeSide].length;
+    const activeLength = referenceVertexData[activeSide].length;
 
-    this.slideFactor = activeScore / activeLength;
-    this.slideFactor = Math.max(0, Math.min(1, this.slideFactor));
+    const snapTarget = this.snapManager.snapEditPosition(this.event, this.selectedVertexIds, this.editedObject);
 
+    if (snapTarget) {
+      const worldOrigin = referenceVertexData.origin.clone().applyMatrix4(this.editedObject.matrixWorld);
+      const worldDir = referenceVertexData[activeSide].normalized.clone().transformDirection(this.editedObject.matrixWorld);
+
+      const toSnap = snapTarget.clone().sub(worldOrigin);
+      const projected = toSnap.dot(worldDir);
+
+      const snappedFactor = projected / activeLength;
+      this.slideFactor = Math.max(0, Math.min(1, snappedFactor));
+    } else {
+      this.slideFactor = activeScore / activeLength;
+      this.slideFactor = Math.max(0, Math.min(1, this.slideFactor));
+    }
+
+    this.updateSlidePreview(referenceVertexData, activeSide);
     this.applyEdgeSlideFactor(this.slideFactor, activeSide);
   }
 
@@ -810,5 +835,100 @@ export class EdgeSlideTool {
     }
 
     return groups;
+  }
+
+  createSlidePreview() {
+    this.lineMaterial = new LineMaterial({
+      color: 0x00ffff,
+      linewidth: 1.0,
+      dashed: false,
+      worldUnits: true,
+      depthTest: false,
+      worldUnits: false,
+    });
+
+    const geometry = new LineGeometry()
+    geometry.setPositions([0, 0, 0, 0, 0, 0]);
+
+    this.slideLine = new Line2(geometry, this.lineMaterial);
+    this.slideLine.visible = false;
+    this.sceneEditorHelpers.add(this.slideLine);
+  }
+
+  updateSlidePreview(vertexData, activeSide) {
+    if (!this.slideLine) {
+      this.createSlidePreview();
+    }
+
+    if (!vertexData || !vertexData[activeSide]) {
+      this.slideLine.visible = false;
+      return;
+    }
+
+    const matrix = this.editedObject.matrixWorld;
+
+    const origin = vertexData.origin.clone().applyMatrix4(matrix);
+
+    const rail = vertexData[activeSide];
+    const dir = rail.normalized.clone().transformDirection(matrix);
+    const end = origin.clone().add(dir.multiplyScalar(rail.length));
+
+    this.updateLine(this.slideLine, origin, end);
+
+    this.slideLine.visible = true;
+  }
+
+  updateLine(line, start, end) {
+    const positions = [
+      start.x, start.y, start.z,
+      end.x,   end.y,   end.z
+    ];
+
+    line.geometry.setPositions(positions);
+    line.computeLineDistances();
+  }
+
+  projectToScreen(worldPosition, camera, domElement) {
+    const projected = worldPosition.clone().project(camera);
+
+    return new THREE.Vector2(
+      (projected.x + 1) * 0.5 * domElement.clientWidth,
+      (-projected.y + 1) * 0.5 * domElement.clientHeight
+    );
+  }
+
+  findClosestSlideDataOnMouse() {
+    if (!this.slideData || !this.event) return null;
+
+    const rect = this.renderer.domElement.getBoundingClientRect();
+
+    const mouseX = this.event.clientX - rect.left;
+    const mouseY = this.event.clientY - rect.top;
+
+    let closestId = null;
+    let minDistSq = Infinity;
+
+    const world = new THREE.Vector3();
+
+    for (const [vId, data] of this.slideData) {
+      world.copy(data.origin).applyMatrix4(this.editedObject.matrixWorld);
+
+      const screen = this.projectToScreen(
+        world,
+        this.camera,
+        this.renderer.domElement
+      );
+
+      const dx = screen.x - mouseX;
+      const dy = screen.y - mouseY;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq < minDistSq) {
+        minDistSq = distSq;
+        closestId = vId;
+      }
+    }
+
+    return closestId;
   }
 }
