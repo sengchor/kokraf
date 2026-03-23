@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { EdgeSlideCommand } from '../commands/EdgeSlideCommand.js';
+import { ToolNumericInput } from './ToolNumericInput.js';
 
 export class EdgeSlideTool {
   constructor(editor) {
@@ -25,6 +26,13 @@ export class EdgeSlideTool {
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
+    this.toolNumericInput = new ToolNumericInput({
+      tool: this,
+      label: 'Edge Slide',
+      getter: () => this.slideFactor,
+      setter: (v) => this.applyEdgeSlideFactor(v),
+      allowNegative: true,
+    });
 
     this.setupTransformListeners();
     this.setupListeners();
@@ -139,7 +147,7 @@ export class EdgeSlideTool {
 
   // Command Control
   onPointerMove() {
-    if (this.activeTransformSource !== 'command') return;
+    if (this.activeTransformSource !== 'command' || this.toolNumericInput.active) return;
     this.transformSolver.updateHandleFromCommandInput('translate', this.event);
     this.applyEdgeSlideSession();
     this.signals.objectChanged.dispatch();
@@ -155,19 +163,26 @@ export class EdgeSlideTool {
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
     this.clearCommandTransformState();
+    this.toolNumericInput.reset();
   }
 
   onKeyDown(event) {
     if (this.activeTransformSource !== 'command') return;
 
+    if (this.toolNumericInput.handleKey(event, this.mode)) {
+      return;
+    }
+
     if (event.key === 'Escape') {
       this.cancelEdgeSlideSession();
       this.clearCommandTransformState();
+      this.toolNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitEdgeSlideSession();
       this.clearCommandTransformState();
+      this.toolNumericInput.reset();
     }
   }
 
@@ -188,6 +203,8 @@ export class EdgeSlideTool {
     this.transformSolver.beginSession(this.startPivotPosition, null, null);
 
     this.edgeSlideStarted = false;
+
+    this.signals.onToolStarted.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   applyEdgeSlideSession() {
@@ -199,6 +216,8 @@ export class EdgeSlideTool {
       this.edgeSlideStarted = true;
     }
     this.updateEdgeSlide();
+
+    this.signals.onToolUpdated.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   commitEdgeSlideSession() {
@@ -206,6 +225,7 @@ export class EdgeSlideTool {
       this.cancelEdgeSlideSession();
       this.clearCommandTransformState();
       this.clearStartData();
+      this.toolNumericInput.reset();
       return;
     }
 
@@ -219,6 +239,8 @@ export class EdgeSlideTool {
     this.editSelection.clearSelection();
     this.editSelection.selectEdges(this.selectedEdgeIds);
     this.clearStartData();
+
+    this.signals.onToolEnded.dispatch();
   }
 
   cancelEdgeSlideSession() {
@@ -233,6 +255,8 @@ export class EdgeSlideTool {
     this.handle.updateMatrixWorld(true);
 
     this.editSelection.selectEdges(this.selectedEdgeIds);
+
+    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -251,6 +275,7 @@ export class EdgeSlideTool {
     this.selectedEdgeIds = null;
     this.slideData = null;
     this.offset = null;
+    this.slideFactor = null;
 
     this.edgeSlideStarted = false;
   }
@@ -434,9 +459,6 @@ export class EdgeSlideTool {
       this.startPivotPosition
     );
 
-    const vertexIds = [];
-    const newPositions = [];
-
     const first = this.slideData.get(this.groupVertexIds[0][0]);
     if (!first || (!first.sideA && !first.sideB)) return;
 
@@ -447,10 +469,22 @@ export class EdgeSlideTool {
     const activeScore = Math.max(scoreA, scoreB);
     const activeLength = first[activeSide].length;
 
-    let t = activeScore / activeLength;
-    t = Math.max(0, Math.min(1, t));
+    this.slideFactor = activeScore / activeLength;
+    this.slideFactor = Math.max(0, Math.min(1, this.slideFactor));
 
-    // Apply uniform sliding to the entire chain
+    this.applyEdgeSlideFactor(this.slideFactor, activeSide);
+  }
+
+  applyEdgeSlideFactor(slideFactor, activeSide) {
+    if (!activeSide) {
+      activeSide = slideFactor >= 0 ? 'sideA' : 'sideB';
+    }
+    
+    this.slideFactor = Math.abs(slideFactor);
+
+    const vertexIds = [];
+    const newPositions = [];
+
     for (const groupVertex of this.groupVertexIds) {
       for (const vertexId of groupVertex) {
         const data = this.slideData.get(vertexId);
@@ -464,7 +498,7 @@ export class EdgeSlideTool {
 
         const newPos = new THREE.Vector3()
           .copy(activeRail.direction)
-          .multiplyScalar(t)
+          .multiplyScalar(this.slideFactor)
           .add(data.origin).applyMatrix4(this.editedObject.matrixWorld);
 
         vertexIds.push(vertexId);

@@ -33,6 +33,7 @@ export class BevelTool {
       label: 'Width',
       getter: () => this.width,
       setter: (v) => this.applyBevelWidth(v),
+      unit: 'm'
     });
 
     this.setupTransformListeners();

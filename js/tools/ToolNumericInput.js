@@ -1,11 +1,13 @@
 export class ToolNumericInput {
-  constructor({tool, label, getter, setter}) {
+  constructor({tool, label, getter, setter, unit = '', allowNegative = false}) {
     this.tool = tool;
     this.signals = tool.signals;
 
     this.label = label;
     this.getValue = getter;
     this.setValue = setter;
+    this.unit = unit;
+    this.allowNegative = allowNegative;
 
     this.reset();
   }
@@ -16,6 +18,12 @@ export class ToolNumericInput {
     if (/[0-9.]/.test(key)) {
       if (!this.active) this.begin();
       this.insertChar(key);
+      this.applyNumeric();
+      return true;
+    }
+
+    if (key === '-' && this.allowNegative) {
+      this.sign *= -1;
       this.applyNumeric();
       return true;
     }
@@ -44,6 +52,7 @@ export class ToolNumericInput {
   reset() {
     this.active = false;
     this.buffer = '';
+    this.sign = 1;
     this.cursor = 0;
   }
 
@@ -82,7 +91,7 @@ export class ToolNumericInput {
   }
 
   applyNumeric() {
-    const value = parseFloat(this.buffer);
+    const value = parseFloat(this.buffer) * this.sign;
 
     if (!Number.isNaN(value)) {
       this.setValue(value);
@@ -97,17 +106,22 @@ export class ToolNumericInput {
       currentValue = 0;
     }
 
-    return `${this.label}: ${currentValue.toFixed(3)} (${currentValue.toFixed(3)}) m`;
+    const unitText = this.unit ? ` ${this.unit}` : '';
+
+    return `${this.label}: ${currentValue.toFixed(3)} (${currentValue.toFixed(3)})${unitText}`;
   }
 
   getEditDisplayText() {
     const raw = this.getDisplayBufferWithCaret();
+    const displayValue = this.sign === 1 ? raw : `-(${raw})`;
 
     let currentValue = this.getValue();
     if (currentValue == null || Number.isNaN(currentValue)) {
       currentValue = 0;
     }
 
-    return `${this.label}: [${raw}] = ${currentValue.toFixed(3)} (${currentValue.toFixed(3)}) m`;
+    const unitText = this.unit ? ` ${this.unit}` : '';
+
+    return `${this.label}: [${displayValue}] = ${currentValue.toFixed(3)} (${currentValue.toFixed(3)})${unitText}`;
   }
 }

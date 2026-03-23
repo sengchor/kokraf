@@ -32,6 +32,7 @@ export class InsetTool {
       label: 'Width',
       getter: () => this.width,
       setter: (v) => this.applyInsetWidth(v),
+      unit: 'm'
     });
 
     this.setupTransformListeners();
