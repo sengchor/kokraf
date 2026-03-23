@@ -265,8 +265,6 @@ export class EdgeSlideTool {
   }
 
   clearCommandTransformState() {
-    this.sceneEditorHelpers.remove(this.slideLine);
-    this.slideLine = null;
     this.activeTransformSource = null;
 
     this.transformSolver.clear();
@@ -278,6 +276,8 @@ export class EdgeSlideTool {
   }
 
   clearStartData() {
+    this.sceneEditorHelpers.remove(this.slideLine);
+    this.slideLine = null;
     this.startPivotPosition = null;
     this.selectedVertexIds = null;
     this.selectedEdgeIds = null;
