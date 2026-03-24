@@ -83,24 +83,36 @@ export class SelectionBox {
     const nearWorld = ndc.near.map(v => v.clone().unproject(camera));
     const farWorld  = ndc.far.map(v => v.clone().unproject(camera));
 
-    const camPos = new THREE.Vector3();
-    camera.getWorldPosition(camPos);
-
     const centerNDC = new THREE.Vector3((minX + maxX) * 0.5, (minY + maxY) * 0.5, 0);
     const centerWorld = centerNDC.clone().unproject(camera);
 
     // Side planes
     const planes = [];
-    const leftP   = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[1], nearWorld[0]);
-    const rightP  = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[3], nearWorld[2]);
-    const topP    = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[2], nearWorld[1]);
-    const bottomP = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[0], nearWorld[3]);
+
+    if (camera.isPerspectiveCamera) {
+      const camPos = new THREE.Vector3();
+      camera.getWorldPosition(camPos);
+
+      const leftP   = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[1], nearWorld[0]);
+      const rightP  = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[3], nearWorld[2]);
+      const topP    = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[2], nearWorld[1]);
+      const bottomP = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[0], nearWorld[3]);
+
+      planes.push(leftP, rightP, topP, bottomP);
+    } else {
+      const leftP = new THREE.Plane().setFromCoplanarPoints(nearWorld[0], nearWorld[1], farWorld[1]);
+      const rightP = new THREE.Plane().setFromCoplanarPoints(nearWorld[3], farWorld[3], farWorld[2]);
+      const topP = new THREE.Plane().setFromCoplanarPoints(nearWorld[1], nearWorld[2], farWorld[2]);
+      const bottomP = new THREE.Plane().setFromCoplanarPoints(nearWorld[0], farWorld[0], farWorld[3]);
+
+      planes.push(leftP, rightP, topP, bottomP);
+    }
 
     // near and far planes use three points on the plane
     const nearPlane = new THREE.Plane().setFromCoplanarPoints(nearWorld[0], nearWorld[1], nearWorld[2]);
     const farPlane  = new THREE.Plane().setFromCoplanarPoints(farWorld[2], farWorld[1], farWorld[0]);
 
-    planes.push(leftP, rightP, topP, bottomP, nearPlane, farPlane);
+    planes.push(nearPlane, farPlane);
 
     // Ensure all plane normals point *into* the frustum (towards centerWorld)
     for (const p of planes) {

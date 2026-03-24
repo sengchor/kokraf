@@ -31,6 +31,12 @@ export default class EditSelection {
   }
 
   setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+      }
+    });
+
     this.signals.multiSelectChanged.add((shiftChanged) => {
       this.multiSelectEnabled = shiftChanged;
     });

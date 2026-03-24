@@ -29,6 +29,12 @@ export default class Selection {
   }
 
   setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+      }
+    });
+
     this.signals.emptyScene.add(() => {
       this.deselect();
     });
