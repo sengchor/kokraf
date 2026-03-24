@@ -94,28 +94,51 @@ export class QuaternionOrbitControls {
 	_zoom(event) {
 		const delta = event.deltaY > 0 ? 1 : -1;
 
-		this.eye.subVectors(this.camera.position, this.target);
+		if (this.camera.isPerspectiveCamera) {
+			this.eye.subVectors(this.camera.position, this.target);
 
-		const zoomFactor = 1 + delta * 0.1 * this.zoomSpeed;
+			const zoomFactor = 1 + delta * 0.1 * this.zoomSpeed;
 
-		this.eye.multiplyScalar(zoomFactor);
-		this.camera.position.copy(this.target).add(this.eye);
-		this.camera.lookAt(this.target);
+			this.eye.multiplyScalar(zoomFactor);
+			this.camera.position.copy(this.target).add(this.eye);
+			this.camera.lookAt(this.target);
+		} else if (this.camera.isOrthographicCamera) {
+			const zoomFactor = 1 - delta * 0.1 * this.zoomSpeed;
+
+			const minZoom = 0.01;
+			const maxZoom = 100;
+
+			this.camera.zoom = Math.max(minZoom, Math.min(maxZoom, this.camera.zoom * zoomFactor));
+			this.camera.updateProjectionMatrix();
+		}
 	}
 
 	_panCamera() {
 		const moveDelta = new Vector2().subVectors(this.moveCurr, this.movePrev);
 		if (moveDelta.lengthSq() === 0) return;
-		
-		this.eye.subVectors(this.camera.position, this.target);
-		const eyeLength = this.eye.length();
 
 		const eyeDirection = this.eye.clone().normalize();
 		const cameraUp = this.camera.up.clone().normalize();
 		const right = new Vector3().crossVectors(cameraUp, eyeDirection).normalize();
 
-		const panX = -moveDelta.x * eyeLength * this.panSpeed;
-		const panY = -moveDelta.y * eyeLength * this.panSpeed;
+		let panX, panY;
+
+		if (this.camera.isPerspectiveCamera) {
+			const eye = new Vector3().subVectors(this.camera.position, this.target);
+			const eyeLength = eye.length();
+
+			panX = -moveDelta.x * eyeLength * this.panSpeed;
+			panY = -moveDelta.y * eyeLength * this.panSpeed;
+		} else if (this.camera.isOrthographicCamera) {
+			const width = this.camera.right - this.camera.left;
+			const height = this.camera.top - this.camera.bottom;
+
+			const scaleX = width / this.camera.zoom;
+			const scaleY = height / this.camera.zoom;
+
+			panX = -moveDelta.x * scaleX * this.panSpeed;
+			panY = -moveDelta.y * scaleY * this.panSpeed;
+		}
 
 		const panOffset = new Vector3().addScaledVector(right, panX).addScaledVector(cameraUp, panY);
 
@@ -234,11 +257,51 @@ export class QuaternionOrbitControls {
 		this._state = null;
 	}
 
+	_safeUp(eyeDir) {
+    const up = new Vector3(0, 1, 0);
+    if (Math.abs(up.dot(eyeDir)) > 0.99) {
+      up.set(0, 0, eyeDir.y >= 0 ? 1 : -1);
+    }
+    return up;
+	}
+
+	convertOrthoToPerspective() {
+		const dir = this.camera.getWorldDirection(new Vector3());
+		const frustumSize = this.camera.userData.frustumSize || 2;
+		const zoom = this.camera.zoom;
+		const distance = frustumSize / zoom;
+
+		this.eye.copy(dir.multiplyScalar(-distance));
+	}
+
+	updateFromState(isOrthographic) {
+		if (this.target.lengthSq() !== 0 || this.eye.lengthSq() !== 0) {
+			this.camera.position.copy(this.target).add(this.eye);
+
+			if (isOrthographic) {
+				const eyeDir = this.eye.clone().negate().normalize();
+				this.camera.up.copy(this._safeUp(eyeDir));
+			}
+
+			this.camera.lookAt(this.target);
+		}
+	}
+
 	toJSON() {
-		return {
-			target: this.target.toArray(),
-			eye: this.eye.toArray()
-		};
+		if (this.camera.isPerspectiveCamera) {
+			return {
+				target: this.target.toArray(),
+				eye: this.eye.toArray(),
+			};
+		} else if (this.camera.isOrthographicCamera) {
+			this.convertOrthoToPerspective();
+
+			return {
+				target: this.target.toArray(),
+				eye: this.eye.toArray(),
+				orthographic: true
+			};
+		}
 	}
 
 	fromJSON(json) {
@@ -246,5 +309,6 @@ export class QuaternionOrbitControls {
 
 		this.target.fromArray(json.target);
 		this.eye.fromArray(json.eye);
+		this.updateFromState(json.orthographic);
 	}
 }

@@ -85,7 +85,7 @@ export default class CameraManager {
   }
 
   resetCamera() {
-    const defaultCam = this.createDefaultCamera();
+    const defaultCam = this.createDefaultPersCamera();
     this.replaceCameraInstance(defaultCam);
   }
 }

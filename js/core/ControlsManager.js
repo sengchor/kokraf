@@ -80,7 +80,7 @@ export default class ControlsManager {
   safeUp(eyeDir) {
     const up = new THREE.Vector3(0, 1, 0);
     if (Math.abs(up.dot(eyeDir)) > 0.99) {
-      up.set(0, 0, eyeDir.y);
+      up.set(0, 0, eyeDir.y >= 0 ? 1 : -1);
     }
     return up;
   }
