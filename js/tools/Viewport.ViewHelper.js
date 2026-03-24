@@ -19,7 +19,7 @@ export class ViewportViewHelper {
     this.viewHelperContainer.style.position = 'absolute';
     this.viewHelperContainer.style.zIndex = '9';
 
-    this.viewHelper = new ViewHelper(this.camera, this.helperRenderer.domElement, this.orbitControls);
+    this.viewHelper = new ViewHelper(this.camera, this.helperRenderer.domElement, this.orbitControls, this.signals);
 
     this._setupEvents();
     this.setupListeners();
@@ -28,6 +28,7 @@ export class ViewportViewHelper {
   setupListeners() {
     this.signals.viewportCameraChanged.add((camera) => {
       this.setVisible(camera.isDefault);
+      this.viewHelper.camera = camera;
     });
   }
 

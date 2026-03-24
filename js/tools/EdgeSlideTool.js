@@ -260,6 +260,7 @@ export class EdgeSlideTool {
     this.handle.updateMatrixWorld(true);
 
     this.editSelection.selectEdges(this.selectedEdgeIds);
+    this.clearStartData();
 
     this.signals.onToolEnded.dispatch();
   }

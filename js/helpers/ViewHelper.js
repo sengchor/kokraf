@@ -36,9 +36,11 @@ class ViewHelper extends Object3D {
 	 * @param {Camera} camera - The camera whose transformation should be visualized.
 	 * @param {HTMLDOMElement} [domElement] - The DOM element that is used to render the view.
 	 */
-	constructor( camera, domElement, orbitControls ) {
+	constructor( camera, domElement, orbitControls, signals ) {
 
 		super();
+
+		this.camera = camera
 
 		/**
 		 * This flag can be used for type testing.
@@ -144,11 +146,11 @@ class ViewHelper extends Object3D {
 		 */
 		this.render = function ( renderer ) {
 
-			this.quaternion.copy( camera.quaternion ).invert();
+			this.quaternion.copy( this.camera.quaternion ).invert();
 			this.updateMatrixWorld();
 
 			point.set( 0, 0, 1 );
-			point.applyQuaternion( camera.quaternion );
+			point.applyQuaternion( this.camera.quaternion );
 
 			if ( point.x >= 0 ) {
 
@@ -237,13 +239,14 @@ class ViewHelper extends Object3D {
 				const object = intersection.object;
 
 				const direction = new Vector3();
-				camera.getWorldDirection(direction);
-				const radius = camera.position.distanceTo(this.center);
-				this.center.copy(camera.position).add(direction.multiplyScalar(radius));
+				this.camera.getWorldDirection(direction);
+				const radius = this.camera.position.distanceTo(this.center);
+				this.center.copy(this.camera.position).add(direction.multiplyScalar(radius));
 
 				prepareAnimationData( object, this.center );
 
 				this.animating = true;
+				signals.switchCameraView.dispatch('ORTHOGRAPHIC');
 
 				return true;
 
@@ -299,13 +302,13 @@ class ViewHelper extends Object3D {
       const step = delta * turnRate;
 
 			const eye = new Vector3(0, 0, 1).clone().applyQuaternion(q1).multiplyScalar(radius);
-			camera.position.copy(this.center).add(eye);
+			this.camera.position.copy(this.center).add(eye);
 			q1.rotateTowards( q2, step );
-			camera.lookAt(this.center);
+			this.camera.lookAt(this.center);
 
-			camera.up.copy(new Vector3(0, 1, 0).applyQuaternion(q1));
+			this.camera.up.copy(new Vector3(0, 1, 0).applyQuaternion(q1));
 
-			if (q1.angleTo( q2 ) === 0 && camera.quaternion.angleTo(targetQuaternion) === 0) {
+			if (q1.angleTo( q2 ) === 0 && this.camera.quaternion.angleTo(targetQuaternion) === 0) {
         this.animating = false;
       }
     };
@@ -338,7 +341,7 @@ class ViewHelper extends Object3D {
 
 		};
 
-    function prepareAnimationData(object, focusPoint) {
+    const prepareAnimationData = (object, focusPoint) => {
 
       switch (object.userData.type) {
 
@@ -377,9 +380,9 @@ class ViewHelper extends Object3D {
           return;
       }
 
-      radius = camera.position.distanceTo( focusPoint );
+      radius = this.camera.position.distanceTo( focusPoint );
 
-			q1.copy(camera.quaternion);
+			q1.copy(this.camera.quaternion);
 			q2.copy(targetQuaternion);
     }
 

@@ -3,6 +3,7 @@ import { Vector2, Vector3, Quaternion, Box3, Sphere } from 'three';
 export class QuaternionOrbitControls {
 	constructor(editor, camera, domElement, target = new Vector3()) {
 		this.editor = editor;
+		this.signals = editor.signals;
 		this.keyHandler = editor.keyHandler;
 		this.camera = camera;
 		this.domElement = domElement;
@@ -44,6 +45,10 @@ export class QuaternionOrbitControls {
 		this._state = type;
 		this.movePrev.copy(this._getMouseOnCircle(event.clientX, event.clientY));
 		this._startButton = event.button;
+
+		if (this._state === 'orbit' && this.camera.isDefault && this.camera.isOrthographicCamera) {
+			this.signals.switchCameraView.dispatch('PERSPECTIVE');
+		}
 
 		const onMouseMove = (event) => {
 			this.moveCurr.copy(this._getMouseOnCircle(event.clientX, event.clientY));
@@ -133,7 +138,9 @@ export class QuaternionOrbitControls {
     const worldYAxis = new Vector3(0, 1, 0);
 		const worldUp = worldYAxis.clone().multiplyScalar(upDirection.dot(worldYAxis)).normalize();
 
-		const rightDirection = new Vector3().crossVectors(upDirection, eyeDirection).normalize();
+		const rightDirection = new Vector3().crossVectors(upDirection, eyeDirection);
+		if (rightDirection.lengthSq() < 1e-10) return;
+		rightDirection.normalize();
 
     // Create pitch quaternion around right dicrection
     const quatPitch = new Quaternion().setFromAxisAngle(rightDirection, anglePitch);

@@ -217,7 +217,7 @@ export default class ViewportControls {
 
       const option = document.createElement('option');
       option.value = camera.uuid;
-      option.textContent = camera.type.toUpperCase();
+      option.textContent = camera.name.toUpperCase();
       this.cameraDropdown.appendChild(option);
     });
 

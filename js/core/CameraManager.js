@@ -5,7 +5,8 @@ export default class CameraManager {
     this.editor = editor;
     this.signals = editor.signals;
 
-    this.viewportCamera = this.createDefaultCamera();
+    this.viewportCamera = this.createDefaultPersCamera();
+    this.orthoViewportCamera = this.createDefaultOrthoCamera();
     this.camera = this.viewportCamera;
     this.cameras = {[this.viewportCamera.uuid]: this.viewportCamera};
 
@@ -18,7 +19,7 @@ export default class CameraManager {
     });
   }
 
-  createDefaultCamera({
+  createDefaultPersCamera({
     fov = 50,
     aspect = window.innerWidth / window.innerHeight,
     near = 0.1,
@@ -28,6 +29,27 @@ export default class CameraManager {
     const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     camera.name = 'CAMERA';
     camera.isDefault = true;
+    camera.position.copy(initialPosition);
+    camera.lookAt(new THREE.Vector3());
+    return camera;
+  }
+
+  createDefaultOrthoCamera({
+    frustumSize = 2,
+    aspect = window.innerWidth / window.innerHeight,
+    near = -1000,
+    far = 1000,
+    initialPosition = new THREE.Vector3(3, 2, 5)
+  } = {}) {
+    const halfH = frustumSize / 2;
+    const halfW = halfH * aspect;
+
+    const camera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, near, far);
+
+    camera.name = 'ORTHO_CAMERA';
+    camera.isDefault = true;
+    camera.userData.frustumSize = frustumSize;
+
     camera.position.copy(initialPosition);
     camera.lookAt(new THREE.Vector3());
     return camera;
