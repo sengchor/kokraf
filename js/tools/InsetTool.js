@@ -65,6 +65,14 @@ export class InsetTool {
   }
 
   setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+        this.transformControls.camera = camera;
+        this.transformSolver.camera = camera;
+      }
+    });
+
     this.signals.editInsetStart.add(() => {
       this.editedObject = this.editSelection.editedObject;
       if (!this.editedObject || !this.handle) return;
@@ -511,9 +519,19 @@ export class InsetTool {
   }
 
   pixelsToWorldUnits(pixelDistance, camera, depth, renderer) {
-    const vFov = THREE.MathUtils.degToRad(camera.fov);
-    const viewportHeight = 2 * Math.tan(vFov / 2) * depth;
-    const worldPerPixel = viewportHeight / renderer.domElement.clientHeight;
+    const viewportHeightPx = renderer.domElement.clientHeight;
+
+    let worldPerPixel;
+
+    if (camera.isPerspectiveCamera) {
+      const vFov = THREE.MathUtils.degToRad(camera.fov);
+      const viewportHeight = 2 * Math.tan(vFov / 2) * depth;
+      worldPerPixel = viewportHeight / viewportHeightPx;
+    } else if (camera.isOrthographicCamera) {
+      const worldHeight = (camera.top - camera.bottom) / camera.zoom;
+      worldPerPixel = worldHeight / viewportHeightPx;
+    }
+
     return pixelDistance * worldPerPixel;
   }
 

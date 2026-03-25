@@ -72,6 +72,14 @@ export class EditTransformTool {
 
   // Signals & Listeners
   setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+        this.transformControls.camera = camera;
+        this.transformSolver.camera = camera;
+      }
+    });
+
     this.signals.transformOrientationChanged.add((orientation) => {
       this.applyTransformOrientation(orientation);
     });

@@ -7,6 +7,8 @@ import { KnifeCommand } from '../commands/KnifeCommand.js';
 export class KnifeTool {
   constructor(editor) {
     this.editor = editor;
+    this.signals = editor.signals;
+
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.scene = editor.sceneManager.sceneEditorHelpers;
@@ -40,6 +42,8 @@ export class KnifeTool {
       opacity: 0.8
     });
 
+    this.setupListeners();
+
     this._onPointerDown = this.onPointerDown.bind(this);
     this._onPointerMove = this.onPointerMove.bind(this);
     this._onKeyDown = this.onKeyDown.bind(this);
@@ -60,6 +64,15 @@ export class KnifeTool {
     if (!this.active) return;
     this.active = false;
     this.cancelCut();
+  }
+
+  setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+        this.raycaster.camera = camera;
+      }
+    });
   }
 
   onPointerDown(event) {
@@ -233,7 +246,16 @@ export class KnifeTool {
 
     const midPoint = new THREE.Vector3().addVectors(aPos, bPos).multiplyScalar(0.5);
     const cameraPos = this.camera.position.clone();
-    const cameraDir = new THREE.Vector3().subVectors(cameraPos, midPoint).normalize();
+
+    let cameraDir;
+    if (this.camera.isPerspectiveCamera) {
+      cameraDir = new THREE.Vector3().subVectors(cameraPos, midPoint).normalize();
+    } else if (this.camera.isOrthographicCamera) {
+      cameraDir = new THREE.Vector3();
+      this.camera.getWorldDirection(cameraDir).normalize();
+      cameraDir.negate();
+    }
+    
     const segmentDir = new THREE.Vector3().subVectors(bPos, aPos).normalize();
 
     const planeNormal = new THREE.Vector3().crossVectors(segmentDir, cameraDir).normalize();

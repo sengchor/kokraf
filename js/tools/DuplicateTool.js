@@ -57,6 +57,14 @@ export class DuplicateTool {
   }
 
   setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+        this.transformControls.camera = camera;
+        this.transformSolver.camera = camera;
+      }
+    });
+
     this.signals.duplicateSelection.add(() => {
       const editedObject = this.editSelection.editedObject;
       if (!editedObject) return;

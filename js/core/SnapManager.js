@@ -23,6 +23,13 @@ export class SnapManager {
   }
 
   setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+        this.raycaster.camera = camera;
+      }
+    });
+
     this.signals.transformDragEnded.add(() => {
       this.updateSnapPreview(null);
     });
@@ -496,15 +503,22 @@ export class SnapManager {
     this.snapPreview.position.copy(worldPosition);
 
     const camera = this.camera;
-    const distance = camera.position.distanceTo(worldPosition);
-
-    const fov = camera.fov * (Math.PI / 180);
-    const worldHeightAtDistance = 2 * Math.tan(fov / 2) * distance;
-
     const viewportHeight = this.renderer.domElement.clientHeight;
-
     const desiredPixelSize = 18;
-    const scale = (desiredPixelSize / viewportHeight) * worldHeightAtDistance;
+
+    let scale;
+    if (camera.isPerspectiveCamera) {
+      const distance = camera.position.distanceTo(worldPosition);
+
+      const fov = camera.fov * (Math.PI / 180);
+      const worldHeightAtDistance = 2 * Math.tan(fov / 2) * distance;
+
+      scale = (desiredPixelSize / viewportHeight) * worldHeightAtDistance;
+    } else if (camera.isOrthographicCamera) {
+      const worldHeight = (camera.top - camera.bottom) / camera.zoom;
+
+      scale = (desiredPixelSize / viewportHeight) * worldHeight;
+    }
 
     this.snapPreview.scale.set(scale, scale, 1);
   }

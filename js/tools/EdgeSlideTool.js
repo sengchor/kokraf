@@ -68,6 +68,14 @@ export class EdgeSlideTool {
   }
 
   setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+        this.transformControls.camera = camera;
+        this.transformSolver.camera = camera;
+      }
+    });
+
     this.signals.editEdgeSlideStart.add(() => {
       this.editedObject = this.editSelection.editedObject;
       if (!this.editedObject || !this.handle) return;

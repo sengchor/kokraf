@@ -8,6 +8,8 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 export class LoopCutTool {
   constructor(editor) {
     this.editor = editor;
+    this.signals = editor.signals;
+
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.scene = editor.sceneManager.sceneEditorHelpers;
@@ -19,6 +21,8 @@ export class LoopCutTool {
     this.editedObject = null;
     this.previewLines = [];
     this.cutCount = 1;
+
+    this.setupListeners();
 
     this._onPointerDown = this.onPointerDown.bind(this);
     this._onPointerMove = this.onPointerMove.bind(this);
@@ -37,6 +41,15 @@ export class LoopCutTool {
     if (!this.active) return;
     this.active = false;
     this.clearPreview();
+  }
+
+  setupListeners() {
+    this.signals.viewportCameraChanged.add((camera) => {
+      if (camera.isDefault) {
+        this.camera = camera;
+        this.raycaster.camera = camera;
+      }
+    });
   }
 
   onPointerDown(event) {

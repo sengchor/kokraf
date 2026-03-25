@@ -15,7 +15,6 @@ export default class Toolbar {
     this.uiLoader = editor.uiLoader;
     this.canvas = document.getElementById('three-canvas');
     this.renderer = editor.renderer;
-    this.camera = editor.cameraManager.camera;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
     this.viewportControls = editor.viewportControls;
