@@ -333,7 +333,7 @@ export class ExtrudeTool {
     this.vertexEditor.transform.updateGeometryAndHelpers();
     this.initialDuplicatedPositions = this.vertexEditor.transform.getVertexPositions(this.newVertexIds);
 
-    this.boundaryEdges = this.vertexEditor.topology.getBoundaryEdges(selectedVertexIds, selectedEdgeIds, selectedFaceIds);
+    this.boundaryEdges = this.vertexEditor.selection.getBoundaryEdges(selectedVertexIds, selectedEdgeIds, selectedFaceIds);
 
     // Recreate side faces
     for (let i = 0; i < this.boundaryEdges.length; i++) {

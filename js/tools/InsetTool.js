@@ -327,7 +327,7 @@ export class InsetTool {
       const groupEdgeIds = Array.from(edgeSet);
       const groupFaceIds = Array.from(groupFaceIdsSet);
 
-      this.boundaryEdges = this.vertexEditor.topology.getBoundaryEdges(groupVertexIds, groupEdgeIds, groupFaceIds);
+      this.boundaryEdges = this.vertexEditor.selection.getBoundaryEdges(groupVertexIds, groupEdgeIds, groupFaceIds);
       if (!this.boundaryEdges) return;
 
       const selectedEdges = groupEdgeIds.map(edgeId => meshData.edges.get(edgeId));

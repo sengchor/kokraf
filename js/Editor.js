@@ -97,6 +97,8 @@ export default class Editor {
 
       objectSelectAll: new Signal(),
       editSelectAll: new Signal(),
+      editSelectNone: new Signal(),
+      editSelectLinked: new Signal(),
 
       objectsCopied: new Signal(),
       objectsPasted: new Signal(),

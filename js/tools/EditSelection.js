@@ -55,6 +55,18 @@ export default class EditSelection {
       this.enable = true;
     });
 
+    this.signals.editSelectAll.add(() => {
+      this.selectAll();
+    });
+
+    this.signals.editSelectNone.add(() => {
+      this.clearSelection();
+    });
+
+    this.signals.editSelectLinked.add(() => {
+      this.selectLinked();
+    });
+
     const dom = this.renderer.domElement;
     dom.addEventListener("mousedown", this.onMouseDown.bind(this));
     dom.addEventListener("mousemove", this.onMouseMove.bind(this));
@@ -861,5 +873,33 @@ export default class EditSelection {
     }
 
     return { vertexSet, edgeSet };
+  }
+
+  selectAll() {
+    if (!this.editedObject) return;
+
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return;
+
+    const mode = this.subSelectionMode;
+
+    if (mode === 'vertex') {
+      const allVertexIds = Array.from(meshData.vertices.keys());
+      this.selectVertices(allVertexIds);
+    }
+
+    else if (mode === 'edge') {
+      const allEdgeIds = Array.from(meshData.edges.keys());
+      this.selectEdges(allEdgeIds);
+    }
+
+    else if (mode === 'face') {
+      const allFaceIds = Array.from(meshData.faces.keys());
+      this.selectFaces(allFaceIds);
+    }
+  }
+
+  selectLinked() {
+
   }
 }

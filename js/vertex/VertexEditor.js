@@ -4,6 +4,7 @@ import { VertexDissolve } from "./VertexDissolve.js";
 import { VertexTopologyUtils } from "./VertexTopologyUtils.js";
 import { VertexTransform } from "./VertexTransform.js";
 import { VertexSubdivide } from "./VertexSubdivide.js";
+import { VertexSelection } from "./VertexSelection.js";
 import { MeshData } from '../core/MeshData.js';
 
 export class VertexEditor {
@@ -17,6 +18,7 @@ export class VertexEditor {
     this.delete = new VertexDelete(this);
     this.dissolve = new VertexDissolve(this);
     this.subdivide = new VertexSubdivide(this);
+    this.selection = new VertexSelection(this);
   }
 
   get meshData() {

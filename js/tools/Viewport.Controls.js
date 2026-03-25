@@ -40,6 +40,7 @@ export default class ViewportControls {
     this.xrayButton = document.getElementById('xray-button');
     this.objectMenu = document.getElementById('object-menu');
     this.meshMenu = document.getElementById('mesh-menu');
+    this.selectMenu = document.getElementById('select-menu');
     this.leftControls = document.getElementById('left-controls-container');
 
     if (this.cameraDropdown) {
@@ -137,6 +138,10 @@ export default class ViewportControls {
     if (this.meshMenu) {
       this.initMenu(this.meshMenu, this.editActions);
     }
+
+    if (this.selectMenu) {
+      this.initMenu(this.selectMenu, this.editActions);
+    }
   }
 
   setupListeners() {
@@ -165,8 +170,13 @@ export default class ViewportControls {
       }
 
       if (this.meshMenu) {
-        this.meshMenu.classList.toggle('hidden', newMode == 'object');
+        this.meshMenu.classList.toggle('hidden', newMode === 'object');
         this.meshMenu.classList.remove('active');
+      }
+
+      if (this.selectMenu) {
+        this.selectMenu.classList.toggle('hidden', newMode === 'object');
+        this.selectMenu.classList.remove('active');
       }
     });
 

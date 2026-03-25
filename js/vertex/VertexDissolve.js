@@ -1,6 +1,7 @@
 export class VertexDissolve {
   constructor(vertexEditor) {
     this.vertexEditor = vertexEditor;
+    this.selection = vertexEditor.selection;
     this.topology = vertexEditor.topology;
     this.delete = vertexEditor.delete;
   }
@@ -97,7 +98,7 @@ export class VertexDissolve {
         }
       }
 
-      const boundaryEdges = this.topology.getBoundaryEdges([...candidateVertices], [...candidateEdges], [...candidateFaces]);
+      const boundaryEdges = this.selection.getBoundaryEdges([...candidateVertices], [...candidateEdges], [...candidateFaces]);
 
       const orderedVertexIds = this.orderBoundaryLoop(boundaryEdges);
       this.topology.createFaceFromVertices(orderedVertexIds);
@@ -337,7 +338,7 @@ export class VertexDissolve {
       }
     }
 
-    const boundaryEdges = this.topology.getBoundaryEdges([...candidateVertices], [...candidateEdges], [...candidateFaces]);
+    const boundaryEdges = this.selection.getBoundaryEdges([...candidateVertices], [...candidateEdges], [...candidateFaces]);
 
     if (boundaryEdges.length < 3) return;
 
@@ -390,7 +391,7 @@ export class VertexDissolve {
       }
     }
 
-    const boundaryEdges = this.topology.getBoundaryEdges([...candidateVertices], [...candidateEdges], [...candidateFaces]);
+    const boundaryEdges = this.selection.getBoundaryEdges([...candidateVertices], [...candidateEdges], [...candidateFaces]);
 
     if (boundaryEdges.length < 3) return;
 
