@@ -55,4 +55,30 @@ export class VertexSelection {
 
     return boundaryEdges;
   }
+
+  selectLinked(meshData, startingVertexIds) {
+    const visited = new Set(startingVertexIds);
+    const stack = [...startingVertexIds];
+
+    while (stack.length) {
+      const vId = stack.pop();
+      const vertex = meshData.getVertex(vId);
+      if (!vertex) continue;
+
+      for (const edgeId of vertex.edgeIds) {
+        const edge = meshData.edges.get(edgeId);
+        if (!edge) continue;
+
+        const neighbors = [edge.v1Id, edge.v2Id];
+        for (const nId of neighbors) {
+          if (!visited.has(nId)) {
+            visited.add(nId);
+            stack.push(nId);
+          }
+        }
+      }
+    }
+
+    return visited;
+  }
 }

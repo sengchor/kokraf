@@ -6,6 +6,7 @@ export default class EditSelection {
     this.signals = editor.signals;
     this.keyHandler = editor.keyHandler;
     this.viewportControls = editor.viewportControls;
+    this.vertexEditor = editor.vertexEditor;
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -77,6 +78,10 @@ export default class EditSelection {
 
     this.signals.editSelectLinked.add(() => {
       this.selectLinked();
+    });
+
+    this.signals.mouseSelectLinked.add(() => {
+      this.mouseSelectLinked();
     });
 
     const dom = this.renderer.domElement;
@@ -184,6 +189,8 @@ export default class EditSelection {
   }
 
   onMouseMove(event) {
+    this.lastMouseEvent = event;
+
     if (!this.enable || !this.mouseDownPos) return;
     if (this.keyHandler.activeInteraction !== 'select') return;
 
@@ -912,6 +919,28 @@ export default class EditSelection {
   }
 
   selectLinked() {
+    if (!this.editedObject) return;
 
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return;
+
+    const linkedVertexIds = this.vertexEditor.selection.selectLinked(meshData, this.selectedVertexIds);
+    this.selectVertices(Array.from(linkedVertexIds));
+  }
+
+  mouseSelectLinked() {
+    if (!this.editedObject || !this.lastMouseEvent) return;
+
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return;
+
+    const previousVertexIds = new Set(this.selectedVertexIds);
+
+    this.applyClickSelection(this.lastMouseEvent);
+    const linkedVertexIds = this.vertexEditor.selection.selectLinked(meshData, this.selectedVertexIds);
+    const currentVertexIds = this.selectedVertexIds.union(previousVertexIds)
+    
+    const allVertexIds = linkedVertexIds.union(currentVertexIds);
+    this.selectVertices(Array.from(allVertexIds));
   }
 }

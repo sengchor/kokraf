@@ -204,6 +204,9 @@ export class KeyHandler {
         this.editor.toolbar.setActiveTool('inset');
         this.signals.editInsetStart.dispatch();
         handled = true;
+      } else if (event.key === 'l') {
+        this.signals.mouseSelectLinked.dispatch();
+        handled = true;
       }
     }
 
