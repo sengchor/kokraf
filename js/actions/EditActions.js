@@ -65,6 +65,11 @@ export class EditActions {
       return;
     }
 
+    if (action === 'select-rings') {
+      this.signals.editSelectRings.dispatch();
+      return;
+    }
+
     console.log('Invalid action:', action);
   }
 

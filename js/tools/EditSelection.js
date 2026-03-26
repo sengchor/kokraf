@@ -84,6 +84,10 @@ export default class EditSelection {
       this.mouseSelectLinked();
     });
 
+    this.signals.editSelectRings.add(() => {
+      this.selectRings();
+    });
+
     const dom = this.renderer.domElement;
     dom.addEventListener("mousedown", this.onMouseDown.bind(this));
     dom.addEventListener("mousemove", this.onMouseMove.bind(this));
@@ -937,10 +941,20 @@ export default class EditSelection {
     const previousVertexIds = new Set(this.selectedVertexIds);
 
     this.applyClickSelection(this.lastMouseEvent);
-    const linkedVertexIds = this.vertexEditor.selection.selectLinked(meshData, this.selectedVertexIds);
+    const linkedVertexIds = this.vertexEditor.selection.selectVertexLinked(meshData, this.selectedVertexIds);
     const currentVertexIds = this.selectedVertexIds.union(previousVertexIds)
     
     const allVertexIds = linkedVertexIds.union(currentVertexIds);
     this.selectVertices(Array.from(allVertexIds));
+  }
+
+  selectRings() {
+    if (!this.editedObject) return;
+
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return;
+
+    const ringEdges = this.vertexEditor.selection.selectEdgeRings(meshData, this.selectedEdgeIds);
+    this.selectEdges(Array.from(ringEdges));
   }
 }

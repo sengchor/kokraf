@@ -56,7 +56,7 @@ export class VertexSelection {
     return boundaryEdges;
   }
 
-  selectLinked(meshData, startingVertexIds) {
+  selectVertexLinked(meshData, startingVertexIds) {
     const visited = new Set(startingVertexIds);
     const stack = [...startingVertexIds];
 
@@ -80,5 +80,54 @@ export class VertexSelection {
     }
 
     return visited;
+  }
+
+  selectEdgeRings(meshData, startingEdgeIds) {
+    const visited = new Set(startingEdgeIds);
+    const stack = [...startingEdgeIds];
+
+    while (stack.length) {
+      const edgeId = stack.pop();
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      for (const faceId of edge.faceIds || []) {
+        const face = meshData.faces.get(faceId);
+        if (!face) continue;
+
+        const oppositeEdgeId = this.findOppositeEdgeInFace(meshData, face, edge);
+        if (oppositeEdgeId == null) continue;
+
+        if (!visited.has(oppositeEdgeId)) {
+          visited.add(oppositeEdgeId);
+          stack.push(oppositeEdgeId);
+        }
+      }
+    }
+
+    return visited;
+  }
+
+  findOppositeEdgeInFace(meshData, face, edge) {
+    const { v1Id, v2Id } = edge;
+
+    for (const eId of face.edgeIds) {
+      if (eId === edge.id) continue;
+
+      const e = meshData.edges.get(eId);
+      if (!e) continue;
+
+      const sharesVertex =
+        e.v1Id === v1Id ||
+        e.v1Id === v2Id ||
+        e.v2Id === v1Id ||
+        e.v2Id === v2Id;
+
+      if (!sharesVertex) {
+        return eId;
+      }
+    }
+
+    return null;
   }
 }
