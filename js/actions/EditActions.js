@@ -70,6 +70,11 @@ export class EditActions {
       return;
     }
 
+    if (action === 'select-loops') {
+      this.signals.editSelectLoops.dispatch();
+      return;
+    }
+
     console.log('Invalid action:', action);
   }
 

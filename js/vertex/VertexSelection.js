@@ -109,6 +109,7 @@ export class VertexSelection {
   }
 
   findOppositeEdgeInFace(meshData, face, edge) {
+    if (face.edgeIds.size !== 4) return null;
     const { v1Id, v2Id } = edge;
 
     for (const eId of face.edgeIds) {
@@ -129,5 +130,117 @@ export class VertexSelection {
     }
 
     return null;
+  }
+
+  selectEdgeLoops(meshData, startingEdgeIds) {
+    const visited = new Set();
+    const stack = [];
+
+    for (const startId of startingEdgeIds) {
+      const startEdge = meshData.edges.get(startId);
+      if (!startEdge) continue;
+
+      // Detect the "Mode" based on the starting edge
+      const mode = this.determineLoopMode(meshData, startEdge);
+      stack.push({ id: startId, mode: mode });
+    }
+
+    while (stack.length) {
+      const { id: edgeId, mode } = stack.pop();
+      if (visited.has(edgeId)) continue;
+
+      visited.add(edgeId);
+      const edge = meshData.edges.get(edgeId);
+      
+      // Pass the 'mode' to ensure we only look for the same kind of connection
+      const nextEdges = [
+        this.getNextEdgeInLoop(meshData, edge, edge.v1Id, mode),
+        this.getNextEdgeInLoop(meshData, edge, edge.v2Id, mode)
+      ];
+
+      for (const nextEdgeId of nextEdges) {
+        if (nextEdgeId != null && !visited.has(nextEdgeId)) {
+          stack.push({ id: nextEdgeId, mode: mode });
+        }
+      }
+    }
+    return visited;
+  }
+
+  determineLoopMode(meshData, edge) {
+    const faceCount = edge.faceIds ? edge.faceIds.size : 0;
+    if (faceCount === 1) return 'BOUNDARY';
+    
+    if (faceCount === 2) {
+      const faces = Array.from(edge.faceIds).map(id => meshData.faces.get(id));
+      const hasNgon = faces.some(f => f.edgeIds.size > 4);
+      const hasQuad = faces.some(f => f.edgeIds.size === 4);
+      if (hasNgon && hasQuad) return 'NGON_RIM';
+    }
+    
+    return 'STANDARD';
+  }
+
+  getNextEdgeInLoop(meshData, currentEdge, vertexId, mode) {
+    const vertex = meshData.getVertex(vertexId);
+    if (!vertex) return null;
+
+    const connectedEdges = vertex.edgeIds;
+    const candidates = [];
+    for (const eId of connectedEdges) {
+      if (eId !== currentEdge.id) {
+        candidates.push(meshData.edges.get(eId));
+      }
+    }
+
+    // --- MODE: NGON RIM ---
+    if (mode === 'NGON_RIM' && candidates.length === 2 && currentEdge.faceIds.size === 2) {
+      const faceArray = Array.from(currentEdge.faceIds);
+      const fA = meshData.faces.get(faceArray[0]);
+      const fB = meshData.faces.get(faceArray[1]);
+
+      if ((fA.edgeIds.size > 4) !== (fB.edgeIds.size > 4)) {
+        const nGonFaceId = fA.edgeIds.size > 4 ? fA.id : fB.id;
+        const quadFaceId = fA.edgeIds.size > 4 ? fB.id : fA.id;
+
+        for (const edge of candidates) {
+          if (edge.faceIds.has(nGonFaceId) && !edge.faceIds.has(quadFaceId)) {
+            return edge.id;
+          }
+        }
+      }
+    }
+
+    // --- MODE: STANDARD (Quad Loop) ---
+    if (mode === 'STANDARD' && candidates.length === 3) {
+      for (const edge of candidates) {
+        if (edge && !this.shareFace(currentEdge, edge)) {
+          return edge.id;
+        }
+      }
+    }
+
+    // --- MODE: BOUNDARY ---
+    if (mode === 'BOUNDARY' && currentEdge.faceIds.size === 1) {
+      for (const edge of candidates) {
+        if (edge.faceIds && edge.faceIds.size === 1) {
+          return edge.id;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  shareFace(edgeA, edgeB) {
+    if (!edgeA.faceIds || !edgeB.faceIds) return false;
+
+    for (const fId of edgeA.faceIds) {
+      if (edgeB.faceIds.has(fId)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

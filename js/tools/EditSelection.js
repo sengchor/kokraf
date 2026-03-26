@@ -88,6 +88,10 @@ export default class EditSelection {
       this.selectRings();
     });
 
+    this.signals.editSelectLoops.add(() => {
+      this.selectLoops();
+    });
+
     const dom = this.renderer.domElement;
     dom.addEventListener("mousedown", this.onMouseDown.bind(this));
     dom.addEventListener("mousemove", this.onMouseMove.bind(this));
@@ -956,5 +960,15 @@ export default class EditSelection {
 
     const ringEdges = this.vertexEditor.selection.selectEdgeRings(meshData, this.selectedEdgeIds);
     this.selectEdges(Array.from(ringEdges));
+  }
+
+  selectLoops() {
+    if (!this.editedObject) return;
+
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return;
+
+    const loopEdges = this.vertexEditor.selection.selectEdgeLoops(meshData, this.selectedEdgeIds);
+    this.selectEdges(Array.from(loopEdges));
   }
 }
