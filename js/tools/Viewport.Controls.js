@@ -191,7 +191,7 @@ export default class ViewportControls {
         });
       }
 
-      this.editHelpers.refreshHelpers();
+      this.signals.editSelectionRefresh.dispatch();
       this.editSelection.updateVertexHandle();
     });
 
@@ -292,7 +292,7 @@ switchMode(newMode) {
     this.editSelection.enable = true;
 
     this.editSelection.editedObject = selectedObject;
-    this.editHelpers.refreshHelpers();
+    this.signals.editSelectionRefresh.dispatch();
     this.editSelection.clearSelection();
     this.selection.deselect();
 

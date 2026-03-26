@@ -96,6 +96,7 @@ export default class Editor {
       editEdgeSlideStart: new Signal(),
 
       objectSelectAll: new Signal(),
+      editSelectionRefresh: new Signal(),
       editSelectAll: new Signal(),
       editSelectNone: new Signal(),
       editSelectLinked: new Signal(),
@@ -106,6 +107,9 @@ export default class Editor {
       onToolStarted: new Signal(),
       onToolEnded: new Signal(),
       onToolUpdated: new Signal(),
+
+      vertexPositionsUpdated: new Signal(),
+      refreshEditHelpers: new Signal(),
     }
 
     this.helpers = {};
@@ -126,11 +130,11 @@ export default class Editor {
     // Helpers
     this.viewportViewHelper = new ViewportViewHelper(this);
     this.originHelper = new OriginHelper(this);
+    this.editHelpers = new EditHelpers(this);
+    this.vertexEditor = new VertexEditor(this);
     this.selectionBox = new SelectionBox(this);
     this.selection = new Selection(this);
     this.editSelection = new EditSelection(this);
-    this.editHelpers = new EditHelpers(this);
-    this.vertexEditor = new VertexEditor(this);
     this.meshEditor = new MeshEditor(this);
     this.objectEditor = new ObjectEditor(this);
     this.editActions = new EditActions(this);

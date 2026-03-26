@@ -11,20 +11,27 @@ export default class EditHelpers {
     this.editor = editor;
     this.signals = editor.signals;
     this.sceneManager = editor.sceneManager;
-    this.editSelection = editor.editSelection;
 
     this.setupListeners();
   }
 
   setupListeners() {
-    this.signals.editSelectionChanged.add((mode) => {
-      this.applyVertexHighlight(this.editSelection.selectedVertexIds);
-      this.applyEdgeHighlight(this.editSelection.selectedEdgeIds);
-      this.applyFaceHighlight(this.editSelection.selectedFaceIds);
+    this.signals.editSelectionChanged.add((allSelectedIds) => {
+      this.applyVertexHighlight(allSelectedIds.selectedVertexIds);
+      this.applyEdgeHighlight(allSelectedIds.selectedEdgeIds);
+      this.applyFaceHighlight(allSelectedIds.selectedFaceIds);
     });
 
     this.signals.editSelectionCleared.add(() => {
       this.clearEditHelpers();
+    });
+
+    this.signals.vertexPositionsUpdated.add((verts, edges, faces, meshData) => {
+      this.updateHelpersAfterMeshEdit(verts, edges, faces, meshData);
+    });
+
+    this.signals.refreshEditHelpers.add((editedObject, mode, allSelectedIds, useEarcut) => {
+      this.refreshHelpers(editedObject, mode, allSelectedIds, useEarcut);
     });
   }
 
@@ -272,8 +279,7 @@ export default class EditHelpers {
     }
   }
 
-  refreshHelpers(useEarcut = true) {
-    const editedObject = this.editSelection.editedObject;
+  refreshHelpers(editedObject, mode, allSelectedIds, useEarcut = true) {
     if (!editedObject) return;
 
     if (editedObject.userData.meshData && !(editedObject.userData.meshData instanceof MeshData)) {
@@ -283,8 +289,6 @@ export default class EditHelpers {
     this.removeVertexPoints();
     this.removeEdgeLines();
     this.removeFacePolygons();
-
-    const mode = this.editSelection.subSelectionMode;
 
     if (mode === 'vertex') {
       this.addVertexPoints(editedObject);
@@ -298,9 +302,9 @@ export default class EditHelpers {
       this.addFacePolygons(editedObject, useEarcut);
     }
 
-    this.applyVertexHighlight(this.editSelection.selectedVertexIds);
-    this.applyEdgeHighlight(this.editSelection.selectedEdgeIds);
-    this.applyFaceHighlight(this.editSelection.selectedFaceIds);
+    this.applyVertexHighlight(allSelectedIds.selectedVertexIds);
+    this.applyEdgeHighlight(allSelectedIds.selectedEdgeIds);
+    this.applyFaceHighlight(allSelectedIds.selectedFaceIds);
   }
 
   updateHelpersAfterMeshEdit(affectedVertices, affectedEdges, affectedFaces, meshData) {

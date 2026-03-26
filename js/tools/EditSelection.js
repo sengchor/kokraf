@@ -30,6 +30,14 @@ export default class EditSelection {
     this.setupListeners();
   }
 
+  get selectionState() {
+    return {
+      selectedVertexIds: this.selectedVertexIds,
+      selectedEdgeIds: this.selectedEdgeIds,
+      selectedFaceIds: this.selectedFaceIds
+    };
+  }
+
   setupListeners() {
     this.signals.viewportCameraChanged.add((camera) => {
       if (camera.isDefault) {
@@ -53,6 +61,10 @@ export default class EditSelection {
     this.signals.transformDragEnded.add((mode) => {
       if (mode !== 'edit') return;
       this.enable = true;
+    });
+
+    this.signals.editSelectionRefresh.add((useEarcut = true) => {
+      this.signals.refreshEditHelpers.dispatch(this.editedObject, this.subSelectionMode, this.selectionState, useEarcut);
     });
 
     this.signals.editSelectAll.add(() => {
@@ -372,7 +384,7 @@ export default class EditSelection {
     this.selectedFaceIds = faceSet;
 
     this.updateVertexHandle();
-    this.signals.editSelectionChanged.dispatch('vertex');
+    this.signals.editSelectionChanged.dispatch(this.selectionState);
   }
 
   selectEdges(edgeIds, isBoxSelection = false) {
@@ -403,7 +415,7 @@ export default class EditSelection {
     this.selectedFaceIds = faceSet;
 
     this.updateVertexHandle();
-    this.signals.editSelectionChanged.dispatch('edge');
+    this.signals.editSelectionChanged.dispatch(this.selectionState);
   }
 
   selectFaces(faceIds, isBoxSelection = false) {
@@ -434,7 +446,7 @@ export default class EditSelection {
     this.selectedEdgeIds = edgeSet;
 
     this.updateVertexHandle();
-    this.signals.editSelectionChanged.dispatch('face');
+    this.signals.editSelectionChanged.dispatch(this.selectionState);
   }
 
   clearSelection() {

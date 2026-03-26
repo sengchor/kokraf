@@ -10,6 +10,7 @@ import { MeshData } from '../core/MeshData.js';
 export class VertexEditor {
   constructor(editor) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.object = null;
 
     this.topology = new VertexTopologyUtils(this);

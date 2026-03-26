@@ -5,7 +5,7 @@ import { MeshData } from "../core/MeshData.js";
 export class VertexTransform {
   constructor(vertexEditor) {
     this.vertexEditor = vertexEditor;
-    this.editHelpers = vertexEditor.editor.editHelpers;
+    this.signals = vertexEditor.signals;
   }
 
   get geometry() {
@@ -74,7 +74,7 @@ export class VertexTransform {
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
-    this.editHelpers.updateHelpersAfterMeshEdit(affectedVertices, affectedEdges, affectedFaces, meshData);
+    this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData);
   }
 
   getVertexPosition(vertexId) {
@@ -117,7 +117,7 @@ export class VertexTransform {
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
-    this.editHelpers.refreshHelpers(useEarcut);
+    this.signals.editSelectionRefresh.dispatch(useEarcut);
   }
 
   applyMeshData(newMeshData) {
