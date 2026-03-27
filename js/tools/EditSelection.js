@@ -199,6 +199,8 @@ export default class EditSelection {
     if (!this.enable || event.button !== 0) return;
     if (!this.keyHandler.startInteraction('select')) return;
 
+    this.vertexEditor.setObject(this.editedObject);
+
     this.dragging = false;
     this.mouseDownPos = { x: event.clientX, y: event.clientY };
   }
@@ -637,10 +639,15 @@ export default class EditSelection {
 
   buildVertexCandidates(vertexHits, vertexPoints) {
     const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
-    const vertices = vertexHits.map(hit => ({
-      vertexId: vertexIdAttr.getX(hit.index),
-      point: hit.point
-    }));
+    const vertices = vertexHits.map(hit => {
+      const vertexId = vertexIdAttr.getX(hit.index);
+      const position = this.vertexEditor.transform.getVertexPosition(vertexId);
+
+      return {
+        vertexId,
+        point: position,
+      };
+    });
 
     return vertices;
   }
@@ -966,7 +973,21 @@ export default class EditSelection {
     if (!meshData) return;
 
     const ringEdges = this.vertexEditor.selection.selectEdgeRings(meshData, this.selectedEdgeIds);
-    this.selectEdges(Array.from(ringEdges));
+
+    if (this.subSelectionMode === 'vertex') {
+      const ringVertices = new Set();
+      for (const edgeId of ringEdges) {
+        const edge = meshData.edges.get(edgeId);
+        if (!edge) continue;
+
+        ringVertices.add(edge.v1Id);
+        ringVertices.add(edge.v2Id);
+      }
+
+      this.selectVertices(Array.from(ringVertices));
+    } else {
+      this.selectEdges(Array.from(ringEdges));
+    }
   }
 
   selectLoops() {
@@ -976,7 +997,21 @@ export default class EditSelection {
     if (!meshData) return;
 
     const loopEdges = this.vertexEditor.selection.selectEdgeLoops(meshData, this.selectedEdgeIds);
-    this.selectEdges(Array.from(loopEdges));
+
+    if (this.subSelectionMode === 'vertex') {
+      const loopVertices = new Set();
+      for (const edgeId of loopEdges) {
+        const edge = meshData.edges.get(edgeId);
+        if (!edge) continue;
+
+        loopVertices.add(edge.v1Id);
+        loopVertices.add(edge.v2Id);
+      }
+
+      this.selectVertices(Array.from(loopVertices));
+    } else {
+      this.selectEdges(Array.from(loopEdges));
+    }
   }
 
   mouseSelectLoops(edgeId) {
