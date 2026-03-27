@@ -118,6 +118,13 @@ export default class EditSelection {
 
   applyClickSelection(event) {
     if (!this.enable) return;
+    const isAlt = event.altKey;
+
+    if (isAlt) {
+      const nearestEdgeId = this.pickNearestEdgeOnMouse(event, this.renderer, this.camera);
+      this.mouseSelectLoops(nearestEdgeId);
+      return;
+    }
 
     if (this.subSelectionMode === 'vertex') {
       const nearestVertexId = this.pickNearestVertexOnMouse(event, this.renderer, this.camera);
@@ -970,5 +977,85 @@ export default class EditSelection {
 
     const loopEdges = this.vertexEditor.selection.selectEdgeLoops(meshData, this.selectedEdgeIds);
     this.selectEdges(Array.from(loopEdges));
+  }
+
+  mouseSelectLoops(edgeId) {
+    if (!this.editedObject) return;
+
+    const meshData = this.editedObject.userData.meshData;
+    if (!meshData) return;
+
+    const nearestEdgeId = new Set();
+    nearestEdgeId.add(edgeId);
+
+    const isIncluded = this.selectedEdgeIds.has(edgeId);
+    if (this.subSelectionMode === 'vertex') {
+      const previousVertexIds = new Set(this.selectedVertexIds);
+      const loopEdges = this.vertexEditor.selection.selectEdgeLoops(meshData, nearestEdgeId);
+
+      const loopVertices = new Set();
+      for (const edgeId of loopEdges) {
+        const edge = meshData.edges.get(edgeId);
+        if (!edge) continue;
+
+        loopVertices.add(edge.v1Id);
+        loopVertices.add(edge.v2Id);
+      }
+
+      if (this.multiSelectEnabled) {
+        let allVertexIds;
+        if (isIncluded) {
+          allVertexIds = previousVertexIds.difference(loopVertices);
+        } else {
+          allVertexIds = previousVertexIds.union(loopVertices);
+        }
+
+        this.clearSelection();
+
+        this.selectVertices(Array.from(allVertexIds));
+      } else {
+        this.selectVertices(Array.from(loopVertices));
+      }
+    }
+
+    if (this.subSelectionMode === 'edge') {
+      const previousEdgeIds = new Set(this.selectedEdgeIds);
+      const loopEdges = this.vertexEditor.selection.selectEdgeLoops(meshData, nearestEdgeId);
+
+      if (this.multiSelectEnabled) {
+        let allEdgeIds;
+        if (isIncluded) {
+          allEdgeIds = previousEdgeIds.difference(loopEdges);
+        } else {
+          allEdgeIds = previousEdgeIds.union(loopEdges);
+        }
+
+        this.clearSelection();
+
+        this.selectEdges(Array.from(allEdgeIds));
+      } else {
+        this.selectEdges(Array.from(loopEdges));
+      }
+    }
+
+    if (this.subSelectionMode === 'face') {
+      const previousFaceIds = new Set(this.selectedFaceIds);
+      const loopFaces = this.vertexEditor.selection.selectFaceLoops(meshData, nearestEdgeId);
+
+      if (this.multiSelectEnabled) {
+        let allFaceIds;
+        if (isIncluded) {
+          allFaceIds = previousFaceIds.difference(loopFaces);
+        } else {
+          allFaceIds = previousFaceIds.union(loopFaces);
+        }
+
+        this.clearSelection();
+
+        this.selectFaces(Array.from(allFaceIds));
+      } else {
+        this.selectFaces(Array.from(loopFaces));
+      }
+    }
   }
 }

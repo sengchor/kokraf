@@ -243,4 +243,46 @@ export class VertexSelection {
 
     return false;
   }
+
+  selectFaceLoops(meshData, startingEdgeIds) {
+    const visitedFaces = new Set();
+    const stack = [];
+
+    for (const edgeId of startingEdgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge || !edge.faceIds) continue;
+
+      for (const faceId of edge.faceIds) {
+        stack.push({ faceId, fromEdgeId: edgeId });
+      }
+    }
+
+    while (stack.length) {
+      const { faceId, fromEdgeId } = stack.pop();
+      if (visitedFaces.has(faceId)) continue;
+
+      visitedFaces.add(faceId);
+
+      const face = meshData.faces.get(faceId);
+      if (!face || face.edgeIds.size !== 4) continue;
+
+      const oppositeEdgeId = this.findOppositeEdgeInFace(meshData, face, meshData.edges.get(fromEdgeId));
+
+      if (oppositeEdgeId == null) continue;
+
+      const oppositeEdge = meshData.edges.get(oppositeEdgeId);
+      if (!oppositeEdge || !oppositeEdge.faceIds) continue;
+
+      for (const nextFaceId of oppositeEdge.faceIds) {
+        if (nextFaceId !== faceId && !visitedFaces.has(nextFaceId)) {
+          stack.push({
+            faceId: nextFaceId,
+            fromEdgeId: oppositeEdgeId
+          });
+        }
+      }
+    }
+
+    return visitedFaces;
+  }
 }
