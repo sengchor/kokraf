@@ -1,0 +1,67 @@
+<h1>Inset Tool</h1>
+
+<p>
+  The <strong>Inset Tool</strong> allows you to create a new face inside the selected
+  <strong>faces</strong> by scaling them inward and generating supporting edges.
+</p>
+<p>
+  It is commonly used to add details, create borders, or prepare geometry for
+  further operations like extrusion.
+</p>
+
+<p class="manual-note">
+  Inset works only on selected faces. It creates new geometry inside the original
+  faces while keeping the outer shape intact.
+</p>
+
+<h2>How to Use Inset</h2>
+
+<ul class="nav-list">
+  <li>
+    Select one or more faces.
+  </li>
+  <li>
+    Activate the Inset Tool.
+    <span class="manual-input">I</span>
+  </li>
+  <li>
+    Move the mouse to adjust the inset width.
+  </li>
+  <li>
+    Confirm with
+    <span class="manual-input">Left Click</span>
+    or
+    <span class="manual-input">Enter</span>.
+  </li>
+  <li>
+    Cancel with
+    <span class="manual-input">Esc</span>.
+    The geometry will return to its original state.
+  </li>
+</ul>
+
+<h2>Inset Behavior</h2>
+
+<ul class="nav-list">
+  <li>
+    <strong>Single Face:</strong>  
+    The face is inset uniformly toward its center, creating a smaller face inside it.
+  </li>
+  <li>
+    <strong>Multiple Faces:</strong>  
+    Connected faces are treated as a region, creating a continuous inset with new side faces around the boundary.
+  </li>
+</ul>
+
+<h2>Thickness Control</h2>
+
+<p>
+  The distance you move the mouse determines the thickness of the inset.
+</p>
+<p>
+   You can also enter a numeric value for the inset width.
+</p>
+
+<p class="manual-note">
+  Inset is often used before extrusion to create panels, frames, or detailed surface features.
+</p>

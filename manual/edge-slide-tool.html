@@ -1,0 +1,37 @@
+<h1>Edge Slide Tool</h1>
+
+<p>The <strong>Edge Slide Tool</strong> lets you slide a selected <strong>vertex</strong> or <strong>edge</strong> along connected geometry. This is ideal for fine-tuning edge loops, adjusting topology, and maintaining surface flow.</p>
+
+<p class="manual-note">Sliding preserves the existing geometry, making it safe to tweak models without creating or deleting faces.</p>
+
+<h2>How to Use Edge Slide</h2>
+
+<ul class="nav-list">
+  <li>Select a vertex or edges you want to slide.</li>
+  <li>Activate the Edge Slide Tool: <span class="manual-input">G + G</span></li>
+  <li>Move the mouse to slide along the connected edges.</li>
+  <li>Confirm the position: <span class="manual-input">Left Click</span> or <span class="manual-input">Enter</span></li>
+  <li>Cancel the operation: <span class="manual-input">Esc</span> — the vertex or edge returns to its original position.</li>
+</ul>
+
+<h2>Sliding Options</h2>
+
+<ul class="nav-list">
+  <li>
+    <strong>Single Vertex:</strong> Slide an individual vertex along the connected edge.
+  </li>
+  <li>
+    <strong>Multiple Edges:</strong> When sliding multiple connected vertices (an edge loop or group), all selected vertices move together while maintaining their relative spacing. The tool calculates mesh topology for each vertex to ensure uniform sliding direction.
+  </li>
+</ul>
+
+<h2>Tips</h2>
+
+<ul class="nav-list">
+  <li>Edge Slide works on both vertices and edges. Sliding an edge preserves all connected faces and maintains mesh flow.</li>
+  <li>Use it to adjust edge spacing, sharpen features, or evenly distribute vertices along loops.</li>
+</ul>
+
+<h2>Limitations</h2>
+
+<p>The Edge Slide Tool cannot slide vertices that connect to three or more selected edges. In such cases, the tool is unable to determine a clear sliding direction, so it will not perform the operation.</p>
