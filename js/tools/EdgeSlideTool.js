@@ -223,12 +223,23 @@ export class EdgeSlideTool {
   applyEdgeSlideSession() {
     if (!this.startPivotPosition) return;
 
+    const isSingleVertex = this.selectedVertexIds.length === 1;
+
     if (!this.edgeSlideStarted) {
-      this.startEdgeSlide();
+      if (isSingleVertex) {
+        this.startVertexSlide();
+      } else {
+        this.startEdgeSlide();
+      }
+      
       this.handle.position.copy(this.startPivotPosition);
       this.edgeSlideStarted = true;
     }
-    this.updateEdgeSlide();
+    if (isSingleVertex) {
+      this.updateVertexSlide();
+    } else {
+      this.updateEdgeSlide();
+    }
 
     this.signals.onToolUpdated.dispatch(this.toolNumericInput.getDisplayText());
   }
@@ -250,7 +261,11 @@ export class EdgeSlideTool {
     this.editor.execute(new EdgeSlideCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
 
     this.editSelection.clearSelection();
-    this.editSelection.selectEdges(this.selectedEdgeIds);
+    if (this.selectedVertexIds.length === 1) {
+      this.editSelection.selectVertices(this.selectedVertexIds);
+    } else {
+      this.editSelection.selectEdges(this.selectedEdgeIds);
+    }
     this.clearStartData();
 
     this.signals.onToolEnded.dispatch();
@@ -267,7 +282,11 @@ export class EdgeSlideTool {
     this.handle.position.copy(this.startPivotPosition);
     this.handle.updateMatrixWorld(true);
 
-    this.editSelection.selectEdges(this.selectedEdgeIds);
+    if (this.selectedVertexIds.length === 1) {
+      this.editSelection.selectVertices(this.selectedVertexIds);
+    } else {
+      this.editSelection.selectEdges(this.selectedEdgeIds);
+    }
     this.clearStartData();
 
     this.signals.onToolEnded.dispatch();
@@ -298,9 +317,18 @@ export class EdgeSlideTool {
     this.edgeSlideStarted = false;
   }
 
+  startVertexSlide() {
+    const meshData = this.editedObject.userData.meshData;
+    const isSingleVertex = this.selectedVertexIds.length === 1;
+    if (!meshData || !isSingleVertex) return;
+
+    this.buildVertexSlideData(meshData, this.selectedVertexIds[0]);
+  }
+
   startEdgeSlide() {
     const meshData = this.editedObject.userData.meshData;
-    if (!meshData || !this.selectedEdgeIds.length) return;
+    const hasEdges = this.selectedEdgeIds.length > 0;
+    if (!meshData || !hasEdges) return;
 
     const vertexGraph = this.buildSelectedVertexGraph(meshData, this.selectedEdgeIds);
     for (const [vId, info] of vertexGraph) {
@@ -324,13 +352,44 @@ export class EdgeSlideTool {
       
       this.groupVertexIds.push(vertices);
 
-      this.buildTopologicalSlideData(meshData, vertices, edges, isClosed, selectedEdgeSet);
+      this.buildEdgeSlideData(meshData, vertices, edges, isClosed, selectedEdgeSet);
     }
 
     this.closestVertexId = this.findClosestSlideDataOnMouse();
   }
 
-  buildTopologicalSlideData(meshData, orderedVertices, orderedEdges, isClosed, selectedEdgeSet) {
+  buildVertexSlideData(meshData, vertexId) {
+    const vertex = meshData.getVertex(vertexId);
+
+    const data = { 
+      origin: new THREE.Vector3().copy(vertex.position), 
+      sides: [] 
+    };
+
+    for (const edgeId of vertex.edgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      const otherId = edge.v1Id === vertexId ? edge.v2Id : edge.v1Id;
+      const other = meshData.getVertex(otherId);
+      if (!other) continue;
+
+      const dir =  new THREE.Vector3().subVectors(other.position, vertex.position);
+
+      if (dir.lengthSq() < 1e-8) continue;
+
+      data.sides.push({
+        edgeId: edge.id,
+        direction: dir.clone(),
+        length: dir.length(),
+        normalized: dir.clone().normalize()
+      });
+    }
+
+    this.slideData.set(vertexId, data);
+  }
+
+  buildEdgeSlideData(meshData, orderedVertices, orderedEdges, isClosed, selectedEdgeSet) {
     let prevFaceA = null;
     let prevFaceB = null;
 
@@ -471,7 +530,8 @@ export class EdgeSlideTool {
 
   updateEdgeSlide() {
     const meshData = this.editedObject.userData.meshData;
-    if (!meshData || !this.selectedEdgeIds.length || !this.slideData) return;
+    const hasEdges = this.selectedEdgeIds.length > 0;
+    if (!meshData || !hasEdges || !this.slideData) return;
 
     const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
     this.offset = new THREE.Vector3().subVectors(
@@ -505,8 +565,47 @@ export class EdgeSlideTool {
       this.slideFactor = Math.max(0, Math.min(1, this.slideFactor));
     }
 
-    this.updateSlidePreview(referenceVertexData, activeSide);
+    const rail = referenceVertexData[activeSide];
+    this.updateSlidePreview(referenceVertexData, rail);
     this.applyEdgeSlideFactor(this.slideFactor, activeSide);
+  }
+
+  updateVertexSlide() {
+    const vertexId = this.selectedVertexIds[0];
+    const data = this.slideData.get(vertexId);
+    if (!data || !data.sides.length) return;
+
+    const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
+    this.offset = new THREE.Vector3().subVectors(
+      currentPivotPosition,
+      this.startPivotPosition
+    );
+
+    // Pick best edge
+    let bestSide = null;
+    let bestScore = -Infinity;
+
+    for (const side of data.sides) {
+      const score = this.offset.dot(side.normalized);
+      if (score > bestScore) {
+        bestScore = score;
+        bestSide = side;
+      }
+    }
+
+    if (!bestSide) return;
+    this.slideFactor = bestScore / bestSide.length;
+    this.slideFactor = THREE.MathUtils.clamp(this.slideFactor, -1, 1);
+
+    // Apply Position
+    const newPos = new THREE.Vector3()
+      .copy(bestSide.direction)
+      .multiplyScalar(this.slideFactor)
+      .add(data.origin).applyMatrix4(this.editedObject.matrixWorld);
+
+    this.vertexEditor.transform.setVerticesWorldPositions([vertexId], [newPos]);
+
+    this.updateSlidePreview(data, bestSide);
   }
 
   applyEdgeSlideFactor(slideFactor, activeSide) {
@@ -864,12 +963,12 @@ export class EdgeSlideTool {
     this.sceneEditorHelpers.add(this.slideLine);
   }
 
-  updateSlidePreview(vertexData, activeSide) {
+  updateSlidePreview(vertexData, rail) {
     if (!this.slideLine) {
       this.createSlidePreview();
     }
 
-    if (!vertexData || !vertexData[activeSide]) {
+    if (!vertexData || !rail) {
       this.slideLine.visible = false;
       return;
     }
@@ -877,10 +976,10 @@ export class EdgeSlideTool {
     const matrix = this.editedObject.matrixWorld;
 
     const origin = vertexData.origin.clone().applyMatrix4(matrix);
-
-    const rail = vertexData[activeSide];
     const dir = rail.normalized.clone().transformDirection(matrix);
-    const end = origin.clone().add(dir.multiplyScalar(rail.length));
+    const end = origin.clone().add(
+      dir.multiplyScalar(rail.length)
+    );
 
     this.updateLine(this.slideLine, origin, end);
 
