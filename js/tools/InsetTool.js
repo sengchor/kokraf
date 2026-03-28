@@ -268,8 +268,6 @@ export class InsetTool {
 
     this.updateSelectionAfterInset();
     this.clearStartData();
-
-    this.signals.onToolEnded.dispatch();
   }
 
   cancelInsetSession() {
@@ -284,8 +282,6 @@ export class InsetTool {
     this.handle.updateMatrixWorld(true);
 
     this.editSelection.selectFaces(this.selectedFaceIds);
-
-    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -296,6 +292,7 @@ export class InsetTool {
 
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('edit');
+      this.signals.onToolEnded.dispatch();
     });
   }
 

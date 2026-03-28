@@ -264,8 +264,6 @@ export class EditTransformTool {
       ShadingUtils.applyShading(editedObject, 'auto');
     }
     this.clearStartData();
-
-    this.signals.onToolEnded.dispatch();
   }
 
   cancelTransformSession() {
@@ -289,8 +287,6 @@ export class EditTransformTool {
     this.handle.quaternion.copy(this.startPivotQuaternion);
     this.handle.scale.copy(this.startPivotScale);
     this.handle.updateMatrixWorld(true);
-
-    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -301,6 +297,7 @@ export class EditTransformTool {
 
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('edit');
+      this.signals.onToolEnded.dispatch();
     });
   }
 

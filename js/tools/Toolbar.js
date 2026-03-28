@@ -22,6 +22,8 @@ export default class Toolbar {
     this.activeToolEditMode = 'select';
     this.currentMode = 'object';
     this.isTransformDragging = false;
+    this.previousToolObjectMode = 'select';
+    this.previousToolEditMode = 'select';
 
     this.objectMoveTool   = new ObjectTransformTool(this.editor, 'translate');
     this.objectRotateTool = new ObjectTransformTool(this.editor, 'rotate');
@@ -86,6 +88,10 @@ export default class Toolbar {
       }
     };
 
+    this.signals.onToolEnded.add(() => {
+      this.restorePreviousTool();
+    });
+
     this.signals.editSelectionChanged.add(onSelectionUpdate);
     this.signals.editSelectionCleared.add(onSelectionUpdate);
     this.signals.objectSelected.add(onSelectionUpdate);
@@ -99,6 +105,12 @@ export default class Toolbar {
       button.addEventListener('click', () => {
         const toolName = button.getAttribute('data-tool');
         this.setActiveTool(toolName);
+
+        if (this.currentMode === 'object') {
+          this.previousToolObjectMode = toolName;
+        } else {
+          this.previousToolEditMode = toolName;
+        }
       });
     });
   }
@@ -118,6 +130,20 @@ export default class Toolbar {
     } else {
       this.activeToolEditMode = toolName;
     }
+    this.updateTools();
+  }
+
+  restorePreviousTool() {
+    if (this.currentMode === 'object') {
+      if (this.previousToolObjectMode) {
+        this.activeToolObjectMode = this.previousToolObjectMode;
+      }
+    } else {
+      if (this.previousToolEditMode) {
+        this.activeToolEditMode = this.previousToolEditMode;
+      }
+    }
+
     this.updateTools();
   }
 

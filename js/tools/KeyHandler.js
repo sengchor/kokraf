@@ -90,7 +90,7 @@ export class KeyHandler {
       this.lastKeyTime = now;
 
       handled = true;
-    } else if (event.key === this.shortcuts['rotate']) {
+    } else if (!event.ctrlKey && event.key === this.shortcuts['rotate']) {
       this.editor.toolbar.setActiveTool('rotate');
       this.currentMode === 'object'
         ? this.signals.objectTransformStart.dispatch('rotate')

@@ -46,6 +46,7 @@ export class KnifeTool {
 
     this._onPointerDown = this.onPointerDown.bind(this);
     this._onPointerMove = this.onPointerMove.bind(this);
+    this._onPointerUp = this.onPointerUp.bind(this);
     this._onKeyDown = this.onKeyDown.bind(this);
   }
 
@@ -57,6 +58,7 @@ export class KnifeTool {
     this.edgeIntersections = [];
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
+    this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
     window.addEventListener('keydown', this._onKeyDown);
   }
 
@@ -190,11 +192,20 @@ export class KnifeTool {
     this.updatePreview(aCut.position, bCut.position);
   }
 
+  onPointerUp() {
+    if (!this.active || (this.cutPoints.length !== 0)) return;
+
+    requestAnimationFrame(() => {
+      this.signals.onToolEnded.dispatch();
+    });
+  }
+
   onKeyDown(event) {
     if (!this.active) return;
 
     if (event.key === 'Escape') {
       this.cancelCut();
+      this.signals.onToolEnded.dispatch();
     }
   }
 

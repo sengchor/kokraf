@@ -112,7 +112,7 @@ export class BevelTool {
     for (let i = picker.children.length - 1; i >= 0; i--) {
       const child = picker.children[i];
       if (child.name !== 'XYZ') {
-          picker.remove(child);
+        picker.remove(child);
       }
     }
   }
@@ -153,6 +153,7 @@ export class BevelTool {
       requestAnimationFrame(() => {
         this.editSelection.updateVertexHandle();
         this.signals.transformDragEnded.dispatch('edit');
+        this.signals.onToolEnded.dispatch();
       });
     });
   }
@@ -303,8 +304,6 @@ export class BevelTool {
 
     this.updateSelectionAfterBevel();
     this.clearStartData();
-
-    this.signals.onToolEnded.dispatch();
   }
 
   cancelBevelSession() {
@@ -319,8 +318,6 @@ export class BevelTool {
     this.handle.updateMatrixWorld(true);
 
     this.editSelection.selectEdges(this.selectedEdgeIds);
-
-    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -331,6 +328,7 @@ export class BevelTool {
 
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('edit');
+      this.signals.onToolEnded.dispatch();
     });
   }
 

@@ -267,8 +267,6 @@ export class EdgeSlideTool {
       this.editSelection.selectEdges(this.selectedEdgeIds);
     }
     this.clearStartData();
-
-    this.signals.onToolEnded.dispatch();
   }
 
   cancelEdgeSlideSession() {
@@ -288,8 +286,6 @@ export class EdgeSlideTool {
       this.editSelection.selectEdges(this.selectedEdgeIds);
     }
     this.clearStartData();
-
-    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -300,6 +296,7 @@ export class EdgeSlideTool {
 
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('edit');
+      this.signals.onToolEnded.dispatch();
     });
   }
 

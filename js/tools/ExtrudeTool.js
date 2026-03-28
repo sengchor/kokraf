@@ -249,8 +249,6 @@ export class ExtrudeTool {
     if (!this.applyFaceNormalExtrudeOrientation()) {
       this.applyTransformOrientation(this.viewportControls.transformOrientation);
     }
-
-    this.signals.onToolEnded.dispatch();
   }
 
   cancelExtrudeSession() {
@@ -274,8 +272,6 @@ export class ExtrudeTool {
     this.handle.quaternion.copy(this.startPivotQuaternion);
     this.handle.scale.copy(this.startPivotScale);
     this.handle.updateMatrixWorld(true);
-
-    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandExtrudeState() {
@@ -286,6 +282,7 @@ export class ExtrudeTool {
 
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('edit');
+      this.signals.onToolEnded.dispatch();
     });
   }
 

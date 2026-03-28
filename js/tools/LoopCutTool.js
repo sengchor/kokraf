@@ -26,7 +26,9 @@ export class LoopCutTool {
 
     this._onPointerDown = this.onPointerDown.bind(this);
     this._onPointerMove = this.onPointerMove.bind(this);
+    this._onPointerUp = this.onPointerUp.bind(this);
     this._onMouseWheel = this.onMouseWheel.bind(this);
+    this._onKeyDown = this.onKeyDown.bind(this);
   }
 
   enable() {
@@ -34,7 +36,9 @@ export class LoopCutTool {
     this.active = true;
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
+    this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
     this.renderer.domElement.addEventListener('wheel', this._onMouseWheel, { passive: false, capture: true });
+    window.addEventListener('keydown', this._onKeyDown);
   }
 
   disable() {
@@ -108,6 +112,8 @@ export class LoopCutTool {
     } else if (mode === 'face') {
       this.editSelection.clearSelection();
     }
+
+    this.clearPreview();
   }
 
   onPointerMove(event) {
@@ -148,6 +154,20 @@ export class LoopCutTool {
     this.cutCount = Math.max(1, this.cutCount);
 
     this.showPreview(meshData, loopEdges);
+  }
+
+  onPointerUp() {
+    if (!this.active) return;
+
+    requestAnimationFrame(() => {
+      this.signals.onToolEnded.dispatch();
+    });
+  }
+
+  onKeyDown(event) {
+    if (event.key === 'Escape') {
+      this.signals.onToolEnded.dispatch();
+    }
   }
 
   findNearestEdge(meshData, edges, point) {

@@ -242,8 +242,6 @@ export class ObjectTransformTool {
     else if (this.mode === 'scale') this.commitScale(objects, this.handle);
 
     this.clearStartData();
-
-    this.signals.onToolEnded.dispatch();
   }
 
   cancelTransformSession() {
@@ -263,8 +261,6 @@ export class ObjectTransformTool {
     this.handle.quaternion.copy(this.startPivotQuaternion);
     this.handle.scale.copy(this.startPivotScale);
     this.handle.updateMatrixWorld(true);
-
-    this.signals.onToolEnded.dispatch();
   }
 
   clearCommandTransformState() {
@@ -275,6 +271,7 @@ export class ObjectTransformTool {
 
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('object');
+      this.signals.onToolEnded.dispatch();
     });
   }
 
