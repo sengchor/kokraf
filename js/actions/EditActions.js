@@ -6,6 +6,7 @@ import { DeleteSelectionCommand } from '../commands/DeleteSelectionCommand.js';
 import { SeparateSelectionCommand } from '../commands/SeparateSelectionCommand.js';
 import { MergeSelectionCommand } from '../commands/MergeSelectionCommand.js';
 import { SplitSelectionCommand } from '../commands/SplitSelectionCommand.js';
+import { FlipNormalsCommand } from '../commands/FlipNormalsCommand.js';
 
 export class EditActions {
   constructor(editor) {
@@ -75,6 +76,11 @@ export class EditActions {
       return;
     }
 
+    if (action === 'flip-normals') {
+      this.signals.editFlipNormals.dispatch();
+      return;
+    }
+
     console.log('Invalid action:', action);
   }
 
@@ -84,6 +90,7 @@ export class EditActions {
     this.signals.separateSelection.add(() => this.separateSelection());
     this.signals.mergeSelection.add(() => this.mergeSelection());
     this.signals.splitSelection.add(() => this.splitSelection());
+    this.signals.editFlipNormals.add(() => this.flipSelectedFacesNormal());
   }
 
   createElementFromVertices() {
@@ -287,5 +294,23 @@ export class EditActions {
     } else if (mode === 'face') {
       this.editSelection.selectFaces(newFaceIds)
     }
+  }
+
+  flipSelectedFacesNormal() {
+    const editedObject = this.editSelection.editedObject;
+    
+    const meshData = editedObject.userData.meshData;
+    const beforeMeshData = structuredClone(meshData);
+
+    this.vertexEditor.setObject(editedObject);
+
+    const selectedFaceIds = this.editSelection.selectedFaceIds;
+    if (selectedFaceIds.size === 0) return;
+    this.meshEditor.flipNormals(meshData, selectedFaceIds);
+
+    this.vertexEditor.transform.updateGeometryAndHelpers();
+
+    const afterMeshData = structuredClone(meshData);
+    this.editor.execute(new FlipNormalsCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
   }
 }

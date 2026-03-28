@@ -34,6 +34,7 @@ import { ApplyLocationCommand } from './ApplyLocationCommand.js';
 import { ApplyRotationCommand } from './ApplyRotationCommand.js';
 import { ApplyScaleCommand } from './ApplyScaleCommand.js';
 import { EdgeSlideCommand } from './EdgeSlideCommand.js';
+import { FlipNormalsCommand } from './FlipNormalsCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -72,4 +73,5 @@ export const commands = new Map([
   [ApplyRotationCommand.type, ApplyRotationCommand],
   [ApplyScaleCommand.type, ApplyScaleCommand],
   [EdgeSlideCommand.type, EdgeSlideCommand],
+  [FlipNormalsCommand.type, FlipNormalsCommand],
 ]);

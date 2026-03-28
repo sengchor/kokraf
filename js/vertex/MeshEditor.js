@@ -181,4 +181,30 @@ export class MeshEditor {
       v.position.z *= scale.z;
     }
   }
+
+  flipNormals(meshData, faceIds) {
+    for (const fid of faceIds) {
+      const face = meshData.faces.get(fid);
+      if (!face) continue;
+
+      face.vertexIds.reverse();
+
+      for (let edgeId of face.edgeIds) {
+        const edge = meshData.edges.get(edgeId);
+        if (edge) edge.faceIds.delete(fid);
+      }
+
+      face.edgeIds.clear();
+      const len = face.vertexIds.length;
+      for (let i = 0; i < len; i++) {
+        const v1Id = face.vertexIds[i];
+        const v2Id = face.vertexIds[(i + 1) % len];
+
+        const edge = meshData.getEdge(v1Id, v2Id);
+
+        face.edgeIds.add(edge.id);
+        edge.faceIds.add(fid);
+      }
+    }
+  }
 }

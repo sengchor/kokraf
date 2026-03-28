@@ -103,6 +103,7 @@ export default class Editor {
       mouseSelectLinked: new Signal(),
       editSelectRings: new Signal(),
       editSelectLoops: new Signal(),
+      editFlipNormals: new Signal(),
 
       objectsCopied: new Signal(),
       objectsPasted: new Signal(),
