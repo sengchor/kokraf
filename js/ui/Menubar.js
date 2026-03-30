@@ -6,6 +6,7 @@ import { MenubarHelp } from './Menubar.Help.js';
 import { auth } from '/supabase/AuthService.js';
 import { LoginPanel } from '../login/LoginPanel.js';
 import { AccountPanel } from '../login/AccountPanel.js';
+import { uploadProject } from '/supabase/storage/uploadProject.js';
 
 export default class Menubar {
   constructor(editor) {
@@ -29,12 +30,14 @@ export default class Menubar {
     this.loginButton = document.querySelector('.login-button');
     this.accountButton = document.querySelector('.account-button');
     this.pricingButton = document.querySelector('.pricing-button');
+    this.cloudSaveButton = document.querySelector('.cloud-save-button');
 
     this.loginPanel = new LoginPanel();
     this.accountPanel = new AccountPanel();
 
     this.loginButton.onclick = () => this.loginPanel.open();
     this.accountButton.onclick = () => this.accountPanel.open();
+    this.cloudSaveButton.onclick = () => uploadProject();
 
     auth.signals.login.add(() => {
       this.loginButton.classList.add('hidden');
