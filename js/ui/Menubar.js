@@ -6,7 +6,7 @@ import { MenubarHelp } from './Menubar.Help.js';
 import { auth } from '/supabase/AuthService.js';
 import { LoginPanel } from '../login/LoginPanel.js';
 import { AccountPanel } from '../login/AccountPanel.js';
-import { uploadProject } from '/supabase/storage/uploadProject.js';
+import { createProject, uploadProject } from '/supabase/storage/projectService.js';
 
 export default class Menubar {
   constructor(editor) {
@@ -37,7 +37,17 @@ export default class Menubar {
 
     this.loginButton.onclick = () => this.loginPanel.open();
     this.accountButton.onclick = () => this.accountPanel.open();
-    this.cloudSaveButton.onclick = () => uploadProject();
+    this.cloudSaveButton.onclick = async () => {
+      if (!auth.isLoggedIn()) {
+        alert('You must be logged in to save.');
+        this.signals.showLoginPanel.dispatch();
+        return;
+      }
+
+      const project = await createProject("My Model");
+      
+      await uploadProject(editor, project.id); 
+    }
 
     auth.signals.login.add(() => {
       this.loginButton.classList.add('hidden');
