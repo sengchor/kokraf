@@ -1,12 +1,13 @@
 import { supabase } from '../supabase.js';
 import { auth } from '../AuthService.js';
 
-export async function createProject(name = 'Untitled Project') {
+export async function createProject(editor, name = 'Untitled Project') {
   const user = auth.user;
 
   const { data, error } = await supabase
     .from('projects')
     .insert({
+      id: editor.currentProjectId,
       user_id: user.id,
       name: name
     })
@@ -16,6 +17,18 @@ export async function createProject(name = 'Untitled Project') {
   if (error) throw error;
 
   return data;
+}
+
+export async function saveProject(editor) {
+  const exists = await projectExistsInCloud(editor.currentProjectId);
+
+  if (!exists) {
+    const project = await createProject(editor);
+    const filePath = await uploadProject(editor, project.id);
+    await updateProjectFilePath(project.id, filePath);
+  } else {
+    await uploadProject(editor, editor.currentProjectId);
+  }
 }
 
 export async function uploadProject(editor, projectId) {
@@ -40,4 +53,56 @@ export async function uploadProject(editor, projectId) {
   console.log(`Project uploaded to cloud: ${filePath}`);
 
   return filePath;
+}
+
+export async function updateProjectFilePath(projectId, filePath) {
+  const { error } = await supabase
+    .from('projects')
+    .update({ file_path: filePath })
+    .eq('id', projectId);
+
+  if (error) throw error;
+}
+
+export async function projectExistsInCloud(projectId) {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (error) return false;
+  return !!data;
+}
+
+export async function loadProject(editor, projectId) {
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('file_path')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (projectError) throw projectError;
+
+  if (!project || !project.file_path) {
+    throw new Error('Project not found or missing file path');
+  }
+
+  const filePath = project.file_path;
+
+  const { data: blob, error: downloadError } = await supabase.storage
+    .from('projects')
+    .download(filePath);
+
+  if (downloadError) throw downloadError;
+
+  const text = await blob.text();
+  const json = JSON.parse(text);
+
+  // Load into editor
+  editor.sceneManager.emptyAllScenes();
+  editor.fromJSON(json);
+  requestAnimationFrame(() => editor.panelResizer.onWindowResize());
+
+  console.log(`Project loaded from cloud: ${filePath}`);
 }

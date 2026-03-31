@@ -6,7 +6,7 @@ import { MenubarHelp } from './Menubar.Help.js';
 import { auth } from '/supabase/AuthService.js';
 import { LoginPanel } from '../login/LoginPanel.js';
 import { AccountPanel } from '../login/AccountPanel.js';
-import { createProject, uploadProject } from '/supabase/storage/projectService.js';
+import { saveProject } from '/supabase/storage/ProjectService.js';
 
 export default class Menubar {
   constructor(editor) {
@@ -44,9 +44,7 @@ export default class Menubar {
         return;
       }
 
-      const project = await createProject("My Model");
-      
-      await uploadProject(editor, project.id); 
+      await saveProject(editor);
     }
 
     auth.signals.login.add(() => {

@@ -155,6 +155,8 @@ export default class Editor {
   }
 
   async init() {
+    this.currentProjectId = null;
+    
     this.viewportControls = new ViewportControls(this);
     await this.viewportControls.ready;
 
@@ -218,6 +220,8 @@ export default class Editor {
   async fromJSON(json) {
     const loader = new THREE.ObjectLoader();
 
+    this.currentProjectId = json.projectId;
+
     const scene = await loader.parseAsync(json.scene);
     this.sceneManager.setScene(scene);
 
@@ -240,6 +244,7 @@ export default class Editor {
         version: 1.0,
         type: 'Project',
       },
+      projectId: this.currentProjectId,
       scene: this.sceneManager.mainScene.toJSON(),
       camera: this.cameraManager.viewportCamera.toJSON(),
       viewportControls: this.viewportControls.toJSON(),

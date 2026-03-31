@@ -4,6 +4,7 @@ import { Exporter } from '../utils/Exporter.js';
 
 export class MenubarFile {
   constructor(editor) {
+    this.editor = editor;
     this.signals = editor.signals;
     this.sceneManager = editor.sceneManager;
     this.objectFactory = editor.objectFactory;
@@ -49,6 +50,9 @@ export class MenubarFile {
 
   createScene(type) {
     this.selection.deselect();
+
+    const projectId = crypto.randomUUID();
+    this.editor.currentProjectId = projectId;
 
     switch (type) {
       case 'empty':
