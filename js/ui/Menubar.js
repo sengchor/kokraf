@@ -47,7 +47,7 @@ export default class Menubar {
       await saveProject(editor);
     }
     this.projectsButton.onclick = () => {
-      console.log('open projects');
+      window.location.href = '/projects';
     }
 
     auth.signals.login.add(() => {
