@@ -4,7 +4,7 @@ export class MenubarHelp {
   }
 
   init() {
-      document.querySelector('.terms').addEventListener('click', () => {
+    document.querySelector('.terms').addEventListener('click', () => {
       window.open('/terms', '_blank');
     });
 
@@ -18,6 +18,10 @@ export class MenubarHelp {
 
     document.querySelector('.manual').addEventListener('click', () => {
       window.open('/manual', '_blank');
+    });
+
+    document.querySelector('.pricing').addEventListener('click', () => {
+      window.open('/pricing', '_blank');
     });
 
     document.querySelector('.sourcecode').addEventListener('click', () => {

@@ -32,6 +32,7 @@ export class AccountPanel {
                 <div class="billing-label">Subscription plan</div>
                 <div class="plan-container">
                   <div class="billing-text" id="account-plan">Pro</div>
+                  <button id="upgrade-plan-btn" class="upgrade-btn">Upgrade</button>
                   <button id="cancel-plan-btn" class="cancel-plan-btn">Cancel Plan</button>
                 </div>
               </div>
@@ -67,6 +68,8 @@ export class AccountPanel {
 
     this.cancelBtn = document.getElementById('cancel-plan-btn');
 
+    this.upgradeBtn = document.getElementById('upgrade-plan-btn');
+
     document
       .getElementById('account-close')
       .addEventListener('click', () => this.close());
@@ -74,6 +77,10 @@ export class AccountPanel {
     this.logoutBtn.addEventListener('click', () => this.logout());
 
     this.cancelBtn.addEventListener('click', () => this.cancelPlan());
+
+    this.upgradeBtn.addEventListener('click', () => {
+      window.open('/pricing', '_blank');
+    });
   }
 
   async open() {
@@ -140,6 +147,8 @@ export class AccountPanel {
       this.planDisplay.textContent = 'Pro';
       this.planDisplay.classList.add('pro');
 
+      this.upgradeBtn.classList.add('hidden');
+
       if (status === 'active') {
         this.expiryLabel.textContent = 'Renews on';
         this.expiryDisplay.textContent = profile.subscription_ends_at
@@ -174,6 +183,8 @@ export class AccountPanel {
 
       this.expiryLabel.textContent = 'Resets monthly';
       this.expiryDisplay.textContent = this.getFirstOfNextMonth().toLocaleDateString();
+
+      this.upgradeBtn.classList.remove('hidden');
 
       this.cancelBtn.classList.add('hidden');
     }

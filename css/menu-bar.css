@@ -154,8 +154,8 @@
 
 .login-button,
 .account-button,
-.pricing-button,
-.cloud-save-button {
+.cloud-save-button,
+.projects-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -173,8 +173,8 @@
 
 .login-button .label,
 .account-button .label,
-.pricing-button .label,
-.cloud-save-button .label {
+.cloud-save-button .label,
+.projects-button .label {
   white-space: nowrap;
   vertical-align: middle; 
 }
@@ -194,7 +194,7 @@
 
 .login-button:hover,
 .account-button:hover,
-.pricing-button:hover {
+.projects-button:hover {
   background-color: #f1f3f5;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
@@ -214,4 +214,13 @@
   flex-shrink: 0;
   vertical-align: middle;
   opacity: 1;
+}
+
+.projects-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  opacity: 0.5;
 }

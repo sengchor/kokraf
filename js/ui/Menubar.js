@@ -29,8 +29,8 @@ export default class Menubar {
     // Buttons
     this.loginButton = document.querySelector('.login-button');
     this.accountButton = document.querySelector('.account-button');
-    this.pricingButton = document.querySelector('.pricing-button');
     this.cloudSaveButton = document.querySelector('.cloud-save-button');
+    this.projectsButton = document.querySelector('.projects-button');
 
     this.loginPanel = new LoginPanel();
     this.accountPanel = new AccountPanel();
@@ -45,6 +45,9 @@ export default class Menubar {
       }
 
       await saveProject(editor);
+    }
+    this.projectsButton.onclick = () => {
+      console.log('open projects');
     }
 
     auth.signals.login.add(() => {
@@ -64,10 +67,6 @@ export default class Menubar {
     this.signals.showAccountPanel.add(() => {
       this.accountPanel.open();
     })
-
-    this.pricingButton.addEventListener('click', () => {
-      window.open('/pricing', '_blank');
-    });
 
     this.initMenuBar();
   }
