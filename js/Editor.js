@@ -31,6 +31,7 @@ import OriginHelper from './helpers/OriginHelper.js';
 import { ClipboardManager } from './core/ClipboardManager.js';
 import { NameManager } from './utils/NameManager.js';
 import { ToolInputDisplay } from './ui/ToolInputDisplay.js';
+import { loadProject } from '/supabase/storage/ProjectService.js';
 
 export default class Editor {
   constructor() {
@@ -164,16 +165,24 @@ export default class Editor {
     this.toolbar = new Toolbar(this);
     this.menubar = new Menubar(this);
 
-    const saved = await Storage.get('scene');
-    if (saved) {
-      await this.fromJSON(saved);
-    } else {
-      this.viewportControls.fromJSON();
-      this.sceneManager.addAmbientLight(0xffffff, 0.5);
-      this.sceneManager.addDemoObjects();
-    }
-    this.sceneManager.sceneEditorHelpers.add(this.sceneManager.gridHelper);
+    // Check for projectId in the URL query parameters
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('projectId');
 
+    if (projectId) {
+      await loadProject(this, projectId);
+    } else {
+      const saved = await Storage.get('scene');
+      if (saved) {
+        await this.fromJSON(saved);
+      } else {
+        this.viewportControls.fromJSON();
+        this.sceneManager.addAmbientLight(0xffffff, 0.5);
+        this.sceneManager.addDemoObjects();
+      }
+    }
+
+    this.sceneManager.sceneEditorHelpers.add(this.sceneManager.gridHelper);
     this.sidebar = new Sidebar(this);
     
     this.setupListeners();

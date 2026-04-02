@@ -72,6 +72,19 @@ class AuthService {
       }
     });
   }
+
+  async waitForUser() {
+    if (this.user) return this.user;
+
+    return new Promise(resolve => {
+      const handler = (user) => {
+        resolve(user);
+        this.signals.login.remove(handler);
+      };
+
+      this.signals.login.add(handler);
+    });
+  }
 }
 
 export const auth = new AuthService();

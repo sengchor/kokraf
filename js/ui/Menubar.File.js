@@ -53,6 +53,7 @@ export class MenubarFile {
 
     const projectId = crypto.randomUUID();
     this.editor.currentProjectId = projectId;
+    history.replaceState(null, '', `/`);
 
     switch (type) {
       case 'empty':
@@ -105,6 +106,7 @@ export class MenubarFile {
         editor.fromJSON(json);
         requestAnimationFrame(() => editor.panelResizer.onWindowResize());
 
+        history.replaceState(null, '', `/`);
         console.log(`Project loaded: ${file.name}`);
       } catch (e) {
         console.error('Failed to open project:', e);

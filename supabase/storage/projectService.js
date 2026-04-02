@@ -49,6 +49,9 @@ export async function uploadProject(editor, projectId) {
     });
 
   if (error) throw error;
+  else {
+    history.replaceState(null, '', `/?projectId=${projectId}`);
+  }
 
   console.log(`Project uploaded to cloud: ${filePath}`);
 
@@ -105,4 +108,22 @@ export async function loadProject(editor, projectId) {
   requestAnimationFrame(() => editor.panelResizer.onWindowResize());
 
   console.log(`Project loaded from cloud: ${filePath}`);
+}
+
+export async function getUserProjects() {
+  const user = auth.user;
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, name, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching projects:', error);
+    return [];
+  }
+
+  return data;
 }

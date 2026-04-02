@@ -227,3 +227,36 @@ body {
   font-weight: 600;
   margin-bottom: 8px;
 }
+
+/* Skeleton */
+.skeleton {
+  background: #e8e8e8;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  padding: 10px 20px;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-name {
+  height: 10px;
+  width: 60%;
+  margin-bottom: 2px;
+}
+
+.skeleton-date {
+  height: 10px;
+  width: 40%;
+}

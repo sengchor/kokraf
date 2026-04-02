@@ -47,6 +47,12 @@ export default class Menubar {
       await saveProject(editor);
     }
     this.projectsButton.onclick = () => {
+      if (!auth.isLoggedIn()) {
+        alert('You must be logged in to save.');
+        this.signals.showLoginPanel.dispatch();
+        return;
+      }
+
       window.location.href = '/projects';
     }
 
