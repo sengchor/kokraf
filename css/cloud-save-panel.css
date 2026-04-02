@@ -1,0 +1,143 @@
+/* Root overlay container*/
+#overlay-root-cloudsave {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Overlay */
+.cloudsave-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Shared hidden class (reuse yours) */
+.hidden {
+  display: none !important;
+}
+
+/* Panel */
+.cloudsave-panel {
+  position: relative;
+  background-color: #fff;
+  padding: 28px;
+  border-radius: 5px;
+  width: 400px;
+  color: #222;
+  font-family: sans-serif;
+  font-size: 14px;
+  border: 1px solid #e6e8eb;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Title */
+.cloudsave-title {
+  margin: 0;
+  font-size: 20px;
+  color: #111;
+  text-align: center;
+}
+
+/* Close button */
+.cloudsave-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.cloudsave-close:hover {
+  color: #111;
+}
+
+/* Section */
+.cloudsave-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Label */
+.cloudsave-label {
+  font-size: 13px;
+  color: #666;
+}
+
+/* Input */
+.cloudsave-input {
+  font-size: 14px;
+  padding: 10px;
+  border: 1px solid #e6e8eb;
+  border-radius: 3px;
+  outline: none;
+  transition: border 0.15s ease;
+}
+
+.cloudsave-input:focus {
+  border-color: #0a7cff;
+}
+
+/* Actions */
+.cloudsave-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Cancel button */
+#cloudsave-cancel {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+#cloudsave-cancel:hover {
+  background: #f5f5f5;
+}
+
+/* Save button */
+#cloudsave-save {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 3px;
+  border: 1px solid #111;
+  background-color: #111;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+#cloudsave-save:hover {
+  background-color: #000;
+}
+
+#cloudsave-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cloudsave-panel .error {
+  margin-top: 2px;
+  color: #c44;
+  font-size: 13px;
+  text-align: center;
+}

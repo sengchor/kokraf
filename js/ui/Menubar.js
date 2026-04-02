@@ -4,9 +4,10 @@ import { MenubarAdd } from './Menubar.Add.js';
 import { MenubarView } from './Menubar.View.js';
 import { MenubarHelp } from './Menubar.Help.js';
 import { auth } from '/supabase/AuthService.js';
-import { LoginPanel } from '../login/LoginPanel.js';
-import { AccountPanel } from '../login/AccountPanel.js';
-import { saveProject } from '/supabase/storage/ProjectService.js';
+import { LoginPanel } from '../panels/LoginPanel.js';
+import { AccountPanel } from '../panels/AccountPanel.js';
+import { saveProject, projectExistsInCloud } from '/supabase/storage/ProjectService.js';
+import { CloudSavePanel } from '../panels/CloudSavePanel.js';
 
 export default class Menubar {
   constructor(editor) {
@@ -34,21 +35,37 @@ export default class Menubar {
 
     this.loginPanel = new LoginPanel();
     this.accountPanel = new AccountPanel();
+    this.cloudSavePanel = new CloudSavePanel({ editor });
+
+    this.cloudSaveLabel = this.cloudSaveButton.querySelector('.label');
 
     this.loginButton.onclick = () => this.loginPanel.open();
     this.accountButton.onclick = () => this.accountPanel.open();
     this.cloudSaveButton.onclick = async () => {
       if (!auth.isLoggedIn()) {
-        alert('You must be logged in to save.');
         this.signals.showLoginPanel.dispatch();
         return;
       }
 
-      await saveProject(editor);
+      const exists = await projectExistsInCloud(editor.currentProjectId);
+      if (!exists) {
+        this.cloudSavePanel.open();
+        return;
+      }
+
+      try {
+        this.setSaveStatus(this.cloudSaveLabel, 'saving');
+
+        await saveProject(editor, { override: true });
+
+        this.setSaveStatus(this.cloudSaveLabel, 'saved');
+      } catch (err) {
+        console.error(err);
+        this.setSaveStatus(this.cloudSaveLabel, 'error');
+      }
     }
     this.projectsButton.onclick = () => {
       if (!auth.isLoggedIn()) {
-        alert('You must be logged in to save.');
         this.signals.showLoginPanel.dispatch();
         return;
       }
@@ -66,13 +83,26 @@ export default class Menubar {
       this.loginButton.classList.remove('hidden');
     });
 
+    if (auth.isLoggedIn()) {
+      this.loginButton.classList.add('hidden');
+      this.accountButton.classList.remove('hidden');
+    }
+
     this.signals.showLoginPanel.add(() => {
       this.loginPanel.open();
-    })
+    });
 
     this.signals.showAccountPanel.add(() => {
       this.accountPanel.open();
-    })
+    });
+
+    this.signals.historyChanged.add(() => {
+      this.setSaveStatus(this.cloudSaveLabel, 'save');
+    });
+
+    this.signals.saveStatusChanged.add((state) => {
+      this.setSaveStatus(this.cloudSaveLabel, state);
+    });
 
     this.initMenuBar();
   }
@@ -134,5 +164,22 @@ export default class Menubar {
         activeMenu.classList.remove('active');
       }, 300);
     });
+  }
+
+  setSaveStatus(labelEl, state) {
+    switch (state) {
+      case 'save':
+        labelEl.textContent = 'Save';
+        break;
+      case 'saving':
+        labelEl.textContent = 'Saving';
+        break;
+      case 'saved':
+        labelEl.textContent = 'Saved';
+        break;
+      case 'error':
+        labelEl.textContent = 'Error';
+        break;
+    }
   }
 }

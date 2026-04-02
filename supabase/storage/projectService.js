@@ -19,15 +19,13 @@ export async function createProject(editor, name = 'Untitled Project') {
   return data;
 }
 
-export async function saveProject(editor) {
-  const exists = await projectExistsInCloud(editor.currentProjectId);
-
-  if (!exists) {
-    const project = await createProject(editor);
+export async function saveProject(editor, {name = null, override = false} = {}) {
+  if (override) {
+    await uploadProject(editor, editor.currentProjectId);
+  } else {
+    const project = await createProject(editor, name);
     const filePath = await uploadProject(editor, project.id);
     await updateProjectFilePath(project.id, filePath);
-  } else {
-    await uploadProject(editor, editor.currentProjectId);
   }
 }
 

@@ -63,6 +63,7 @@ export default class Editor {
       historyChanged: new Signal(),
       emptyScene: new Signal(),
       layoutChanged: new Signal(),
+      saveStatusChanged: new Signal(),
 
       sceneGraphChanged: new Signal(),
       modeChanged: new Signal(),
@@ -157,6 +158,7 @@ export default class Editor {
 
   async init() {
     this.currentProjectId = null;
+    this.currentProjectName = null;
     
     this.viewportControls = new ViewportControls(this);
     await this.viewportControls.ready;
@@ -230,6 +232,7 @@ export default class Editor {
     const loader = new THREE.ObjectLoader();
 
     this.currentProjectId = json.projectId;
+    this.currentProjectName = json.projectName;
 
     const scene = await loader.parseAsync(json.scene);
     this.sceneManager.setScene(scene);
@@ -254,6 +257,7 @@ export default class Editor {
         type: 'Project',
       },
       projectId: this.currentProjectId,
+      projectName: this.currentProjectName,
       scene: this.sceneManager.mainScene.toJSON(),
       camera: this.cameraManager.viewportCamera.toJSON(),
       viewportControls: this.viewportControls.toJSON(),

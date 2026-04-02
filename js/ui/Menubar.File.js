@@ -53,6 +53,7 @@ export class MenubarFile {
 
     const projectId = crypto.randomUUID();
     this.editor.currentProjectId = projectId;
+    this.editor.currentProjectName = null;
     history.replaceState(null, '', `/`);
 
     switch (type) {

@@ -12,7 +12,6 @@ export class Exporter {
   async export(objects, format) {
     // Check if user is logged in
     if (!auth.isLoggedIn()) {
-      alert('You must be logged in to export.');
       this.editor.signals.showLoginPanel.dispatch();
       return;
     }
