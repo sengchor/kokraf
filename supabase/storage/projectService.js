@@ -22,9 +22,13 @@ export async function createProject(editor, name = 'Untitled Project') {
 export async function saveProject(editor, {name = null, override = false} = {}) {
   if (override) {
     await uploadProject(editor, editor.currentProjectId);
+    await uploadThumbnail(editor, editor.currentProjectId);
   } else {
     const project = await createProject(editor, name);
-    const filePath = await uploadProject(editor, project.id);
+    const [filePath] = await Promise.all([
+      uploadProject(editor, project.id),
+      uploadThumbnail(editor, project.id)
+    ]);
     await updateProjectFilePath(project.id, filePath);
   }
 }
@@ -144,4 +148,42 @@ export async function deleteProject(projectId) {
     .eq('id', projectId);
 
   if (error) throw error;
+}
+
+export async function uploadThumbnail(editor, projectId) {
+  const user = auth.user;
+
+  const camera = editor.cameraManager.camera;
+  const blob = await editor.renderer.captureThumbnail(editor.sceneManager, camera);
+
+  const filePath = `${user.id}/${projectId}/thumbnail.webp`;
+
+  const { error } = await supabase.storage
+    .from('projects')
+    .upload(filePath, blob, {
+      contentType: 'image/webp',
+      upsert: true
+    });
+
+  if (error) throw error;
+  return filePath;
+}
+
+export async function getThumbnailUrl(projectId) {
+  const user = auth.user;
+  if (!user) return null;
+
+  const { data, error } = await supabase.storage
+    .from('projects')
+    .createSignedUrl(
+      `${user.id}/${projectId}/thumbnail.webp`,
+      60 * 60
+    );
+
+  if (error) {
+    console.error('Thumbnail URL error:', error);
+    return null;
+  }
+
+  return data.signedUrl;
 }

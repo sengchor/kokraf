@@ -1,5 +1,5 @@
 import { auth } from '/supabase/AuthService.js';
-import { getUserProjects, deleteProject } from '/supabase/storage/ProjectService.js';
+import { getUserProjects, deleteProject, getThumbnailUrl } from '/supabase/storage/ProjectService.js';
 
 // Run on page load
 document.addEventListener('DOMContentLoaded', initProjectsPage);
@@ -48,7 +48,7 @@ function formatEditedDate(dateString) {
 }
 
 // Render project cards
-function renderProjects(grid, projects) {
+async function renderProjects(grid, projects) {
   if (!grid) return;
 
   grid.innerHTML = '';
@@ -58,7 +58,7 @@ function renderProjects(grid, projects) {
     return;
   }
 
-  projects.forEach(project => {
+  for (const project of projects) {
     const card = document.createElement('div');
     card.className = 'project-card';
 
@@ -87,6 +87,8 @@ function renderProjects(grid, projects) {
 
     const menuBtn = createMenuBtn(project, card);
 
+    await createThumbnail(project, thumb);
+
     wrapper.appendChild(meta);
     wrapper.appendChild(menuBtn);
     card.appendChild(thumb);
@@ -97,7 +99,7 @@ function renderProjects(grid, projects) {
     });
 
     grid.appendChild(card);
-  });
+  };
   
   function createMenuBtn(project, card) {
     const menuBtn = document.createElement('button');
@@ -135,6 +137,23 @@ function renderProjects(grid, projects) {
     });
 
     return menuBtn;
+  }
+
+  async function createThumbnail(project, thumb) {
+    const img = document.createElement('img');
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+
+    const url = await getThumbnailUrl(project.id);
+    if (url) {
+      img.src = url;
+      thumb.appendChild(img);
+    } else {
+      thumb.innerHTML = `<svg width="32" height="32" fill="none" stroke="#ccc" stroke-width="1.5" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="m3 16 5-5 4 4 3-3 6 6"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+      </svg>`;
+    }
   }
 
   function attachPanelDismiss(panel, threshold = 100) {

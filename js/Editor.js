@@ -209,7 +209,6 @@ export default class Editor {
 
     this.renderer.clearAll();
     this.renderer.render(this.sceneManager.mainScene, this.cameraManager.camera);
-    this.renderer.render(this.sceneManager.mainScene, this.cameraManager.camera);
     this.renderer.render(this.sceneManager.sceneHelpers, this.cameraManager.camera);
     this.renderer.render(this.sceneManager.sceneEditorHelpers, this.cameraManager.camera);
 

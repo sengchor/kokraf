@@ -53,4 +53,24 @@ export default class Renderer {
   renderWithOutline(scene, camera) {
     this.outlineEffect.render(scene, camera);
   }
+
+  captureThumbnail(sceneManager, camera, width = 480, height = 270) {
+    const currentSize = new THREE.Vector2();
+    this.renderer.getSize(currentSize);
+
+    this.renderer.setSize(width, height);
+    this.renderer.clear();
+
+    this.renderer.render(sceneManager.mainScene, camera);
+    this.renderer.render(sceneManager.sceneHelpers, camera);
+    this.renderer.render(sceneManager.sceneEditorHelpers, camera);
+
+    const blob = new Promise((resolve) => {
+      this.renderer.domElement.toBlob((b) => resolve(b), 'image/webp', 0.8);
+    });
+
+    this.renderer.setSize(currentSize.x, currentSize.y);
+
+    return blob;
+  }
 }
