@@ -125,3 +125,23 @@ export async function getUserProjects() {
 
   return data;
 }
+
+export async function deleteProject(projectId) {
+  const { data: project } = await supabase
+    .from('projects')
+    .select('file_path')
+    .eq('id', projectId)
+    .single();
+
+  console.log(project.file_path);
+  if (project?.file_path) {
+    await supabase.storage.from('projects').remove([project.file_path]);
+  }
+
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId);
+
+  if (error) throw error;
+}
