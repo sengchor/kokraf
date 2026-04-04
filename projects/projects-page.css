@@ -189,7 +189,6 @@ body {
   font-size: 18px;
   font-weight: 500;
   color: #111;
-  margin-top: 16px;
   position: relative;
   display: inline-block;
 }
@@ -208,7 +207,7 @@ body {
 .right-panel {
   width: 300px;
   flex-shrink: 0;
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 /* About card */
@@ -337,4 +336,24 @@ body {
 
 .project-card-wrapper {
   position: relative;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+#edit-profile-btn {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+
+  background: #fff;
+  color: #111;
+  border: 1px solid #e6e8eb;
+}
+
+#edit-profile-btn:hover {
+  background: #f5f5f5;
 }

@@ -1,7 +1,11 @@
 import { profile } from '/supabase/services/ProfileService.js';
+import { EditProfilePanel } from './EditProfilePanel.js';
+
+let editPanel;
 
 export async function initProfile(user) {
   const profileInfo = document.getElementById("profile-info");
+  const editProfileBtn = document.getElementById('edit-profile-btn');
   renderProfileSkeleton(profileInfo);
 
   if (!user) return;
@@ -10,6 +14,14 @@ export async function initProfile(user) {
   if (!data) return;
 
   renderProfile(data);
+
+  editProfileBtn.addEventListener('click', () => {
+    if (!editPanel) {
+      editPanel = new EditProfilePanel();
+    }
+
+    editPanel.open();
+  });
 }
 
 function renderProfile(data) {
