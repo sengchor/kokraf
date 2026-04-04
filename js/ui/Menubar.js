@@ -3,10 +3,10 @@ import { MenubarEdit } from './Menubar.Edit.js';
 import { MenubarAdd } from './Menubar.Add.js';
 import { MenubarView } from './Menubar.View.js';
 import { MenubarHelp } from './Menubar.Help.js';
-import { auth } from '/supabase/AuthService.js';
+import { auth } from '/supabase/services/AuthService.js';
 import { LoginPanel } from '../panels/LoginPanel.js';
 import { AccountPanel } from '../panels/AccountPanel.js';
-import { saveProject, projectExistsInCloud } from '/supabase/storage/ProjectService.js';
+import { saveProject, projectExistsInCloud } from '/supabase/services/ProjectService.js';
 import { CloudSavePanel } from '../panels/CloudSavePanel.js';
 
 export default class Menubar {

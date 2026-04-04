@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { auth } from '/supabase/AuthService.js';
+import { auth } from '/supabase/services/AuthService.js';
 import { SUPABASE_URL } from '/supabase/supabase.js';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { computePerVertexNormals, computeFaceNormals, computeVertexNormalsWithAngle } from '../geometry/NormalCalculator.js';

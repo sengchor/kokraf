@@ -1,5 +1,5 @@
-import { auth } from '/supabase/AuthService.js';
-import { getUserProjects, deleteProject, getThumbnailUrl } from '/supabase/storage/ProjectService.js';
+import { auth } from '/supabase/services/AuthService.js';
+import { getUserProjects, deleteProject, getThumbnailUrl } from '/supabase/services/ProjectService.js';
 
 // Run on page load
 document.addEventListener('DOMContentLoaded', initProjectsPage);

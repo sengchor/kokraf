@@ -1,4 +1,4 @@
-import { auth } from '/supabase/AuthService.js';
+import { auth } from '/supabase/services/AuthService.js';
 
 export class LoginPanel {
   constructor({ rootSelector = 'body', onSuccess } = {}) {

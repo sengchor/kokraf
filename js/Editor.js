@@ -31,7 +31,7 @@ import OriginHelper from './helpers/OriginHelper.js';
 import { ClipboardManager } from './core/ClipboardManager.js';
 import { NameManager } from './utils/NameManager.js';
 import { ToolInputDisplay } from './ui/ToolInputDisplay.js';
-import { loadProject } from '/supabase/storage/ProjectService.js';
+import { loadProject } from '/supabase/services/ProjectService.js';
 
 export default class Editor {
   constructor() {
@@ -172,7 +172,14 @@ export default class Editor {
     const projectId = params.get('projectId');
 
     if (projectId) {
-      await loadProject(this, projectId);
+      try {
+        await loadProject(this, projectId);
+      } catch (err) {
+        console.error(err);
+
+        alert("Can't load the project");
+        history.replaceState(null, '', `/`);
+      }
     } else {
       const saved = await Storage.get('scene');
       if (saved) {

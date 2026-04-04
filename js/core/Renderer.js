@@ -58,6 +58,12 @@ export default class Renderer {
     const currentSize = new THREE.Vector2();
     this.renderer.getSize(currentSize);
 
+    const originalAspect = camera.aspect;
+    const originalPixelRatio = this.renderer.getPixelRatio();
+
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+
     this.renderer.setSize(width, height);
     this.renderer.clear();
 
@@ -69,7 +75,10 @@ export default class Renderer {
       this.renderer.domElement.toBlob((b) => resolve(b), 'image/webp', 0.8);
     });
 
+    this.renderer.setPixelRatio(originalPixelRatio);
     this.renderer.setSize(currentSize.x, currentSize.y);
+    camera.aspect = originalAspect;
+    camera.updateProjectionMatrix();
 
     return blob;
   }

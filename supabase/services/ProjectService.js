@@ -1,5 +1,5 @@
 import { supabase } from '../supabase.js';
-import { auth } from '../AuthService.js';
+import { auth } from './AuthService.js';
 
 export async function createProject(editor, name = 'Untitled Project') {
   const user = auth.user;

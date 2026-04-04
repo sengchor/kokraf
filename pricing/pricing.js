@@ -1,4 +1,4 @@
-import { auth } from '/supabase/AuthService.js';
+import { auth } from '/supabase/services/AuthService.js';
 import { LoginPanel } from '../js/login/LoginPanel.js';
 import { supabase } from '/supabase/supabase.js';
 

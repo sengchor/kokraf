@@ -1,5 +1,5 @@
-import { saveProject } from '/supabase/storage/ProjectService.js';
-import { auth } from '/supabase/AuthService.js';
+import { saveProject } from '/supabase/services/ProjectService.js';
+import { auth } from '/supabase/services/AuthService.js';
 
 export class CloudSavePanel {
   constructor({ rootSelector = 'body', editor} = {}) {

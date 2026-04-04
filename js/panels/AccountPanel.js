@@ -134,6 +134,7 @@ export class AccountPanel {
     }
 
     this.close();
+    history.replaceState(null, '', `/`);
   }
 
   renderPlan(profile) {
