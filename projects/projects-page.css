@@ -175,12 +175,14 @@ body {
   font-size: 28px;
   font-weight: 350;
   color: #fff;
+  min-width: 150px;
 }
 
 .profile-username {
   font-size: 18px;
   font-weight: 300;
   color: #fff;
+  min-width: 100px;
 }
 
 .tab-name {
@@ -245,13 +247,13 @@ body {
   100% { transform: translateX(100%); }
 }
 
-.skeleton-name {
+.skeleton-long {
   height: 10px;
-  width: 70%;
+  width: 80%;
   margin-bottom: 2px;
 }
 
-.skeleton-date {
+.skeleton-short {
   height: 10px;
   width: 40%;
 }

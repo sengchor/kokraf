@@ -1,19 +1,14 @@
-import { auth } from '/supabase/services/AuthService.js';
 import { getUserProjects, deleteProject, getThumbnailUrl } from '/supabase/services/ProjectService.js';
-
-// Run on page load
-document.addEventListener('DOMContentLoaded', initProjectsPage);
 
 document.addEventListener('click', () => {
   document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
 });
 
 // Main: fetch and render
-async function initProjectsPage() {
+export async function initProjects(user) {
   const grid = document.getElementById("projects-grid");
   renderSkeletonCards(grid);
 
-  const user = await auth.waitForUser();
   if (!user) return;
 
   const projects = await getUserProjects();
@@ -26,8 +21,8 @@ function renderSkeletonCards(grid, count = 6) {
       <div class="thumbnail"></div>
       <div class="project-info-wrapper">
         <div class="project-meta">
-          <div class="skeleton skeleton-name"></div>
-          <div class="skeleton skeleton-date"></div>
+          <div class="skeleton skeleton-long"></div>
+          <div class="skeleton skeleton-short"></div>
         </div>
       </div>
     </div>
@@ -87,7 +82,7 @@ async function renderProjects(grid, projects) {
 
     const menuBtn = createMenuBtn(project, card);
 
-    await createThumbnail(project, thumb);
+    createThumbnail(project, thumb);
 
     wrapper.appendChild(meta);
     wrapper.appendChild(menuBtn);
@@ -164,16 +159,16 @@ async function renderProjects(grid, projects) {
       const dist = Math.sqrt(dx * dx + dy * dy);
       
       if (dist > threshold) {
-        panel.remove();
-        document.removeEventListener('mousemove', onMouseMove);
+        cleanup();
       }
     };
 
-    document.addEventListener('mousemove', onMouseMove);
-
-    panel.addEventListener('remove', () => {
+    function cleanup() {
+      panel.remove();
       document.removeEventListener('mousemove', onMouseMove);
-    }, { once: true });
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
   }
 
   async function handleDeleteProject(project, card) {
