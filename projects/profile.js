@@ -24,20 +24,30 @@ export async function initProfile(user) {
   });
 }
 
-function renderProfile(data) {
+export function renderProfile(data) {
   const nameEl = document.querySelector('.profile-name');
   const usernameEl = document.querySelector('.profile-username');
   const avatarEl = document.querySelector('.profile-avatar');
+  const aboutEl = document.querySelector('.profile-about');
 
   nameEl.classList.remove('skeleton', 'skeleton-long');
   usernameEl.classList.remove('skeleton', 'skeleton-short');
 
   nameEl.textContent = data.displayName;
-  let handle = data.email.split('@')[0].replace(/[+.]/g, '');
-  usernameEl.textContent = `@${handle}`;
+  const username =
+    data.username || profile.extractNameFromEmail(data.email);
+  usernameEl.textContent = `@${username}`;
 
   if (data.avatarUrl) {
     avatarEl.src = data.avatarUrl;
+  }
+
+  if (data.about && data.about.trim() !== "") {
+    aboutEl.textContent = data.about;
+    aboutEl.classList.add("filled");
+  } else {
+    aboutEl.textContent = "Write a little more about yourself";
+    aboutEl.classList.remove("filled");
   }
 }
 

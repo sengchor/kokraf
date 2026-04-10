@@ -55,6 +55,7 @@
 .editprofile-input,
 .editprofile-textarea {
   font-size: 14px;
+  font-family: inherit;
   padding: 10px;
   border: 1px solid #e6e8eb;
   border-radius: 3px;

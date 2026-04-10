@@ -185,6 +185,14 @@ body {
   min-width: 100px;
 }
 
+.profile-about {
+  color: #888;
+}
+
+.profile-about.filled {
+  color: #000;
+}
+
 .tab-name {
   font-size: 18px;
   font-weight: 500;

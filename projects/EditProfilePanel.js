@@ -1,4 +1,5 @@
 import { profile } from '/supabase/services/ProfileService.js';
+import { renderProfile } from './profile.js';
 
 export class EditProfilePanel {
   constructor({ rootSelector = 'body' } = {}) {
@@ -70,13 +71,11 @@ export class EditProfilePanel {
   async open() {
     const data = await profile.loadProfile();
 
-    let handle;
-    if (!data.username) {
-      handle = data.email.split('@')[0].replace(/[+.]/g, '');
-    }
+    const username =
+      data.username || profile.extractNameFromEmail(data.email);
 
     this.nameInput.value = data.displayName || '';
-    this.usernameInput.value = handle || '';
+    this.usernameInput.value = username || '';
     this.aboutInput.value = data.about || '';
 
     this.overlay.classList.remove('hidden');
@@ -88,12 +87,12 @@ export class EditProfilePanel {
   }
 
   async handleSave() {
-    const name = this.nameInput.value.trim();
+    const displayName = this.nameInput.value.trim();
     const username = this.usernameInput.value.trim();
     const about = this.aboutInput.value.trim();
     const avatarFile = this.avatarInput.files[0];
 
-    if (!name || !username) {
+    if (!displayName || !username) {
       this.showError('Name and username are required.');
       return;
     }
@@ -101,6 +100,10 @@ export class EditProfilePanel {
     try {
       this.saveBtn.disabled = true;
       this.saveBtn.textContent = 'Saving...';
+
+      const updated = await profile.saveProfile({ displayName, username, about, avatarFile });
+
+      renderProfile(updated);
 
       this.close();
     } catch (err) {
