@@ -46,7 +46,7 @@ class ProfileService {
     return this.profile;
   }
 
-  async saveProfile({ displayName, username, about }) {
+  async saveProfile({ displayName, username, about, avatarUrl }) {
     const user = auth.user;
     if (!user) throw new Error('Not authenticated');
 
@@ -56,7 +56,8 @@ class ProfileService {
         id: user.id,
         display_name: displayName,
         username: username,
-        about: about
+        about: about,
+        avatar_url: avatarUrl,
       });
 
     if (error) throw error;
@@ -65,15 +66,54 @@ class ProfileService {
       ...this.profile,
       displayName,
       username,
-      about
-    }
+      about,
+      avatarUrl,
+    };
 
     return this.profile;
+  }
+
+  async uploadAvatar(file) {
+    const user = auth.user;
+    if (!user) throw new Error('Not authenticated');
+
+    const converted = await this.convertToWebP(file);
+    const filePath = `${user.id}/avatar.webp`;
+
+    const { error } = await supabase.storage
+      .from('users')
+      .upload(filePath, converted, { contentType: 'image/webp', upsert: true });
+
+    if (error) throw error;
+
+    const { data } = supabase.storage.from('users').getPublicUrl(filePath);
+    return `${data.publicUrl}?t=${Date.now()}`;
   }
 
   extractNameFromEmail(email) {
     if (!email) return 'User';
     return email.split('@')[0].replace(/[+.]/g, '');
+  }
+
+  convertToWebP(file, quality = 0.85) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.width;
+        canvas.height = img.height;
+
+        canvas.getContext('2d').drawImage(img, 0, 0);
+
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob(resolve, 'image/webp', quality);
+      };
+
+      img.src = url;
+    });
   }
 }
 
