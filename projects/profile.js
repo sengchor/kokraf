@@ -29,6 +29,7 @@ export function renderProfile(data) {
   const usernameEl = document.querySelector('.profile-username');
   const avatarEl = document.querySelector('.profile-avatar');
   const aboutEl = document.querySelector('.profile-about');
+  const bannerEl = document.querySelector('.profile-banner');
 
   nameEl.classList.remove('skeleton', 'skeleton-long');
   usernameEl.classList.remove('skeleton', 'skeleton-short');
@@ -40,6 +41,12 @@ export function renderProfile(data) {
 
   if (data.avatarUrl) {
     avatarEl.src = data.avatarUrl;
+  }
+
+  if (data.bannerUrl) {
+    bannerEl.style.backgroundImage = `url('${data.bannerUrl}')`;
+    bannerEl.style.backgroundSize = 'cover';
+    bannerEl.style.backgroundPosition = 'center';
   }
 
   if (data.about && data.about.trim() !== "") {

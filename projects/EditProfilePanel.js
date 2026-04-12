@@ -15,6 +15,21 @@ export class EditProfilePanel {
 
           <h3 class="editprofile-title">Edit Profile</h3>
 
+          <!-- Banner Picture -->
+          <div class="editprofile-section">
+            <div class="editprofile-label">Banner</div>
+            <div class="editprofile-banner-wrap">
+              <div id="editprofile-banner-preview" class="editprofile-banner-preview">
+                <img id="editprofile-banner-img" class="editprofile-banner-img" src="" alt="" />
+                <button type="button" id="editprofile-banner-btn" class="editprofile-banner-edit-btn">
+                  ✎ CHANGE BANNER
+                </button>
+              </div>
+            </div>
+            <input id="editprofile-banner-input" type="file" accept="image/png, image/jpeg" style="display:none" />
+            <div class="editprofile-avatar-hint">PNG or JPG • Min 2048x400 • Max 5MB</div>
+          </div>
+
           <!-- Profile Picture -->
           <div class="editprofile-section">
             <div class="editprofile-label">Profile Picture</div>
@@ -28,7 +43,7 @@ export class EditProfilePanel {
                 <input id="editprofile-input" type="file" accept="image/png, image/jpeg" style="display:none" />
 
                 <div class="editprofile-avatar-hint">
-                  PNG or JPG • 256×256 pixels • Max 2MB
+                  PNG or JPG • 256x256 pixels • Max 2MB
                 </div>
               </div>
             </div>
@@ -72,6 +87,10 @@ export class EditProfilePanel {
     this.avatarInput = document.getElementById('editprofile-input');
     this.editAvatarBtn = document.getElementById('editprofile-avatar-btn');
     this.errorEl = document.getElementById('editprofile-error');
+
+    this.bannerInput = document.getElementById('editprofile-banner-input');
+    this.bannerImg = document.getElementById('editprofile-banner-img');
+    this.bannerBtn = document.getElementById('editprofile-banner-btn');
 
     this.saveBtn = document.getElementById('editprofile-save');
     this.cancelBtn = document.getElementById('editprofile-cancel');
@@ -118,7 +137,53 @@ export class EditProfilePanel {
       img.src = objectUrl;
     });
 
+    this.bannerInput.addEventListener('change', () => {
+      const file = this.bannerInput.files[0];
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        this.showError('Banner must be less than 5MB');
+        this.bannerInput.value = '';
+        return;
+      }
+
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = async () => {
+        if (img.width < 2048 || img.height < 400) {
+          this.showError('Banner must be at least 2048x400 pixels');
+          this.bannerInput.value = '';
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+
+        this.clearError();
+
+        const cropped = await profile.cropToAspectRatio(file, 2048 / 400);
+
+        if (this._croppedPreviewUrl) {
+          URL.revokeObjectURL(this._croppedPreviewUrl);
+        }
+
+        this._croppedPreviewUrl = URL.createObjectURL(cropped);
+        this._croppedBannerBlob = cropped;
+
+        this.bannerImg.src = this._croppedPreviewUrl;
+        this.bannerImg.style.display = 'block';
+      };
+
+      img.onerror= () => {
+        this.showError('Invalid image file');
+        this.bannerInput.value = '';
+        URL.revokeObjectURL(objectUrl);
+      };
+
+      img.src = objectUrl;
+    });
+
     this.editAvatarBtn.addEventListener('click', () => this.avatarInput.click());
+    this.bannerBtn.addEventListener('click', () => this.bannerInput.click());
     this.cancelBtn.addEventListener('click', () => this.close());
     this.saveBtn.addEventListener('click', () => this.handleSave());
     this.closeBtn.addEventListener('click', () => this.close());
@@ -132,6 +197,8 @@ export class EditProfilePanel {
 
     this.nameInput.value = data.displayName || '';
     this.usernameInput.value = username || '';
+    this.bannerImg.src = data.bannerUrl || '';
+    this.bannerImg.style.display = data.bannerUrl ? 'block' : 'none';
     this.avatarPreview.src = data.avatarUrl || '';
     this.avatarPreview.style.display = data.avatarUrl ? 'block' : 'none';
     this.aboutInput.value = data.about || '';
@@ -142,6 +209,15 @@ export class EditProfilePanel {
 
   close() {
     this.overlay.classList.add('hidden');
+
+    this.avatarInput.value = '';
+    this.bannerInput.value = '';
+    this._croppedBannerBlob = null;
+    
+    if (this._croppedPreviewUrl) {
+      URL.revokeObjectURL(this._croppedPreviewUrl);
+      this._croppedPreviewUrl = null;
+    }
   }
 
   async handleSave() {
@@ -149,6 +225,7 @@ export class EditProfilePanel {
     const username = this.usernameInput.value.trim();
     const about = this.aboutInput.value.trim();
     const avatarFile = this.avatarInput.files[0];
+    const bannerFile = this.bannerInput.files[0];
 
     if (!displayName || !username) {
       this.showError('Name and username are required.');
@@ -161,7 +238,10 @@ export class EditProfilePanel {
 
       const avatarUrl = avatarFile ? await profile.uploadAvatar(avatarFile) : undefined;
 
-      const updated = await profile.saveProfile({ displayName, username, about, avatarUrl });
+      const bannerBlob = this._croppedBannerBlob || this.bannerInput.files[0];
+      const bannerUrl = bannerBlob ? await profile.uploadBanner(bannerBlob) : undefined;
+
+      const updated = await profile.saveProfile({ displayName, username, about, avatarUrl, bannerUrl });
       renderProfile(updated);
 
       this.close();

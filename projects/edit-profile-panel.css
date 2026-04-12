@@ -111,6 +111,49 @@
   color: #888;
 }
 
+/* Banner preview inside the edit panel */
+.editprofile-banner-wrap {
+  width: 100%;
+}
+
+.editprofile-banner-preview {
+  position: relative;
+  width: 100%;
+  height: 70.70px;
+  background: #2e2f34;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editprofile-banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: none;
+}
+
+.editprofile-banner-edit-btn {
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 3px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.editprofile-banner-edit-btn:hover {
+  background: rgba(0, 0, 0, 0.65);
+}
+
 .editprofile-actions {
   display: flex;
   justify-content: flex-end;
