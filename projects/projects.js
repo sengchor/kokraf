@@ -124,7 +124,6 @@ async function renderProjects(grid, projects) {
         e.stopPropagation();
         panel.remove();
         await handleDeleteProject(project, card);
-        console.log('delete');
       });
 
       panel.appendChild(deleteBtn);

@@ -1,13 +1,14 @@
 import { supabase } from '../supabase.js';
 import { auth } from './AuthService.js';
+import { createEmptyProject } from '/js/utils/ProjectFactory.js';
 
-export async function createProject(editor, name = 'Untitled Project') {
+export async function createProject(projectId, name = 'Untitled Project') {
   const user = auth.user;
 
   const { data, error } = await supabase
     .from('projects')
     .insert({
-      id: editor.currentProjectId,
+      id: projectId,
       user_id: user.id,
       name: name
     })
@@ -20,23 +21,27 @@ export async function createProject(editor, name = 'Untitled Project') {
 }
 
 export async function saveProject(editor, {name = null, override = false} = {}) {
+  const json = editor.toJSON();
+  const camera = editor.cameraManager.camera;
+  const blob = await editor.renderer.captureThumbnail(editor.sceneManager, camera);
+
   if (override) {
-    await uploadProject(editor, editor.currentProjectId);
-    await uploadThumbnail(editor, editor.currentProjectId);
+    await uploadProject(json, editor.currentProjectId);
+    await uploadThumbnail(blob, editor.currentProjectId);
   } else {
-    const project = await createProject(editor, name);
+    const project = await createProject(editor.currentProjectId, name);
+
     const [filePath] = await Promise.all([
-      uploadProject(editor, project.id),
-      uploadThumbnail(editor, project.id)
+      uploadProject(json, project.id),
+      uploadThumbnail(blob, project.id)
     ]);
     await updateProjectFilePath(project.id, filePath);
   }
 }
 
-export async function uploadProject(editor, projectId) {
+export async function uploadProject(json, projectId) {
   const user = auth.user;
 
-  const json = editor.toJSON();
   const jsonString = JSON.stringify(json);
 
   const filePath = `${user.id}/${projectId}/latest.json`;
@@ -131,15 +136,28 @@ export async function getUserProjects() {
 }
 
 export async function deleteProject(projectId) {
+  const user = auth.user;
+  
   const { data: project } = await supabase
     .from('projects')
     .select('file_path')
     .eq('id', projectId)
     .single();
 
-  console.log(project.file_path);
+  const pathsToDelete = [];
+
   if (project?.file_path) {
-    await supabase.storage.from('projects').remove([project.file_path]);
+    pathsToDelete.push(project.file_path);
+  }
+
+  if (user) {
+    pathsToDelete.push(`${user.id}/${projectId}/thumbnail.webp`);
+  }
+
+  if (pathsToDelete.length > 0) {
+    await supabase.storage
+      .from('projects')
+      .remove(pathsToDelete);
   }
 
   const { error } = await supabase
@@ -150,11 +168,8 @@ export async function deleteProject(projectId) {
   if (error) throw error;
 }
 
-export async function uploadThumbnail(editor, projectId) {
+export async function uploadThumbnail(blob, projectId) {
   const user = auth.user;
-
-  const camera = editor.cameraManager.camera;
-  const blob = await editor.renderer.captureThumbnail(editor.sceneManager, camera);
 
   const filePath = `${user.id}/${projectId}/thumbnail.webp`;
 
@@ -186,4 +201,31 @@ export async function getThumbnailUrl(projectId) {
   }
 
   return data.signedUrl;
+}
+
+export async function createEmptyCloudProject(name = 'Untitled Project') {
+  const user = auth.user;
+  if (!user) throw new Error('Not authenticated');
+
+  const projectId = crypto.randomUUID();
+
+  const project = await createProject(projectId, name);
+  const emptyScene = createEmptyProject(projectId);
+
+  const filePath = await uploadProject(emptyScene, project.id);
+  await updateProjectFilePath(project.id, filePath);
+
+  const thumbnailBlob = await fetchThumbnailAsBlob(
+    '/assets/images/empty-project-thumbnail.webp'
+  );
+  await uploadThumbnail(thumbnailBlob, project.id);
+
+  return project;
+}
+
+async function fetchThumbnailAsBlob(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to load thumbnail');
+
+  return await res.blob();
 }

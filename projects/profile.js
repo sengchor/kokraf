@@ -1,11 +1,14 @@
 import { profile } from '/supabase/services/ProfileService.js';
 import { EditProfilePanel } from './EditProfilePanel.js';
+import { createEmptyCloudProject } from '/supabase/services/ProjectService.js';
+import { initProjects } from './projects.js';
 
 let editPanel;
 
 export async function initProfile(user) {
   const profileInfo = document.getElementById("profile-info");
   const editProfileBtn = document.getElementById('edit-profile-btn');
+  const newProjectBtn = document.getElementById('new-project-btn');
   renderProfileSkeleton(profileInfo);
 
   if (!user) return;
@@ -21,6 +24,11 @@ export async function initProfile(user) {
     }
 
     editPanel.open();
+  });
+
+  newProjectBtn.addEventListener('click', async () => {
+    await createEmptyCloudProject();
+    await initProjects(user);
   });
 }
 
