@@ -64,7 +64,7 @@ async function renderProjects(grid, projects) {
   grid.innerHTML = '';
 
   if (projects.length === 0) {
-    grid.innerHTML = `<p style="color: #888; font-size: 14px;">No projects yet. Create one to get started.</p>`;
+    grid.innerHTML = `<p style="color: #888; font-size: 16px;">No projects yet. Create one to get started.</p>`;
     return;
   }
 
@@ -204,6 +204,11 @@ async function handleDeleteProject(project, card) {
   try {
     await deleteProject(project.id);
     card.remove();
+
+    const grid = document.getElementById('projects-grid');
+    if (grid && grid.children.length === 0) {
+      grid.innerHTML = `<p style="color: #888; font-size: 16px;">No projects yet. Create one to get started.</p>`;
+    }
   } catch (err) {
     console.error('Failed to delete project:', err);
     card.style.opacity = '';

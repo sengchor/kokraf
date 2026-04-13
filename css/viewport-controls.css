@@ -11,7 +11,7 @@
 .left-controls-container {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   margin-left: 0px;
   z-index: 9;
@@ -43,8 +43,8 @@
 
 .right-controls-container {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 4px;
   margin-left: 5px;
   z-index: 9;
@@ -105,7 +105,8 @@
 
 .middle-controls-container {
   display: flex;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: 0px;
 
   position: absolute;
@@ -206,7 +207,8 @@
 
 .tooltip-wrapper {
   position: relative;
-  display: inline-block;
+  display: flex;
+  align-items: center;
 }
 
 .tooltip-wrapper::after,
@@ -307,7 +309,7 @@
 .top-controls-row {
   display: flex;
   flex-direction: row;
-  align-items: flex;
+  align-items: center;
   gap: 4px;
 }
 

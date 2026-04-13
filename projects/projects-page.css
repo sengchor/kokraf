@@ -47,7 +47,9 @@ body {
 #account-btn {
   background: transparent;
   border: 1px solid #e6e8eb;
-  padding: 6px 12px;
+  padding: 8px 14px;
+  font-size: 15px;
+  font-weight: 500;
   border-radius: 3px;
   cursor: pointer;
 }
@@ -62,7 +64,7 @@ body {
   color: #fff;
   border: none;
   padding: 8px 14px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   border-radius: 3px;
   cursor: pointer;
@@ -75,9 +77,9 @@ body {
 
 /* Container */
 .projects-container {
-  max-width: 1500px;
+  max-width: 90%;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 clamp(16px, 4vw, 48px);
 }
 
 .projects-container h1 {
@@ -89,7 +91,7 @@ body {
 /* Grid */
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(355px, 355px));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 28px;
   margin-top: 24px;
 }
@@ -110,7 +112,9 @@ body {
 
 /* Thumbnail */
 .project-card .thumbnail {
-  height: 200px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
   background: #f0f0f0;
   display: flex;
   align-items: center;
@@ -154,10 +158,9 @@ body {
   align-items: center;
   gap: 16px;
 
-  /* transform: translateY(-50%); */
   position: absolute;
   top: 50px;
-  padding-left: 20px;
+  padding-left: 0px;
 }
 
 /* Avatar */
@@ -186,6 +189,7 @@ body {
 }
 
 .profile-about {
+  font-size: 16px;
   color: #888;
 }
 
@@ -194,8 +198,8 @@ body {
 }
 
 .tab-name {
-  font-size: 18px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 550;
   color: #111;
   position: relative;
   display: inline-block;
@@ -204,11 +208,13 @@ body {
 .content-layout {
   display: flex;
   gap: 30px;
+  flex-wrap: wrap-reverse;
 }
 
 /* Main grid */
 .main-content {
   flex: 1;
+  min-width: 0;
 }
 
 /* Right panel */
@@ -216,6 +222,12 @@ body {
   width: 300px;
   flex-shrink: 0;
   margin-top: 24px;
+}
+
+@media (max-width: 950px) {
+  .right-panel {
+    width: 100%;
+  }
 }
 
 /* About card */
@@ -228,6 +240,7 @@ body {
 }
 
 .about-title {
+  font-size: 16px;
   font-weight: 600;
   margin-bottom: 8px;
 }
@@ -354,8 +367,9 @@ body {
 }
 
 #edit-profile-btn {
-  padding: 6px 14px;
-  font-size: 0.9rem;
+  padding: 8px 14px;
+  font-size: 15px;
+  font-weight: 550;
 
   background: #fff;
   color: #111;
