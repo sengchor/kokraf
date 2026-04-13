@@ -4,6 +4,21 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
 });
 
+const thumbnailObserver = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+
+    const thumb = entry.target;
+    const project = thumb._project;
+
+    createThumbnail(project, thumb);
+
+    thumbnailObserver.unobserve(thumb);
+  }
+}, {
+  rootMargin: '100px'
+});
+
 // Main: fetch and render
 export async function initProjects(user) {
   const grid = document.getElementById("projects-grid");
@@ -82,7 +97,9 @@ async function renderProjects(grid, projects) {
 
     const menuBtn = createMenuBtn(project, card);
 
-    createThumbnail(project, thumb);
+    thumb.innerHTML = fallbackSVG();
+    thumb._project = project;
+    thumbnailObserver.observe(thumb);
 
     wrapper.appendChild(meta);
     wrapper.appendChild(menuBtn);
@@ -95,92 +112,101 @@ async function renderProjects(grid, projects) {
 
     grid.appendChild(card);
   };
+}
   
-  function createMenuBtn(project, card) {
-    const menuBtn = document.createElement('button');
-    menuBtn.className = 'project-menu-btn';
-    menuBtn.title = 'More options';
-    menuBtn.textContent = '⋮';
+function createMenuBtn(project, card) {
+  const menuBtn = document.createElement('button');
+  menuBtn.className = 'project-menu-btn';
+  menuBtn.title = 'More options';
+  menuBtn.textContent = '⋮';
 
-    menuBtn.addEventListener('click', (e) => {
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+
+    document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
+
+    const panel = document.createElement('div');
+    panel.className = 'project-menu-panel';
+    attachPanelDismiss(panel);
+
+    const rect = menuBtn.getBoundingClientRect();
+
+    panel.style.top = `${rect.bottom + 4}px`;
+    panel.style.left = `${rect.right - 150}px`;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'menu-delete';
+    deleteBtn.innerHTML = `Delete`;
+
+    deleteBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-
-      document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
-
-      const panel = document.createElement('div');
-      panel.className = 'project-menu-panel';
-      attachPanelDismiss(panel);
-
-      const rect = menuBtn.getBoundingClientRect();
-
-      panel.style.top = `${rect.bottom + 4}px`;
-      panel.style.left = `${rect.right - 150}px`;
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'menu-delete';
-      deleteBtn.innerHTML = `Delete`;
-
-      deleteBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        panel.remove();
-        await handleDeleteProject(project, card);
-      });
-
-      panel.appendChild(deleteBtn);
-      document.body.appendChild(panel);
+      panel.remove();
+      await handleDeleteProject(project, card);
     });
 
-    return menuBtn;
+    panel.appendChild(deleteBtn);
+    document.body.appendChild(panel);
+  });
+
+  return menuBtn;
+}
+
+async function createThumbnail(project, thumb) {
+  const url = await getThumbnailUrl(project.id);
+  if (!url) return;
+
+  const img = document.createElement('img');
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.2s ease;';
+  img.src = url;
+
+  img.onload = () => {
+    thumb.innerHTML = '';
+    thumb.appendChild(img);
+
+    requestAnimationFrame(() => {
+      img.style.opacity = '1';
+    });
+  };
+}
+
+function fallbackSVG() {
+  return `<svg width="32" height="32" fill="none" stroke="#ccc" stroke-width="1.5" viewBox="0 0 24 24">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <path d="m3 16 5-5 4 4 3-3 6 6"/>
+    <circle cx="8.5" cy="8.5" r="1.5"/>
+  </svg>`;
+}
+
+function attachPanelDismiss(panel, threshold = 100) {
+  const onMouseMove = (e) => {
+    const rect = panel.getBoundingClientRect();
+    const dx = Math.max(rect.left - e.clientX, 0, e.clientX - rect.right);
+    const dy = Math.max(rect.top - e.clientY, 0, e.clientY - rect.bottom);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > threshold) {
+      cleanup();
+    }
+  };
+
+  function cleanup() {
+    panel.remove();
+    document.removeEventListener('mousemove', onMouseMove);
   }
 
-  async function createThumbnail(project, thumb) {
-    const img = document.createElement('img');
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+  document.addEventListener('mousemove', onMouseMove);
+}
 
-    const url = await getThumbnailUrl(project.id);
-    if (url) {
-      img.src = url;
-      thumb.appendChild(img);
-    } else {
-      thumb.innerHTML = `<svg width="32" height="32" fill="none" stroke="#ccc" stroke-width="1.5" viewBox="0 0 24 24">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <path d="m3 16 5-5 4 4 3-3 6 6"/>
-        <circle cx="8.5" cy="8.5" r="1.5"/>
-      </svg>`;
-    }
-  }
+async function handleDeleteProject(project, card) {
+  card.style.opacity = '0.3';
+  card.style.pointerEvents = 'none';
 
-  function attachPanelDismiss(panel, threshold = 100) {
-    const onMouseMove = (e) => {
-      const rect = panel.getBoundingClientRect();
-      const dx = Math.max(rect.left - e.clientX, 0, e.clientX - rect.right);
-      const dy = Math.max(rect.top - e.clientY, 0, e.clientY - rect.bottom);
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      if (dist > threshold) {
-        cleanup();
-      }
-    };
-
-    function cleanup() {
-      panel.remove();
-      document.removeEventListener('mousemove', onMouseMove);
-    }
-
-    document.addEventListener('mousemove', onMouseMove);
-  }
-
-  async function handleDeleteProject(project, card) {
-    card.style.opacity = '0.3';
-    card.style.pointerEvents = 'none';
-
-    try {
-      await deleteProject(project.id);
-      card.remove();
-    } catch (err) {
-      console.error('Failed to delete project:', err);
-      card.style.opacity = '';
-      card.style.pointerEvents = '';
-    }
+  try {
+    await deleteProject(project.id);
+    card.remove();
+  } catch (err) {
+    console.error('Failed to delete project:', err);
+    card.style.opacity = '';
+    card.style.pointerEvents = '';
   }
 }

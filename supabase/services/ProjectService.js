@@ -25,17 +25,25 @@ export async function saveProject(editor, {name = null, override = false} = {}) 
   const camera = editor.cameraManager.camera;
   const blob = await editor.renderer.captureThumbnail(editor.sceneManager, camera);
 
-  if (override) {
-    await uploadProject(json, editor.currentProjectId);
-    await uploadThumbnail(blob, editor.currentProjectId);
-  } else {
-    const project = await createProject(editor.currentProjectId, name);
+  try {
+    if (override) {
+      await uploadProject(json, editor.currentProjectId);
+      await uploadThumbnail(blob, editor.currentProjectId);
+    } else {
+      const project = await createProject(editor.currentProjectId, name);
+      editor.currentProjectId = project.id;
 
-    const [filePath] = await Promise.all([
-      uploadProject(json, project.id),
-      uploadThumbnail(blob, project.id)
-    ]);
-    await updateProjectFilePath(project.id, filePath);
+      const [filePath] = await Promise.all([
+        uploadProject(json, project.id),
+        uploadThumbnail(blob, project.id)
+      ]);
+
+      await updateProjectFilePath(project.id, filePath);
+    }
+
+    history.replaceState(null, '', `/?projectId=${editor.currentProjectId}`);
+  } catch (err) {
+    console.error('Save failed:', err);
   }
 }
 
@@ -56,9 +64,6 @@ export async function uploadProject(json, projectId) {
     });
 
   if (error) throw error;
-  else {
-    history.replaceState(null, '', `/?projectId=${projectId}`);
-  }
 
   console.log(`Project uploaded to cloud: ${filePath}`);
 
