@@ -48,6 +48,7 @@
   position: absolute;
   top: 50%;
   left: 100%;
+  font-size: 14px;
   transform: translate(8px, -50%);
 
   background: #ffffff;

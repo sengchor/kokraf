@@ -20,6 +20,9 @@ export class QuaternionOrbitControls {
 		this.eye = new Vector3();
 
 		this._state = null;
+		this._gesture = null;
+		this._lastTrackpadTime = 0;
+		this._gestureLockTimeout = 150;
 
 		this._bindEvents();
 	}
@@ -53,10 +56,13 @@ export class QuaternionOrbitControls {
 		const onMouseMove = (event) => {
 			this.moveCurr.copy(this._getMouseOnCircle(event.clientX, event.clientY));
 
+			const moveDelta = new Vector2().subVectors(this.moveCurr, this.movePrev);
+			if (moveDelta.lengthSq() === 0) return;
+
 			if (this._state === 'orbit') {
-				this._rotateCamera();
+				this._rotateCamera(moveDelta.x, moveDelta.y);
 			} else if (this._state === 'pan') {
-				this._panCamera();
+				this._panCamera(moveDelta.x, moveDelta.y);
 			}
 
 			this.movePrev.copy(this.moveCurr);
@@ -77,40 +83,69 @@ export class QuaternionOrbitControls {
 
 	_onMouseWheel(event) {
 		if (!this.enabled) return;
-
 		if (this.keyHandler.activeInteraction) return;
 
 		if (event.defaultPrevented) return;
 
-		if (event.deltaY === 0) {
+		let deltaX = event.deltaX;
+		let deltaY = event.deltaY;
+
+		// Normalize
+		if (event.deltaMode === 1) {
+			deltaX *= 16;
+			deltaY *= 16;
+		}
+
+		const isTrackpad = (Math.abs(deltaX) + Math.abs(deltaY)) < 100;
+
+		if (isTrackpad) {
 			event.preventDefault();
+			const now = performance.now();
+
+			// Check if enough time has passed to start a NEW gesture
+			if (now - this._lastTrackpadTime > this._gestureLockTimeout) {
+				if (event.ctrlKey || event.metaKey) {
+					this._gesture = 'zoom';
+				} else if (event.shiftKey) {
+					this._gesture = 'pan';
+				} else {
+					this._gesture = 'rotate';
+				}
+			}
+
+			this._lastTrackpadTime = now;
+
+			switch (this._gesture) {
+				case 'rotate':
+					this._rotateCamera(deltaX, deltaY, 0.001);
+					break;
+				case 'pan':
+					this._panCamera(deltaX, deltaY, 0.001);
+					break;
+				case 'zoom':
+					this._zoom(deltaY, 0.004);
+					break;
+			}
+
 			return;
 		}
 
+		// Standard Mouse Wheel (Non-trackpad)
 		event.preventDefault();
-		this._zoom(event);
+		this._zoom(deltaY, 0.0005);
 	}
 
-	_zoom(event) {
-		let delta = event.deltaY;
-
-		// Normalize deltaMode
-		if (event.deltaMode === 1) delta *= 16;
-		if (event.deltaMode === 2) delta *= 100;
-
-		const isTrackpad = Math.abs(delta) < 10;
-		const zoomScale = isTrackpad ? 0.005 : 0.0005;
-
+	_zoom(delta, scaleFactor = 1) {
 		if (this.camera.isPerspectiveCamera) {
 			this.eye.subVectors(this.camera.position, this.target);
 
-			const zoomFactor = 1 + delta * zoomScale * this.zoomSpeed;
+			const zoomFactor = 1 + delta * scaleFactor * this.zoomSpeed;
 
 			this.eye.multiplyScalar(zoomFactor);
 			this.camera.position.copy(this.target).add(this.eye);
 			this.camera.lookAt(this.target);
 		} else if (this.camera.isOrthographicCamera) {
-			const zoomFactor = 1 - delta * zoomScale * this.zoomSpeed;
+			const zoomFactor = 1 - delta * scaleFactor * this.zoomSpeed;
 
 			const minZoom = 0.01;
 			const maxZoom = 100;
@@ -124,10 +159,7 @@ export class QuaternionOrbitControls {
 		}
 	}
 
-	_panCamera() {
-		const moveDelta = new Vector2().subVectors(this.moveCurr, this.movePrev);
-		if (moveDelta.lengthSq() === 0) return;
-
+	_panCamera(deltaX, deltaY, scaleFactor = 1) {
 		const eyeDirection = this.eye.clone().normalize();
 		const cameraUp = this.camera.up.clone().normalize();
 		const right = new Vector3().crossVectors(cameraUp, eyeDirection).normalize();
@@ -138,8 +170,8 @@ export class QuaternionOrbitControls {
 			const eye = new Vector3().subVectors(this.camera.position, this.target);
 			const eyeLength = eye.length();
 
-			panX = -moveDelta.x * eyeLength * this.panSpeed;
-			panY = -moveDelta.y * eyeLength * this.panSpeed;
+			panX = -deltaX * scaleFactor * eyeLength * this.panSpeed;
+			panY = -deltaY * scaleFactor * eyeLength * this.panSpeed;
 		} else if (this.camera.isOrthographicCamera) {
 			const width = this.camera.right - this.camera.left;
 			const height = this.camera.top - this.camera.bottom;
@@ -147,8 +179,8 @@ export class QuaternionOrbitControls {
 			const scaleX = width / this.camera.zoom;
 			const scaleY = height / this.camera.zoom;
 
-			panX = -moveDelta.x * scaleX * this.panSpeed;
-			panY = -moveDelta.y * scaleY * this.panSpeed;
+			panX = -deltaX * scaleFactor * scaleX * this.panSpeed;
+			panY = -deltaY * scaleFactor * scaleY * this.panSpeed;
 		}
 
 		const panOffset = new Vector3().addScaledVector(right, panX).addScaledVector(cameraUp, panY);
@@ -158,14 +190,11 @@ export class QuaternionOrbitControls {
 		this.camera.lookAt(this.target);
 	}
 
-	_rotateCamera() {
+	_rotateCamera(deltaX, deltaY, scaleFactor = 1) {
 		this.eye.subVectors(this.camera.position, this.target);
 
-		const moveDelta = new Vector2().subVectors(this.moveCurr, this.movePrev);
-		if (moveDelta.lengthSq() === 0) return;
-
-    const angleYaw = -moveDelta.x * this.rotateSpeed;
-    const anglePitch = moveDelta.y * this.rotateSpeed;
+    const angleYaw = -deltaX * scaleFactor * this.rotateSpeed;
+    const anglePitch = deltaY * scaleFactor * this.rotateSpeed;
 
 		const eyeDirection = this.eye.clone().normalize();
 		const upDirection = this.camera.up.clone().normalize();
