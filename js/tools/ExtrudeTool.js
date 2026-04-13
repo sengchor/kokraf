@@ -119,6 +119,7 @@ export class ExtrudeTool {
       if (this.activeTransformSource !== 'gizmo') return;
 
       this.commitExtrudeSession();
+      this.clearCommandExtrudeState();
       this.activeTransformSource = null;
     });
 

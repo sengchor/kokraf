@@ -136,6 +136,7 @@ export class EdgeSlideTool {
       if (this.activeTransformSource !== 'gizmo') return;
 
       this.commitEdgeSlideSession();
+      this.clearCommandEdgeSlideState();
       this.activeTransformSource = null;
     });
 
@@ -174,7 +175,7 @@ export class EdgeSlideTool {
 
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
-    this.clearCommandTransformState();
+    this.clearCommandEdgeSlideState();
     this.toolNumericInput.reset();
   }
 
@@ -187,13 +188,13 @@ export class EdgeSlideTool {
 
     if (event.key === 'Escape') {
       this.cancelEdgeSlideSession();
-      this.clearCommandTransformState();
+      this.clearCommandEdgeSlideState();
       this.toolNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitEdgeSlideSession();
-      this.clearCommandTransformState();
+      this.clearCommandEdgeSlideState();
       this.toolNumericInput.reset();
     }
   }
@@ -247,7 +248,7 @@ export class EdgeSlideTool {
   commitEdgeSlideSession() {
     if (!this.offset || this.offset === 0 || !this.slideData) {
       this.cancelEdgeSlideSession();
-      this.clearCommandTransformState();
+      this.clearCommandEdgeSlideState();
       this.clearStartData();
       this.toolNumericInput.reset();
       return;
@@ -288,7 +289,7 @@ export class EdgeSlideTool {
     this.clearStartData();
   }
 
-  clearCommandTransformState() {
+  clearCommandEdgeSlideState() {
     this.activeTransformSource = null;
 
     this.transformSolver.clear();

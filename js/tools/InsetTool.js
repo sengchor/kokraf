@@ -133,6 +133,7 @@ export class InsetTool {
       if (this.activeTransformSource !== 'gizmo') return;
 
       this.commitInsetSession();
+      this.clearCommandInsetState();
       this.activeTransformSource = null;
     });
 
@@ -171,7 +172,7 @@ export class InsetTool {
 
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
-    this.clearCommandTransformState();
+    this.clearCommandInsetState();
     this.toolNumericInput.reset();
   }
 
@@ -184,13 +185,13 @@ export class InsetTool {
 
     if (event.key === 'Escape') {
       this.cancelInsetSession();
-      this.clearCommandTransformState();
+      this.clearCommandInsetState();
       this.toolNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitInsetSession();
-      this.clearCommandTransformState();
+      this.clearCommandInsetState();
       this.toolNumericInput.reset();
     }
   }
@@ -247,7 +248,7 @@ export class InsetTool {
   commitInsetSession() {
     if (!this.width || this.width === 0) {
       this.cancelInsetSession();
-      this.clearCommandTransformState();
+      this.clearCommandInsetState();
       this.clearStartData();
       this.toolNumericInput.reset();
       return;
@@ -284,7 +285,7 @@ export class InsetTool {
     this.editSelection.selectFaces(this.selectedFaceIds);
   }
 
-  clearCommandTransformState() {
+  clearCommandInsetState() {
     this.activeTransformSource = null;
 
     this.transformSolver.clear();

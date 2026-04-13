@@ -175,7 +175,7 @@ export class BevelTool {
 
   onPointerUp() {
     if (this.activeTransformSource !== 'command') return;
-    this.clearCommandTransformState();
+    this.clearCommandBevelState();
     this.toolNumericInput.reset();
   }
 
@@ -218,13 +218,13 @@ export class BevelTool {
 
     if (event.key === 'Escape') {
       this.cancelBevelSession();
-      this.clearCommandTransformState();
+      this.clearCommandBevelState();
       this.toolNumericInput.reset();
     }
 
     if (event.key === 'Enter') {
       this.commitBevelSession();
-      this.clearCommandTransformState();
+      this.clearCommandBevelState();
       this.toolNumericInput.reset();
     }
   }
@@ -285,7 +285,7 @@ export class BevelTool {
   commitBevelSession() {
     if (!this.width || this.width === 0) {
       this.cancelBevelSession();
-      this.clearCommandTransformState();
+      this.clearCommandBevelState();
       this.toolNumericInput.reset();
     }
 
@@ -320,7 +320,7 @@ export class BevelTool {
     this.editSelection.selectEdges(this.selectedEdgeIds);
   }
 
-  clearCommandTransformState() {
+  clearCommandBevelState() {
     this.activeTransformSource = null;
 
     this.transformSolver.clear();

@@ -138,6 +138,7 @@ export class EditTransformTool {
       if (this.activeTransformSource !== 'gizmo') return;
 
       this.commitTransformSession();
+      this.clearCommandTransformState();
       this.activeTransformSource = null;
     });
 
