@@ -92,23 +92,34 @@ export class QuaternionOrbitControls {
 	}
 
 	_zoom(event) {
-		const delta = event.deltaY > 0 ? 1 : -1;
+		let delta = event.deltaY;
+
+		// Normalize deltaMode
+		if (event.deltaMode === 1) delta *= 16;
+		if (event.deltaMode === 2) delta *= 100;
+
+		const isTrackpad = Math.abs(delta) < 10;
+		const zoomScale = isTrackpad ? 0.005 : 0.0005;
 
 		if (this.camera.isPerspectiveCamera) {
 			this.eye.subVectors(this.camera.position, this.target);
 
-			const zoomFactor = 1 + delta * 0.1 * this.zoomSpeed;
+			const zoomFactor = 1 + delta * zoomScale * this.zoomSpeed;
 
 			this.eye.multiplyScalar(zoomFactor);
 			this.camera.position.copy(this.target).add(this.eye);
 			this.camera.lookAt(this.target);
 		} else if (this.camera.isOrthographicCamera) {
-			const zoomFactor = 1 - delta * 0.1 * this.zoomSpeed;
+			const zoomFactor = 1 - delta * zoomScale * this.zoomSpeed;
 
 			const minZoom = 0.01;
 			const maxZoom = 100;
 
-			this.camera.zoom = Math.max(minZoom, Math.min(maxZoom, this.camera.zoom * zoomFactor));
+			this.camera.zoom = Math.max(
+				minZoom,
+				Math.min(maxZoom, this.camera.zoom * zoomFactor)
+			);
+
 			this.camera.updateProjectionMatrix();
 		}
 	}
