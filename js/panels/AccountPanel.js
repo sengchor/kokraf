@@ -134,7 +134,7 @@ export class AccountPanel {
     }
 
     this.close();
-    history.replaceState(null, '', `/`);
+    window.location.reload();
   }
 
   renderPlan(profile) {
