@@ -172,6 +172,10 @@ body {
   object-fit: cover;
 }
 
+.profile-avatar.empty {
+  background: #ccc;
+}
+
 /* Info */
 .profile-name {
   font-size: 28px;
