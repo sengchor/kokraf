@@ -173,6 +173,15 @@ export async function deleteProject(projectId) {
   if (error) throw error;
 }
 
+export async function renameProject(projectId, newName) {
+  const { error } = await supabase
+    .from('projects')
+    .update({ name: newName })
+    .eq('id', projectId);
+
+  if (error) throw error;
+}
+
 export async function uploadThumbnail(blob, projectId) {
   const user = auth.user;
 

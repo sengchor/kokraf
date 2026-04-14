@@ -42,6 +42,7 @@ export class CloudSavePanel {
 
     this.overlay = document.getElementById('cloudsave-overlay');
     this.nameInput = document.getElementById('cloudsave-name');
+    this.nameInput.maxLength = 40;
     this.errorEl = document.getElementById('cloudsave-error');
 
     this.saveBtn = document.getElementById('cloudsave-save');

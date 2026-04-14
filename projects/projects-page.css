@@ -403,3 +403,17 @@ body {
 .site-footer a:hover {
   color: #111;
 }
+
+.project-name-input {
+  font-weight: 600;
+  font-size: 13px;
+  color: #111;
+  margin-bottom: 2px;
+  font-family: inherit;
+  border: 1px solid #0a7cff;
+  border-radius: 3px;
+  padding: 1px 4px;
+  width: 100%;
+  outline: none;
+  background: #fff;
+}

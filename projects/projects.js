@@ -1,4 +1,4 @@
-import { getUserProjects, deleteProject, getThumbnailUrl } from '/supabase/services/ProjectService.js';
+import { getUserProjects, deleteProject, getThumbnailUrl, renameProject } from '/supabase/services/ProjectService.js';
 
 document.addEventListener('click', () => {
   document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
@@ -136,7 +136,8 @@ function createMenuBtn(project, card) {
     renameBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       panel.remove();
-      console.log('rename project');
+      const currentNameEl = card.querySelector('.project-name');
+      startRename(project, card, currentNameEl);
     });
 
     const deleteBtn = document.createElement('button');
@@ -226,4 +227,69 @@ async function handleDeleteProject(project, card) {
     card.style.opacity = '';
     card.style.pointerEvents = '';
   }
+}
+
+function startRename(project, card, nameEl) {
+  const original = project.name || 'Untitled Project';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 40;
+  input.value = original;
+  input.className = 'project-name project-name-input';
+
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  card.style.pointerEvents = 'none';
+  input.style.pointerEvents = 'auto';
+
+  let committed = false;
+
+  async function commit() {
+    if (committed) return;
+    committed = true;
+
+    const newName = input.value.trim() || original;
+
+    const restored = document.createElement('div');
+    restored.className = 'project-name';
+    restored.textContent = newName;
+    input.replaceWith(restored);
+    card.style.pointerEvents = '';
+    nameEl = restored;
+
+    if (newName !== original) {
+      project.name = newName;
+      try {
+        await renameProject(project.id, newName);
+      } catch (err) {
+        console.error('Rename failed:', err);
+        restored.textContent = original;
+        project.name = original;
+      }
+    }
+  }
+
+  function cancel() {
+    if (committed) return;
+    committed = true;
+
+    const restored = document.createElement('div');
+    restored.className = 'project-name';
+    restored.textContent = original;
+    input.replaceWith(restored);
+    card.style.pointerEvents = '';
+    nameEl = restored;
+  }
+
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('click', (e) => e.stopPropagation());
 }
