@@ -1,7 +1,8 @@
 import { auth } from '/supabase/services/AuthService.js';
 
 export class LoginPanel {
-  constructor({ rootSelector = 'body', onSuccess } = {}) {
+  constructor({ rootSelector = 'body', onSuccess, closeable = true } = {}) {
+    this.closeable = closeable;
     this.mode = 'login';
     this.root = document.querySelector(rootSelector);
     this.onSuccess = onSuccess;
@@ -66,6 +67,10 @@ export class LoginPanel {
     this.toggleLink.addEventListener('click', () => this.toggleMode());
     this.submitBtn.addEventListener('click', () => this.submit());
     this.googleBtn.addEventListener('click', () => auth.loginWithGoogle());
+
+    if (!this.closeable) {
+      document.getElementById('login-close').style.display = 'none';
+    }
   }
 
   open() {

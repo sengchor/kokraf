@@ -9,6 +9,7 @@ class AuthService {
       login: new Signal(),
       logout: new Signal()
     };
+    this._ready = new Promise(resolve => { this._resolveReady = resolve; });
 
     this.init();
   }
@@ -21,6 +22,8 @@ class AuthService {
     if (window.location.href.endsWith('#')) {
       history.replaceState(null, '', window.location.href.slice(0, -1));
     }
+
+    this._resolveReady();
 
     if (this.user) {
       this.signals.login.dispatch(this.user);
@@ -68,22 +71,14 @@ class AuthService {
     return supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: window.location.href
       }
     });
   }
 
   async waitForUser() {
-    if (this.user) return this.user;
-
-    return new Promise(resolve => {
-      const handler = (user) => {
-        resolve(user);
-        this.signals.login.remove(handler);
-      };
-
-      this.signals.login.add(handler);
-    });
+    await this._ready;
+    return this.user;
   }
 }
 
