@@ -101,7 +101,6 @@ body {
   border: 1px solid #e6e8eb;
   border-radius: 4px;
   background: #fff;
-  overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -306,7 +305,10 @@ body {
 }
 
 .project-menu-panel {
-  position: fixed;
+  position: absolute;
+  top: 100%;
+  bottom: auto;
+  right: 0;
 
   background: white;
   border: 1px solid #e6e8eb;
@@ -386,7 +388,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 28px;
-  height: 52px;
+  height: 60px;
   margin-top: 64px;
   border-top: 1px solid #e6e8eb;
   font-size: 14px;

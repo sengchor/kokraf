@@ -129,10 +129,15 @@ function createMenuBtn(project, card) {
     panel.className = 'project-menu-panel';
     attachPanelDismiss(panel);
 
-    const rect = menuBtn.getBoundingClientRect();
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'menu-rename';
+    renameBtn.innerHTML = `Rename`;
 
-    panel.style.top = `${rect.bottom + 4}px`;
-    panel.style.left = `${rect.right - 150}px`;
+    renameBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      panel.remove();
+      console.log('rename project');
+    });
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'menu-delete';
@@ -144,8 +149,15 @@ function createMenuBtn(project, card) {
       await handleDeleteProject(project, card);
     });
 
+    panel.appendChild(renameBtn);
     panel.appendChild(deleteBtn);
-    document.body.appendChild(panel);
+    menuBtn.parentElement.appendChild(panel);
+
+    const panelRect = panel.getBoundingClientRect();
+    if (panelRect.bottom > window.innerHeight) {
+      panel.style.top = 'auto';
+      panel.style.bottom = '100%';
+    }
   });
 
   return menuBtn;
