@@ -12,7 +12,7 @@ body {
 
 .terms-container {
   max-width: 900px;
-  margin: 40px auto;
+  margin: 40px auto 0;
   padding: 0 20px;
 }
 
@@ -43,14 +43,6 @@ ul {
   font-size: 0.9rem;
   color: #666;
   margin-bottom: 2em;
-}
-
-footer {
-  margin-top: 4em;
-  font-size: 0.9rem;
-  color: #666;
-  text-align: left;
-  padding-bottom: 40px;
 }
 
 .policy-divider {
@@ -246,4 +238,26 @@ footer {
   .legal-sidebar {
     display: none;
   }
+}
+
+/* Footer */
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 52px;
+  margin-top: 64px;
+  border-top: 1px solid #e6e8eb;
+  font-size: 14px;
+  color: #888;
+}
+
+.site-footer a {
+  color: #888;
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  color: #111;
 }

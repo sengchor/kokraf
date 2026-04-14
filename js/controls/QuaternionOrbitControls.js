@@ -109,14 +109,18 @@ export class QuaternionOrbitControls {
 				} else if (event.shiftKey) {
 					this._gesture = 'pan';
 				} else {
-					this._gesture = 'rotate';
+					this._gesture = 'orbit';
 				}
 			}
 
 			this._lastTrackpadTime = now;
 
+			if (this._gesture === 'orbit' && this.camera.isDefault && this.camera.isOrthographicCamera) {
+				this.signals.switchCameraView.dispatch('PERSPECTIVE');
+			}
+
 			switch (this._gesture) {
-				case 'rotate':
+				case 'orbit':
 					this._rotateCamera(deltaX, deltaY, 0.001);
 					break;
 				case 'pan':

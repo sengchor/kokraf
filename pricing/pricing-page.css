@@ -17,7 +17,7 @@ body {
 .page-content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 60px 20px;
+  padding: 60px 20px 0;
 }
 
 /* Header */
@@ -284,27 +284,24 @@ body {
   color: #000;
 }
 
+/* Footer */
 .site-footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 18px 28px;
-  background: #f6f7f9;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 52px;
+  margin-top: 64px;
   border-top: 1px solid #e6e8eb;
-  font-size: 13px;
-  color: #666;
-  margin-top: 120px;
+  font-size: 14px;
+  color: #888;
 }
 
 .site-footer a {
-  color: #111;
+  color: #888;
   text-decoration: none;
-  margin-left: 18px;
-  font-weight: 500;
-  transition: color 0.2s ease;
 }
 
 .site-footer a:hover {
-  color: #000;
-  text-decoration: underline;
+  color: #111;
 }
