@@ -131,8 +131,8 @@ async function handleTransactionCompleted(
       .from("profiles")
       .update({
         subscription_status: "active",
-        subscription_ends_at:
-          payload.data.billing_period?.ends_at ?? null
+        subscription_ends_at: payload.data.billing_period?.ends_at ?? null,
+        credits: 200
       })
       .eq("id", userId);
 
@@ -173,7 +173,8 @@ async function handleTransactionCompleted(
       subscription_starts_at: payload.data.billing_period?.starts_at ?? null,
       subscription_ends_at: payload.data.billing_period?.ends_at ?? null,
       subscription_status: "active",
-      subscription_cancels_at: null
+      subscription_cancels_at: null,
+      ...(plan === "pro" && { credits: 200 })
     })
     .eq("id", userId);
 
@@ -229,7 +230,8 @@ async function handleSubscriptionUpdated(
         subscription_cancels_at: null,
         paddle_subscription_id: null,
         subscription_starts_at: null,
-        subscription_ends_at: null
+        subscription_ends_at: null,
+        credits: 20
       })
       .eq("id", userId);
 

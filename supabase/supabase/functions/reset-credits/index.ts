@@ -19,14 +19,15 @@ Deno.serve(async (req) => {
     const { error } = await supabase
       .from("profiles")
       .update({ credits: 20 })
-      .not("id", "is", null);;
+      .not("id", "is", null)
+      .neq("plan", "pro");
 
     if (error) {
       console.error("Reset failed:", error);
       return new Response(JSON.stringify({ success: false }), { status: 500 });
     }
 
-    console.log("Monthly credits reset to 20 for all users");
+    console.log("Monthly credits reset to 20 for free users");
     return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (err) {
     console.error(err);
