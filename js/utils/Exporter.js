@@ -47,7 +47,7 @@ export class Exporter {
     if (!session) return false;
 
     const res = await fetch(
-      `${SUPABASE_URL}/functions/v1/consume-credit`,
+      `${SUPABASE_URL}/functions/v1/consume-credits-export`,
       {
         method: "POST",
         headers: {

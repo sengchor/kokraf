@@ -142,8 +142,8 @@ export class AccountPanel {
 
     if (profile.plan === 'pro') {
       // Pro plan
-      this.usageDisplay.textContent = 'Unlimited';
-      this.usageLabel.textContent = 'Usage';
+      this.usageDisplay.textContent = profile.credits ?? 'Null';
+      this.usageLabel.textContent = 'Credits remaining';
 
       this.planDisplay.textContent = 'Pro';
       this.planDisplay.classList.add('pro');
