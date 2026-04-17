@@ -3,6 +3,7 @@ import { auth } from '/supabase/services/AuthService.js';
 import { SUPABASE_URL } from '/supabase/supabase.js';
 import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { computePerVertexNormals, computeFaceNormals, computeVertexNormalsWithAngle } from '../geometry/NormalCalculator.js';
+import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 
 export class Exporter {
   constructor(editor) {
@@ -66,6 +67,14 @@ export class Exporter {
     }
 
     return true;
+  }
+
+  async canExport() {
+    const { allowed, reason } = await consumeCredits('export');
+    if (!allowed) {
+      alert(getCreditsErrorMessage(reason));
+    }
+    return allowed;
   }
 
   saveFile(data, filename, mimeType) {

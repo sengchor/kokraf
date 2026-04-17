@@ -1,5 +1,6 @@
 import { saveProject } from '/supabase/services/ProjectService.js';
 import { auth } from '/supabase/services/AuthService.js';
+import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 
 export class CloudSavePanel {
   constructor({ rootSelector = 'body', editor} = {}) {
@@ -86,18 +87,19 @@ export class CloudSavePanel {
     }
 
     try {
-      this.editor.signals.saveStatusChanged.dispatch('saving');
-
       this.saveBtn.disabled = true;
       this.saveBtn.textContent = 'Saving...';
 
+      const canSave = await this.canCloudSave();
+      if (!canSave) return;
+
       // Save into editor state
+      this.editor.signals.saveStatusChanged.dispatch('saving');
       this.editor.currentProjectName = name;
 
       await saveProject(this.editor, { name: name });
 
       this.editor.signals.saveStatusChanged.dispatch('saved');
-
       this.close();
     } catch (err) {
       console.error('Save failed:', err);
@@ -116,5 +118,13 @@ export class CloudSavePanel {
   clearError() {
     this.errorEl.textContent = '';
     this.errorEl.classList.remove('visible');
+  }
+
+  async canCloudSave() {
+    const { allowed, reason } = await consumeCredits('cloud-save');
+    if (!allowed) {
+      alert(getCreditsErrorMessage(reason));
+    }
+    return allowed;
   }
 }
