@@ -1,7 +1,7 @@
 import { auth } from './AuthService.js';
 import { SUPABASE_URL } from '../supabase.js';
 
-export const INSUFFICIENT_CREDITS_MSG = "You don't have enough credits! Please upgrade to Pro";
+export const INSUFFICIENT_CREDITS_MSG = "You\'ve reached your current credit limit.";
 export const ACTION_NOT_ALLOWED_MSG = 'Action not allowed!';
 
 export function getCreditsErrorMessage(reason) {
