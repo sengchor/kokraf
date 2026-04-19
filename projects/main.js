@@ -22,7 +22,7 @@ async function initApp() {
       onSuccess: async (loggedInUser) => {
         await Promise.all([
           initProfile(loggedInUser),
-          initProjects(loggedInUser),
+          initProjects(loggedInUser)
         ]);
       },
     });

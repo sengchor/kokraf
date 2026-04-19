@@ -1,4 +1,4 @@
-import { getUserProjects, deleteProject, getThumbnailUrl, renameProject } from '/supabase/services/ProjectService.js';
+import { getUserProjects, deleteProject, getThumbnailUrl, renameProject, setProjectVisibility } from '/supabase/services/ProjectService.js';
 
 document.addEventListener('click', () => {
   document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
@@ -95,9 +95,17 @@ async function renderProjects(grid, projects) {
     meta.appendChild(name);
     meta.appendChild(date);
 
+    // Visibility Icon
+    const visibilityIcon = document.createElement('div');
+    visibilityIcon.className = 'project-visibility-icon';
+    visibilityIcon.dataset.tooltip = 'Public';
+    visibilityIcon.innerHTML = `<img src="/assets/icons/globe.svg" alt="Public" />`;
+    if (!project.is_public) visibilityIcon.classList.add('hidden');
+
     const menuBtn = createMenuBtn(project, card);
 
     thumb.innerHTML = fallbackSVG();
+    thumb.appendChild(visibilityIcon);
     thumb._project = project;
     thumbnailObserver.observe(thumb);
 
@@ -150,7 +158,18 @@ function createMenuBtn(project, card) {
       await handleDeleteProject(project, card);
     });
 
+    const visibilityBtn = document.createElement('button');
+    visibilityBtn.className = 'menu-visibility';
+    visibilityBtn.textContent = project.is_public ? 'Make Private' : 'Make Public';
+
+    visibilityBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      panel.remove();
+      await handleToggleVisibility(project, card);
+    });
+
     panel.appendChild(renameBtn);
+    panel.appendChild(visibilityBtn);
     panel.appendChild(deleteBtn);
     menuBtn.parentElement.appendChild(panel);
 
@@ -171,10 +190,12 @@ async function createThumbnail(project, thumb) {
   const img = document.createElement('img');
   img.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.2s ease;';
   img.src = url;
+  const icon = thumb.querySelector('.project-visibility-icon');
 
   img.onload = () => {
     thumb.innerHTML = '';
     thumb.appendChild(img);
+    if (icon) thumb.appendChild(icon); 
 
     requestAnimationFrame(() => {
       img.style.opacity = '1';
@@ -226,6 +247,20 @@ async function handleDeleteProject(project, card) {
     console.error('Failed to delete project:', err);
     card.style.opacity = '';
     card.style.pointerEvents = '';
+  }
+}
+
+async function handleToggleVisibility(project, card) {
+  const newValue = !project.is_public;
+
+  try {
+    await setProjectVisibility(project.id, newValue);
+    project.is_public = newValue;
+
+    const icon = card.querySelector('.project-visibility-icon');
+    if (icon) icon.classList.toggle('hidden', !newValue);
+  } catch (err) {
+    console.error('Failed to update visibility:', err);
   }
 }
 

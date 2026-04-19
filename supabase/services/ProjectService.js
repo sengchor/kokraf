@@ -128,7 +128,7 @@ export async function getUserProjects() {
 
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, created_at')
+    .select('id, name, created_at, is_public')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -177,6 +177,15 @@ export async function renameProject(projectId, newName) {
   const { error } = await supabase
     .from('projects')
     .update({ name: newName })
+    .eq('id', projectId);
+
+  if (error) throw error;
+}
+
+export async function setProjectVisibility(projectId, isPublic) {
+  const { error } = await supabase
+    .from('projects')
+    .update({ is_public: isPublic })
     .eq('id', projectId);
 
   if (error) throw error;

@@ -111,6 +111,7 @@ body {
 
 /* Thumbnail */
 .project-card .thumbnail {
+  position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
   height: auto;
@@ -420,4 +421,50 @@ body {
   width: 100%;
   outline: none;
   background: #fff;
+}
+
+/* Tooltip */
+.project-visibility-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.project-visibility-icon img {
+  width: 18px;
+  height: 18px;
+  opacity: 0.85;
+  filter: brightness(0) invert(1);
+}
+
+.project-visibility-icon.hidden {
+  display: none;
+}
+
+.project-visibility-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+  padding: 3px 7px;
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.project-visibility-icon:hover::after {
+  opacity: 1;
 }
