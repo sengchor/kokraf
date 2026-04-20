@@ -252,3 +252,26 @@ async function fetchThumbnailAsBlob(url) {
 
   return await res.blob();
 }
+
+export async function fetchPublicProject(projectId) {
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('file_path')
+    .eq('id', projectId)
+    .eq('is_public', true)
+    .maybeSingle();
+
+  if (projectError) throw projectError;
+  if (!project) throw new Error('Project not found or is not public');
+  if (!project.file_path) throw new Error('Project has no associated file');
+
+  const { data: blob, error: downloadError } = await supabase.storage
+    .from('projects')
+    .download(project.file_path);
+
+  if (downloadError) throw downloadError;
+
+  const json = JSON.parse(await blob.text());
+
+  return json;
+}

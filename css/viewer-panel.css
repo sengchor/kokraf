@@ -1,0 +1,81 @@
+/* Root overlay */
+#overlay-root-viewer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 150;
+}
+
+/* Overlay background */
+.viewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Container (main viewer box) */
+.viewer-container {
+  position: relative;
+  width: 90vw;
+  height: 90vh;
+  max-width: 1400px;
+  max-height: 900px;
+  background: #111;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #222;
+  display: flex;
+}
+
+/* Canvas fills container */
+#viewer-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Close button */
+.viewer-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 10;
+
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.viewer-close:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: scale(1.05);
+}
+
+.viewer-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255,255,255,0.05);
+  pointer-events: none;
+}

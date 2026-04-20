@@ -1,13 +1,20 @@
 import { Vector2, Vector3, Quaternion, Box3, Sphere } from 'three';
 
 export class QuaternionOrbitControls {
-	constructor(editor, camera, domElement, target = new Vector3()) {
-		this.editor = editor;
-		this.signals = editor.signals;
-		this.keyHandler = editor.keyHandler;
+	constructor(camera, domElement, { signals, keyHandler, target } = {}) {
+    this.signals = signals ?? {
+      switchCameraView: { dispatch: () => {} }
+    };
+		
+    this.keyHandler = keyHandler ?? {
+      startInteraction: () => true,
+      endInteraction: () => {},
+      activeInteraction: null
+    };
+
 		this.camera = camera;
 		this.domElement = domElement;
-		this.target = target;
+		this.target = target ?? new Vector3();
 		this.enabled = true;
 
 		this.moveCurr = new Vector2();
@@ -28,8 +35,16 @@ export class QuaternionOrbitControls {
 	}
 
 	_bindEvents() {
-		this.domElement.addEventListener('mousedown', this._onMouseDown.bind(this));
-		this.domElement.addEventListener('wheel', this._onMouseWheel.bind(this));
+		this._onMouseDownBound = this._onMouseDown.bind(this);
+    this._onMouseWheelBound = this._onMouseWheel.bind(this);
+
+		this.domElement.addEventListener('mousedown', this._onMouseDownBound);
+		this.domElement.addEventListener('wheel', this._onMouseWheelBound);
+	}
+
+	dispose() {
+    this.domElement.removeEventListener('mousedown', this._onMouseDownBound);
+    this.domElement.removeEventListener('wheel', this._onMouseWheelBound);
 	}
 
 	_getMouseOnCircle(x, y) {
@@ -148,6 +163,8 @@ export class QuaternionOrbitControls {
 			this.eye.multiplyScalar(zoomFactor);
 			this.camera.position.copy(this.target).add(this.eye);
 			this.camera.lookAt(this.target);
+
+			this.camera.updateProjectionMatrix();
 		} else if (this.camera.isOrthographicCamera) {
 			const zoomFactor = 1 - delta * scaleFactor * this.zoomSpeed;
 

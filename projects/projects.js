@@ -1,4 +1,5 @@
 import { getUserProjects, deleteProject, getThumbnailUrl, renameProject, setProjectVisibility } from '/supabase/services/ProjectService.js';
+import { ViewerPanel } from '/js/panels/ViewerPanel.js';
 
 document.addEventListener('click', () => {
   document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
@@ -115,7 +116,9 @@ async function renderProjects(grid, projects) {
     card.appendChild(wrapper);
 
     card.addEventListener('click', async () => {
-      window.location.href = `/?projectId=${project.id}`;
+      const viewerPanel = new ViewerPanel();
+      // window.location.href = `/?projectId=${project.id}`;
+      viewerPanel.open(project.id);
     });
 
     grid.appendChild(card);

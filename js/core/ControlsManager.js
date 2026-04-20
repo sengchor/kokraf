@@ -7,7 +7,11 @@ export default class ControlsManager {
     this.signals = editor.signals;
     this.cameraManager = editor.cameraManager;
     this.renderer = editor.renderer;
-    this.orbit = new QuaternionOrbitControls(this.editor, this.cameraManager.viewportCamera, this.renderer.domElement);
+    this.orbit = new QuaternionOrbitControls(
+      this.cameraManager.viewportCamera,
+      this.renderer.domElement,
+      { signals: editor.signals, keyHandler: editor.keyHandler }
+    );
 
     this.setupListeners();
   }
