@@ -32,7 +32,7 @@ export default class Viewer {
     if (this.disposed) return;
     requestAnimationFrame(this.animate);
 
-    const { clientWidth, clientHeight } = this.container;
+    const { clientWidth, clientHeight } = this.container.parentElement;
 
     this.camera.aspect = clientWidth / clientHeight;
     this.camera.updateProjectionMatrix();

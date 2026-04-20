@@ -25,10 +25,9 @@
 /* Container (main viewer box) */
 .viewer-container {
   position: relative;
-  width: 90vw;
-  height: 90vh;
+  width: min(90vw, 90vh * (16 / 9));
+  aspect-ratio: 16 / 9;
   max-width: 1400px;
-  max-height: 900px;
   background: #111;
   border-radius: 6px;
   overflow: hidden;
