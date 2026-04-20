@@ -119,10 +119,12 @@ export class AccountPanel {
 
     this.renderPlan(profile);
     this.overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
   }
 
   close() {
     this.overlay.classList.add('hidden');
+    document.body.style.overflow = '';
   }
 
   async logout() {

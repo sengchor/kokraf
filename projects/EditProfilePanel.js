@@ -204,11 +204,13 @@ export class EditProfilePanel {
     this.aboutInput.value = data.about || '';
 
     this.overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
     this.clearError();
   }
 
   close() {
     this.overlay.classList.add('hidden');
+    document.body.style.overflow = '';
 
     this.avatarInput.value = '';
     this.bannerInput.value = '';

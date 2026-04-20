@@ -70,12 +70,14 @@ export class CloudSavePanel {
     this.nameInput.value = this.editor.currentProjectName || 'Untitled Project';
 
     this.overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
     this.nameInput.focus();
     this.clearError();
   }
 
   close() {
     this.overlay.classList.add('hidden');
+    document.body.style.overflow = '';
   }
 
   async handleSave() {

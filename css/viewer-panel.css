@@ -15,7 +15,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 160;
 }
 
 .hidden {
@@ -50,7 +50,7 @@
   right: 14px;
   z-index: 10;
 
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.1);
   border: none;
   color: #fff;
   font-size: 18px;
@@ -68,7 +68,7 @@
 }
 
 .viewer-close:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.5);
   transform: scale(1.05);
 }
 
@@ -78,4 +78,30 @@
   inset: 0;
   border: 1px solid rgba(255,255,255,0.05);
   pointer-events: none;
+}
+
+.viewer-progress {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.15);
+  z-index: 170;
+}
+
+.viewer-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+
+  background: #4facfe;
+  transition: width 0.25s ease;
+
+  box-shadow:
+    0 0 3.5px rgba(79, 172, 254, 0.6),
+    0 0 7px rgba(0, 242, 254, 0.4);
+
+  position: relative;
 }

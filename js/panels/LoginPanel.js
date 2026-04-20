@@ -75,10 +75,12 @@ export class LoginPanel {
 
   open() {
     this.overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
   }
 
   close() {
     this.overlay.classList.add('hidden');
+    document.body.style.overflow = '';
     this.error.textContent = '';
 
     this.emailInput.value = '';
