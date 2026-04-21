@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Projects – Kokraf</title>
+  <title>Explore – Kokraf</title>
 
   <!-- Meta Description -->
-  <meta name="description" content="Kokraf Projects lets you store, edit, and manage your 3D creations in one place." />
+  <meta name="description" content="Explore projects from artists around the world and collaborate on Kokraf." />
 
   <!-- Favicon and App Name -->
   <meta name="application-name" content="Kokraf" />
@@ -19,8 +19,7 @@
   <link rel="manifest" href="/assets/favicon_io/site.webmanifest">
 
   <link rel="stylesheet" href="/css/base-pages.css" />
-  <link rel="stylesheet" href="./projects-page.css" />
-  <link rel="stylesheet" href="./edit-profile-panel.css" />
+  <link rel="stylesheet" href="./explore-page.css" />
   <link rel="stylesheet" href="/css/login-panel.css" />
   <link rel="stylesheet" href="/css/account-panel.css" />
   <link rel="stylesheet" href="/css/viewer-panel.css" />
@@ -39,11 +38,11 @@
   <header class="app-header">
     <div class="header-left">
       <img src="../assets/images/KokrafLogo.png" class="logo" />
-      <a href="/projects" class="secondary-btn active">
+      <a href="/projects" class="secondary-btn">
         <img src="/assets/icons/projects.svg" class="button-icon" width="16" height="16">
         Projects
       </a>
-      <a href="/explore" class="secondary-btn">
+      <a href="/explore" class="secondary-btn active">
         <img src="/assets/icons/explore.svg" class="explore-icon button-icon" width="16" height="16">
         Explore
       </a>
@@ -63,34 +62,11 @@
   </header>
 
   <main class="projects-container">
-    <section class="profile-header">
-      <div class="profile-banner"></div>
-
-      <div class="profile-content">
-        <img class="profile-avatar empty" />
-        <div id="profile-info" class="profile-info">
-          <div class="profile-name"></div>
-          <div class="profile-username"></div>
-        </div>
-      </div>
-    </section>
-
-    <div class="panel-header">
-      <div class="tab-name">Projects</div>
-      <button id="edit-profile-btn" class="primary-btn">Edit Profile</button>
-    </div>
     <div class="content-layout">
       <div class="main-content">
         <div id="projects-grid" class="projects-grid">
         </div>
       </div>
-
-      <aside class="right-panel">
-        <div class="about-card">
-          <div class="about-title">About</div>
-          <p id="profile-about" class="profile-about">Write a little more about yourself</p>
-        </div>
-      </aside>
     </div>
 
     <footer class="site-footer">

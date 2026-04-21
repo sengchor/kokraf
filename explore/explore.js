@@ -1,0 +1,1 @@
+import { ViewerPanel } from '/js/panels/ViewerPanel.js';
