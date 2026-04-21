@@ -1,4 +1,5 @@
 import { auth } from '/supabase/services/AuthService.js';
+import { initExplore } from './explore.js';
 import { LoginPanel } from '/js/panels/LoginPanel.js';
 import { AccountPanel } from '/js/panels/AccountPanel.js';
 import { createEmptyCloudProject } from '/supabase/services/ProjectService.js';
@@ -18,7 +19,7 @@ async function initApp() {
     const panel = new LoginPanel({
       closeable: false,
       onSuccess: async (loggedInUser) => {
-        console.log('on success');
+        await initExplore(user);
       },
     });
     panel.open();
@@ -36,5 +37,5 @@ async function initApp() {
     window.location.href = `/?projectId=${project.id}`;
   });
 
-  console.log('on success');
+  await initExplore(user);
 }

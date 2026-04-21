@@ -1,0 +1,120 @@
+.projects-container {
+  max-width: 2000px;
+  margin: 0 auto;
+  padding: 32px 36px 0;
+}
+
+.explore-header {
+  margin-bottom: 8px;
+}
+
+.explore-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #111;
+}
+
+/* Grid — 4 cols max on wide screens */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(280px, calc((100% - 84px) / 4)), 1fr));
+  gap: 28px;
+  margin-top: 24px;
+}
+
+/* Card */
+.project-card {
+  border: 1px solid #e6e8eb;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.project-card:hover {
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+}
+
+/* Thumbnail */
+.project-card .thumbnail {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+/* Info row */
+.project-info-wrapper {
+  padding: 10px 14px 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  flex: 1;
+}
+
+.project-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.explore-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e0e0e0;
+  flex-shrink: 0;
+}
+
+.explore-author-name {
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Skeleton extras */
+.skeleton {
+  background: #e8e8e8;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-long  { height: 10px; width: 70%; margin-bottom: 4px; padding: 0; }
+.skeleton-short { height: 10px; width: 40%; padding: 0; }
+.skeleton-avatar { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; }
+.skeleton-stats  { height: 10px; width: 60px; padding: 0; }

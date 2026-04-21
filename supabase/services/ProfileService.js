@@ -49,6 +49,17 @@ class ProfileService {
     return this.profile;
   }
 
+  async loadPublicProfiles(userIds) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id, display_name, username, avatar_url')
+      .in('id', userIds);
+
+    if (error) { console.error(error); return {}; }
+
+    return Object.fromEntries((data || []).map(p => [p.id, p]));
+  }
+
   async saveProfile({ displayName, username, about, avatarUrl, bannerUrl }) {
     const user = auth.user;
     if (!user) throw new Error('Not authenticated');

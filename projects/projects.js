@@ -5,6 +5,8 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
 });
 
+let currentUser = null;
+
 const thumbnailObserver = new IntersectionObserver((entries) => {
   for (const entry of entries) {
     if (!entry.isIntersecting) continue;
@@ -12,7 +14,7 @@ const thumbnailObserver = new IntersectionObserver((entries) => {
     const thumb = entry.target;
     const project = thumb._project;
 
-    createThumbnail(project, thumb);
+    createThumbnail(currentUser, project, thumb);
 
     thumbnailObserver.unobserve(thumb);
   }
@@ -22,6 +24,7 @@ const thumbnailObserver = new IntersectionObserver((entries) => {
 
 // Main: fetch and render
 export async function initProjects(user) {
+  currentUser = user;
   const grid = document.getElementById("projects-grid");
   renderSkeletonCards(grid);
 
@@ -117,8 +120,7 @@ async function renderProjects(grid, projects) {
 
     card.addEventListener('click', async () => {
       const viewerPanel = new ViewerPanel();
-      // window.location.href = `/?projectId=${project.id}`;
-      viewerPanel.open(project.id);
+      window.location.href = `/?projectId=${project.id}`;
     });
 
     grid.appendChild(card);
@@ -186,8 +188,8 @@ function createMenuBtn(project, card) {
   return menuBtn;
 }
 
-async function createThumbnail(project, thumb) {
-  const url = await getThumbnailUrl(project.id);
+async function createThumbnail(user, project, thumb) {
+  const url = await getThumbnailUrl(user.id, project.id);
   if (!url) return;
 
   const img = document.createElement('img');

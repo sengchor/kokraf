@@ -207,22 +207,15 @@ export async function uploadThumbnail(blob, projectId) {
   return filePath;
 }
 
-export async function getThumbnailUrl(projectId) {
-  const user = auth.user;
-  if (!user) return null;
-
+export async function getThumbnailUrl(userId, projectId) {
   const { data, error } = await supabase.storage
     .from('projects')
-    .createSignedUrl(
-      `${user.id}/${projectId}/thumbnail.webp`,
-      60 * 60
-    );
+    .createSignedUrl(`${userId}/${projectId}/thumbnail.webp`, 60 * 60);
 
   if (error) {
     console.error('Thumbnail URL error:', error);
     return null;
   }
-
   return data.signedUrl;
 }
 
@@ -274,4 +267,16 @@ export async function fetchPublicProject(projectId) {
   const json = JSON.parse(await blob.text());
 
   return json;
+}
+
+export async function getPublicProjects(limit) {
+  const { data: projects, error } = await supabase
+    .from('projects')
+    .select('id, name, updated_at, user_id')
+    .eq('is_public', true)
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+
+  if (error) { console.error(error); return []; }
+  return projects;
 }
