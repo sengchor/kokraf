@@ -269,14 +269,23 @@ export async function fetchPublicProject(projectId) {
   return json;
 }
 
-export async function getPublicProjects(limit) {
-  const { data: projects, error } = await supabase
+export async function getPublicProjectsCursor(limit, cursor = null) {
+  let query = supabase
     .from('projects')
     .select('id, name, updated_at, user_id')
     .eq('is_public', true)
     .order('updated_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(limit);
 
+  if (cursor) {
+    query = query.or(
+      `updated_at.lt.${cursor.updated_at},` +
+      `and(updated_at.eq.${cursor.updated_at}, id.lt.${cursor.id})`
+    );
+  }
+
+  const { data, error } = await query;
   if (error) { console.error(error); return []; }
-  return projects;
+  return data;
 }

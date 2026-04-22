@@ -1,6 +1,12 @@
-import { getThumbnailUrl, getPublicProjects } from '/supabase/services/ProjectService.js';
+import { getThumbnailUrl, getPublicProjectsCursor } from '/supabase/services/ProjectService.js';
 import { profile } from '/supabase/services/ProfileService.js';
 import { ViewerPanel } from '/js/panels/ViewerPanel.js';
+
+const PAGE_SIZE = 12;
+let cursor     = null;
+let isLoading  = false;
+let hasMore    = true;
+let currentUser = null;
 
 const thumbnailObserver = new IntersectionObserver((entries) => {
   for (const entry of entries) {
@@ -8,32 +14,30 @@ const thumbnailObserver = new IntersectionObserver((entries) => {
 
     const thumb = entry.target;
     const project = thumb._project;
-
     createThumbnail(project, thumb);
-
     thumbnailObserver.unobserve(thumb);
   }
-}, {
-  rootMargin: '100px'
-});
+}, { rootMargin: '100px' });
+
+const sentinelObserver = new IntersectionObserver(async ([entry]) => {
+  if (entry.isIntersecting && !isLoading && hasMore) {
+    await loadPage();
+  }
+}, { rootMargin: '200px' });
 
 export async function initExplore(user) {
+  currentUser = user;
   const grid = document.getElementById('projects-grid');
   renderSkeletonCards(grid);
 
   if (!user) return;
 
-  const projects = await getPublicProjects(12);
+  await loadPage(grid);
 
-  const userIds = [...new Set(projects.map(p => p.user_id))];
-  const profileMap = await profile.loadPublicProfiles(userIds);
-
-  const enriched = projects.map(p => ({
-    ...p,
-    user_profiles: profileMap[p.user_id] || null
-  }));
-
-  renderProjects(grid, enriched);
+  const sentinel = document.createElement('div');
+  sentinel.id = 'scroll-sentinel';
+  grid.parentElement.appendChild(sentinel);
+  sentinelObserver.observe(sentinel);
 }
 
 function renderSkeletonCards(grid, count = 12) {
@@ -52,14 +56,51 @@ function renderSkeletonCards(grid, count = 12) {
   `).join('');
 }
 
-function renderProjects(grid, projects) {
-  if (!grid) return;
-  grid.innerHTML = '';
+async function loadPage(gridOverride) {
+  const grid = gridOverride ?? document.getElementById('projects-grid');
+  isLoading = true;
 
-  if (projects.length === 0) {
-    grid.innerHTML = `<p style="color: #888; font-size: 16px;">No public projects yet.</p>`;
-    return;
+  const projects = await getPublicProjectsCursor(PAGE_SIZE, cursor);
+
+  // Resolve profiles only for new batch
+  const userIds    = [...new Set(projects.map(p => p.user_id))];
+  const profileMap = userIds.length
+    ? await profile.loadPublicProfiles(userIds)
+    : {};
+
+  const enriched = projects.map(p => ({
+    ...p,
+    user_profiles: profileMap[p.user_id] || null,
+  }));
+
+  // First page: replace skeletons. Subsequent pages: append.
+  if (!cursor) {
+    grid.innerHTML = '';
   }
+
+  if (enriched.length === 0 && !cursor) {
+    grid.innerHTML = `<p style="color:#888;font-size:16px;">No public projects yet.</p>`;
+    hasMore = false;
+  } else {
+    appendProjects(grid, enriched);
+  }
+
+  // Advance cursor to last item
+  if (projects.length > 0) {
+    const last = projects.at(-1);
+    cursor = { updated_at: last.updated_at, id: last.id };
+  }
+
+  if (projects.length < PAGE_SIZE) {
+    hasMore = false;
+    sentinelObserver.disconnect();
+  }
+
+  isLoading = false;
+}
+
+function appendProjects(grid, projects) {
+  if (!grid) return;
 
   for (const project of projects) {
     const card = document.createElement('div');
