@@ -1,3 +1,10 @@
+.projects-container {
+  flex: 1;
+  width: 100%;
+  max-width: 2000px;
+  margin: 0 auto;
+}
+
 /* Grid */
 .projects-grid {
   display: grid;
