@@ -2,7 +2,7 @@ import { supabase } from '../supabase.js';
 import { auth } from './AuthService.js';
 import { createEmptyProject } from '/js/utils/ProjectFactory.js';
 
-export async function createProject(projectId, name = 'Untitled Project') {
+export async function createProject(projectId, name = 'Untitled Project', isPublic = 'false') {
   const user = auth.user;
 
   const { data, error } = await supabase
@@ -10,7 +10,8 @@ export async function createProject(projectId, name = 'Untitled Project') {
     .insert({
       id: projectId,
       user_id: user.id,
-      name: name
+      name: name,
+      is_public: isPublic,
     })
     .select()
     .single();
@@ -20,17 +21,19 @@ export async function createProject(projectId, name = 'Untitled Project') {
   return data;
 }
 
-export async function saveProject(editor, {name = null, override = false} = {}) {
+export async function saveProject(editor, {name = null, isPublic = false, override = false} = {}) {
   const json = editor.toJSON();
   const camera = editor.cameraManager.camera;
   const blob = await editor.renderer.captureThumbnail(editor.sceneManager, camera);
 
   try {
     if (override) {
-      await uploadProject(json, editor.currentProjectId);
-      await uploadThumbnail(blob, editor.currentProjectId);
+      await Promise.all([
+        uploadProject(json, editor.currentProjectId),
+        uploadThumbnail(blob, editor.currentProjectId),
+      ]);
     } else {
-      const project = await createProject(editor.currentProjectId, name);
+      const project = await createProject(editor.currentProjectId, name, isPublic);
       editor.currentProjectId = project.id;
 
       const [filePath] = await Promise.all([
