@@ -289,3 +289,15 @@ export async function getPublicProjectsCursor(limit, cursor = null) {
   if (error) { console.error(error); return []; }
   return data;
 }
+
+export async function getPublicProjectsCursorSearch(limit, cursor = null, query = '') {
+  const { data, error } = await supabase.rpc('search_public_projects', {
+    search_query: query,
+    page_limit: limit,
+    cursor_updated_at: cursor?.updated_at ?? null,
+    cursor_id: cursor?.id ?? null,
+  });
+
+  if (error) { console.error(error); return []; }
+  return data;
+}

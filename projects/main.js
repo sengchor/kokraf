@@ -11,8 +11,19 @@ document.addEventListener('DOMContentLoaded', initApp);
 async function initApp() {
   const accountBtn = document.getElementById('account-btn');
   const newProjectBtn = document.getElementById('new-project-btn');
+  const input = document.getElementById("project-search");
 
   const accountPanel = new AccountPanel();
+
+  input.addEventListener('input', (e) => {
+    clearTimeout(input._timeout);
+    input._timeout = setTimeout(() => {
+      const q = e.target.value.trim();
+      if (q) {
+        window.location.href = `/explore/?q=${encodeURIComponent(q)}`;
+      }
+    }, 300);
+  });
 
   const user = await auth.waitForUser();
 

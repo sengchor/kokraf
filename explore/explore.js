@@ -1,12 +1,50 @@
-import { getThumbnailUrl, getPublicProjectsCursor } from '/supabase/services/ProjectService.js';
+import { getThumbnailUrl, getPublicProjectsCursor, getPublicProjectsCursorSearch } from '/supabase/services/ProjectService.js';
 import { profile } from '/supabase/services/ProfileService.js';
 import { ViewerPanel } from '/js/panels/ViewerPanel.js';
+
+const input = document.getElementById("project-search");
+const grid = document.getElementById("projects-grid");
+
+let mode = "all"; // "all" | "search"
 
 const PAGE_SIZE = 12;
 let cursor     = null;
 let isLoading  = false;
 let hasMore    = true;
 let currentUser = null;
+
+let timeout;
+let currentQuery = "";
+
+input.addEventListener("input", (e) => {
+  clearTimeout(timeout);
+
+  timeout = setTimeout(async () => {
+    currentQuery = e.target.value.trim();
+    mode = currentQuery ? "search" : "all";
+
+    const url = new URL(window.location);
+    if (currentQuery) {
+      url.searchParams.set('q', currentQuery);
+    } else {
+      url.searchParams.delete('q');
+    }
+    history.replaceState(null, '', url);
+
+    cursor = null;
+    hasMore = true;
+    isLoading = false;
+    grid.innerHTML = '';
+
+    await loadPage();
+
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (sentinel) {
+      sentinelObserver.unobserve(sentinel);
+      sentinelObserver.observe(sentinel);
+    }
+  }, 300);
+});
 
 const thumbnailObserver = new IntersectionObserver((entries) => {
   for (const entry of entries) {
@@ -27,11 +65,19 @@ const sentinelObserver = new IntersectionObserver(async ([entry]) => {
 
 export async function initExplore(user) {
   currentUser = user;
-  const grid = document.getElementById('projects-grid');
-  renderSkeletonCards(grid);
-
   if (!user) return;
 
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('q') || '';
+
+  if (q) {
+    input.value = q;
+    input.focus();
+    currentQuery = q;
+    mode = 'search';
+  }
+
+  renderSkeletonCards(grid);
   await loadPage(grid);
 
   const sentinel = document.createElement('div');
@@ -60,43 +106,61 @@ async function loadPage(gridOverride) {
   const grid = gridOverride ?? document.getElementById('projects-grid');
   isLoading = true;
 
-  const projects = await getPublicProjectsCursor(PAGE_SIZE, cursor);
+  try {
+    let projects;
+    if (mode === "search") {
+      projects = await getPublicProjectsCursorSearch(PAGE_SIZE, cursor, currentQuery);
+    } else {
+      projects = await getPublicProjectsCursor(PAGE_SIZE, cursor);
+    }
 
-  // Resolve profiles only for new batch
-  const userIds    = [...new Set(projects.map(p => p.user_id))];
-  const profileMap = userIds.length
-    ? await profile.loadPublicProfiles(userIds)
-    : {};
+    // Resolve profiles only for new batch
+    const userIds    = [...new Set(projects.map(p => p.user_id))];
+    const profileMap = userIds.length
+      ? await profile.loadPublicProfiles(userIds)
+      : {};
 
-  const enriched = projects.map(p => ({
-    ...p,
-    user_profiles: profileMap[p.user_id] || null,
-  }));
+    const enriched = projects.map(p => ({
+      ...p,
+      user_profiles: profileMap[p.user_id] || null,
+    }));
 
-  // First page: replace skeletons. Subsequent pages: append.
-  if (!cursor) {
-    grid.innerHTML = '';
+    // First page: replace skeletons. Subsequent pages: append.
+    if (!cursor) {
+      grid.innerHTML = '';
+    }
+
+    if (enriched.length === 0 && !cursor) {
+      grid.innerHTML = `<p style="color:#888;font-size:16px;">No public projects yet.</p>`;
+      hasMore = false;
+    } else {
+      appendProjects(grid, enriched);
+    }
+
+    // Advance cursor to last item
+    if (projects.length > 0) {
+      const last = projects.at(-1);
+      cursor = { updated_at: last.updated_at, id: last.id };
+    }
+
+    const sentinel = document.getElementById('scroll-sentinel');
+
+    if (projects.length < PAGE_SIZE) {
+      hasMore = false;
+      if (sentinel) sentinelObserver.unobserve(sentinel);
+    }
+    
+  } finally {
+    isLoading = false;
+    
+    if (hasMore) {
+      const sentinel = document.getElementById('scroll-sentinel');
+      if (sentinel) {
+        sentinelObserver.unobserve(sentinel);
+        sentinelObserver.observe(sentinel);
+      }
+    }
   }
-
-  if (enriched.length === 0 && !cursor) {
-    grid.innerHTML = `<p style="color:#888;font-size:16px;">No public projects yet.</p>`;
-    hasMore = false;
-  } else {
-    appendProjects(grid, enriched);
-  }
-
-  // Advance cursor to last item
-  if (projects.length > 0) {
-    const last = projects.at(-1);
-    cursor = { updated_at: last.updated_at, id: last.id };
-  }
-
-  if (projects.length < PAGE_SIZE) {
-    hasMore = false;
-    sentinelObserver.disconnect();
-  }
-
-  isLoading = false;
 }
 
 function appendProjects(grid, projects) {
