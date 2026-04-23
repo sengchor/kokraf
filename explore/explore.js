@@ -8,9 +8,9 @@ const grid = document.getElementById("projects-grid");
 let mode = "all"; // "all" | "search"
 
 const PAGE_SIZE = 12;
-let cursor     = null;
+let cursor = null;
 let isLoading  = false;
-let hasMore    = true;
+let hasMore = true;
 let currentUser = null;
 
 let timeout;
@@ -148,8 +148,7 @@ async function loadPage(gridOverride) {
     if (projects.length < PAGE_SIZE) {
       hasMore = false;
       if (sentinel) sentinelObserver.unobserve(sentinel);
-    }
-    
+    }  
   } finally {
     isLoading = false;
     

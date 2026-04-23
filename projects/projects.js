@@ -1,10 +1,14 @@
-import { getUserProjects, deleteProject, getThumbnailUrl, renameProject, setProjectVisibility } from '/supabase/services/ProjectService.js';
+import { getUserProjectsCursor, deleteProject, getThumbnailUrl, renameProject, setProjectVisibility } from '/supabase/services/ProjectService.js';
 import { ViewerPanel } from '/js/panels/ViewerPanel.js';
 
 document.addEventListener('click', () => {
   document.querySelectorAll('.project-menu-panel').forEach(p => p.remove());
 });
 
+const PAGE_SIZE = 12;
+let cursor = null;
+let isLoading = false;
+let hasMore = true;
 let currentUser = null;
 
 const thumbnailObserver = new IntersectionObserver((entries) => {
@@ -18,20 +22,27 @@ const thumbnailObserver = new IntersectionObserver((entries) => {
 
     thumbnailObserver.unobserve(thumb);
   }
-}, {
-  rootMargin: '100px'
-});
+}, { rootMargin: '100px' });
+
+const sentinelObserver = new IntersectionObserver(async ([entry]) => {
+  if (entry.isIntersecting && !isLoading && hasMore) {
+    await loadPage();
+  }
+}, { rootMargin: '200px' });
 
 // Main: fetch and render
 export async function initProjects(user) {
   currentUser = user;
-  const grid = document.getElementById("projects-grid");
-  renderSkeletonCards(grid);
-
   if (!user) return;
 
-  const projects = await getUserProjects();
-  renderProjects(grid, projects);
+  const grid = document.getElementById("projects-grid");
+  renderSkeletonCards(grid);
+  await loadPage(grid);
+
+  const sentinel = document.createElement('div');
+  sentinel.id = 'scroll-sentinel';
+  grid.parentElement.appendChild(sentinel);
+  sentinelObserver.observe(sentinel);
 }
 
 function renderSkeletonCards(grid, count = 6) {
@@ -48,6 +59,49 @@ function renderSkeletonCards(grid, count = 6) {
   `).join("");
 }
 
+async function loadPage(gridOverride) {
+  const grid = gridOverride ?? document.getElementById('projects-grid');
+  isLoading = true;
+
+  try {
+    const projects = await getUserProjectsCursor(PAGE_SIZE, cursor);
+
+    if (!cursor) {
+      grid.innerHTML = '';
+    }
+
+    if (projects.length === 0 && !cursor) {
+      grid.innerHTML = `<p style="color:#888;font-size:16px;">No public projects yet.</p>`;
+      hasMore = false;
+    } else {
+      appendProjects(grid, projects);
+    }
+
+    // Advance cursor to last item
+    if (projects.length > 0) {
+      const last = projects.at(-1);
+      cursor = { updated_at: last.updated_at, id: last.id };
+    }
+
+    const sentinel = document.getElementById('scroll-sentinel');
+
+    if (projects.length < PAGE_SIZE) {
+      hasMore = false;
+      if (sentinel) sentinelObserver.unobserve(sentinel);
+    }
+  } finally {
+    isLoading = false;
+
+    if (hasMore) {
+      const sentinel = document.getElementById('scroll-sentinel');
+      if (sentinel) {
+        sentinelObserver.unobserve(sentinel);
+        sentinelObserver.observe(sentinel);
+      }
+    }
+  }
+}
+
 // Format date to "Edited X days ago"
 function formatEditedDate(dateString) {
   if (!dateString) return '';
@@ -62,15 +116,8 @@ function formatEditedDate(dateString) {
 }
 
 // Render project cards
-async function renderProjects(grid, projects) {
+async function appendProjects(grid, projects) {
   if (!grid) return;
-
-  grid.innerHTML = '';
-
-  if (projects.length === 0) {
-    grid.innerHTML = `<p style="color: #888; font-size: 16px;">No projects yet. Create one to get started.</p>`;
-    return;
-  }
 
   for (const project of projects) {
     const card = document.createElement('div');

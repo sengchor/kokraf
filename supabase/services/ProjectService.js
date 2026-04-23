@@ -143,6 +143,29 @@ export async function getUserProjects() {
   return data;
 }
 
+export async function getUserProjectsCursor(limit, cursor = null) {
+  const user = auth.user;
+  if (!user) return [];
+
+  let query = supabase
+    .from('projects')
+    .select('id, name, updated_at, created_at, is_public')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limit);
+
+  if (cursor) {
+    query = query.or(
+      `updated_at.lt.${cursor.updated_at},and(updated_at.eq.${cursor.updated_at},id.lt.${cursor.id})`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) { console.error(error); return []; }
+  return data;
+}
+
 export async function deleteProject(projectId) {
   const user = auth.user;
   
