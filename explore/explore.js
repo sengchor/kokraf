@@ -67,6 +67,8 @@ export async function initExplore(user) {
   currentUser = user;
   if (!user) return;
 
+  resetState();
+
   const params = new URLSearchParams(window.location.search);
   const q = params.get('q') || '';
 
@@ -80,10 +82,12 @@ export async function initExplore(user) {
   renderSkeletonCards(grid);
   await loadPage(grid);
 
-  const sentinel = document.createElement('div');
-  sentinel.id = 'scroll-sentinel';
-  grid.parentElement.appendChild(sentinel);
-  sentinelObserver.observe(sentinel);
+  if (!document.getElementById('scroll-sentinel')) {
+    const sentinel = document.createElement('div');
+    sentinel.id = 'scroll-sentinel';
+    grid.parentElement.appendChild(sentinel);
+    sentinelObserver.observe(sentinel);
+  }
 }
 
 function renderSkeletonCards(grid, count = 12) {
@@ -232,4 +236,10 @@ function fallbackSVG() {
     <path d="m3 16 5-5 4 4 3-3 6 6"/>
     <circle cx="8.5" cy="8.5" r="1.5"/>
   </svg>`;
+}
+
+function resetState() {
+  cursor = null;
+  isLoading = false;
+  hasMore = true;
 }

@@ -35,14 +35,18 @@ export async function initProjects(user) {
   currentUser = user;
   if (!user) return;
 
+  resetState();
+
   const grid = document.getElementById("projects-grid");
   renderSkeletonCards(grid);
   await loadPage(grid);
 
-  const sentinel = document.createElement('div');
-  sentinel.id = 'scroll-sentinel';
-  grid.parentElement.appendChild(sentinel);
-  sentinelObserver.observe(sentinel);
+  if (!document.getElementById('scroll-sentinel')) {
+    const sentinel = document.createElement('div');
+    sentinel.id = 'scroll-sentinel';
+    grid.parentElement.appendChild(sentinel);
+    sentinelObserver.observe(sentinel);
+  }
 }
 
 function renderSkeletonCards(grid, count = 6) {
@@ -379,4 +383,10 @@ function startRename(project, card, nameEl) {
 
   input.addEventListener('blur', commit);
   input.addEventListener('click', (e) => e.stopPropagation());
+}
+
+function resetState() {
+  cursor = null;
+  isLoading = false;
+  hasMore = true;
 }
