@@ -65,7 +65,6 @@ const sentinelObserver = new IntersectionObserver(async ([entry]) => {
 
 export async function initExplore(user) {
   currentUser = user;
-  if (!user) return;
 
   resetState();
 

@@ -11,23 +11,22 @@ async function initApp() {
   const accountBtn = document.getElementById('account-btn');
   const newProjectBtn = document.getElementById('new-project-btn');
 
-  const accountPanel = new AccountPanel();
-
   const user = await auth.waitForUser();
 
   if (!user) {
-    const panel = new LoginPanel({
-      closeable: false,
-      onSuccess: async (loggedInUser) => {
-        await initExplore(user);
-      },
-    });
-    panel.open();
-    return;
+    accountBtn.textContent = 'Log in';
+    accountBtn.addEventListener('click', () => createLoginPanel());
+  } else {
+    accountBtn.textContent = 'Account';
+    accountBtn.addEventListener('click', () => createAccountPanel());
   }
 
-  accountBtn.addEventListener('click', () => accountPanel.open());
   newProjectBtn.addEventListener('click', async () => {
+    if (!user) {
+      await createLoginPanel();
+      return;
+    }
+
     const { allowed, reason } = await consumeCredits('cloud-save');
     if (!allowed) {
       alert(getCreditsErrorMessage(reason));
@@ -38,4 +37,19 @@ async function initApp() {
   });
 
   await initExplore(user);
+}
+
+async function createLoginPanel() {
+  const panel = new LoginPanel({
+    closeable: false,
+    onSuccess: async (loggedInUser) => {
+      await initExplore(user);
+    },
+  });
+  panel.open();
+}
+
+async function createAccountPanel() {
+  const panel = new AccountPanel();
+  panel.open();
 }
