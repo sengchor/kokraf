@@ -144,11 +144,21 @@ async function appendProjects(grid, projects) {
     name.textContent = project.name || 'Untitled Project';
 
     const date = document.createElement('div');
-    date.className = 'project-date';
-    date.textContent = formatEditedDate(project.updated_at || project.created_at);
+
+    const secondary = document.createElement('div');
+    secondary.className = 'project-meta-secondary';
+    secondary.innerHTML = `
+      <span>${formatEditedDate(project.updated_at || project.created_at)}</span>
+      <span class="meta-dot">·</span>
+      <svg class="heart-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.58 3 23 5.42 23 8.5C23 14.5 12 21 12 21Z"
+          stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+      </svg>
+      <span>${project.likes_count ?? 0}</span>
+    `;
 
     meta.appendChild(name);
-    meta.appendChild(date);
+    meta.appendChild(secondary);
 
     // Visibility Icon
     const visibilityIcon = document.createElement('div');

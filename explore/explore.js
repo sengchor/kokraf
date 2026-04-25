@@ -12,6 +12,7 @@ let cursor = null;
 let isLoading  = false;
 let hasMore = true;
 let currentUser = null;
+let onRequireAuthCallback = null;
 
 let timeout;
 let currentQuery = "";
@@ -63,8 +64,9 @@ const sentinelObserver = new IntersectionObserver(async ([entry]) => {
   }
 }, { rootMargin: '200px' });
 
-export async function initExplore(user) {
+export async function initExplore(user, { onRequireAuth } = {}) {
   currentUser = user;
+  onRequireAuthCallback = onRequireAuth;
 
   resetState();
 
@@ -221,6 +223,11 @@ function appendProjects(grid, projects) {
       likeBtn.addEventListener('click',
         createLikeHandler({ likeBtn, projectId: project.id, userId: currentUser.id })
       );
+    } else {
+      likeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onRequireAuthCallback?.();
+      });
     }
 
     wrapper.appendChild(avatar);

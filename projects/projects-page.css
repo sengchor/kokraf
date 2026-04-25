@@ -48,9 +48,19 @@
   word-break: break-word;
 }
 
-.project-date {
+.project-meta-secondary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: #666;
+  margin-top: 2px;
+}
+
+.meta-dot {
+  font-size: 16px;
+  line-height: 1;
+  color: #bbb;
 }
 
 /* Profile Header */

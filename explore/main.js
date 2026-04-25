@@ -36,14 +36,14 @@ async function initApp() {
     window.location.href = `/?projectId=${project.id}`;
   });
 
-  await initExplore(user);
+  await initExplore(user, { onRequireAuth: createLoginPanel });
 }
 
 async function createLoginPanel() {
   const panel = new LoginPanel({
     closeable: false,
     onSuccess: async (loggedInUser) => {
-      await initExplore(user);
+      await initExplore(user, { onRequireAuth: createLoginPanel });
     },
   });
   panel.open();
