@@ -109,14 +109,17 @@ function renderSkeletonCards(grid, count = 12) {
 
 async function loadPage(gridOverride) {
   const grid = gridOverride ?? document.getElementById('projects-grid');
+  let sortMode = null;
   isLoading = true;
 
   try {
     let projects;
     if (mode === "search") {
+      sortMode = 'recent';
       projects = await getPublicProjectsCursorSearch(PAGE_SIZE, cursor, currentQuery);
     } else {
-      projects = await getPublicProjectsCursor(PAGE_SIZE, cursor);
+      sortMode = 'likes';
+      projects = await getPublicProjectsCursor(PAGE_SIZE, cursor, sortMode);
     }
 
     // Resolve profiles only for new batch
@@ -145,7 +148,13 @@ async function loadPage(gridOverride) {
     // Advance cursor to last item
     if (projects.length > 0) {
       const last = projects.at(-1);
-      cursor = { updated_at: last.updated_at, id: last.id };
+      if (sortMode === 'likes') {
+        cursor = { likes_count: last.likes_count, id: last.id };
+      } else if (sortMode === 'recent') {
+        cursor = { updated_at: last.updated_at, id: last.id };
+      } else if (sortMode === 'created') {
+        cursor = { created_at: last.created_at, id: last.id };
+      }
     }
 
     const sentinel = document.getElementById('scroll-sentinel');

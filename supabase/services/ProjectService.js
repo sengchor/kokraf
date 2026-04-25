@@ -295,19 +295,27 @@ export async function fetchPublicProject(projectId) {
   return json;
 }
 
-export async function getPublicProjectsCursor(limit, cursor = null) {
+export async function getPublicProjectsCursor(limit, cursor = null, sortMode = 'recent') {
+  const sortConfig = {
+    recent: { field: 'updated_at', select: 'id, name, updated_at, created_at, user_id, likes_count' },
+    created: { field: 'created_at', select: 'id, name, updated_at, created_at, user_id, likes_count' },
+    likes: { field: 'likes_count', select: 'id, name, updated_at, created_at, user_id, likes_count' },
+  };
+
+  const { field, select } = sortConfig[sortMode];
+
   let query = supabase
     .from('projects')
-    .select('id, name, updated_at, user_id, likes_count')
+    .select(select)
     .eq('is_public', true)
-    .order('updated_at', { ascending: false })
+    .order(field, { ascending: false })
     .order('id', { ascending: false })
     .limit(limit);
 
   if (cursor) {
     query = query.or(
-      `updated_at.lt.${cursor.updated_at},` +
-      `and(updated_at.eq.${cursor.updated_at}, id.lt.${cursor.id})`
+      `${field}.lt.${cursor[field]},` +
+      `and(${field}.eq.${cursor[field]}, id.lt.${cursor.id})`
     );
   }
 
