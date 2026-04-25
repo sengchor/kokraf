@@ -1,4 +1,4 @@
-import { getThumbnailUrl, getPublicProjectsCursor, getPublicProjectsCursorSearch } from '/supabase/services/ProjectService.js';
+import { getThumbnailUrl, getPublicProjectsCursor, getPublicProjectsCursorSearch, likeProject, unlikeProject, hasUserLikedProject } from '/supabase/services/ProjectService.js';
 import { profile } from '/supabase/services/ProfileService.js';
 import { ViewerPanel } from '/js/panels/ViewerPanel.js';
 
@@ -200,8 +200,32 @@ function appendProjects(grid, projects) {
     meta.appendChild(name);
     meta.appendChild(author);
 
+    // Like button
+    const likeBtn = document.createElement('button');
+    likeBtn.className = 'like-btn';
+    likeBtn.setAttribute('aria-label', 'Like project');
+    likeBtn.innerHTML = `
+      <svg class="heart-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.58 3 23 5.42 23 8.5C23 14.5 12 21 12 21Z"
+          stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+      </svg>
+      <span class="like-count">${project.likes_count ?? 0}</span>
+    `;
+
+    if (currentUser) {
+      hasUserLikedProject(project.id, currentUser.id)
+        .then((isLiked) => {
+          if (isLiked) likeBtn.classList.add('liked');
+        });
+
+      likeBtn.addEventListener('click',
+        createLikeHandler({ likeBtn, projectId: project.id, userId: currentUser.id })
+      );
+    }
+
     wrapper.appendChild(avatar);
     wrapper.appendChild(meta);
+    wrapper.appendChild(likeBtn);
     card.appendChild(thumb);
     card.appendChild(wrapper);
 
@@ -241,4 +265,29 @@ function resetState() {
   cursor = null;
   isLoading = false;
   hasMore = true;
+}
+
+function createLikeHandler({ likeBtn, projectId, userId }) {
+  return async function handleLikeClick(e) {
+    e.stopPropagation();
+
+    const liked = likeBtn.classList.toggle('liked');
+    const countEl = likeBtn.querySelector('.like-count');
+    const delta = liked ? 1 : -1;
+
+    countEl.textContent = parseInt(countEl.textContent, 10) + delta;
+
+    try {
+      if (liked) {
+        await likeProject(projectId, userId);
+      } else {
+        await unlikeProject(projectId, userId);
+      }
+    } catch (err) {
+      // rollback
+      likeBtn.classList.toggle('liked');
+      countEl.textContent = parseInt(countEl.textContent, 10) - delta;
+      console.error('Like failed:', err);
+    }
+  };
 }

@@ -131,7 +131,7 @@ export async function getUserProjects() {
 
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, created_at, is_public')
+    .select('id, name, created_at, is_public, likes_count')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -149,7 +149,7 @@ export async function getUserProjectsCursor(limit, cursor = null) {
 
   let query = supabase
     .from('projects')
-    .select('id, name, updated_at, created_at, is_public')
+    .select('id, name, updated_at, created_at, is_public, likes_count')
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
     .order('id', { ascending: false })
@@ -298,7 +298,7 @@ export async function fetchPublicProject(projectId) {
 export async function getPublicProjectsCursor(limit, cursor = null) {
   let query = supabase
     .from('projects')
-    .select('id, name, updated_at, user_id')
+    .select('id, name, updated_at, user_id, likes_count')
     .eq('is_public', true)
     .order('updated_at', { ascending: false })
     .order('id', { ascending: false })
@@ -326,4 +326,37 @@ export async function getPublicProjectsCursorSearch(limit, cursor = null, query 
 
   if (error) { console.error(error); return []; }
   return data;
+}
+
+export async function likeProject(project_id, user_id) {
+  const { error } = await supabase
+    .from('project_likes')
+    .insert({ project_id, user_id });
+
+  if (error) throw error;
+}
+
+export async function unlikeProject(project_id, user_id) {
+  const { error } = await supabase
+    .from('project_likes')
+    .delete()
+    .eq('project_id', project_id)
+    .eq('user_id', user_id);
+
+  if (error) throw error;
+}
+
+export async function hasUserLikedProject(project_id, user_id) {
+  const { data, error } = await supabase
+    .from('project_likes')
+    .select('project_id')
+    .eq('project_id', project_id)
+    .eq('user_id', user_id)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+  return data !== null;
 }

@@ -121,3 +121,38 @@
 .skeleton-short { height: 10px; width: 40%; padding: 0; }
 .skeleton-avatar { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; }
 .skeleton-stats  { height: 10px; width: 60px; padding: 0; }
+
+.like-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  bottom: 18px;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.like-btn:hover {
+  color: #e05c7a;
+  background: rgba(224, 92, 122, 0.08);
+}
+
+.like-btn.liked {
+  color: #e05c7a;
+}
+
+.like-btn.liked .heart-icon path {
+  fill: #e05c7a;
+  stroke: #e05c7a;
+}
+
+.like-count {
+  line-height: 1;
+}
