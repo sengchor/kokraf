@@ -274,3 +274,29 @@ select:focus {
   background-color: white;
   outline: none;
 }
+
+.shortcuts-scroll {
+  max-height: 225px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  margin: 0px 0px 5px 0px;
+}
+
+.shortcuts-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.shortcuts-scroll::-webkit-scrollbar-thumb {
+  background-color: #aaa;
+  border-radius: 4px;
+}
+
+.shortcut-error-msg {
+  color: #e05;
+  font-size: 11.5px;
+}
+
+.key-input.conflict {
+  color: #e05;
+  background-color: #fff0f3;
+}

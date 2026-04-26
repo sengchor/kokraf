@@ -77,48 +77,19 @@
       <li class="setting-option">
         <span class="label">SHORTCUTS</span>
       </li>
-      <li class="setting-option">
-        <span class="label">Translate</span>
-        <input
-          class="key-input"
-          id="translate-shortcut"
-          type="text"
-          maxlength="1" />
+
+      <li class="setting-option" id="shortcut-error" style="display: none;">
+        <span class="shortcut-error-msg"></span>
       </li>
-      <li class="setting-option">
-        <span class="label">Rotate</span>
-        <input
-          class="key-input"
-          id="rotate-shortcut"
-          type="text"
-          maxlength="1" />
-      </li>
-      <li class="setting-option">
-        <span class="label">Scale</span>
-        <input
-          class="key-input"
-          id="scale-shortcut"
-          type="text"
-          maxlength="1" />
-      </li>
-      <li class="setting-option">
-        <span class="label">Undo</span>
-        <input
-          class="key-input"
-          id="undo-shortcut"
-          type="text"
-          maxlength="1" />
-      </li>
-      <li class="setting-option">
-        <span class="label">Focus</span>
-        <input
-          class="key-input"
-          id="focus-shortcut"
-          type="text"
-          maxlength="1" />
-      </li>
+
+      <div class="shortcuts-scroll">
+        <ul class="project-settings-list" id="shortcuts-list" style="padding-top: 0;">
+        </ul>
+      </div>
     </ul>
+    
     <div class="panel-divider"></div>
+
     <ul class="project-settings-list">
       <li class="setting-option" >
         <span class="label" style="min-width: 217px;">HISTORY</span>
