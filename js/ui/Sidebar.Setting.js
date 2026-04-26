@@ -2,6 +2,12 @@ import * as THREE from 'three';
 
 const RESERVED_KEYS = new Map([
   ['tab', 'Switch mode'],
+  ['shift', 'Multi-select'],
+  ['ctrl+c', 'Copy'],
+  ['ctrl+v', 'Paste'],
+  ['delete', 'Delete'],
+  ['shift+a', 'Add Context Menu'],
+  ['ctrl+a', 'Apply Context Menu'],
 ]);
 
 export class SidebarSetting {
@@ -26,54 +32,72 @@ export class SidebarSetting {
   initShortcuts() {
     const shortcuts = this.config.get('shortcuts');
     const list = document.getElementById('shortcuts-list');
-    const errorEl = document.getElementById('shortcut-error');
-    const errorMsg = errorEl?.querySelector('.shortcut-error-msg');
+    this.errorEl = document.getElementById('shortcut-error');
+    this.errorMsg = this.errorEl?.querySelector('.shortcut-error-msg');
 
     const inputs = this.generateShortcutsList(shortcuts, list);
-
-    const showError = (inputEl, msg) => {
-      inputEl.classList.add('conflict');
-      if (errorEl) errorEl.style.display = '';
-      if (errorMsg) errorMsg.textContent = msg;
-    };
-
-    const clearError = (inputEl) => {
-      inputEl.classList.remove('conflict');
-      if (errorEl) errorEl.style.diplay = 'none';
-      if (errorMsg) errorMsg.textContent = '';
-    }
 
     for (const key of Object.keys(shortcuts)) {
       const input = inputs[key];
       let prevVal = input.value;
+      let pendingVal = null;
 
-      input.addEventListener('focus', () => clearError(input));
-
-      input.addEventListener('input', () => {
-        const val = input.value.toLowerCase().trim();
-        input.value = val;
-        if (!val) { clearError(input); return; }
-
-        const conflict = this.getConflict(shortcuts, key, val);
-        if (conflict) { showError(input, conflict); return; }
-
-        clearError(input);
-        prevVal = val;
-        shortcuts[key] = val;
-        this.config.save();
-      });
-
-      input.addEventListener('blur', () => {
-        if (input.classList.contains('conflict')) {
-          input.value = prevVal;
-          clearError(input);
-        }
+      input.addEventListener('focus', () => {
+        this.clearShortcutError(input);
+        input.dataset.capturing = 'true';
+        input.value = '';
+        input.placeholder = 'Press a key';
+        input.classList.add('capturing');
       });
 
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           input.blur();
+          return;
         }
+        if (e.key === 'Escape') {
+          pendingVal = null;
+          input.value = prevVal;
+          this.clearShortcutError(input);
+          input.blur();
+          return;
+        }
+        if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+        e.preventDefault();
+
+        // Build combo string
+        const parts = [];
+        if (e.ctrlKey) parts.push('ctrl');
+        if (e.shiftKey) parts.push('shift');
+        if (e.altKey) parts.push('alt');
+        parts.push(e.key.toLowerCase());
+        const val = parts.join('+');
+
+        input.value = val;
+        pendingVal = val;
+
+        const conflict = this.getConflict(shortcuts, key, val);
+        if (conflict) { this.showShortcutError(input, conflict); return; }
+        this.clearShortcutError(input);
+      });
+
+      input.addEventListener('blur', () => {
+        input.dataset.capturing = '';
+        input.placeholder = '';
+        input.classList.remove('capturing');
+
+        if (input.classList.contains('conflict') || pendingVal === null) {
+          input.value = prevVal;
+          this.clearShortcutError(input);
+          pendingVal = null;
+          return;
+        }
+
+        prevVal = pendingVal;
+        shortcuts[key] = pendingVal;
+        pendingVal = null;
+        this.config.save();
       });
     }
   }
@@ -87,14 +111,14 @@ export class SidebarSetting {
 
       const label = document.createElement('span');
       label.className = 'label';
-      label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+      label.textContent = this.formatKey(key);
 
       const input = document.createElement('input');
       input.className = 'key-input';
       input.type = 'text';
-      input.maxLength = 1;
       input.value = shortcuts[key] ?? '';
       input.id = `${key}-shortcut`;
+      input.readOnly = true;
 
       li.appendChild(label);
       li.appendChild(input);
@@ -110,7 +134,7 @@ export class SidebarSetting {
     // Check against other configurable shortcuts
     for (const [otherKey, otherVal] of Object.entries(shortcuts)) {
       if (otherKey !== currentKey && otherVal === val) {
-        const label = otherKey.charAt(0).toUpperCase() + otherKey.slice(1);
+        const label = this.formatKey(otherKey);
         return `"${val}" is already used by ${label}`;
       }
     }
@@ -119,6 +143,24 @@ export class SidebarSetting {
       return `"${val}" is reserved for: ${RESERVED_KEYS.get(val)}`;
     }
     return null;
+  }
+
+  showShortcutError(inputEl, msg) {
+    inputEl.classList.add('conflict');
+    if (this.errorEl) this.errorEl.style.display = '';
+    if (this.errorMsg) this.errorMsg.textContent = msg;
+  };
+
+  clearShortcutError(inputEl) {
+    inputEl.classList.remove('conflict');
+    if (this.errorEl) this.errorEl.style.display = 'none';
+    if (this.errorMsg) this.errorMsg.textContent = '';
+  };
+
+  formatKey(key) {
+    return key
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/^./, c => c.toUpperCase());
   }
 
   initHistory() {

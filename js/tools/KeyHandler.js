@@ -62,16 +62,19 @@ export class KeyHandler {
     let handled = false;
 
     /* ---------- Global shortcuts ---------- */
-    if (event.ctrlKey && event.key === this.shortcuts['undo']) {
+    if (event.key === 'Shift') {
+      this.signals.multiSelectChanged.dispatch(true);
+      handled = true;
+    } else if (this.matchesShortcut(event, this.shortcuts['undo'])) {
       this.editor.undo();
       handled = true;
-    } else if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === this.shortcuts['undo']) {
+    } else if (this.matchesShortcut(event, this.shortcuts['redo'])) {
       this.editor.redo();
       handled = true;
-    } else if (event.key === 'w') {
+    } else if (this.matchesShortcut(event, this.shortcuts['select'])) {
       this.editor.toolbar.setActiveTool('select');
       handled = true;
-    } else if (event.key === this.shortcuts['translate']) {
+    } else if (this.matchesShortcut(event, this.shortcuts['translate'])) {
       const now = performance.now();
       const isDoubleTap = this.isDoubleTap(this.shortcuts['translate'], now);
       
@@ -90,121 +93,110 @@ export class KeyHandler {
       this.lastKeyTime = now;
 
       handled = true;
-    } else if (!event.ctrlKey && event.key === this.shortcuts['rotate']) {
+    } else if (this.matchesShortcut(event, this.shortcuts['rotate'])) {
       this.editor.toolbar.setActiveTool('rotate');
       this.currentMode === 'object'
         ? this.signals.objectTransformStart.dispatch('rotate')
         : this.signals.editTransformStart.dispatch('rotate');
       handled = true;
-    } else if (event.key === this.shortcuts['scale']) {
+    } else if (this.matchesShortcut(event, this.shortcuts['scale'])) {
       this.editor.toolbar.setActiveTool('scale');
       this.currentMode === 'object'
         ? this.signals.objectTransformStart.dispatch('scale')
         : this.signals.editTransformStart.dispatch('scale');
       handled = true;
-    } else if (event.key === 'Shift') {
-      this.signals.multiSelectChanged.dispatch(true);
-      handled = true;
-    } else if (event.shiftKey && event.key.toLowerCase() === 'c') {
+    } else if (this.matchesShortcut(event, this.shortcuts['focusOrigin'])) {
       this.signals.originFocused.dispatch(true);
       handled = true;
     }
 
     /* ---------- Object mode ---------- */
     if (this.currentMode === 'object') {
-      if (event.key === 'Delete') {
-        this.signals.objectDeleted.dispatch();
-        handled = true;
-      } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
-        this.signals.objectFocused.dispatch();
-        handled = true;
-      } else if (event.key === 'Tab') {
+      if (event.key === 'Tab') {
         event.preventDefault();
         if (document.activeElement && document.activeElement.blur) {
           document.activeElement.blur();
         }
         this.signals.switchMode.dispatch('edit');
         return;
-      } else if (event.shiftKey && event.key.toLowerCase() === 'd') {
-        this.signals.objectDuplicated.dispatch();
-        handled = true;
-      } else if (event.ctrlKey && event.key.toLowerCase() === 'j') {
-        event.preventDefault();
-        this.signals.objectJoined.dispatch();
-        handled = true;
-      } else if (event.ctrlKey && event.key.toLowerCase() === 'a') {
-        handled = true;
-      } else if (event.shiftKey && event.key.toLowerCase() === 'a') {
-        handled = true;
-      } else if (event.key === 'a') {
-        this.signals.objectSelectAll.dispatch();
-        handled = true;
       } else if (event.ctrlKey && event.key.toLowerCase() === 'c') {
         this.signals.objectsCopied.dispatch();
         handled = true;
       } else if (event.ctrlKey && event.key.toLowerCase() === 'v') {
         this.signals.objectsPasted.dispatch();
         handled = true;
+      } else if (event.key === 'Delete') {
+        this.signals.objectDeleted.dispatch();
+        handled = true;
+      } else if (this.matchesShortcut(event, this.shortcuts['focusSelected'])) {
+        this.signals.objectFocused.dispatch();
+        handled = true;
+      } else if (this.matchesShortcut(event, this.shortcuts['duplicate'])) {
+        this.signals.objectDuplicated.dispatch();
+        handled = true;
+      } else if (this.matchesShortcut(event, this.shortcuts['join'])) {
+        event.preventDefault();
+        this.signals.objectJoined.dispatch();
+        handled = true;
+      } else if (this.matchesShortcut(event, this.shortcuts['selectAll'])) {
+        this.signals.objectSelectAll.dispatch();
+        handled = true;
       }
     }
 
     /* ---------- Edit mode ---------- */
     if (this.currentMode === 'edit') {
-      if (event.key === 'w') {
-        this.editor.toolbar.setActiveTool('select');
-        handled = true;
-      } else if (event.key === 'f') {
-        this.signals.createElementFromVertices.dispatch();
-        handled = true;
-      } else if (event.key === 'p') {
-        this.signals.separateSelection.dispatch();
-        handled = true;
-      } else if (event.key === 'Tab') {
+      if (event.key === 'Tab') {
         event.preventDefault();
         if (document.activeElement && document.activeElement.blur) {
           document.activeElement.blur();
         }
         this.signals.switchMode.dispatch('object');
         return;
-      } else if (event.key === 'e') {
+      } else if (this.matchesShortcut(event, this.shortcuts['select'])) {
+        this.editor.toolbar.setActiveTool('select');
+        handled = true;
+      } else if (this.matchesShortcut(event, this.shortcuts['createFace'])) {
+        this.signals.createElementFromVertices.dispatch();
+        handled = true;
+      } else if (this.matchesShortcut(event, this.shortcuts['seperate'])) {
+        this.signals.separateSelection.dispatch();
+        handled = true;
+      } else if (this.matchesShortcut(event, this.shortcuts['extrude'])) {
         this.editor.toolbar.setActiveTool('extrude');
         this.signals.editExtrudeStart.dispatch();
         handled = true;
-      } else if (event.ctrlKey && event.key.toLowerCase() === 'r') {
+      } else if (this.matchesShortcut(event, this.shortcuts['loopcut'])) {
         this.editor.toolbar.setActiveTool('loopcut');
         handled = true;
-      } else if (event.key === 'k') {
+      } else if (this.matchesShortcut(event, this.shortcuts['knife'])) {
         this.editor.toolbar.setActiveTool('knife');
         handled = true;
-      } else if (event.shiftKey && event.key.toLowerCase() === 'd') {
+      } else if (this.matchesShortcut(event, this.shortcuts['duplicate'])) {
         this.editor.toolbar.setActiveTool('select');
         this.signals.duplicateSelection.dispatch();
         handled = true;
-      } else if (event.key === 'm') {
+      } else if (this.matchesShortcut(event, this.shortcuts['merge'])) {
         this.signals.mergeSelection.dispatch();
         handled = true;
-      } else if (event.key === 'y') {
+      } else if (this.matchesShortcut(event, this.shortcuts['split'])) {
         this.signals.splitSelection.dispatch();
         handled = true;
-      } else if (event.ctrlKey && event.key.toLowerCase() === 'a') {
-        handled = true;
-      } else if (event.shiftKey && event.key.toLowerCase() === 'a') {
-        handled = true;
-      } else if (event.key === 'a') {
+      } else if (this.matchesShortcut(event, this.shortcuts['selectAll'])) {
         this.signals.editSelectAll.dispatch();
         handled = true;
-      } else if (event.shiftKey && event.key.toLowerCase() === this.shortcuts['focus']) {
+      } else if (this.matchesShortcut(event, this.shortcuts['focusSelected'])) {
         this.signals.vertexFocused.dispatch();
         handled = true;
-      } else if (event.ctrlKey && event.key.toLowerCase() === 'b') {
+      } else if (this.matchesShortcut(event, this.shortcuts['bevel'])) {
         this.editor.toolbar.setActiveTool('bevel');
         this.signals.editBevelStart.dispatch();
         handled = true;
-      } else if (event.key === 'i') {
+      } else if (this.matchesShortcut(event, this.shortcuts['inset'])) {
         this.editor.toolbar.setActiveTool('inset');
         this.signals.editInsetStart.dispatch();
         handled = true;
-      } else if (event.key === 'l') {
+      } else if (this.matchesShortcut(event, this.shortcuts['selectLinked'])) {
         this.signals.mouseSelectLinked.dispatch();
         handled = true;
       }
@@ -248,5 +240,18 @@ export class KeyHandler {
 
   isDoubleTap(key, now) {
     return this.lastKey === key && (now - this.lastKeyTime) < this.doubleTapThreshold;
+  }
+
+  matchesShortcut(event, shortcutStr) {
+    if (!shortcutStr) return false;
+    const parts = shortcutStr.toLowerCase().split('+');
+    const key = parts[parts.length - 1];
+    const ctrl  = parts.includes('ctrl');
+    const shift = parts.includes('shift');
+    const alt   = parts.includes('alt');
+    return event.ctrlKey  === ctrl
+        && event.shiftKey === shift
+        && event.altKey   === alt
+        && event.key.toLowerCase() === key;
   }
 }

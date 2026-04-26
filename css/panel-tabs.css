@@ -261,13 +261,15 @@ select:focus {
 }
 
 .setting-option .key-input {
-  width: calc(1ch + 6px);
+  width: 80px;
   padding: 4px 5px;
   font-size: 12.5px;
   color: #444;
   background-color: white;
   text-align: center;
   border: none;
+  cursor: pointer;
+  transition: color 0.15s, outline 0.15s;
 }
 
 .setting-option .key-input:focus {
@@ -275,8 +277,13 @@ select:focus {
   outline: none;
 }
 
+.setting-option .key-input.capturing {
+  color: #08f;
+  outline: 1px solid #08f;
+}
+
 .shortcuts-scroll {
-  max-height: 225px;
+  max-height: 245px;
   overflow-y: auto;
   border: 1px solid #ccc;
   margin: 0px 0px 5px 0px;
