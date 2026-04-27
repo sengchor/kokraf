@@ -32,6 +32,7 @@ import { ClipboardManager } from './core/ClipboardManager.js';
 import { NameManager } from './utils/NameManager.js';
 import { ToolInputDisplay } from './ui/ToolInputDisplay.js';
 import { loadProject } from '/supabase/services/ProjectService.js';
+import { ShortcutLabel } from './core/ShortcutLabel.js';
 
 export default class Editor {
   constructor() {
@@ -116,6 +117,7 @@ export default class Editor {
 
       vertexPositionsUpdated: new Signal(),
       refreshEditHelpers: new Signal(),
+      shortcutsChanged: new Signal(),
     }
 
     this.helpers = {};
@@ -163,10 +165,6 @@ export default class Editor {
     this.viewportControls = new ViewportControls(this);
     await this.viewportControls.ready;
 
-    this.toolInputDisplay = new ToolInputDisplay(this);
-    this.toolbar = new Toolbar(this);
-    this.menubar = new Menubar(this);
-
     // Check for projectId in the URL query parameters
     const params = new URLSearchParams(window.location.search);
     const projectId = params.get('projectId');
@@ -192,7 +190,19 @@ export default class Editor {
     }
 
     this.sceneManager.sceneEditorHelpers.add(this.sceneManager.gridHelper);
+
+    this.toolInputDisplay = new ToolInputDisplay(this);
+    this.toolbar = new Toolbar(this);
+    this.menubar = new Menubar(this);
     this.sidebar = new Sidebar(this);
+
+    await Promise.all([
+      this.toolbar.ready,
+      this.menubar.ready,
+      this.sidebar.ready,
+    ]);
+    
+    this.shortcutLabel = new ShortcutLabel(this);
     
     this.setupListeners();
     this.animate();

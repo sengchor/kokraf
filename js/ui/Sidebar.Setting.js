@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { formatKey, buildCombo } from '../utils/FormatLabel.js';
 
 const RESERVED_KEYS = new Map([
   ['tab', 'Switch mode'],
@@ -66,14 +67,7 @@ export class SidebarSetting {
 
         e.preventDefault();
 
-        // Build combo string
-        const parts = [];
-        if (e.ctrlKey) parts.push('ctrl');
-        if (e.shiftKey) parts.push('shift');
-        if (e.altKey) parts.push('alt');
-        parts.push(e.key.toLowerCase());
-        const val = parts.join('+');
-
+        const val = buildCombo(e);
         input.value = val;
         pendingVal = val;
 
@@ -98,6 +92,7 @@ export class SidebarSetting {
         shortcuts[key] = pendingVal;
         pendingVal = null;
         this.config.save();
+        this.signals.shortcutsChanged.dispatch();
       });
     }
   }
@@ -111,7 +106,7 @@ export class SidebarSetting {
 
       const label = document.createElement('span');
       label.className = 'label';
-      label.textContent = this.formatKey(key);
+      label.textContent = formatKey(key);
 
       const input = document.createElement('input');
       input.className = 'key-input';
@@ -134,7 +129,7 @@ export class SidebarSetting {
     // Check against other configurable shortcuts
     for (const [otherKey, otherVal] of Object.entries(shortcuts)) {
       if (otherKey !== currentKey && otherVal === val) {
-        const label = this.formatKey(otherKey);
+        const label = formatKey(otherKey);
         return `"${val}" is already used by ${label}`;
       }
     }
@@ -156,12 +151,6 @@ export class SidebarSetting {
     if (this.errorEl) this.errorEl.style.display = 'none';
     if (this.errorMsg) this.errorMsg.textContent = '';
   };
-
-  formatKey(key) {
-    return key
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/^./, c => c.toUpperCase());
-  }
 
   initHistory() {
     this.clearButton.addEventListener('click', () => {

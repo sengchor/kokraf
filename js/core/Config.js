@@ -30,7 +30,7 @@ export default class Config {
         selectAll: 'a',
         selectLinked: 'l',
         createFace: 'f',
-        seperate: 'p',
+        separate: 'p',
         merge: 'm',
         split: 'y',
       },
