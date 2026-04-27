@@ -37,6 +37,7 @@ export class SidebarSetting {
     this.errorMsg = this.errorEl?.querySelector('.shortcut-error-msg');
 
     const inputs = this.generateShortcutsList(shortcuts, list);
+    this.initRestoreBtn(shortcuts, inputs);
 
     for (const key of Object.keys(shortcuts)) {
       const input = inputs[key];
@@ -93,8 +94,32 @@ export class SidebarSetting {
         pendingVal = null;
         this.config.save();
         this.signals.shortcutsChanged.dispatch();
+        this.syncRestoreBtn();
       });
     }
+  }
+
+  initRestoreBtn(shortcuts, inputs) {
+    const defaults = this.config.defaults.shortcuts;
+    const restoreBtn = document.getElementById('restore-shortcuts-btn');
+
+    const isModified = () => Object.keys(defaults).some(k => shortcuts[k] !== defaults[k]);
+    this.syncRestoreBtn = () => {
+      restoreBtn.style.display = isModified() ? '' : 'none';
+    };
+
+    this.syncRestoreBtn();
+
+    restoreBtn.addEventListener('click', () => {
+      Object.assign(shortcuts, defaults);
+      for (const key of Object.keys(shortcuts)) {
+        inputs[key].value = shortcuts[key];
+      }
+      this.clearShortcutError(null);
+      this.config.save();
+      this.signals.shortcutsChanged.dispatch();
+      this.syncRestoreBtn();
+    });
   }
 
   generateShortcutsList(shortcuts, list) {
@@ -141,13 +166,13 @@ export class SidebarSetting {
   }
 
   showShortcutError(inputEl, msg) {
-    inputEl.classList.add('conflict');
+    inputEl?.classList.add('conflict');
     if (this.errorEl) this.errorEl.style.display = '';
     if (this.errorMsg) this.errorMsg.textContent = msg;
   };
 
   clearShortcutError(inputEl) {
-    inputEl.classList.remove('conflict');
+    inputEl?.classList.remove('conflict');
     if (this.errorEl) this.errorEl.style.display = 'none';
     if (this.errorMsg) this.errorMsg.textContent = '';
   };

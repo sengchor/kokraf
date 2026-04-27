@@ -238,6 +238,10 @@ select:focus {
   color: #111;
 }
 
+#restore-shortcuts-btn {
+  margin-left: auto;
+}
+
 .setting-option .number {
   width: 4ch;
   padding: 2px;
