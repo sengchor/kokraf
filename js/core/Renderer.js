@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { OutlineEffect } from 'jsm/effects/OutlineEffect.js';
+import { Outline } from './Outline.js';
 
 export default class Renderer {
   constructor(editor) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.config = editor.config;
     
     this.canvas = document.getElementById('three-canvas');
@@ -11,7 +12,17 @@ export default class Renderer {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.autoClear = false;
 
-    this.outlineEffect = new OutlineEffect(this.renderer);
+    this.outline = new Outline(this.renderer);
+
+    this.setupListeners();
+  }
+
+  setupListeners() {
+    this.signals.emptyScene.add(() => this.dispose());
+
+    this.signals.viewportShadingChanged.add((shadingMode) => {
+      this.outline.enabled = shadingMode !== 'material' && shadingMode !== 'wireframe';
+    });
   }
 
   applyConfig() {
@@ -40,6 +51,7 @@ export default class Renderer {
 
   setSize(width, height) {
     this.renderer.setSize(width, height);
+    this.outline.setSize(width * window.devicePixelRatio, height * window.devicePixelRatio);
   }
 
   clearAll() {
@@ -51,7 +63,12 @@ export default class Renderer {
   }
 
   renderWithOutline(scene, camera) {
-    this.outlineEffect.render(scene, camera);
+    this.outline.render(scene, camera);
+  }
+
+  dispose() {
+    this.outline.dispose();
+    this.renderer.dispose();
   }
 
   captureThumbnail(sceneManager, camera, width = 480, height = 270) {
