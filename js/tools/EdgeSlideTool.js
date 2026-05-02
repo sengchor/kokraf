@@ -549,7 +549,7 @@ export class EdgeSlideTool {
 
     const snapTarget = this.snapManager.snapEditPosition(this.event, this.selectedVertexIds, this.editedObject);
 
-    if (snapTarget) {
+    if (snapTarget && !this.toolNumericInput.active) {
       const worldOrigin = referenceVertexData.origin.clone().applyMatrix4(this.editedObject.matrixWorld);
       const worldDir = referenceVertexData[activeSide].normalized.clone().transformDirection(this.editedObject.matrixWorld);
 

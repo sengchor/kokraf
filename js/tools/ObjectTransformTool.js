@@ -296,7 +296,7 @@ export class ObjectTransformTool {
     const affectedObjects = this.selection.getAffectedObjects();
     let snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
 
-    if (snapTarget) {
+    if (snapTarget && !this.transformNumericInput.active) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
 
       if (nearestWorldPos) {
@@ -325,7 +325,7 @@ export class ObjectTransformTool {
     const affectedObjects = this.selection.getAffectedObjects();
     let snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
 
-    if (snapTarget) {
+    if (snapTarget && !this.transformNumericInput.active) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
 
       const fromDir = nearestWorldPos.clone().sub(pivot).normalize();
@@ -389,7 +389,7 @@ export class ObjectTransformTool {
     const affectedObjects = this.selection.getAffectedObjects();
     const snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
 
-    if (snapTarget) {
+    if (snapTarget && !this.transformNumericInput.active) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
 
       const fromOffset = nearestWorldPos.clone().sub(pivot);

@@ -324,7 +324,7 @@ export class EditTransformTool {
 
     const snapTarget = this.snapManager.snapEditPosition(this.event, vertexIds, editedObject);
     
-    if (snapTarget) {
+    if (snapTarget && !this.transformNumericInput.active) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
       offset.subVectors(snapTarget, nearestWorldPos);
       offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, this.startPivotQuaternion);
@@ -347,7 +347,7 @@ export class EditTransformTool {
 
     const snapTarget = this.snapManager.snapEditPosition(this.event, vertexIds, this.editSelection.editedObject);
 
-    if (snapTarget) {
+    if (snapTarget && !this.transformNumericInput.active) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
 
       const fromDir = nearestWorldPos.clone().sub(pivot).normalize();
@@ -394,7 +394,7 @@ export class EditTransformTool {
 
     const snapTarget = this.snapManager.snapEditPosition(this.event, vertexIds, editedObject);
 
-    if (snapTarget) {
+    if (snapTarget && !this.transformNumericInput.active) {
       const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
 
       const fromOffset = nearestWorldPos.clone().sub(pivot);
