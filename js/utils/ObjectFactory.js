@@ -39,6 +39,8 @@ export class ObjectFactory {
     
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     mesh.userData.meshData = meshData;
     mesh.userData.shading = 'flat';
     mesh.position.set(0, 0, 0);
@@ -57,6 +59,7 @@ export class ObjectFactory {
       case 'Directional':
         light = new THREE.DirectionalLight(0xffffff, 10);
         light.position.set(5, 5, 5);
+        light.castShadow = true;
         break;
 
       case 'Hemisphere':
@@ -66,6 +69,7 @@ export class ObjectFactory {
       case 'Point':
         light = new THREE.PointLight(0xffffff, 10, 10);
         light.position.set(0, 0, 0);
+        light.castShadow = true;
         break;
 
       case 'Spot':
@@ -74,6 +78,7 @@ export class ObjectFactory {
         light.angle = Math.PI * 0.1;
         light.penumbra = 0;
         light.distance = 20;
+        light.castShadow = true;
         break;
 
       default: return null;

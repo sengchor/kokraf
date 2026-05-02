@@ -66,8 +66,9 @@ export default class ContextMenu {
       this.lastMouse.y = e.clientY;
     });
 
-    this.menuEl.querySelectorAll('[data-action]').forEach((item) => {
-      item.addEventListener('click', () => {
+    this.menuEl.querySelectorAll('.item').forEach((item) => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
         const action = item.getAttribute('data-action');
 
         // Find the closest menu-section parent to know the mode
@@ -82,6 +83,11 @@ export default class ContextMenu {
           this.editActions.handleAction(action);
         } else if (mode === 'apply') {
           this.objectActions.handleAction(action);
+        }
+
+        if (this.closeTimeout) {
+          clearTimeout(this.closeTimeout);
+          this.closeTimeout = null;
         }
 
         this.hide();
