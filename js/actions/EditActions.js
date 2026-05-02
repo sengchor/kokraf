@@ -105,7 +105,7 @@ export class EditActions {
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
     const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
-    if (!selectedVertexIds || selectedVertexIds.length < 2) return null;
+    if (!selectedVertexIds || selectedVertexIds.length < 1) return null;
 
     // Prevent creating a face identical to the selected face
     if (selectedFaceIds.length === 1) {
@@ -116,16 +116,44 @@ export class EditActions {
     }
     this.vertexEditor.setObject(editedObject);
     
-    const { sortedVertexIds, normal } = getSortedVertexIds(meshData, selectedVertexIds);
-    const neighbors = getNeighborFaces(meshData, selectedEdgeIds);
-    const shouldFlip = shouldFlipNormal(meshData, sortedVertexIds, normal, neighbors);
+    let result;
+    let createdFromSingleVertex = false;
+    let newVertexId = null;
 
-    if (shouldFlip) {
-      sortedVertexIds.reverse();
+    if (selectedVertexIds.length > 1) {
+      const { sortedVertexIds, normal } = getSortedVertexIds(meshData, selectedVertexIds);
+      const neighbors = getNeighborFaces(meshData, selectedEdgeIds);
+      const shouldFlip = shouldFlipNormal(meshData, sortedVertexIds, normal, neighbors);
+
+      if (shouldFlip) {
+        sortedVertexIds.reverse();
+      }
+
+      result = this.vertexEditor.topology.createEdgeFaceFromVertices(sortedVertexIds);
+      if (!result) return;
+    } else {
+      const v0 = meshData.getVertex(selectedVertexIds[0]);
+      if (!v0) return;
+
+      const resultQuad = this.vertexEditor.topology.computeQuadFromVertex(v0);
+      if (!resultQuad) return;
+
+      const { quadVertexIds, openEdgeIds } = resultQuad;
+
+      newVertexId = quadVertexIds[3];
+      createdFromSingleVertex = true;
+
+      const { sortedVertexIds, normal } = getSortedVertexIds(meshData, quadVertexIds);
+      const neighbors = getNeighborFaces(meshData, openEdgeIds);
+      const shouldFlip = shouldFlipNormal(meshData, sortedVertexIds, normal, neighbors);
+
+      if (shouldFlip) {
+        sortedVertexIds.reverse();
+      }
+
+      result = this.vertexEditor.topology.createEdgeFaceFromVertices(sortedVertexIds);
+      if (!result) return;
     }
-
-    const result = this.vertexEditor.topology.createEdgeFaceFromVertices(sortedVertexIds);
-    if (!result) return;
 
     const { edgeId, faceId } = result;
     
@@ -152,7 +180,11 @@ export class EditActions {
     this.editor.execute(new CreateFaceCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
 
     if (mode === 'vertex') {
-      this.editSelection.selectVertices(newVertices);
+      if (createdFromSingleVertex && newVertexId !== null) {
+        this.editSelection.selectVertices([newVertexId]);
+      } else {
+        this.editSelection.selectVertices(newVertices);
+      }
     } else if (mode === 'edge') {
       this.editSelection.selectEdges(newEdges);
     }
