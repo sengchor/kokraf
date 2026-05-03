@@ -26,8 +26,8 @@ export default class EditHelpers {
       this.clearEditHelpers();
     });
 
-    this.signals.vertexPositionsUpdated.add((verts, edges, faces, meshData) => {
-      this.updateHelpersAfterMeshEdit(verts, edges, faces, meshData);
+    this.signals.vertexPositionsUpdated.add((verts, edges, faces, meshData, matrixWorld) => {
+      this.updateHelpersAfterMeshEdit(verts, edges, faces, meshData, matrixWorld);
     });
 
     this.signals.refreshEditHelpers.add((editedObject, mode, allSelectedIds, useEarcut) => {
@@ -72,8 +72,8 @@ export default class EditHelpers {
     vertexPoints.userData.vertexIdToBufferIndex = vertexIdToBufferIndex;
     vertexPoints.name = '__VertexPoints';
     this.sceneManager.sceneHelpers.add(vertexPoints);
+    vertexPoints.matrixAutoUpdate = false;
     vertexPoints.matrix.copy(selectedObject.matrixWorld);
-    vertexPoints.matrix.decompose(vertexPoints.position, vertexPoints.quaternion, vertexPoints.scale);
   }
 
   removeVertexPoints() {
@@ -89,14 +89,18 @@ export default class EditHelpers {
     if (!selectedObject.isMesh || !selectedObject.userData.meshData) return;
 
     const meshData = selectedObject.userData.meshData;
+    const matrixWorld = selectedObject.matrixWorld;
 
     for (let edge of meshData.edges.values()) {
       const v1 = meshData.getVertex(edge.v1Id);
       const v2 = meshData.getVertex(edge.v2Id);
 
+      const w1 = new THREE.Vector3().copy(v1.position).applyMatrix4(matrixWorld);
+      const w2 = new THREE.Vector3().copy(v2.position).applyMatrix4(matrixWorld);
+
       const positions = [
-        v1.position.x, v1.position.y, v1.position.z,
-        v2.position.x, v2.position.y, v2.position.z
+        w1.x, w1.y, w1.z,
+        w2.x, w2.y, w2.z
       ];
 
       // Visible Line
@@ -136,11 +140,6 @@ export default class EditHelpers {
       thinLine.name = '__EdgeLines';
       thinLine.userData.visualLine = fatLine;
       this.sceneManager.sceneHelpers.add(thinLine);
-
-      [fatLine, thinLine].forEach(line => {
-        line.matrix.copy(selectedObject.matrixWorld);
-        line.matrix.decompose(line.position, line.quaternion, line.scale);
-      });
     }
   }
 
@@ -266,8 +265,8 @@ export default class EditHelpers {
 
     this.sceneManager.sceneHelpers.add(faceMesh);
 
+    faceMesh.matrixAutoUpdate = false;
     faceMesh.matrix.copy(selectedObject.matrixWorld);
-    faceMesh.matrix.decompose(faceMesh.position, faceMesh.quaternion, faceMesh.scale);
   }
 
   removeFacePolygons() {
@@ -307,7 +306,7 @@ export default class EditHelpers {
     this.applyFaceHighlight(allSelectedIds.selectedFaceIds);
   }
 
-  updateHelpersAfterMeshEdit(affectedVertices, affectedEdges, affectedFaces, meshData) {
+  updateHelpersAfterMeshEdit(affectedVertices, affectedEdges, affectedFaces, meshData, matrixWorld) {
     // Update affected vertices
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
     if (vertexPoints) {
@@ -340,9 +339,12 @@ export default class EditHelpers {
       const v1 = meshData.getVertex(edge.v1Id);
       const v2 = meshData.getVertex(edge.v2Id);
 
+      const w1 = new THREE.Vector3().copy(v1.position).applyMatrix4(matrixWorld);
+      const w2 = new THREE.Vector3().copy(v2.position).applyMatrix4(matrixWorld);
+
       const positions = [
-        v1.position.x, v1.position.y, v1.position.z,
-        v2.position.x, v2.position.y, v2.position.z
+        w1.x, w1.y, w1.z,
+        w2.x, w2.y, w2.z
       ];
 
       const posAttr = thinLine.geometry.getAttribute("position");

@@ -74,7 +74,7 @@ export class VertexTransform {
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
-    this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData);
+    this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData, this.object.matrixWorld.clone());
   }
 
   getVertexPosition(vertexId) {
