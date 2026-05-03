@@ -207,12 +207,12 @@ export class ObjectTransformTool {
     if (!objects?.length || !this.handle) return;
 
     this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion());
-    this.startPivotScale = this.handle.getWorldScale(new THREE.Vector3());
+    this.startPivotQuaternion = this.getPureWorldQuaternion(this.handle);
+    this.startPivotScale = this.handle.scale.clone();
 
     this.startPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
-    this.startQuaternions = objects.map(obj => obj.getWorldQuaternion(new THREE.Quaternion()));
-    this.startScales = objects.map(obj => obj.getWorldScale(new THREE.Vector3()));
+    this.startQuaternions = objects.map(obj => this.getPureWorldQuaternion(obj));
+    this.startScales = objects.map(obj => obj.scale.clone());
 
     this.transformSolver.beginSession(this.startPivotPosition, this.startPivotQuaternion, this.startPivotScale);
 
@@ -319,7 +319,7 @@ export class ObjectTransformTool {
     if (!this.startPivotQuaternion || !this.startQuaternions) return;
 
     const pivot = this.startPivotPosition.clone();
-    const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
+    const currentPivotQuat = this.getPureWorldQuaternion(handle);
     let deltaQuat = currentPivotQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
 
     const affectedObjects = this.selection.getAffectedObjects();
@@ -376,6 +376,9 @@ export class ObjectTransformTool {
         objects[i].updateMatrixWorld(true);
       }
     }
+
+    handle.scale.set(1, 1, 1);
+    handle.updateMatrixWorld(true);
   }
 
   applyScale(objects, handle) {
@@ -383,7 +386,7 @@ export class ObjectTransformTool {
 
     const object = objects[objects.length - 1];
     const pivot = this.startPivotPosition.clone();
-    const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
+    const currentPivotScale = handle.scale.clone();
     let scaleFactor = currentPivotScale.divide(this.startPivotScale);
 
     const affectedObjects = this.selection.getAffectedObjects();
@@ -413,6 +416,8 @@ export class ObjectTransformTool {
       }
     }
 
+    this.currentScaleFactor = scaleFactor.clone();
+
     const pivotQuat = this.startPivotQuaternion;
     const invPivotQuat = pivotQuat.clone().invert();
     for (let i = 0; i < objects.length; i++) {
@@ -439,6 +444,9 @@ export class ObjectTransformTool {
 
       object.updateMatrixWorld(true);
     }
+
+    handle.scale.set(1, 1, 1);
+    handle.updateMatrixWorld(true);
   }
 
   // Commit Transforms
@@ -452,7 +460,7 @@ export class ObjectTransformTool {
   }
 
   commitRotation(objects, handle) {
-    const newQuaternions = objects.map(obj => obj.getWorldQuaternion(new THREE.Quaternion()));
+    const newQuaternions = objects.map(obj => this.getPureWorldQuaternion(obj));
     const startQuaternions = this.startQuaternions.map(q => q.clone());
 
     const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
@@ -473,11 +481,15 @@ export class ObjectTransformTool {
   }
 
   commitScale(objects, handle) {
-    const newScales = objects.map(obj => obj.getWorldScale(new THREE.Vector3()));
+    const newScales = objects.map(obj => obj.scale.clone());
     const startScales = this.startScales.map(s => s.clone());
 
-    const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
-    if (currentPivotScale.equals(this.startPivotScale)) return;
+    const hasScaleChanged = newScales.some((newScale, i) => {
+      return !newScale.equals(startScales[i]);
+    });
+    if (!hasScaleChanged) return;
+
+    this.currentScaleFactor = new THREE.Vector3(1,1,1);
 
     if (objects.length === 1) {
       this.editor.execute(new SetScaleCommand(this.editor, objects, newScales, startScales));
@@ -499,10 +511,15 @@ export class ObjectTransformTool {
       const localY = new THREE.Vector3(0, 1, 0).applyQuaternion(object.quaternion);
       const localZ = new THREE.Vector3(0, 0, 1).applyQuaternion(object.quaternion);
 
+      // Apply the scale factor to the local axes
+      const scaledX = localX.clone().multiply(scaleFactor);
+      const scaledY = localY.clone().multiply(scaleFactor);
+      const scaledZ = localZ.clone().multiply(scaleFactor);
+
       return new THREE.Vector3(
-        localX.clone().multiply(scaleFactor).length(),
-        localY.clone().multiply(scaleFactor).length(),
-        localZ.clone().multiply(scaleFactor).length()
+        scaledX.length() * (Math.sign(scaledX.dot(localX)) || 1),
+        scaledY.length() * (Math.sign(scaledY.dot(localY)) || 1),
+        scaledZ.length() * (Math.sign(scaledZ.dot(localZ)) || 1)
       );
     }
 
@@ -635,5 +652,18 @@ export class ObjectTransformTool {
 
     this.transformControls.update();
     this.applyTransformSession();
+  }
+
+  getPureWorldQuaternion(object) {
+    const q = new THREE.Quaternion();
+    const tempQ = new THREE.Quaternion();
+    
+    let current = object;
+    while (current) {
+      tempQ.copy(current.quaternion).multiply(q);
+      q.copy(tempQ);
+      current = current.parent;
+    }
+    return q;
   }
 }

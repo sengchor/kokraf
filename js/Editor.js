@@ -252,6 +252,11 @@ export default class Editor {
     this.currentProjectName = json.projectName;
 
     const scene = await loader.parseAsync(json.scene);
+
+    if (json.transforms) {
+      this.sceneManager.applyTransforms(scene, json.transforms);
+    }
+
     this.sceneManager.setScene(scene);
 
     const camera = await loader.parseAsync(json.camera);
@@ -268,6 +273,10 @@ export default class Editor {
   }
 
   toJSON() {
+    const transforms = this.sceneManager.extractTransforms(
+      this.sceneManager.mainScene
+    );
+
     const json = {
       metadata: {
         version: 1.0,
@@ -275,6 +284,7 @@ export default class Editor {
       },
       projectId: this.currentProjectId,
       projectName: this.currentProjectName,
+      transforms,
       scene: this.sceneManager.mainScene.toJSON(),
       camera: this.cameraManager.viewportCamera.toJSON(),
       viewportControls: this.viewportControls.toJSON(),

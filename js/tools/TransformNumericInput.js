@@ -350,17 +350,15 @@ export class TransformNumericInput {
   }
 
   getScaleData() {
-    if (!this.tool.startPivotScale || !this.tool.handle) return null;
+    if (!this.tool.currentScaleFactor) return null;
 
-    const currentScale = this.tool.handle.getWorldScale(new THREE.Vector3());
-    const scaleDelta = currentScale.clone().divide(this.tool.startPivotScale);
-
+    const scaleFactor = this.tool.currentScaleFactor;
     const space = this.tool.viewportControls.transformOrientation;
     const axis = this.tool.transformControls.axis;
 
-    const uniform = Math.cbrt(scaleDelta.x * scaleDelta.y * scaleDelta.z);
+    const uniform = Math.cbrt(scaleFactor.x * scaleFactor.y * scaleFactor.z);
 
-    return { scaleDelta, uniform, space, axis };
+    return { scaleDelta: scaleFactor, uniform, space, axis };
   }
 
   getNormalTranslationData(deltaWorld) {

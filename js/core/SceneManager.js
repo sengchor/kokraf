@@ -383,4 +383,32 @@ export default class SceneManager {
       obj.parent?.remove(obj);
     }
   }
+
+  extractTransforms(scene) {
+    const transforms = {};
+
+    scene.traverse(obj => {
+      transforms[obj.uuid] = {
+        p: obj.position.toArray(),
+        q: obj.quaternion.toArray(),
+        s: obj.scale.toArray(),
+      };
+    });
+
+    return transforms;
+  }
+
+  applyTransforms(scene, transforms) {
+    scene.traverse(obj => {
+      const t = transforms[obj.uuid];
+      if (!t) return;
+
+      obj.position.fromArray(t.p);
+      obj.quaternion.fromArray(t.q);
+      obj.scale.fromArray(t.s);
+
+      obj.matrixAutoUpdate = true;
+      obj.updateMatrix();
+    });
+  }
 }

@@ -208,7 +208,21 @@ export class TransformCommandSolver {
       this.startScaleVector = rawVector.clone();
     }
 
-    const scaleFactor = rawVector.length() / this.startScaleVector.length();
+    const axis = this.commandAxisConstraint
+      ? this.getAxisVector(this.commandAxisConstraint).clone()
+      : rawVector.clone().normalize();
+
+    if (this.transformControls.space === 'local') {
+      axis.applyQuaternion(this.startPivotQuaternion);
+    }
+    axis.normalize();
+
+    const startProj = this.startScaleVector.dot(axis);
+    const currentProj = rawVector.dot(axis);
+
+    if (Math.abs(startProj) < 1e-6) return;
+
+    const scaleFactor = currentProj / startProj;
 
     let scaleVector;
     if (this.commandAxisConstraint) {
