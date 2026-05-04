@@ -210,7 +210,7 @@ export class TransformCommandSolver {
 
     const axis = this.commandAxisConstraint
       ? this.getAxisVector(this.commandAxisConstraint).clone()
-      : rawVector.clone().normalize();
+      : this.startScaleVector.clone().normalize();
 
     if (this.transformControls.space === 'local') {
       axis.applyQuaternion(this.startPivotQuaternion);

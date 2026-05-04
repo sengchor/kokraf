@@ -217,7 +217,7 @@ export class EditTransformTool {
 
     this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
     this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion());
-    this.startPivotScale = this.handle.getWorldScale(new THREE.Vector3());
+    this.startPivotScale = this.handle.scale.clone();
 
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     if (!selectedVertexIds.length) return;
@@ -389,7 +389,7 @@ export class EditTransformTool {
 
     const editedObject = this.editSelection.editedObject;
     const pivot = this.startPivotPosition.clone();
-    const currentPivotScale = handle.getWorldScale(new THREE.Vector3());
+    const currentPivotScale = handle.scale.clone();
     let scaleFactor = currentPivotScale.divide(this.startPivotScale);
 
     const snapTarget = this.snapManager.snapEditPosition(this.event, vertexIds, editedObject);
@@ -417,6 +417,7 @@ export class EditTransformTool {
     }
 
     this.currentScaleDelta = scaleFactor.clone();
+    this.currentScaleFactor = scaleFactor.clone();
     const pivotQuat = this.startPivotQuaternion;
     const invPivotQuat = pivotQuat.clone().invert();
     const newPositions = this.oldPositions.map(pos => {
@@ -434,6 +435,9 @@ export class EditTransformTool {
     });
 
     this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, newPositions);
+
+    handle.scale.set(1, 1, 1);
+    handle.updateMatrixWorld(true);
   }
 
   // Commit Transforms
@@ -475,6 +479,8 @@ export class EditTransformTool {
     const invPivotQuat = pivotQuat.clone().invert();
 
     if (scaleFactor.equals(new THREE.Vector3(1, 1, 1))) return;
+
+    this.currentScaleFactor = new THREE.Vector3(1, 1, 1);
 
     const newPositions = this.oldPositions.map(pos => {
       let offset = pos.clone().sub(pivot);
