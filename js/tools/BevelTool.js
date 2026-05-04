@@ -314,8 +314,10 @@ export class BevelTool {
     this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
     this.vertexEditor.transform.updateGeometryAndHelpers();
 
-    this.handle.position.copy(this.startPivotPosition);
-    this.handle.updateMatrixWorld(true);
+    if (this.startPivotPosition) {
+      this.handle.position.copy(this.startPivotPosition);
+      this.handle.updateMatrixWorld(true);
+    }
 
     this.editSelection.selectEdges(this.selectedEdgeIds);
   }

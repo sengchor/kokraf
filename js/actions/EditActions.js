@@ -7,6 +7,7 @@ import { SeparateSelectionCommand } from '../commands/SeparateSelectionCommand.j
 import { MergeSelectionCommand } from '../commands/MergeSelectionCommand.js';
 import { SplitSelectionCommand } from '../commands/SplitSelectionCommand.js';
 import { FlipNormalsCommand } from '../commands/FlipNormalsCommand.js';
+import { SubdivideSelectionCommand } from '../commands/SubdivideSelectionCommand.js';
 
 export class EditActions {
   constructor(editor) {
@@ -357,11 +358,17 @@ export class EditActions {
 
     const selectedEdgeIds = this.editSelection.selectedEdgeIds;
 
+    const meshData = editedObject.userData.meshData;
+    const beforeMeshData = structuredClone(meshData);
+
     this.vertexEditor.setObject(editedObject);
     const result = this.vertexEditor.subdivide.subdivideEdges(selectedEdgeIds);
     const { newVertexIds, newFaceIds } = result;
 
     this.vertexEditor.transform.updateGeometryAndHelpers();
+
+    const afterMeshData = structuredClone(meshData);
+    this.editor.execute(new SubdivideSelectionCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
 
     this.editSelection.selectVertices(newVertexIds);
   }
