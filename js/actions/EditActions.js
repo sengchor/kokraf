@@ -20,6 +20,11 @@ export class EditActions {
   }
 
   handleAction(action) {
+    if (action === 'subdivide-selection') {
+      this.signals.subdivideSelection.dispatch();
+      return;
+    }
+
     if (action === 'duplicate-selection') {
       this.editor.toolbar.setActiveTool('select');
       this.signals.duplicateSelection.dispatch();
@@ -91,6 +96,7 @@ export class EditActions {
     this.signals.mergeSelection.add(() => this.mergeSelection());
     this.signals.splitSelection.add(() => this.splitSelection());
     this.signals.editFlipNormals.add(() => this.flipSelectedFacesNormal());
+    this.signals.subdivideSelection.add(() => this.subdivideSelection());
   }
 
   createElementFromVertices() {
@@ -344,5 +350,19 @@ export class EditActions {
 
     const afterMeshData = structuredClone(meshData);
     this.editor.execute(new FlipNormalsCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
+  }
+
+  subdivideSelection() {
+    const editedObject = this.editSelection.editedObject;
+
+    const selectedEdgeIds = this.editSelection.selectedEdgeIds;
+
+    this.vertexEditor.setObject(editedObject);
+    const result = this.vertexEditor.subdivide.subdivideEdges(selectedEdgeIds);
+    const { newVertexIds, newFaceIds } = result;
+
+    this.vertexEditor.transform.updateGeometryAndHelpers();
+
+    this.editSelection.selectVertices(newVertexIds);
   }
 }

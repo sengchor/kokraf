@@ -375,4 +375,129 @@ export class VertexSubdivide {
 
     return point;
   }
+
+  subdivideEdges(selectedEdgeIds) {
+    const newVertices = [];
+    const newFaces = [];
+    const edgeMidMap = new Map();
+
+    // Pass 1: create all midpoints up front before any topology changes
+    for (const edgeId of selectedEdgeIds) {
+      const edge = this.meshData.edges.get(edgeId);
+      if (!edge) continue;
+      const v1 = this.meshData.getVertex(edge.v1Id);
+      const v2 = this.meshData.getVertex(edge.v2Id);
+      if (!v1 || !v2) continue;
+
+      newVertices.push(v1);
+      newVertices.push(v2);
+
+      const mid = this.meshData.addVertex(
+        new THREE.Vector3().addVectors(v1.position, v2.position).multiplyScalar(0.5)
+      );
+      newVertices.push(mid);
+      edgeMidMap.set(edgeId, mid);
+    }
+
+    // Collect affected faces
+    const affectedFaceIds = new Set();
+    for (const edgeId of selectedEdgeIds) {
+      const edge = this.meshData.edges.get(edgeId);
+      if (!edge) continue;
+      for (const faceId of edge.faceIds) {
+        affectedFaceIds.add(faceId);
+      }
+    }
+
+    // Pass 2: rebuild faces — snapshot before mutation
+    const facesToProcess = [...affectedFaceIds]
+      .map(id => this.meshData.faces.get(id))
+      .filter(Boolean);
+
+    for (const face of facesToProcess) {
+      const verts = face.vertexIds.map(id => this.meshData.getVertex(id));
+      const n = verts.length;
+      const allEdgesSubdivided =
+        face.edgeIds.size > 0 &&
+        [...face.edgeIds].every(eid => edgeMidMap.has(eid));
+
+      if (n === 3 && allEdgesSubdivided) {
+        const [v0, v1, v2] = verts;
+        const m01 = edgeMidMap.get(this.meshData.getEdge(v0.id, v1.id).id);
+        const m12 = edgeMidMap.get(this.meshData.getEdge(v1.id, v2.id).id);
+        const m20 = edgeMidMap.get(this.meshData.getEdge(v2.id, v0.id).id);
+
+        this.meshData.deleteFace(face);
+
+        newFaces.push(this.meshData.addFace([v0, m01, m20]));
+        newFaces.push(this.meshData.addFace([m01, v1, m12]));
+        newFaces.push(this.meshData.addFace([m12, v2, m20]));
+        newFaces.push(this.meshData.addFace([m20, m01, m12]));
+
+      } else if (n === 4 && allEdgesSubdivided) {
+        const [v0, v1, v2, v3] = verts;
+        const m01 = edgeMidMap.get(this.meshData.getEdge(v0.id, v1.id).id);
+        const m12 = edgeMidMap.get(this.meshData.getEdge(v1.id, v2.id).id);
+        const m23 = edgeMidMap.get(this.meshData.getEdge(v2.id, v3.id).id);
+        const m30 = edgeMidMap.get(this.meshData.getEdge(v3.id, v0.id).id);
+
+        const center = this.meshData.addVertex(
+          new THREE.Vector3()
+            .add(v0.position).add(v1.position)
+            .add(v2.position).add(v3.position)
+            .multiplyScalar(0.25)
+        );
+        newVertices.push(center);
+
+        this.meshData.deleteFace(face);
+
+        newFaces.push(this.meshData.addFace([v0, m01, center, m30]));
+        newFaces.push(this.meshData.addFace([m01, v1, m12, center]));
+        newFaces.push(this.meshData.addFace([center, m12, v2, m23]));
+        newFaces.push(this.meshData.addFace([m30, center, m23, v3]));
+
+      } else {
+        // n-gon or partial edge selection: insert midpoints along winding, keep as single face
+        const newVertexIds = [];
+        let inserted = false;
+
+        for (let i = 0; i < n; i++) {
+          const curr = verts[i];
+          const next = verts[(i + 1) % n];
+          newVertexIds.push(curr.id);
+          const edge = this.meshData.getEdge(curr.id, next.id);
+          if (edge && edgeMidMap.has(edge.id)) {
+            newVertexIds.push(edgeMidMap.get(edge.id).id);
+            inserted = true;
+          }
+        }
+
+        if (inserted) {
+          this.meshData.deleteFace(face);
+          newFaces.push(
+            this.meshData.addFace(newVertexIds.map(id => this.meshData.getVertex(id)))
+          );
+        }
+      }
+    }
+
+    // Pass 3: replace old edges with the two sub-edges
+    for (const edgeId of selectedEdgeIds) {
+      const edge = this.meshData.edges.get(edgeId);
+      if (!edge) continue;
+      const mid = edgeMidMap.get(edgeId);
+      const v1 = this.meshData.getVertex(edge.v1Id);
+      const v2 = this.meshData.getVertex(edge.v2Id);
+
+      this.meshData.deleteEdge(edge);
+
+      if (v1 && mid) this.meshData.addEdge(v1, mid);
+      if (v2 && mid) this.meshData.addEdge(mid, v2);
+    }
+
+    const newVertexIds = newVertices.map(vertex => vertex.id);
+    const newFaceIds = newFaces.map(face => face.id);
+
+    return { newVertexIds, newFaceIds };
+  }
 }
