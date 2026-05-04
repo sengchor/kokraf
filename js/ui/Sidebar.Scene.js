@@ -17,6 +17,38 @@ export class SidebarScene {
   }
 
   init() {
+    let outlinerHovered = false;
+
+    this.outlinerList.addEventListener('mouseenter', () => { outlinerHovered = true; });
+    this.outlinerList.addEventListener('mouseleave', () => { outlinerHovered = false; });
+
+    document.addEventListener('keydown', (event) => {
+      if (!outlinerHovered) return;
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+
+      event.preventDefault();
+
+      const items = [...this.outlinerList.querySelectorAll('.outliner-item')];
+      if (items.length === 0) return;
+
+      const currentIndex = items.findIndex(i => i.classList.contains('selected'));
+      let nextIndex;
+
+      if (currentIndex === -1) {
+        nextIndex = event.key === 'ArrowDown' ? 0 : items.length - 1;
+      } else {
+        nextIndex = event.key === 'ArrowDown'
+          ? Math.min(currentIndex + 1, items.length - 1)
+          : Math.max(currentIndex - 1, 0);
+      }
+
+      if (nextIndex === currentIndex) return;
+
+      items.forEach(i => i.classList.remove('selected'));
+      this.selectObjectFromOutlinerItem(items[nextIndex]);
+      items[nextIndex].scrollIntoView({ block: 'nearest' });
+    });
+
     this.outlinerList.addEventListener('click', (event) => {
       const item = event.target.closest('.outliner-item');
       if (!item) {
@@ -37,10 +69,15 @@ export class SidebarScene {
   }
 
   setupListeners() {
-    this.signals.objectAdded.add(() => this.rebuild());
-    this.signals.objectRemoved.add(() => this.rebuild());
-    this.signals.objectChanged.add(() => this.rebuild());
-    this.signals.sceneGraphChanged.add(() => this.rebuild());
+    const rebuildAndSync = () => {
+      this.rebuild();
+      this.highlightOutlinerItem(this.selection.selectedObjects);
+    };
+
+    this.signals.objectAdded.add(rebuildAndSync);
+    this.signals.objectRemoved.add(rebuildAndSync);
+    this.signals.objectChanged.add(rebuildAndSync);
+    this.signals.sceneGraphChanged.add(rebuildAndSync);
     this.signals.objectSelected.add(selectedObjects => this.highlightOutlinerItem(selectedObjects));
   }
 
