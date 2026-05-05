@@ -44,7 +44,7 @@
 }
 
 .toolbar-button::after {
-  content: attr(data-tooltip) " (" attr(data-shortcut) ")";
+  content: attr(data-tooltip);
   position: absolute;
   top: 50%;
   left: 100%;
@@ -60,6 +60,10 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease-out;
+}
+
+.toolbar-button[data-shortcut]::after {
+  content: attr(data-tooltip) " (" attr(data-shortcut) ")";
 }
 
 .toolbar-button:hover::after {
@@ -79,11 +83,15 @@
   height: 20px;
 }
 
-.mesh-tools {
+.default-tools,
+.mesh-tools,
+.operation-tools {
   display: flex;
   flex-direction: column;
 }
 
-.mesh-tools.hidden {
+.default-tools.hidden,
+.mesh-tools.hidden,
+.operation-tools.hidden {
   display: none;
 }

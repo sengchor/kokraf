@@ -6,7 +6,8 @@ import { KnifeTool } from '../tools/KnifeTool.js';
 import { DuplicateTool } from '../tools/DuplicateTool.js';
 import { BevelTool } from '../tools/BevelTool.js';
 import { InsetTool } from '../tools/InsetTool.js';
-import { EdgeSlideTool } from './EdgeSlideTool.js';
+import { EdgeSlideTool } from '../tools/EdgeSlideTool.js';
+import { UnionTool } from '../tools/UnionTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
@@ -40,6 +41,7 @@ export default class Toolbar {
     this.bevelTool = new BevelTool(this.editor);
     this.insetTool = new InsetTool(this.editor);
     this.edgeSlideTool = new EdgeSlideTool(this.editor);
+    this.unionTool = new UnionTool(this.editor);
 
     this.ready = this.load();
   }
@@ -52,6 +54,11 @@ export default class Toolbar {
 
     this.currentMode = this.viewportControls.currentMode;
     this.updateTools();
+
+    if (this.operationToolContainer) {
+      this.operationToolContainer.classList.toggle('hidden', this.currentMode === 'edit');
+    }
+    
     if (this.meshToolContainer) {
       this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object');
     }
@@ -61,6 +68,10 @@ export default class Toolbar {
     this.signals.modeChanged.add((newMode) => {
       this.currentMode = newMode;
       this.updateTools();
+
+      if (this.operationToolContainer) {
+        this.operationToolContainer.classList.toggle('hidden', newMode === 'edit');
+      }
 
       if (this.meshToolContainer) {
         this.meshToolContainer.classList.toggle('hidden', newMode === 'object');
@@ -99,6 +110,7 @@ export default class Toolbar {
   }
 
   setupToolbarButtons() {
+    this.operationToolContainer = document.querySelector('.operation-tools');
     this.meshToolContainer = document.querySelector('.mesh-tools');
 
     this.buttons.forEach(button => {
@@ -181,6 +193,7 @@ export default class Toolbar {
     this.bevelTool.disable();
     this.insetTool.disable();
     this.edgeSlideTool.disable();
+    this.unionTool.disable();
   }
 
   updateActiveTools(activeTool, attachObject) {
@@ -212,7 +225,8 @@ export default class Toolbar {
       case 'knife' : this.knifeTool.enable(); break;
       case 'bevel' : this.bevelTool.enableFor(attachObject); break;
       case 'inset' : this.insetTool.enableFor(attachObject); break;
-      case 'edge-slide' : this.edgeSlideTool.enableFor(attachObject); break;
+      case 'edge-slide' : this.edgeSlideTool.enableFor(attachObject); break;      
+      case 'union' : this.unionTool.enableFor(attachObject); break;
     }
   }
 }

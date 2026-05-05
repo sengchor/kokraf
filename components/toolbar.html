@@ -1,16 +1,32 @@
 <div class="toolbar">
-  <button class="toolbar-button active" data-tool="select" data-tooltip="Select" data-shortcut-key="select">
-    <img src="assets/icons/select.svg" alt="Select" />
-  </button>
-  <button class="toolbar-button" data-tool="move" data-tooltip="Move" data-shortcut-key="translate">
-    <img src="assets/icons/translate.svg" alt="Move" />
-  </button>
-  <button class="toolbar-button" data-tool="rotate" data-tooltip="Rotate" data-shortcut-key="rotate">
-    <img src="assets/icons/rotate.svg" alt="Rotate" />
-  </button>
-  <button class="toolbar-button" data-tool="scale" data-tooltip="Scale" data-shortcut-key="scale">
-    <img src="assets/icons/scale.svg" alt="Scale" />
-  </button>
+  <div class="default-tools">
+    <button class="toolbar-button active" data-tool="select" data-tooltip="Select" data-shortcut-key="select">
+      <img src="assets/icons/select.svg" alt="Select" />
+    </button>
+    <button class="toolbar-button" data-tool="move" data-tooltip="Move" data-shortcut-key="translate">
+      <img src="assets/icons/translate.svg" alt="Move" />
+    </button>
+    <button class="toolbar-button" data-tool="rotate" data-tooltip="Rotate" data-shortcut-key="rotate">
+      <img src="assets/icons/rotate.svg" alt="Rotate" />
+    </button>
+    <button class="toolbar-button" data-tool="scale" data-tooltip="Scale" data-shortcut-key="scale">
+      <img src="assets/icons/scale.svg" alt="Scale" />
+    </button>
+  </div>
+
+  <div class="toolbar-spacer"></div>
+
+  <div class="operation-tools">
+    <button class="toolbar-button" data-tool="union" data-tooltip="Union">
+      <img src="assets/icons/union.svg" alt="Union" />
+    </button>
+    <button class="toolbar-button" data-tool="difference" data-tooltip="Difference">
+      <img src="assets/icons/difference.svg" alt="Difference" />
+    </button>
+    <button class="toolbar-button" data-tool="intersect" data-tooltip="Intersect">
+      <img src="assets/icons/intersect.svg" alt="Intersect" />
+    </button>
+  </div>
 
   <div class="toolbar-spacer"></div>
 
