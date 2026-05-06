@@ -146,6 +146,11 @@ export default class Toolbar {
   }
 
   restorePreviousTool() {
+    if (this.activeToolObjectMode === 'union'){
+      this.activeToolObjectMode = 'select';
+      this.previousToolObjectMode = 'select';
+    }
+    
     if (this.currentMode === 'object') {
       if (this.previousToolObjectMode) {
         this.activeToolObjectMode = this.previousToolObjectMode;
@@ -226,7 +231,7 @@ export default class Toolbar {
       case 'bevel' : this.bevelTool.enableFor(attachObject); break;
       case 'inset' : this.insetTool.enableFor(attachObject); break;
       case 'edge-slide' : this.edgeSlideTool.enableFor(attachObject); break;      
-      case 'union' : this.unionTool.enableFor(attachObject); break;
+      case 'union' : this.unionTool.enable(); break;
     }
   }
 }
