@@ -36,6 +36,7 @@ import { ApplyScaleCommand } from './ApplyScaleCommand.js';
 import { EdgeSlideCommand } from './EdgeSlideCommand.js';
 import { FlipNormalsCommand } from './FlipNormalsCommand.js';
 import { SubdivideSelectionCommand } from './SubdivideSelectionCommand.js';
+import { UnionCommand } from './UnionCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -76,4 +77,5 @@ export const commands = new Map([
   [EdgeSlideCommand.type, EdgeSlideCommand],
   [FlipNormalsCommand.type, FlipNormalsCommand],
   [SubdivideSelectionCommand.type, SubdivideSelectionCommand],
+  [UnionCommand.type, UnionCommand],
 ]);

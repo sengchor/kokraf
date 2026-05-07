@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { getManifoldWasm, toManifold, fromManifoldResult } from '../geometry/MeshDataManifold.js';
+import { RemoveObjectCommand } from '../commands/RemoveObjectCommand.js';
+import { UnionCommand } from '../commands/UnionCommand.js';
+import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 
 export class UnionTool {
   constructor(editor) {
@@ -6,6 +10,7 @@ export class UnionTool {
     this.signals = editor.signals;
     this.renderer = editor.renderer;
     this.selection = editor.selection;
+    this.vertexEditor = editor.vertexEditor;
 
     this._state = 'idle';
     this._firstObject = null;
@@ -84,10 +89,11 @@ export class UnionTool {
       this._state = 'idle';
       this._firstObject = null;
       this._secondObject = null;
+      return;
     }
 
     if (event.key === 'Enter' && this._state === 'confirm') {
-      console.log('Confirm');
+      this.executeUnion();
     }
   }
 
@@ -120,5 +126,46 @@ export class UnionTool {
     requestAnimationFrame(() => {
       this.signals.onToolEnded.dispatch();
     });
+  }
+
+  async executeUnion() {
+    const primary = this._firstObject;
+    const secondary = this._secondObject;
+
+    if (!primary?.userData?.meshData || !secondary?.userData?.meshData) return;
+
+    const meshData = primary.userData.meshData;
+    const beforeMeshData = structuredClone(meshData);
+
+    const idOffsetB = primary.userData.meshData.nextFaceId + 1;
+
+    await getManifoldWasm();
+
+    const [{ manifold: manifoldA, faceIdMap: faceIdMapA },
+           { manifold: manifoldB, faceIdMap: faceIdMapB }] = await Promise.all([
+      toManifold(primary, 0),
+      toManifold(secondary, idOffsetB),
+    ]);
+
+    let resultMesh;
+    try {
+      const result = manifoldA.add(manifoldB);
+      resultMesh = result.getMesh();
+    } catch (err) {
+      console.error('UnionTool: Manifold evaluation failed', err);
+      this.cancelUnionSession();
+      return;
+    }
+
+    this.clearPicks();
+
+    const mergedMeshData = fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primary);
+
+    const multi = new SequentialMultiCommand(this.editor, 'Union Objects');
+    multi.add(() => new UnionCommand(this.editor, primary, beforeMeshData, mergedMeshData));
+    multi.add(() => new RemoveObjectCommand(this.editor, secondary));
+    this.editor.execute(multi);
+
+    this.cancelUnionSession();
   }
 }
