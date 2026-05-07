@@ -132,39 +132,44 @@ export class UnionTool {
     const primary = this._firstObject;
     const secondary = this._secondObject;
 
-    if (!primary?.userData?.meshData || !secondary?.userData?.meshData) return;
+    if (!primary?.userData?.meshData || !secondary?.userData?.meshData) {
+      this.cancelUnionSession();
+      return;
+    }
 
     const meshData = primary.userData.meshData;
     const beforeMeshData = structuredClone(meshData);
 
     const idOffsetB = primary.userData.meshData.nextFaceId + 1;
 
-    await getManifoldWasm();
-
-    const [{ manifold: manifoldA, faceIdMap: faceIdMapA },
-           { manifold: manifoldB, faceIdMap: faceIdMapB }] = await Promise.all([
-      toManifold(primary, 0),
-      toManifold(secondary, idOffsetB),
-    ]);
-
-    let resultMesh;
     try {
+      await getManifoldWasm();
+
+      const [
+        { manifold: manifoldA, faceIdMap: faceIdMapA },
+        { manifold: manifoldB, faceIdMap: faceIdMapB }
+      ] = await Promise.all([
+        toManifold(primary, 0),
+        toManifold(secondary, idOffsetB),
+      ]);
+
       const result = manifoldA.add(manifoldB);
-      resultMesh = result.getMesh();
+      const resultMesh = result.getMesh();
+
+      this.clearPicks();
+
+      const mergedMeshData = fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primary);
+
+      const multi = new SequentialMultiCommand(this.editor, 'Union Objects');
+      multi.add(() => new UnionCommand(this.editor, primary, beforeMeshData, mergedMeshData));
+      multi.add(() => new RemoveObjectCommand(this.editor, secondary));
+      this.editor.execute(multi);
     } catch (err) {
-      console.error('UnionTool: Manifold evaluation failed', err);
+      console.error('UnionTool failed:', err);
+
       this.cancelUnionSession();
       return;
     }
-
-    this.clearPicks();
-
-    const mergedMeshData = fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primary);
-
-    const multi = new SequentialMultiCommand(this.editor, 'Union Objects');
-    multi.add(() => new UnionCommand(this.editor, primary, beforeMeshData, mergedMeshData));
-    multi.add(() => new RemoveObjectCommand(this.editor, secondary));
-    this.editor.execute(multi);
 
     this.cancelUnionSession();
   }

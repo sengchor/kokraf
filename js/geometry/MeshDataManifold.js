@@ -103,13 +103,22 @@ export function fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primaryOb
 
     if (originalFace) {
       // Known faceID
-      const loop = getBoundaryLoop(tris);
+      const loops = getBoundaryLoops(tris);
 
-      if (loop && loop.length >= 3) {
-        const faceVerts = loop.map(idx => getVertex(idx));
+      if (loops.length === 1) {
+        // Single loop face - create single boundary face
+        const faceVerts = loops[0].map(idx => getVertex(idx));
         const unique = new Set(faceVerts.map(v => v.id));
 
         if (unique.size === faceVerts.length) {
+          meshData.addFace(faceVerts);
+          continue;
+        }
+      } else if (loops.length > 1) {
+        // Multi-loop face - stitch all loops into one polygon via bridge edges
+        const stitched = stitchLoops(loops, vertProperties);
+        if (stitched && stitched.length >= 3) {
+          const faceVerts = stitched.map(idx => getVertex(idx));
           meshData.addFace(faceVerts);
           continue;
         }
@@ -129,7 +138,7 @@ export function fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primaryOb
   return meshData;
 }
 
-function getBoundaryLoop(tris) {
+function getBoundaryLoops(tris) {
   const edgeCount = new Map();
   const directed = new Map();
 
@@ -150,18 +159,72 @@ function getBoundaryLoop(tris) {
     }
   }
 
-  if (adj.size < 3) return null;
+  if (adj.size < 3) return [];
 
-  // Walk the loop
-  const start = adj.keys().next().value;
-  const loop = [start];
-  let cur = adj.get(start);
+  const loops = [];
+  const visited = new Set();
 
-  while (cur !== start) {
-    if (!adj.has(cur) || loop.length > adj.size) return null;
-    loop.push(cur);
-    cur = adj.get(cur);
+  for (const start of adj.keys()) {
+    if (visited.has(start)) continue;
+
+    const loop = [];
+    let cur = start;
+    let valid = true;
+
+    while (!visited.has(cur)) {
+      if (!adj.has(cur)) { valid = false; break; }
+      visited.add(cur);
+      loop.push(cur);
+      cur = adj.get(cur);
+    }
+
+    if (valid && cur === start && loop.length >= 3) {
+      loops.push(loop);
+    }
   }
 
-  return loop.length >= 3 ? loop : null;
+  return loops;
+}
+
+function stitchLoops(loops, vertProperties) {
+  let merged = loops[0];
+
+  for (let i = 1; i < loops.length; i++) {
+    merged = bridgeTwoLoops(merged, loops[i], vertProperties);
+    if (!merged) return null;
+  }
+
+  return merged;
+}
+
+function bridgeTwoLoops(loopA, loopB, vertProperties) {
+  let minDist = Infinity;
+  let bestI = 0;
+  let bestJ = 0;
+
+  for (let i = 0; i < loopA.length; i++) {
+    const a = loopA[i];
+    const ax = vertProperties[a * 3];
+    const ay = vertProperties[a * 3 + 1];
+    const az = vertProperties[a * 3 + 2];
+
+    for (let j = 0; j < loopB.length; j++) {
+      const b = loopB[j];
+      const dx = ax - vertProperties[b* 3];
+      const dy = ay - vertProperties[b * 3 + 1];
+      const dz = az - vertProperties[b * 3 + 2];
+      const dist = dx * dx + dy * dy + dz * dz;
+
+      if (dist < minDist) {
+        minDist = dist;
+        bestI = i;
+        bestJ = j;
+      }
+    }
+  }
+
+  const rotA = [...loopA.slice(bestI), ...loopA.slice(0, bestI)];
+  const rotB = [...loopB.slice(bestJ), ...loopB.slice(0, bestJ)];
+
+  return [...rotA, rotA[0], ...rotB, rotB[0]];
 }
