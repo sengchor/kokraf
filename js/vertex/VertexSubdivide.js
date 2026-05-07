@@ -5,7 +5,9 @@ export class VertexSubdivide {
     this.vertexEditor = vertexEditor;
   }
 
-  get meshData() { return this.vertexEditor.meshData; }
+  get meshData() {
+    return this.vertexEditor.meshData;
+  }
 
   insetSubdivideVertices(orderVertexIds, segments, targetPosition) {
     if (segments < 1) return null;

@@ -13,13 +13,13 @@ export class VertexEditor {
     this.signals = editor.signals;
     this.object = null;
 
+    this.selection = new VertexSelection(this);
     this.topology = new VertexTopologyUtils(this);
     this.transform = new VertexTransform(this);
     this.duplicate = new VertexDuplicate(this);
     this.delete = new VertexDelete(this);
     this.dissolve = new VertexDissolve(this);
     this.subdivide = new VertexSubdivide(this);
-    this.selection = new VertexSelection(this);
   }
 
   get meshData() {

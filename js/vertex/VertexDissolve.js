@@ -1,13 +1,22 @@
 export class VertexDissolve {
   constructor(vertexEditor) {
     this.vertexEditor = vertexEditor;
-    this.selection = vertexEditor.selection;
-    this.topology = vertexEditor.topology;
-    this.delete = vertexEditor.delete;
   }
 
   get meshData() {
     return this.vertexEditor.meshData;
+  }
+
+  get selection() {
+    return this.vertexEditor.selection;
+  }
+
+  get topology() {
+    return this.vertexEditor.topology;
+  }
+
+  get delete() {
+    return this.vertexEditor.delete;
   }
 
   dissolveVertices(vertexIds) {
