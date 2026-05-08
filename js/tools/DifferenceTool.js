@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { getManifoldWasm, toManifold, fromManifoldResult } from '../geometry/MeshDataManifold.js';
 import { RemoveObjectCommand } from '../commands/RemoveObjectCommand.js';
-import { UnionCommand } from '../commands/UnionCommand.js';
+import { DifferenceCommand } from '../commands/DifferenceCommand.js';
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 
-export class UnionTool {
+export class DifferenceTool {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
@@ -43,7 +43,7 @@ export class UnionTool {
 
   disable() {
     if (this._state !== 'idle') {
-      this.cancelUnionSession();
+      this.cancelDifferenceSession();
 
       this._state = 'idle';
       this._firstObject = null;
@@ -82,13 +82,13 @@ export class UnionTool {
       this.selection.highlightObject(hit);
       
       this._state= 'confirm';
-      this.signals.onToolUpdated.dispatch('Press Enter to union, Escape to cancel');
+      this.signals.onToolUpdated.dispatch('Press Enter to difference, Escape to cancel');
     }
   }
 
   onKeyDown(event) {
     if (event.key === 'Escape') {
-      this.cancelUnionSession();
+      this.cancelDifferenceSession();
 
       this._state = 'idle';
       this._firstObject = null;
@@ -97,7 +97,7 @@ export class UnionTool {
     }
 
     if (event.key === 'Enter' && this._state === 'confirm') {
-      this.executeUnion();
+      this.executeDifference();
     }
   }
 
@@ -123,7 +123,7 @@ export class UnionTool {
     if (this._secondObject) this.selection.unhighlightObject(this._secondObject);
   }
 
-  cancelUnionSession() {
+  cancelDifferenceSession() {
     this.clearPicks();
     this.selection.enable = true;
 
@@ -132,12 +132,12 @@ export class UnionTool {
     });
   }
 
-  async executeUnion() {
+  async executeDifference() {
     const primary = this._firstObject;
     const secondary = this._secondObject;
 
     if (!primary?.userData?.meshData || !secondary?.userData?.meshData) {
-      this.cancelUnionSession();
+      this.cancelDifferenceSession();
       return;
     }
 
@@ -157,24 +157,24 @@ export class UnionTool {
         toManifold(secondary, idOffsetB),
       ]);
 
-      const result = manifoldA.add(manifoldB);
+      const result = manifoldA.subtract(manifoldB);
       const resultMesh = result.getMesh();
 
       this.clearPicks();
 
       const resultMeshData = fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primary);
 
-      const multi = new SequentialMultiCommand(this.editor, 'Union Objects');
-      multi.add(() => new UnionCommand(this.editor, primary, beforeMeshData, resultMeshData));
+      const multi = new SequentialMultiCommand(this.editor, 'Difference Objects');
+      multi.add(() => new DifferenceCommand(this.editor, primary, beforeMeshData, resultMeshData));
       multi.add(() => new RemoveObjectCommand(this.editor, secondary));
       this.editor.execute(multi);
     } catch (err) {
-      console.error('UnionTool failed:', err);
+      console.error('DifferenceTool failed:', err);
 
-      this.cancelUnionSession();
+      this.cancelDifferenceSession();
       return;
     }
 
-    this.cancelUnionSession();
+    this.cancelDifferenceSession();
   }
 }

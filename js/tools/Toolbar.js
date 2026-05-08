@@ -8,6 +8,7 @@ import { BevelTool } from '../tools/BevelTool.js';
 import { InsetTool } from '../tools/InsetTool.js';
 import { EdgeSlideTool } from '../tools/EdgeSlideTool.js';
 import { UnionTool } from '../tools/UnionTool.js';
+import { DifferenceTool } from '../tools/DifferenceTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
@@ -42,6 +43,7 @@ export default class Toolbar {
     this.insetTool = new InsetTool(this.editor);
     this.edgeSlideTool = new EdgeSlideTool(this.editor);
     this.unionTool = new UnionTool(this.editor);
+    this.differenceTool = new DifferenceTool(this.editor);
 
     this.ready = this.load();
   }
@@ -146,7 +148,7 @@ export default class Toolbar {
   }
 
   restorePreviousTool() {
-    if (this.activeToolObjectMode === 'union'){
+    if (this.activeToolObjectMode === 'union' || 'difference'){
       this.activeToolObjectMode = 'select';
       this.previousToolObjectMode = 'select';
     }
@@ -199,6 +201,7 @@ export default class Toolbar {
     this.insetTool.disable();
     this.edgeSlideTool.disable();
     this.unionTool.disable();
+    this.differenceTool.disable();
   }
 
   updateActiveTools(activeTool, attachObject) {
@@ -232,6 +235,7 @@ export default class Toolbar {
       case 'inset' : this.insetTool.enableFor(attachObject); break;
       case 'edge-slide' : this.edgeSlideTool.enableFor(attachObject); break;      
       case 'union' : this.unionTool.enable(); break;
+      case 'difference' : this.differenceTool.enable(); break;
     }
   }
 }
