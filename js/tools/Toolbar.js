@@ -9,6 +9,7 @@ import { InsetTool } from '../tools/InsetTool.js';
 import { EdgeSlideTool } from '../tools/EdgeSlideTool.js';
 import { UnionTool } from '../tools/UnionTool.js';
 import { DifferenceTool } from '../tools/DifferenceTool.js';
+import { IntersectTool } from '../tools/IntersectTool.js';
 
 export default class Toolbar {
   constructor( editor ) {
@@ -44,6 +45,7 @@ export default class Toolbar {
     this.edgeSlideTool = new EdgeSlideTool(this.editor);
     this.unionTool = new UnionTool(this.editor);
     this.differenceTool = new DifferenceTool(this.editor);
+    this.intersectTool = new IntersectTool(this.editor);
 
     this.ready = this.load();
   }
@@ -148,7 +150,7 @@ export default class Toolbar {
   }
 
   restorePreviousTool() {
-    if (this.activeToolObjectMode === 'union' || 'difference'){
+    if (['union', 'difference', 'intersect'].includes(this.activeToolObjectMode)) {
       this.activeToolObjectMode = 'select';
       this.previousToolObjectMode = 'select';
     }
@@ -202,6 +204,7 @@ export default class Toolbar {
     this.edgeSlideTool.disable();
     this.unionTool.disable();
     this.differenceTool.disable();
+    this.intersectTool.disable();
   }
 
   updateActiveTools(activeTool, attachObject) {
@@ -236,6 +239,7 @@ export default class Toolbar {
       case 'edge-slide' : this.edgeSlideTool.enableFor(attachObject); break;      
       case 'union' : this.unionTool.enable(); break;
       case 'difference' : this.differenceTool.enable(); break;
+      case 'intersect' : this.intersectTool.enable(); break;
     }
   }
 }
