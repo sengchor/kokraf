@@ -42,12 +42,16 @@ export class UnionTool {
   }
 
   disable() {
-    this._state = 'idle';
-    this._firstObject = null;
-    this._secondObject = null;
+    if (this._state !== 'idle') {
+      this.cancelUnionSession();
 
-    this.renderer.domElement.removeEventListener('mousedown', this._onPointerDown);
-    window.removeEventListener('keydown', this._onKeyDown);
+      this._state = 'idle';
+      this._firstObject = null;
+      this._secondObject = null;
+
+      this.renderer.domElement.removeEventListener('mousedown', this._onPointerDown);
+      window.removeEventListener('keydown', this._onKeyDown);
+    }
   }
 
   setupListeners() {
@@ -140,7 +144,7 @@ export class UnionTool {
     const meshData = primary.userData.meshData;
     const beforeMeshData = structuredClone(meshData);
 
-    const idOffsetB = primary.userData.meshData.nextFaceId + 1;
+    const idOffsetB = primary.userData.meshData.nextFaceId + meshData.vertices.size;
 
     try {
       await getManifoldWasm();

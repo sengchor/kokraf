@@ -1,6 +1,7 @@
 import ManifoldModule from 'manifold-3d';
 import * as THREE from 'three';
 import { MeshData } from '../core/MeshData.js';
+import { repairMeshData } from './ManifoldRepair.js';
 
 let _wasm = null;
 
@@ -14,8 +15,39 @@ export async function getManifoldWasm() {
 
 export async function toManifold(object, idOffset = 0) {
   const wasm = await getManifoldWasm();
-  const meshData = object.userData.meshData;
+  const originalData = object.userData.meshData;
 
+  let manifold;
+  let faceIdMap;
+
+  try {
+    const result = createManifoldFromMeshData(wasm, originalData, object.matrixWorld, idOffset);
+    manifold = result.manifold;
+    faceIdMap = result.faceIdMap;
+
+    if (manifold.status() !== 'NoError') {
+      throw new Error("Manifold status is not NoError");
+    }
+
+  } catch (err) {
+    const repairedData = repairMeshData(originalData);
+    const result = createManifoldFromMeshData(wasm, repairedData, object.matrixWorld, idOffset);
+    
+    manifold = result.manifold;
+    faceIdMap = result.faceIdMap;
+
+    // Update the map to flag repaired faces
+    for (const [faceId, face] of repairedData.faces) {
+      if (!originalData.faces.has(faceId)) {
+        faceIdMap.set(faceId + idOffset, 'repair');
+      }
+    }
+  }
+
+  return { manifold, faceIdMap };
+}
+
+function createManifoldFromMeshData(wasm, meshData, matrixWorld, idOffset) {
   const positions = [];
   const vertIndexMap = new Map();
 
@@ -24,7 +56,7 @@ export async function toManifold(object, idOffset = 0) {
       vertex.position.x,
       vertex.position.y,
       vertex.position.z 
-    ).applyMatrix4(object.matrixWorld);
+    ).applyMatrix4(matrixWorld);
 
     vertIndexMap.set(id, positions.length / 3);
     positions.push(world.x, world.y, world.z);
@@ -100,6 +132,8 @@ export function fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primaryOb
 
   for (const [id, tris] of groups) {
     const originalFace = allFaceIdMap.get(id);
+
+    if (originalFace === 'repair') { continue; }
 
     if (originalFace) {
       // Known faceID
