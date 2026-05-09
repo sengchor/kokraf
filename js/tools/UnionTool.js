@@ -34,6 +34,7 @@ export class UnionTool {
     // Hand off from normal selection
     this.selection.deselect();
     this.selection.enable = false;
+    this.selection.tool = true;
 
     this.renderer.domElement.addEventListener('mousedown', this._onPointerDown);
     window.addEventListener('keydown', this._onKeyDown);
@@ -60,30 +61,17 @@ export class UnionTool {
         this.camera = camera;
       }
     });
+
+    this.signals.toolSelectObject.add((object) => {
+      this.selectObject(object);
+    });
   }
 
   onPointerDown(event) {
     if (event.button !== 0) return;
 
     const hit = this.pick(event);
-    
-    if (this._state === 'pick_first') {
-      if (!hit) return;
-
-      this._firstObject = hit;
-      this.selection.highlightObject(hit);
-
-      this._state = 'pick_second';
-      this.signals.onToolUpdated.dispatch('Select second object');
-    } else if (this._state === 'pick_second') {
-      if (!hit || hit === this._firstObject) return;
-
-      this._secondObject = hit;
-      this.selection.highlightObject(hit);
-      
-      this._state= 'confirm';
-      this.signals.onToolUpdated.dispatch('Press Enter to union, Escape to cancel');
-    }
+    this.selectObject(hit);
   }
 
   onKeyDown(event) {
@@ -118,14 +106,49 @@ export class UnionTool {
     return hit;
   }
 
+  selectObject(object) {
+    if (!object?.isMesh || !object.userData?.meshData) {
+      if (this._state === 'pick_first') {
+        this.signals.objectSelected.dispatch([]);
+      } else if (this._state === 'pick_second') {
+        this.signals.objectSelected.dispatch([this._firstObject]);
+      }
+      return;
+    }
+
+    if (this._state === 'pick_first') {
+      if (!object) return;
+
+      this._firstObject = object;
+      this.selection.highlightObject(object);
+
+      this._state = 'pick_second';
+      this.signals.onToolUpdated.dispatch('Select second object');
+      this.signals.objectSelected.dispatch([this._firstObject]);
+    } else if (this._state === 'pick_second') {
+      if (!object || object === this._firstObject) return;
+
+      this._secondObject = object;
+      this.selection.highlightObject(object);
+      
+      this._state= 'confirm';
+      this.signals.onToolUpdated.dispatch('Press Enter to union, Escape to cancel');
+      this.signals.objectSelected.dispatch([this._firstObject, this._secondObject]);
+
+      this.selection.tool = false;
+    }
+  }
+
   clearPicks() {
     if (this._firstObject) this.selection.unhighlightObject(this._firstObject);
     if (this._secondObject) this.selection.unhighlightObject(this._secondObject);
+    this.signals.objectSelected.dispatch([]);
   }
 
   cancelUnionSession() {
     this.clearPicks();
     this.selection.enable = true;
+    this.selection.tool = false;
 
     this.signals.onToolEnded.dispatch();
   }

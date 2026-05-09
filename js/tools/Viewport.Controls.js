@@ -298,6 +298,7 @@ switchMode(newMode) {
 
     this.transformOrientation = this.transformOrientationSelect.value;
     this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
+    this.signals.objectSelected.dispatch([this.editSelection.editedObject]);
   }
 
   updateXRayButtonState(shadingMode) {

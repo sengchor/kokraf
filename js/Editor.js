@@ -119,6 +119,7 @@ export default class Editor {
       vertexPositionsUpdated: new Signal(),
       refreshEditHelpers: new Signal(),
       shortcutsChanged: new Signal(),
+      toolSelectObject: new Signal(),
     }
 
     this.helpers = {};

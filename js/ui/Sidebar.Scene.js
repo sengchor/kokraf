@@ -9,11 +9,16 @@ export class SidebarScene {
     this.sidebarProperties = new SidebarProperties(editor);
     this.scene = editor.sceneManager.mainScene;
     this.selection = editor.selection;
+    this.editSelection = editor.editSelection;
     this.toolbar = editor.toolbar;
-    this.outlinerList = document.getElementById('outliner-list')
+    this.outlinerList = document.getElementById('outliner-list');
 
     this.init();
     this.rebuild();
+
+    if (this.editSelection.editedObject) {
+      this.highlightOutlinerItem([this.editSelection.editedObject]);
+    }
   }
 
   init() {
@@ -50,6 +55,8 @@ export class SidebarScene {
     });
 
     this.outlinerList.addEventListener('click', (event) => {
+      if (!this.selection.enable && !this.selection.tool) return;
+
       const item = event.target.closest('.outliner-item');
       if (!item) {
         this.selection.deselect();
@@ -71,7 +78,11 @@ export class SidebarScene {
   setupListeners() {
     const rebuildAndSync = () => {
       this.rebuild();
-      this.highlightOutlinerItem(this.selection.selectedObjects);
+      if (this.editSelection.editedObject) {
+        this.highlightOutlinerItem([this.editSelection.editedObject]);
+      } else {
+        this.highlightOutlinerItem(this.selection.selectedObjects);
+      }
     };
 
     this.signals.objectAdded.add(rebuildAndSync);
@@ -248,7 +259,11 @@ export class SidebarScene {
     const object = this.scene.getObjectByProperty('uuid', uuid);
     if (!object) return;
 
-    this.selection.select(object);
-    this.toolbar.updateTools();
+    if (this.selection.tool) {
+      this.signals.toolSelectObject.dispatch(object);
+    } else {
+      this.selection.select(object);
+      this.toolbar.updateTools();
+    }
   }
 }
