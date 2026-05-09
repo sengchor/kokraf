@@ -149,6 +149,18 @@ export function fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primaryOb
           continue;
         }
       } else if (loops.length > 1) {
+        if (!areNestedLoops(loops, vertProperties)) {
+          for (const loop of loops) {
+            if (loop.length < 3) continue;
+            const faceVerts = loop.map(idx => getVertex(idx));
+            const unique = new Set(faceVerts.map(v => v.id));
+            if (unique.size === faceVerts.length) {
+              meshData.addFace(faceVerts);
+            }
+          }
+          continue;
+        }
+
         // Multi-loop face - stitch all loops into one polygon via bridge edges
         const stitched = stitchLoops(loops, vertProperties);
         if (stitched && stitched.length >= 3) {
@@ -174,46 +186,59 @@ export function fromManifoldResult(resultMesh, faceIdMapA, faceIdMapB, primaryOb
 
 function getBoundaryLoops(tris) {
   const edgeCount = new Map();
-  const directed = new Map();
+  const halfEdge = new Map();
 
   for (const { a, b, c } of tris) {
     for (const [v1, v2] of [[a, b], [b, c], [c, a]]) {
       const key = v1 < v2 ? `${v1},${v2}` : `${v2},${v1}`;
       edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
-      if (!directed.has(key)) directed.set(key, [v1, v2]);
+      if (!halfEdge.has(key)) halfEdge.set(key, [v1, v2]);
     }
   }
 
   const adj = new Map();
 
   for (const [key, count] of edgeCount) {
-    if (count == 1) {
-      const [v1, v2] = directed.get(key);
-      adj.set(v1, v2);
+    if (count === 1) {
+      const [v1, v2] = halfEdge.get(key);
+      if (!adj.has(v1)) adj.set(v1, []);
+      adj.get(v1).push(v2);
     }
   }
 
   if (adj.size < 3) return [];
 
   const loops = [];
-  const visited = new Set();
+  const usedEdges = new Set();
 
-  for (const start of adj.keys()) {
-    if (visited.has(start)) continue;
+  for (const [start, outgoing] of adj) {
+    for (const firstStep of outgoing) {
+      if (usedEdges.has(`${start}->${firstStep}`)) continue;
 
-    const loop = [];
-    let cur = start;
-    let valid = true;
+      const loop = [];
+      let cur = start;
+      let nxt = firstStep;
+      let valid = true;
 
-    while (!visited.has(cur)) {
-      if (!adj.has(cur)) { valid = false; break; }
-      visited.add(cur);
-      loop.push(cur);
-      cur = adj.get(cur);
-    }
+      while (true) {
+        const edgeKey = `${cur}->${nxt}`;
+        if (usedEdges.has(edgeKey)) { valid = nxt === start; break; }
 
-    if (valid && cur === start && loop.length >= 3) {
-      loops.push(loop);
+        usedEdges.add(edgeKey);
+        loop.push(cur);
+        cur = nxt;
+
+        if (cur === start) break;
+
+        const nexts = adj.get(cur);
+        if (!nexts) { valid = false; break; }
+
+        const next = nexts.find(v => !usedEdges.has(`${cur}->${v}`));
+        if (next === undefined) { valid = false; break; }
+        nxt = next;
+      }
+
+      if (valid && loop.length >= 3) loops.push(loop);
     }
   }
 
@@ -261,4 +286,142 @@ function bridgeTwoLoops(loopA, loopB, vertProperties) {
   const rotB = [...loopB.slice(bestJ), ...loopB.slice(0, bestJ)];
 
   return [...rotA, rotA[0], ...rotB, rotB[0]];
+}
+
+function areNestedLoops(loops, vertProperties) {
+  if (loops.length < 2) return false;
+
+  // Project loops to 2D plane
+  const projected = projectLoopsTo2D(loops, vertProperties);
+
+  // Compute signed areas
+  const areas = projected.map(loop => signedArea2D(loop));
+
+  // Largest absolute area = outer loop
+  let outerIndex = 0;
+  let maxArea = 0;
+
+  for (let i = 0; i < areas.length; i++) {
+    const area = Math.abs(areas[i]);
+
+    if (area > maxArea) {
+      maxArea = area;
+      outerIndex = i;
+    }
+  }
+
+  const outer = projected[outerIndex];
+
+  // Every other loop must be inside outer
+  for (let i = 0; i < projected.length; i++) {
+    if (i === outerIndex) continue;
+
+    const centroid = polygonCentroid(projected[i]);
+
+    if (!pointInPolygon2D(centroid, outer)) {
+      return false;
+    }
+  }
+
+  // Holes should not contain each other
+  for (let i = 0; i < projected.length; i++) {
+    if (i === outerIndex) continue;
+
+    for (let j = 0; j < projected.length; j++) {
+      if (i === j || j === outerIndex) continue;
+
+      const centroid = polygonCentroid(projected[j]);
+
+      if (pointInPolygon2D(centroid, projected[i])) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function signedArea2D(points) {
+  let area = 0;
+
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+
+    area += a.x * b.y - b.x * a.y;
+  }
+
+  return area * 0.5;
+}
+
+function polygonCentroid(points) {
+  let x = 0;
+  let y = 0;
+
+  for (const p of points) {
+    x += p.x;
+    y += p.y;
+  }
+
+  return {
+    x: x / points.length,
+    y: y / points.length
+  };
+}
+
+function pointInPolygon2D(point, polygon) {
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+
+    const intersect =
+      ((a.y > point.y) !== (b.y > point.y)) &&
+      (point.x <
+        (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x);
+
+    if (intersect) inside = !inside;
+  }
+
+  return inside;
+}
+
+function projectLoopsTo2D(loops, vertProperties) {
+  const first = loops[0];
+
+  let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < first.length; i++) {
+    const a = getVec(first[i], vertProperties);
+    const b = getVec(first[(i + 1) % first.length], vertProperties);
+    nx += (a.y - b.y) * (a.z + b.z);
+    ny += (a.z - b.z) * (a.x + b.x);
+    nz += (a.x - b.x) * (a.y + b.y);
+  }
+
+  const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+  const ax = Math.abs(nx / len), ay = Math.abs(ny / len), az = Math.abs(nz / len);
+
+  let drop = 'z';
+  if (ax > ay && ax > az) drop = 'x';
+  else if (ay > az) drop = 'y';
+
+  return loops.map(loop =>
+    loop.map(idx => {
+      const v = getVec(idx, vertProperties);
+
+      if (drop === 'x') return { x: v.y, y: v.z };
+      if (drop === 'y') return { x: v.x, y: v.z };
+
+      return { x: v.x, y: v.y };
+    })
+  );
+}
+
+function getVec(idx, verts) {
+  return new THREE.Vector3(
+    verts[idx * 3],
+    verts[idx * 3 + 1],
+    verts[idx * 3 + 2]
+  );
 }
