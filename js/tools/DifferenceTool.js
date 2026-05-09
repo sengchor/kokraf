@@ -127,9 +127,7 @@ export class DifferenceTool {
     this.clearPicks();
     this.selection.enable = true;
 
-    requestAnimationFrame(() => {
-      this.signals.onToolEnded.dispatch();
-    });
+    this.signals.onToolEnded.dispatch();
   }
 
   async executeDifference() {

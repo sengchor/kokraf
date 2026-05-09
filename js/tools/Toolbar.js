@@ -150,8 +150,9 @@ export default class Toolbar {
   }
 
   restorePreviousTool() {
+    if (this.toolsDisabled) return;
+    
     if (['union', 'difference', 'intersect'].includes(this.activeToolObjectMode)) {
-      this.activeToolObjectMode = 'select';
       this.previousToolObjectMode = 'select';
     }
     
@@ -188,6 +189,8 @@ export default class Toolbar {
   }
 
   disableTools() {
+    this.toolsDisabled = true;
+
     this.objectMoveTool.disable();
     this.objectRotateTool.disable();
     this.objectScaleTool.disable();
@@ -205,6 +208,8 @@ export default class Toolbar {
     this.unionTool.disable();
     this.differenceTool.disable();
     this.intersectTool.disable();
+
+    this.toolsDisabled = false;
   }
 
   updateActiveTools(activeTool, attachObject) {
