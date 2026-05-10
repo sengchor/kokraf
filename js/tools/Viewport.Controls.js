@@ -42,6 +42,7 @@ export default class ViewportControls {
     this.meshMenu = document.getElementById('mesh-menu');
     this.selectMenu = document.getElementById('select-menu');
     this.leftControls = document.getElementById('left-controls-container');
+    this.generateButton = document.getElementById('generate-texture');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -120,7 +121,7 @@ export default class ViewportControls {
       this.xrayButton.addEventListener('click', () => {
         const active = this.xrayButton.classList.toggle('active');
         this.signals.viewportXRayChanged.dispatch(active);
-      })
+      });
     }
 
     if (this.leftControls) {
@@ -129,6 +130,12 @@ export default class ViewportControls {
       });
 
       this.leftControlsResizeObserver.observe(this.leftControls);
+    }
+
+    if (this.generateButton) {
+      this.generateButton.addEventListener('click', () => {
+        console.log('generate');
+      });
     }
 
     if (this.objectMenu) {
@@ -176,6 +183,11 @@ export default class ViewportControls {
 
       if (this.selectMenu) {
         this.selectMenu.classList.toggle('hidden', newMode === 'object');
+        this.selectMenu.classList.remove('active');
+      }
+
+      if (this.generateButton) {
+        this.generateButton.classList.toggle('hidden', newMode === 'edit');
         this.selectMenu.classList.remove('active');
       }
     });

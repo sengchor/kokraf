@@ -212,7 +212,8 @@
 }
 
 .tooltip-wrapper::after,
-.viewport-controls button::after {
+.viewport-controls button::after,
+.viewport-controls .menu-item::after {
   font-family: sans-serif;
   font-size: 13px;
 
@@ -236,7 +237,8 @@
 }
 
 .tooltip-wrapper:hover::after,
-.viewport-controls button:hover::after {
+.viewport-controls button:hover::after,
+.viewport-controls .menu-item:hover::after {
   opacity: 1;
 }
 
@@ -244,7 +246,12 @@
   opacity: 0;
 }
 
+.viewport-controls .menu-item.active::after {
+  opacity: 0;
+}
+
 .viewport-controls .menu-item {
+  position: relative;
   background-color: #ffffff;
   color: #666;
   font-family: sans-serif;
@@ -335,4 +342,45 @@
 
 .tool-input-display.active {
   display: block;
+}
+
+.viewport-controls .feature-button {
+  height: 20px;
+  padding: 0 8px;
+  padding-top: 1px;
+
+  position: relative;
+  border: none;
+  background-color: #ffffff;
+  color: #666;
+  font-family: sans-serif;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  margin-left: 10px;
+}
+
+.viewport-controls .feature-button:hover {
+  background-color: #f8f8f8;
+  color: #222;
+}
+
+.viewport-controls .feature-button:active {
+  background-color: #eaeaea;
+}
+
+.viewport-controls .generate-icon {
+  opacity: 0.6;
+  padding-bottom: 1px;
+}
+
+.viewport-controls .feature-button:hover .generate-icon {
+  opacity: 0.8;
+}
+
+.feature-button .label {
+  margin-left: 2.5px;
 }

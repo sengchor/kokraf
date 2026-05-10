@@ -21,7 +21,7 @@
       </button>
     </div>
 
-    <div class="menu-item" id="object-menu">OBJECT
+    <div class="menu-item" id="object-menu" data-tooltip="Object Menu">OBJECT
       <ul class="submenu">
         <li data-action="center-object">Center</li>
         <li class="submenu-item">
@@ -73,7 +73,12 @@
       </ul>
     </div>
 
-    <div class="menu-item hidden" id="select-menu">SELECT
+    <button class="feature-button" id="generate-texture" data-tooltip="Generate Texture">
+      <img src="assets/icons/generate.svg" class="generate-icon" width="16" height="16"/>
+      <span class="label">GENERATE</span>
+    </button>
+
+    <div class="menu-item hidden" id="select-menu" data-tooltip="Select Menu">SELECT
       <ul class="submenu">
         <li data-action="select-all">All
           <span class="shortcut" data-shortcut-key="selectAll"></span>
@@ -88,7 +93,7 @@
         </li>
       </ul>
     </div>
-    <div class="menu-item hidden" id="mesh-menu">MESH
+    <div class="menu-item hidden" id="mesh-menu" data-tooltip="Mesh Menu">MESH
       <ul class="submenu">
         <li data-action="subdivide-selection">Subdivide</li>
         <li class="divider"></li>
