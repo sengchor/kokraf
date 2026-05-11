@@ -28,19 +28,30 @@ export class MeshRendererAdapter {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
     const indices = [];
+    const uvs = [];
     let currentIndex = 0;
 
     meshData.vertexIndexMap.clear();
 
     for (let f of meshData.faces.values()) {
       let verts = f.vertexIds.map(id => meshData.vertices.get(id));
+      const faceUVs = meshData.uvs.get(f.id);
+
       if (useEarcut) {
         verts = removeCollinearVertices(verts);
       }
 
       const baseIndex = currentIndex;
-      for (let v of verts) {
+      for (let i = 0; i < verts.length; i++) {
+        let v = verts[i];
+
         positions.push(v.position.x, v.position.y, v.position.z);
+
+        if (faceUVs && faceUVs[i]) {
+          uvs.push(faceUVs[i].u, faceUVs[i].v);
+        } else {
+          uvs.push(0, 0);
+        }
 
         if (!meshData.vertexIndexMap.has(v.id)) meshData.vertexIndexMap.set(v.id, []);
         meshData.vertexIndexMap.get(v.id).push(currentIndex);
@@ -70,6 +81,7 @@ export class MeshRendererAdapter {
     for (let v of meshData.vertices.values()) {
       if (!meshData.vertexIndexMap.has(v.id)) {
         positions.push(v.position.x, v.position.y, v.position.z);
+        uvs.push(0, 0);
         meshData.vertexIndexMap.set(v.id, [currentIndex]);
         currentIndex++;
       }
@@ -81,6 +93,7 @@ export class MeshRendererAdapter {
     }
 
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
     geometry.computeBoundingBox();

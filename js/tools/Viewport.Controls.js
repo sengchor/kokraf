@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
+import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -15,6 +16,7 @@ export default class ViewportControls {
     this.editHelpers = editor.editHelpers;
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
+    this.vertexEditor = editor.vertexEditor;
     this.currentMode = 'object';
     this.transformOrientation = 'global';
 
@@ -133,8 +135,17 @@ export default class ViewportControls {
     }
 
     if (this.generateButton) {
-      this.generateButton.addEventListener('click', () => {
-        console.log('generate');
+      this.generateButton.addEventListener('click', async () => {
+        const object = this.selection.selectedObjects[0];
+        if (!object) { console.log('forget select object'); }
+
+        const meshData = object.userData.meshData;
+        const output = await AutoUVUnwrap.unwrap(meshData);
+
+        AutoUVUnwrap.applyUVGridMaterial(object);
+
+        this.vertexEditor.setObject(object);
+        this.vertexEditor.transform.updateGeometryAndHelpers();
       });
     }
 

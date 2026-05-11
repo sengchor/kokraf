@@ -29,6 +29,7 @@ export class MeshData {
     this.vertices = new Map();
     this.edges = new Map();
     this.faces = new Map();
+    this.uvs = new Map();
     this.vertexIndexMap = new Map();
     this.bufferIndexToVertexId = new Map();
     this.nextVertexId = 0;
@@ -214,6 +215,7 @@ export class MeshData {
           edgeIds: Array.from(f.edgeIds)
         }
       ]),
+      uvs: Array.from(this.uvs.entries()),
       vertexIndexMap: Array.from(this.vertexIndexMap.entries()),
       bufferIndexToVertexId: Array.from(this.bufferIndexToVertexId.entries()),
       nextVertexId: this.nextVertexId,
@@ -274,6 +276,7 @@ export class MeshData {
       );
     }
 
+    meshData.uvs = new Map(raw.uvs);
     meshData.vertexIndexMap = new Map(raw.vertexIndexMap);
     meshData.bufferIndexToVertexId = new Map(raw.bufferIndexToVertexId);
     meshData.nextVertexId = raw.nextVertexId;
