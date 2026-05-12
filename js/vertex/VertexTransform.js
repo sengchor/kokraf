@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { MeshData } from "../core/MeshData.js";
+import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 
 export class VertexTransform {
   constructor(vertexEditor) {
@@ -70,6 +71,7 @@ export class VertexTransform {
 
     this.positionAttr.needsUpdate = true;
 
+    MeshRendererAdapter.recomputeNormals(this.object);
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 

@@ -328,7 +328,7 @@ export class ExtrudeTool {
     this.newEdgeIds = duplicationResult.newEdgeIds;
     this.newFaceIds = duplicationResult.newFaceIds;
 
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.transform.updateGeometryAndHelpers(false);
     this.initialDuplicatedPositions = this.vertexEditor.transform.getVertexPositions(this.newVertexIds);
 
     this.boundaryEdges = this.vertexEditor.selection.getBoundaryEdges(selectedVertexIds, selectedEdgeIds, selectedFaceIds);

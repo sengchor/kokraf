@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import earcut from 'earcut';
 import { computeFaceNormals } from './NormalCalculator.js';
-import { computePlaneNormal, projectTo2D, removeCollinearVertices } from './TriangulationUtils.js';
+import { computePlaneNormal, projectTo2D } from './TriangulationUtils.js';
 
 export class MeshRendererAdapter {
   static toBufferGeometry(meshData, options = {}) {
@@ -37,12 +37,32 @@ export class MeshRendererAdapter {
   static generateSmoothGeometry(meshData, useEarcut = true) {
     const data = this.buildDuplicatedMeshData(meshData, useEarcut);
 
-    const smoothNormalsMap = this.calculateSmoothNormalsMap(meshData, useEarcut);
+    const smoothNormalsMap = this.calculateSmoothNormalsMap(meshData);
 
     const normals = [];
     for (let i = 0; i < data.positions.length / 3; i++) {
-      const logicalVertexId = meshData.bufferIndexToVertexId.get(i);
-      const n = smoothNormalsMap.get(logicalVertexId);
+      const n = smoothNormalsMap.get(i);
+
+      normals.push(n.x, n.y, n.z);
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
+    geometry.setIndex(data.indices);
+
+    return geometry;
+  }
+
+  static generateAngleBasedGeometry(meshData, angle = 60, useEarcut = true) {
+    const data = this.buildDuplicatedMeshData(meshData, useEarcut);
+
+    const angleBasedNormalsMap = this.calculateAngleBasedNormalsMap(meshData, angle);
+
+    const normals = [];
+    for (let i = 0; i < data.positions.length / 3; i++) {
+      const n = angleBasedNormalsMap.get(i);
 
       normals.push(n.x, n.y, n.z);
     }
@@ -67,10 +87,6 @@ export class MeshRendererAdapter {
     for (let f of meshData.faces.values()) {
       let verts = f.vertexIds.map(id => meshData.vertices.get(id));
       const faceUVs = meshData.uvs.get(f.id);
-
-      if (useEarcut) {
-        verts = removeCollinearVertices(verts);
-      }
 
       const baseIndex = currentIndex;
       for (let i = 0; i < verts.length; i++) {
@@ -126,7 +142,7 @@ export class MeshRendererAdapter {
     return { positions, uvs, indices };
   }
 
-  static calculateSmoothNormalsMap(meshData, useEarcut = true) {
+  static calculateSmoothNormalsMap(meshData) {
     const positions = [];
     const indices = [];
 
@@ -145,28 +161,16 @@ export class MeshRendererAdapter {
     // Build indices
     for (let f of meshData.faces.values()) {
       let verts = f.vertexIds.map(id => meshData.vertices.get(id));
-      if (useEarcut) {
-        verts = removeCollinearVertices(verts);
-      }
 
-      if (useEarcut) {
-        const normal = computePlaneNormal(verts);
-        const flatVertices = projectTo2D(verts, normal);
-        const triangulated = earcut(flatVertices);
+      const normal = computePlaneNormal(verts);
+      const flatVertices = projectTo2D(verts, normal);
+      const triangulated = earcut(flatVertices);
 
-        for (let i = 0; i < triangulated.length; i += 3) {
-          const a = vertexIdToIndex.get(verts[triangulated[i]].id);
-          const b = vertexIdToIndex.get(verts[triangulated[i + 1]].id);
-          const c = vertexIdToIndex.get(verts[triangulated[i + 2]].id);
-          indices.push(a, b, c);
-        }
-      } else {
-        const base = vertexIdToIndex.get(verts[0].id);
-        for (let i = 1; i < verts.length - 1; i++) {
-          const b = vertexIdToIndex.get(verts[i].id);
-          const c = vertexIdToIndex.get(verts[i + 1].id);
-          indices.push(base, b, c);
-        }
+      for (let i = 0; i < triangulated.length; i += 3) {
+        const a = vertexIdToIndex.get(verts[triangulated[i]].id);
+        const b = vertexIdToIndex.get(verts[triangulated[i + 1]].id);
+        const c = vertexIdToIndex.get(verts[triangulated[i + 2]].id);
+        indices.push(a, b, c);
       }
     }
 
@@ -178,10 +182,10 @@ export class MeshRendererAdapter {
     const computedNormals = tmpGeo.attributes.normal.array;
 
     // Map the results back to the original logical Vertex IDs
-    const normalsMap = new Map();
+    const logicalNormalsMap = new Map();
     for (let i = 0; i < currentIndex; i++) {
       const logicalId = indexToVertexId.get(i);
-      normalsMap.set(logicalId, new THREE.Vector3(
+      logicalNormalsMap.set(logicalId, new THREE.Vector3(
         computedNormals[i * 3],
         computedNormals[(i * 3) + 1],
         computedNormals[(i * 3) + 2]
@@ -189,145 +193,94 @@ export class MeshRendererAdapter {
     }
 
     tmpGeo.dispose();
+
+    const normalsMap = new Map();
+    for (const [bufferIdx, logicalId] of meshData.bufferIndexToVertexId) {
+      normalsMap.set(bufferIdx, logicalNormalsMap.get(logicalId));
+    }
     return normalsMap;
   }
 
-  /**
-   * Generate geometry with angle-based smoothing groups.
-   */
-  static generateAngleBasedGeometry(meshData, angleDegree = 60, useEarcut = true) {
-    const threshold = Math.cos(THREE.MathUtils.degToRad(angleDegree));
+  static calculateAngleBasedNormalsMap(meshData, angleDegree = 60) {
+    const threshold = (angleDegree * Math.PI) / 180;
+    const normalsMap = new Map();
 
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const indices = [];
-    meshData.vertexIndexMap.clear();
+    // Pre-calculate Face Normals and Adjacency
+    const faceNormals = new Map();
+    const vertexToFaces = new Map();
 
-    const faceNormals = computeFaceNormals(meshData);
+    for (const face of meshData.faces.values()) {
+      const verts = face.vertexIds.map(id => meshData.vertices.get(id));
+      const normal = computePlaneNormal(verts);
+      faceNormals.set(face.id, normal);
 
-    // --- 1. Build edgeKey -> faceIds from existing edges ---
-    const edgeToFaces = new Map();
-    for (let e of meshData.edges.values()) {
-      const edgeKey = e.v1Id < e.v2Id ? `${e.v1Id}_${e.v2Id}` : `${e.v2Id}_${e.v1Id}`;
-      edgeToFaces.set(edgeKey, Array.from(e.faceIds));
-    }
-
-    // --- 2. Mark smooth vs sharp edges ---
-    const smoothEdges = new Set();
-    for (let [edgeKey, faces] of edgeToFaces) {
-      if (faces.length === 2) {
-        const [f1, f2] = faces;
-        const n1 = faceNormals.get(f1);
-        const n2 = faceNormals.get(f2);
-        if (n1.dot(n2) >= threshold) smoothEdges.add(edgeKey);
+      for (const vId of face.vertexIds) {
+        if (!vertexToFaces.has(vId)) vertexToFaces.set(vId, new Set());
+        vertexToFaces.get(vId).add(face.id);
       }
     }
 
-    // --- 3. Build smoothing groups per vertex ---
-    const vertexGroups = new Map();
+    // Calculate Normals per Buffer Index
     let currentIndex = 0;
+    for (const face of meshData.faces.values()) {
+      let verts = face.vertexIds.map(id => meshData.vertices.get(id));
 
-    const getOrCreateGroup = (vId, faceId) => {
-      if (!vertexGroups.has(vId)) vertexGroups.set(vId, []);
+      const currentFaceNormal = faceNormals.get(face.id);
 
-      for (let g of vertexGroups.get(vId)) {
-        if (g.connectedFaces.has(faceId)) return g;
-      }
+      for (const v of verts) {
+        const averagedNormal = new THREE.Vector3(0, 0, 0);
+        const neighborFaceIds = vertexToFaces.get(v.id);
 
-      const v = meshData.vertices.get(vId);
-      positions.push(v.position.x, v.position.y, v.position.z);
+        for (const neighborId of neighborFaceIds) {
+          const neighborNormal = faceNormals.get(neighborId);
+          const angle = currentFaceNormal.angleTo(neighborNormal);
 
-      const group = {
-        index: currentIndex++,
-        faces: new Set([faceId]),
-        connectedFaces: new Set([faceId])
-      };
-      vertexGroups.get(vId).push(group);
-
-      return group;
-    };
-
-    // --- 4. Assign vertex indices using smoothing groups ---
-    for (let f of meshData.faces.values()) {
-      let verts = f.vertexIds.map(id => meshData.vertices.get(id));
-      if (useEarcut) verts = removeCollinearVertices(verts);
-
-      const vertexIds = verts.map(v => v.id);
-      const faceIndices = [];
-
-      for (let vId of vertexIds) {
-        let group = null;
-
-        for (let i = 0; i < vertexIds.length; i++) {
-          const v1 = vertexIds[i];
-          const v2 = vertexIds[(i + 1) % vertexIds.length];
-          if (v1 !== vId && v2 !== vId) continue;
-
-          const edgeKey = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
-          if (smoothEdges.has(edgeKey)) {
-            const neighborFaces = edgeToFaces.get(edgeKey);
-            for (let nf of neighborFaces) {
-              if (nf !== f.id) {
-                const groups = vertexGroups.get(vId) || [];
-                group = groups.find(g => g.faces.has(nf));
-                if (group) break;
-              }
-            }
-          }
-          if (group) break;
-        }
-
-        if (!group) group = getOrCreateGroup(vId, f.id);
-
-        group.faces.add(f.id);
-        group.connectedFaces.add(f.id);
-
-        if (!meshData.vertexIndexMap.has(vId)) meshData.vertexIndexMap.set(vId, []);
-        meshData.vertexIndexMap.get(vId).push(group.index);
-
-        faceIndices.push(group.index);
-      }
-
-      // --- 4.5 Triangulate (Earcut or Fan) ---
-      if (useEarcut) {
-        const normal = computePlaneNormal(verts);
-        const flatVertices2D = projectTo2D(verts, normal);
-        const triangulated = earcut(flatVertices2D);
-
-        for (let i = 0; i < triangulated.length; i += 3) {
-          indices.push(faceIndices[triangulated[i]], faceIndices[triangulated[i + 1]], faceIndices[triangulated[i + 2]]);
-        }
-      } else {
-        if (faceIndices.length >= 3) {
-          const base = faceIndices[0];
-          for (let i = 1; i < faceIndices.length - 1; i++) {
-            indices.push(base, faceIndices[i], faceIndices[i + 1]);
+          if (angle <= threshold) {
+            averagedNormal.add(neighborNormal);
           }
         }
-      }
-    }
 
-    // --- 5. Add isolated vertices (not in any face) ---
-    for (let v of meshData.vertices.values()) {
-      if (!meshData.vertexIndexMap.has(v.id)) {
-        positions.push(v.position.x, v.position.y, v.position.z);
-        meshData.vertexIndexMap.set(v.id, [currentIndex]);
-        indices.push(currentIndex, currentIndex, currentIndex);
+        averagedNormal.normalize();
+        
+        normalsMap.set(currentIndex, averagedNormal);
         currentIndex++;
       }
     }
 
-    meshData.bufferIndexToVertexId = new Map();
-    for (let [logicalId, indicesArr] of meshData.vertexIndexMap) {
-      for (let i of indicesArr) meshData.bufferIndexToVertexId.set(i, logicalId);
+    // Handle extra vertices
+    for (const v of meshData.vertices.values()) {
+      if (!meshData.vertexIndexMap.has(v.id)) {
+        normalsMap.set(currentIndex, new THREE.Vector3(0, 1, 0));
+        currentIndex++;
+      }
     }
 
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
+    return normalsMap;
+  }
 
-    return geometry;
+  static recomputeNormals(object) {
+    const shading = object.userData.shading;
+    const meshData = object.userData.meshData;
+
+    if (shading === 'flat') {
+      object.geometry.computeVertexNormals();
+      return;
+    }
+
+    let normalsMap;
+
+    if (shading === 'smooth') {
+      normalsMap = this.calculateSmoothNormalsMap(meshData);
+    } else if (shading === 'auto') {
+      normalsMap = this.calculateAngleBasedNormalsMap(meshData);
+    } else {
+      return;
+    }
+
+    const normalAttr = object.geometry.attributes.normal;
+    for (const [bufferIdx, n] of normalsMap) {
+      normalAttr.setXYZ(bufferIdx, n.x, n.y, n.z);
+    }
+    normalAttr.needsUpdate = true;
   }
 }
