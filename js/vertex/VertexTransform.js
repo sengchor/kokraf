@@ -70,7 +70,6 @@ export class VertexTransform {
 
     this.positionAttr.needsUpdate = true;
 
-    this.geometry.computeVertexNormals();
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
@@ -113,7 +112,6 @@ export class VertexTransform {
 
     const shading = this.object.userData.shading;
     this.geometry = ShadingUtils.createGeometryWithShading(meshData, shading, useEarcut);
-    this.geometry.computeVertexNormals();
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 

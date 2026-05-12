@@ -13,22 +13,53 @@ export class MeshRendererAdapter {
 
     switch (mode) {
       case "flat":
-        return this.generateDuplicatedVertexGeometry(meshData, useEarcut);
+        return this.generateFlatGeometry(meshData, useEarcut);
       case "smooth":
-        return this.generateSharedVertexGeometry(meshData, useEarcut);
+        return this.generateSmoothGeometry(meshData, useEarcut);
       case "auto":
         return this.generateAngleBasedGeometry(meshData, angle, useEarcut);
     }
   }
 
-  /**
-   * Generate geometry with duplicated vertices (each face has its own copies).
-   */
-  static generateDuplicatedVertexGeometry(meshData, useEarcut = true) {
+  static generateFlatGeometry(meshData, useEarcut) {
+    const data = this.buildDuplicatedMeshData(meshData, useEarcut);
+
     const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
+    geometry.setIndex(data.indices);
+
+    geometry.computeVertexNormals();
+
+    return geometry;
+  }
+
+  static generateSmoothGeometry(meshData, useEarcut = true) {
+    const data = this.buildDuplicatedMeshData(meshData, useEarcut);
+
+    const smoothNormalsMap = this.calculateSmoothNormalsMap(meshData, useEarcut);
+
+    const normals = [];
+    for (let i = 0; i < data.positions.length / 3; i++) {
+      const logicalVertexId = meshData.bufferIndexToVertexId.get(i);
+      const n = smoothNormalsMap.get(logicalVertexId);
+
+      normals.push(n.x, n.y, n.z);
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
+    geometry.setIndex(data.indices);
+
+    return geometry;
+  }
+
+  static buildDuplicatedMeshData(meshData, useEarcut = true) {
     const positions = [];
-    const indices = [];
     const uvs = [];
+    const indices = [];
     let currentIndex = 0;
 
     meshData.vertexIndexMap.clear();
@@ -92,36 +123,26 @@ export class MeshRendererAdapter {
       for (let i of indicesArr) meshData.bufferIndexToVertexId.set(i, logicalId);
     }
 
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-
-    return geometry;
+    return { positions, uvs, indices };
   }
 
-  /**
-   * Generate geometry that shares vertices (no duplicates between faces).
-   */
-  static generateSharedVertexGeometry(meshData, useEarcut = true) {
-    const geometry = new THREE.BufferGeometry();
+  static calculateSmoothNormalsMap(meshData, useEarcut = true) {
     const positions = [];
     const indices = [];
 
-    meshData.vertexIndexMap.clear();
     const vertexIdToIndex = new Map();
+    const indexToVertexId = new Map();
     let currentIndex = 0;
 
+    // Build the strictly shared geometry arrays
     for (let v of meshData.vertices.values()) {
       positions.push(v.position.x, v.position.y, v.position.z);
       vertexIdToIndex.set(v.id, currentIndex);
-
-      meshData.vertexIndexMap.set(v.id, [currentIndex]);
+      indexToVertexId.set(currentIndex, v.id);
       currentIndex++;
     }
 
+    // Build indices
     for (let f of meshData.faces.values()) {
       let verts = f.vertexIds.map(id => meshData.vertices.get(id));
       if (useEarcut) {
@@ -137,7 +158,6 @@ export class MeshRendererAdapter {
           const a = vertexIdToIndex.get(verts[triangulated[i]].id);
           const b = vertexIdToIndex.get(verts[triangulated[i + 1]].id);
           const c = vertexIdToIndex.get(verts[triangulated[i + 2]].id);
-
           indices.push(a, b, c);
         }
       } else {
@@ -150,20 +170,26 @@ export class MeshRendererAdapter {
       }
     }
 
-    meshData.bufferIndexToVertexId = new Map();
-    for (let [logicalId, indexArr] of meshData.vertexIndexMap) {
-      for (let i of indexArr) {
-        meshData.bufferIndexToVertexId.set(i, logicalId);
-      }
+    // Let Three.js calculate the perfect smooth normals
+    const tmpGeo = new THREE.BufferGeometry();
+    tmpGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    tmpGeo.setIndex(indices);
+    tmpGeo.computeVertexNormals();
+    const computedNormals = tmpGeo.attributes.normal.array;
+
+    // Map the results back to the original logical Vertex IDs
+    const normalsMap = new Map();
+    for (let i = 0; i < currentIndex; i++) {
+      const logicalId = indexToVertexId.get(i);
+      normalsMap.set(logicalId, new THREE.Vector3(
+        computedNormals[i * 3],
+        computedNormals[(i * 3) + 1],
+        computedNormals[(i * 3) + 2]
+      ));
     }
 
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-
-    return geometry;
+    tmpGeo.dispose();
+    return normalsMap;
   }
 
   /**

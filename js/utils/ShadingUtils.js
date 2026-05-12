@@ -19,7 +19,6 @@ export class ShadingUtils {
     } else if (mode === 'auto') {
       geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "auto", useEarcut: useEarcut });
     }
-    geometry.computeVertexNormals();
     return geometry;
   }
 
