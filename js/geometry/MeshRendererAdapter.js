@@ -221,13 +221,17 @@ export class MeshRendererAdapter {
     }
 
     // Calculate Normals per Buffer Index
+    const seenVertexIds = new Set();
     let currentIndex = 0;
+    
     for (const face of meshData.faces.values()) {
       let verts = face.vertexIds.map(id => meshData.vertices.get(id));
 
       const currentFaceNormal = faceNormals.get(face.id);
 
       for (const v of verts) {
+        seenVertexIds.add(v.id);
+
         const averagedNormal = new THREE.Vector3(0, 0, 0);
         const neighborFaceIds = vertexToFaces.get(v.id);
 
@@ -249,7 +253,7 @@ export class MeshRendererAdapter {
 
     // Handle extra vertices
     for (const v of meshData.vertices.values()) {
-      if (!meshData.vertexIndexMap.has(v.id)) {
+      if (!seenVertexIds.has(v.id)) {
         normalsMap.set(currentIndex, new THREE.Vector3(0, 1, 0));
         currentIndex++;
       }

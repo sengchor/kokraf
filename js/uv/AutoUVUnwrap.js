@@ -119,6 +119,7 @@ export class AutoUVUnwrap {
     }
   
     xa.destroyAtlas();
+    _xatlasModule = null;
   
     return {
       positions: newPositionArray,
@@ -178,7 +179,7 @@ export class AutoUVUnwrap {
     const gridTexture = loader.load('https://threejs.org/examples/textures/uv_grid_opengl.jpg');
     gridTexture.wrapS = gridTexture.wrapT = THREE.RepeatWrapping;
 
-    const gridMaterial = new THREE.MeshPhongMaterial({ map: gridTexture });
+    const gridMaterial = new THREE.MeshPhongMaterial({ map: gridTexture, side: THREE.DoubleSide });
 
     if (object.material.dispose) object.material.dispose();
     object.material = gridMaterial;

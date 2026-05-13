@@ -137,7 +137,11 @@ export default class ViewportControls {
     if (this.generateButton) {
       this.generateButton.addEventListener('click', async () => {
         const object = this.selection.selectedObjects[0];
-        if (!object) { console.log('forget select object'); }
+
+        if (!(object && object.isMesh)) {
+          alert('No mesh selected. Please select a mesh object.');
+          return;
+        }
 
         const meshData = object.userData.meshData;
         const output = await AutoUVUnwrap.unwrap(meshData);

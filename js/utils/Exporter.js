@@ -44,32 +44,6 @@ export class Exporter {
   }
 
   async canExport() {
-    const session = await auth.getSession();
-    if (!session) return false;
-
-    const res = await fetch(
-      `${SUPABASE_URL}/functions/v1/consume-credits-export`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        },
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok || !data.allowed) {
-      const reason = data.reason === "no_credits" ? "You have no credits left! Please upgrade to Pro" : "Action not allowed!";
-      alert(reason);
-      return false;
-    }
-
-    return true;
-  }
-
-  async canExport() {
     const { allowed, reason } = await consumeCredits('export');
     if (!allowed) {
       alert(getCreditsErrorMessage(reason));
