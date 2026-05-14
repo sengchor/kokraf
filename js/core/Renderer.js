@@ -99,4 +99,30 @@ export default class Renderer {
 
     return blob;
   }
+
+  captureForSD(sceneManager, camera, size = 512) {
+    const currentSize = new THREE.Vector2();
+    this.renderer.getSize(currentSize);
+
+    const originalAspect = camera.aspect;
+    const originalPixelRatio = this.renderer.getPixelRatio();
+
+    camera.aspect = 1;
+    camera.updateProjectionMatrix();
+
+    this.renderer.setSize(size, size);
+    this.renderer.clear();
+    this.renderer.render(sceneManager.mainScene, camera);
+
+    const blob = new Promise((resolve) => {
+      this.renderer.domElement.toBlob((b) => resolve(b), 'image/png');
+    });
+
+    this.renderer.setPixelRatio(originalPixelRatio);
+    this.renderer.setSize(currentSize.x, currentSize.y);
+    camera.aspect = originalAspect;
+    camera.updateProjectionMatrix();
+
+    return blob;
+  }
 }

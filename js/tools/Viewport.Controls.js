@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
+import { StableDiffusion } from '../texture/stableDiffusion.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -17,6 +18,7 @@ export default class ViewportControls {
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
     this.vertexEditor = editor.vertexEditor;
+    this.renderer = editor.renderer;
     this.currentMode = 'object';
     this.transformOrientation = 'global';
 
@@ -136,20 +138,14 @@ export default class ViewportControls {
 
     if (this.generateButton) {
       this.generateButton.addEventListener('click', async () => {
-        const object = this.selection.selectedObjects[0];
+        // this.applyAutoUVUnwrap();
+        
+        const blob = await this.renderer.captureForSD(this.editor.sceneManager, this.cameraManager.camera);
 
-        if (!(object && object.isMesh)) {
-          alert('No mesh selected. Please select a mesh object.');
-          return;
-        }
-
-        const meshData = object.userData.meshData;
-        const output = await AutoUVUnwrap.unwrap(meshData);
-
-        AutoUVUnwrap.applyUVGridMaterial(object);
-
-        this.vertexEditor.setObject(object);
-        this.vertexEditor.transform.updateGeometryAndHelpers();
+        const results = await StableDiffusion.generateFromBlob(blob, {
+          prompt: 'texturing',
+        });
+        window.open(results[0].url, '_blank');
       });
     }
 
@@ -349,6 +345,23 @@ switchMode(newMode) {
 
       requestAnimationFrame(() => menu.classList.remove('menu-closing'));
     });
+  }
+
+  async applyAutoUVUnwrap() {
+    const object = this.selection.selectedObjects[0];
+
+    if (!(object && object.isMesh)) {
+      alert('No mesh selected. Please select a mesh object.');
+      return;
+    }
+
+    const meshData = object.userData.meshData;
+    const output = await AutoUVUnwrap.unwrap(meshData);
+
+    AutoUVUnwrap.applyUVGridMaterial(object);
+
+    this.vertexEditor.setObject(object);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
   }
 
   toJSON() {
