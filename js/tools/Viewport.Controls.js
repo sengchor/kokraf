@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
-import { StableDiffusion } from '../texture/stableDiffusion.js';
+import { NanoBanana } from '../texture/NanoBanana.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -140,10 +140,16 @@ export default class ViewportControls {
       this.generateButton.addEventListener('click', async () => {
         // this.applyAutoUVUnwrap();
         
-        const blob = await this.renderer.captureForSD(this.editor.sceneManager, this.cameraManager.camera);
+        const matcapBlob = await this.renderer.captureForSD(this.editor.sceneManager, this.cameraManager.camera);
+        const matcapUrl = URL.createObjectURL(matcapBlob);
+        window.open(matcapUrl, '_blank');
 
-        const results = await StableDiffusion.generateFromBlob(blob, {
-          prompt: 'texturing',
+        const normalBlob = await this.renderer.captureNormalMap(this.editor.sceneManager, this.cameraManager.camera);
+        const normalUrl = URL.createObjectURL(normalBlob);
+        window.open(normalUrl, '_blank');
+
+        const results = await NanoBanana.generate([matcapBlob, normalBlob], {
+          prompt: 'Texture this 3D render with realistic materials. Do not remove background. Generate realistic materials and natural colors. Camera photo realism.',
         });
         window.open(results[0].url, '_blank');
       });

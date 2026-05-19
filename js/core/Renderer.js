@@ -110,6 +110,7 @@ export default class Renderer {
     camera.aspect = 1;
     camera.updateProjectionMatrix();
 
+    this.renderer.setPixelRatio(1);
     this.renderer.setSize(size, size);
     this.renderer.clear();
     this.renderer.render(sceneManager.mainScene, camera);
@@ -122,6 +123,54 @@ export default class Renderer {
     this.renderer.setSize(currentSize.x, currentSize.y);
     camera.aspect = originalAspect;
     camera.updateProjectionMatrix();
+
+    return blob;
+  }
+
+  captureNormalMap(sceneManager, camera, size = 512) {
+    sceneManager.updateShadingMode('material', false);
+
+    const currentSize = new THREE.Vector2();
+    this.renderer.getSize(currentSize);
+    const originalAspect = camera.aspect;
+
+    camera.aspect = 1;
+    camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(size, size);
+    this.renderer.clear();
+
+    // Override all materials with MeshNormalMaterial
+    const saved = [];
+    sceneManager.mainScene.traverse(obj => {
+      if (!obj.isMesh) return;
+      saved.push({ obj, mat: obj.material });
+      obj.material = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide });
+    });
+
+    this.renderer.render(sceneManager.mainScene, camera);
+
+    // Restore
+    saved.forEach(({ obj, mat }) => {
+      obj.material.dispose();
+      obj.material = mat;
+    });
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = size;
+    offscreen.height = size;
+    offscreen.getContext('2d').drawImage(this.renderer.domElement, 0, 0);
+
+    const blob = new Promise(resolve => {
+      offscreen.toBlob(b => resolve(b), 'image/png');
+    });
+
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setSize(currentSize.x, currentSize.y);
+    camera.aspect = originalAspect;
+    camera.updateProjectionMatrix();
+
+    sceneManager.updateShadingMode('solid', false);
 
     return blob;
   }
