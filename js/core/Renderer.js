@@ -100,7 +100,7 @@ export default class Renderer {
     return blob;
   }
 
-  captureForSD(sceneManager, camera, size = 512) {
+  captureShadedRender(sceneManager, camera, size = 512) {
     const currentSize = new THREE.Vector2();
     this.renderer.getSize(currentSize);
 
@@ -127,7 +127,7 @@ export default class Renderer {
     return blob;
   }
 
-  captureNormalMap(sceneManager, camera, size = 512) {
+  captureNormalRender(sceneManager, camera, size = 512) {
     sceneManager.updateShadingMode('material', false);
 
     const currentSize = new THREE.Vector2();
@@ -173,5 +173,71 @@ export default class Renderer {
     sceneManager.updateShadingMode('solid', false);
 
     return blob;
+  }
+
+  async captureMultiView(sceneManager, camera, captureFn, size = 512) {
+    const box = new THREE.Box3().setFromObject(sceneManager.mainScene);
+    const target = box.getCenter(new THREE.Vector3());
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+
+    const fov = THREE.MathUtils.degToRad(camera.fov);
+    const radius = sphere.radius;
+    const distance = radius / Math.sin(fov / 2);
+
+    const originalPosition = camera.position.clone();
+    const originalQuaternion = camera.quaternion.clone();
+
+    // 4 angled directions
+    const views = [
+      { yaw: Math.PI * 0.25 },
+      { yaw: Math.PI * 1.75 },
+      { yaw: Math.PI * 1.25 },
+      { yaw: Math.PI * 0.75 },
+    ];
+
+    const images = [];
+
+    for (const view of views) {
+      const x = target.x + Math.cos(view.yaw) * distance;
+      const z = target.z + Math.sin(view.yaw) * distance;
+
+      camera.position.set(x, target.y, z);
+      camera.up.set(0, 1, 0);
+      camera.lookAt(target);
+
+      const blob = await captureFn.call(this, sceneManager, camera, size);
+
+      const bitmap = await createImageBitmap(blob);
+      images.push(bitmap);
+    }
+
+    // Restore camera
+    camera.position.copy(originalPosition);
+    camera.quaternion.copy(originalQuaternion);
+    camera.updateProjectionMatrix();
+
+    // Stitch images into 2x2 atlas
+    const canvas = document.createElement('canvas');
+    canvas.width = size * 2;
+    canvas.height = size * 2;
+
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(images[0], 0, 0, size, size);
+    ctx.drawImage(images[1], size, 0, size, size);
+    ctx.drawImage(images[2], size, size, size, size);
+    ctx.drawImage(images[3], 0, size, size, size);
+
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 32px Arial';
+
+    ctx.fillText('FRONT LEFT', 20, 40);
+    ctx.fillText('FRONT RIGHT', size + 20, 40);
+    ctx.fillText('BACK RIGHT', size + 20, size + 40);
+    ctx.fillText('BACK LEFT', 20, size + 40);
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/png');
+    });
   }
 }

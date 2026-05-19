@@ -139,17 +139,16 @@ export default class ViewportControls {
     if (this.generateButton) {
       this.generateButton.addEventListener('click', async () => {
         // this.applyAutoUVUnwrap();
-        
-        const matcapBlob = await this.renderer.captureForSD(this.editor.sceneManager, this.cameraManager.camera);
-        const matcapUrl = URL.createObjectURL(matcapBlob);
-        window.open(matcapUrl, '_blank');
 
-        const normalBlob = await this.renderer.captureNormalMap(this.editor.sceneManager, this.cameraManager.camera);
-        const normalUrl = URL.createObjectURL(normalBlob);
-        window.open(normalUrl, '_blank');
+        const matcapBlob = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender);
+
+        const normalBlob = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender);
 
         const results = await NanoBanana.generate([matcapBlob, normalBlob], {
-          prompt: 'Texture this 3D render with realistic materials. Do not remove background. Generate realistic materials and natural colors. Camera photo realism.',
+          prompt: `Texture this 3D render with realistic materials.
+          Generate realistic materials and natural colors. Camera photo realism.
+          Do not duplicate views.
+          Do not remove background.`,
         });
         window.open(results[0].url, '_blank');
       });
