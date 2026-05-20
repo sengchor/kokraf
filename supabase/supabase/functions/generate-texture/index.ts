@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     }
 
     // Create prediction
-    const createRes = await fetch("https://api.replicate.com/v1/models/google/nano-banana/predictions", {
+    const createRes = await fetch("https://api.replicate.com/v1/models/google/nano-banana-2/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${REPLICATE_API_TOKEN}`,

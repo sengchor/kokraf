@@ -100,15 +100,10 @@ export default class Renderer {
     return blob;
   }
 
-  captureShadedRender(sceneManager, camera, size = 512) {
+captureShadedRender(sceneManager, camera, size = 512) {
     const currentSize = new THREE.Vector2();
     this.renderer.getSize(currentSize);
-
-    const originalAspect = camera.aspect;
     const originalPixelRatio = this.renderer.getPixelRatio();
-
-    camera.aspect = 1;
-    camera.updateProjectionMatrix();
 
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(size, size);
@@ -121,8 +116,6 @@ export default class Renderer {
 
     this.renderer.setPixelRatio(originalPixelRatio);
     this.renderer.setSize(currentSize.x, currentSize.y);
-    camera.aspect = originalAspect;
-    camera.updateProjectionMatrix();
 
     return blob;
   }
@@ -132,15 +125,12 @@ export default class Renderer {
 
     const currentSize = new THREE.Vector2();
     this.renderer.getSize(currentSize);
-    const originalAspect = camera.aspect;
+    const originalPixelRatio = this.renderer.getPixelRatio();
 
-    camera.aspect = 1;
-    camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(size, size);
     this.renderer.clear();
 
-    // Override all materials with MeshNormalMaterial
     const saved = [];
     sceneManager.mainScene.traverse(obj => {
       if (!obj.isMesh) return;
@@ -150,7 +140,6 @@ export default class Renderer {
 
     this.renderer.render(sceneManager.mainScene, camera);
 
-    // Restore
     saved.forEach(({ obj, mat }) => {
       obj.material.dispose();
       obj.material = mat;
@@ -165,11 +154,9 @@ export default class Renderer {
       offscreen.toBlob(b => resolve(b), 'image/png');
     });
 
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    // Restore the renderer
+    this.renderer.setPixelRatio(originalPixelRatio);
     this.renderer.setSize(currentSize.x, currentSize.y);
-    camera.aspect = originalAspect;
-    camera.updateProjectionMatrix();
-
     sceneManager.updateShadingMode('solid', false);
 
     return blob;
@@ -187,6 +174,10 @@ export default class Renderer {
     const originalPosition = camera.position.clone();
     const originalQuaternion = camera.quaternion.clone();
 
+    const originalAspect = camera.aspect;
+    camera.aspect = 1.0;
+    camera.updateProjectionMatrix();
+
     // 4 angled directions
     const views = [
       { yaw: Math.PI * 0.25 },
@@ -196,6 +187,7 @@ export default class Renderer {
     ];
 
     const images = [];
+    const viewSnapshots = [];
 
     for (const view of views) {
       const x = target.x + Math.cos(view.yaw) * distance;
@@ -204,9 +196,18 @@ export default class Renderer {
       camera.position.set(x, target.y, z);
       camera.up.set(0, 1, 0);
       camera.lookAt(target);
+      camera.updateMatrixWorld();
+
+      const vpMatrix = new THREE.Matrix4().multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse,
+      );
+      viewSnapshots.push({
+        vpMatrix,
+        camWorldPos: camera.position.clone(),
+      });
 
       const blob = await captureFn.call(this, sceneManager, camera, size);
-
       const bitmap = await createImageBitmap(blob);
       images.push(bitmap);
     }
@@ -214,6 +215,7 @@ export default class Renderer {
     // Restore camera
     camera.position.copy(originalPosition);
     camera.quaternion.copy(originalQuaternion);
+    camera.aspect = originalAspect;
     camera.updateProjectionMatrix();
 
     // Stitch images into 2x2 atlas
@@ -230,14 +232,15 @@ export default class Renderer {
 
     ctx.fillStyle = 'white';
     ctx.font = 'bold 32px Arial';
-
     ctx.fillText('FRONT LEFT', 20, 40);
     ctx.fillText('FRONT RIGHT', size + 20, 40);
     ctx.fillText('BACK RIGHT', size + 20, size + 40);
     ctx.fillText('BACK LEFT', 20, size + 40);
 
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => resolve(blob), 'image/png');
-    });
+    const blob = await new Promise(resolve =>
+      canvas.toBlob(resolve, 'image/png')
+    );
+
+    return { blob, views: viewSnapshots };
   }
 }

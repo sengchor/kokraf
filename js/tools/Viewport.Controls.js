@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
+import { TextureBaker } from '../texture/TextureBaker.js';
 import { NanoBanana } from '../texture/NanoBanana.js';
 
 export default class ViewportControls {
@@ -138,19 +139,60 @@ export default class ViewportControls {
 
     if (this.generateButton) {
       this.generateButton.addEventListener('click', async () => {
-        // this.applyAutoUVUnwrap();
+        const object = this.selection.selectedObjects[0];
 
-        const matcapBlob = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender);
+        if (!(object && object.isMesh)) {
+          alert('Select a mesh first.');
+          return;
+        }
 
-        const normalBlob = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender);
+        const meshData = object.userData.meshData;
+        const uvOutput = await AutoUVUnwrap.unwrap(meshData);
+        this.vertexEditor.setObject(object);
+        this.vertexEditor.transform.updateGeometryAndHelpers();
 
-        const results = await NanoBanana.generate([matcapBlob, normalBlob], {
-          prompt: `Texture this 3D render with realistic materials.
-          Generate realistic materials and natural colors. Camera photo realism.
-          Do not duplicate views.
-          Do not remove background.`,
-        });
-        window.open(results[0].url, '_blank');
+        const bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
+        const tempBakeMesh = new THREE.Mesh(bakeGeometry);
+        tempBakeMesh.matrixWorld.copy(object.matrixWorld);
+
+        const { blob: matcapBlob, views } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender);
+        // const matcapUrl = URL.createObjectURL(matcapBlob);
+        // window.open(matcapUrl, '_blank');
+
+        const { blob: normalBlob } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender);
+        // const normalUrl = URL.createObjectURL(normalBlob);
+        // window.open(normalUrl, '_blank');
+
+        // const results = await NanoBanana.generate([matcapBlob, normalBlob], {
+        //   prompt: `Texture this 3D render with realistic materials.
+        //   Generate stylized and natural colors. Camera photo realism.
+        //   Preserve the exact original shape.
+        //   Keep exact view layout.
+        //   Do not duplicate views.
+        //   Do not remove background.`,
+        // });
+        // window.open(results[0].url, '_blank');
+
+        // const generatedBlob = await fetch(results[0].url).then(r => r.blob());
+
+
+        const imageUrl = '../assets/images/building.jpeg';
+        const generatedBlob = await fetch(imageUrl).then(r => r.blob());
+
+        object.geometry = object.geometry.toNonIndexed();
+        const renderTarget = await TextureBaker.bake(
+          this.renderer.renderer, tempBakeMesh, generatedBlob, views, 1024
+        );
+        bakeGeometry.dispose();
+
+        TextureBaker.applyToMesh(object, renderTarget);
+
+        // download baked PNG
+        // const png  = await TextureBaker.toBlob(this.renderer.renderer, renderTarget);
+        // const link = document.createElement('a');
+        // link.href = URL.createObjectURL(png);
+        // link.download = 'baked.png';
+        // link.click();
       });
     }
 
@@ -350,23 +392,6 @@ switchMode(newMode) {
 
       requestAnimationFrame(() => menu.classList.remove('menu-closing'));
     });
-  }
-
-  async applyAutoUVUnwrap() {
-    const object = this.selection.selectedObjects[0];
-
-    if (!(object && object.isMesh)) {
-      alert('No mesh selected. Please select a mesh object.');
-      return;
-    }
-
-    const meshData = object.userData.meshData;
-    const output = await AutoUVUnwrap.unwrap(meshData);
-
-    AutoUVUnwrap.applyUVGridMaterial(object);
-
-    this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
   }
 
   toJSON() {
