@@ -24,6 +24,7 @@ const VERTEX_SHADER = `
 
 const FRAGMENT_SHADER = `
   uniform sampler2D uAtlas;
+  uniform sampler2D depthTex;
 
   uniform mat4 uVP0;
   uniform mat4 uVP1;
@@ -40,6 +41,11 @@ const FRAGMENT_SHADER = `
   uniform vec2 uOffset2;
   uniform vec2 uOffset3;
 
+  uniform sampler2D uDepth0;
+  uniform sampler2D uDepth1;
+  uniform sampler2D uDepth2;
+  uniform sampler2D uDepth3;
+
   varying vec3 vWorldPos;
   varying vec3 vWorldNormal;
 
@@ -49,6 +55,7 @@ const FRAGMENT_SHADER = `
       mat4 vp,
       vec3 camPos,
       vec2 atlasOffset,
+      sampler2D depthTex,
       inout vec4 colorSum,
       inout float weightSum
   ) {
@@ -70,6 +77,11 @@ const FRAGMENT_SHADER = `
     vec2 projUV = ndc.xy * 0.5 + 0.5;
     vec2 atlasUV = projUV * 0.5 + atlasOffset;
 
+    float projectedDepth = ndc.z * 0.5 + 0.5;
+    float sceneDepth = texture2D(depthTex, projUV).r;
+    float bias = 0.001;
+    if (projectedDepth > sceneDepth + bias) return;
+
     colorSum += texture2D(uAtlas, atlasUV) * facing;
     weightSum += facing;
   }
@@ -78,10 +90,10 @@ const FRAGMENT_SHADER = `
     vec4 colorSum = vec4(0.0);
     float weightSum = 0.0;
 
-    accumulateView(uVP0, uCamPos0, uOffset0, colorSum, weightSum);
-    accumulateView(uVP1, uCamPos1, uOffset1, colorSum, weightSum);
-    accumulateView(uVP2, uCamPos2, uOffset2, colorSum, weightSum);
-    accumulateView(uVP3, uCamPos3, uOffset3, colorSum, weightSum);
+    accumulateView(uVP0, uCamPos0, uOffset0, uDepth0, colorSum, weightSum);
+    accumulateView(uVP1, uCamPos1, uOffset1, uDepth1, colorSum, weightSum);
+    accumulateView(uVP2, uCamPos2, uOffset2, uDepth2, colorSum, weightSum);
+    accumulateView(uVP3, uCamPos3, uOffset3, uDepth3, colorSum, weightSum);
 
     if (weightSum > 0.0) {
       gl_FragColor = colorSum / weightSum;
@@ -121,6 +133,11 @@ export class TextureBaker {
         uOffset1: { value: ATLAS_OFFSETS[1] },
         uOffset2: { value: ATLAS_OFFSETS[2] },
         uOffset3: { value: ATLAS_OFFSETS[3] },
+
+        uDepth0: { value: views[0].depthTexture },
+        uDepth1: { value: views[1].depthTexture },
+        uDepth2: { value: views[2].depthTexture },
+        uDepth3: { value: views[3].depthTexture },
       },
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
@@ -195,6 +212,7 @@ export class TextureBaker {
         (tex) => {
           URL.revokeObjectURL(url);
           tex.flipY = true;
+          tex.colorSpace = THREE.SRGBColorSpace;
           resolve(tex);
         },
         undefined,

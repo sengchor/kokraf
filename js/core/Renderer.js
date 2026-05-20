@@ -162,6 +162,19 @@ captureShadedRender(sceneManager, camera, size = 512) {
     return blob;
   }
 
+  captureDepthRender(sceneManager, camera, size = 512) {
+    const target = new THREE.WebGLRenderTarget(size, size);
+
+    target.depthTexture = new THREE.DepthTexture(size, size, THREE.FloatType);
+
+    this.renderer.setRenderTarget(target);
+    this.renderer.clear();
+    this.renderer.render(sceneManager.mainScene, camera);
+    this.renderer.setRenderTarget(null);
+
+    return target.depthTexture;
+  }
+
   async captureMultiView(sceneManager, camera, captureFn, size = 512) {
     const box = new THREE.Box3().setFromObject(sceneManager.mainScene);
     const target = box.getCenter(new THREE.Vector3());
@@ -202,9 +215,15 @@ captureShadedRender(sceneManager, camera, size = 512) {
         camera.projectionMatrix,
         camera.matrixWorldInverse,
       );
+
+      const depthTexture = this.captureDepthRender(sceneManager, camera, size);
+      depthTexture.minFilter = THREE.LinearFilter;
+      depthTexture.magFilter = THREE.LinearFilter;
+
       viewSnapshots.push({
         vpMatrix,
         camWorldPos: camera.position.clone(),
+        depthTexture
       });
 
       const blob = await captureFn.call(this, sceneManager, camera, size);

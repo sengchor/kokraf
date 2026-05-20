@@ -156,16 +156,16 @@ export default class ViewportControls {
         tempBakeMesh.matrixWorld.copy(object.matrixWorld);
 
         const { blob: matcapBlob, views } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender);
-        // const matcapUrl = URL.createObjectURL(matcapBlob);
-        // window.open(matcapUrl, '_blank');
+        const matcapUrl = URL.createObjectURL(matcapBlob);
+        window.open(matcapUrl, '_blank');
 
         const { blob: normalBlob } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender);
-        // const normalUrl = URL.createObjectURL(normalBlob);
-        // window.open(normalUrl, '_blank');
+        const normalUrl = URL.createObjectURL(normalBlob);
+        window.open(normalUrl, '_blank');
 
         // const results = await NanoBanana.generate([matcapBlob, normalBlob], {
         //   prompt: `Texture this 3D render with realistic materials.
-        //   Generate stylized and natural colors. Camera photo realism.
+        //   Generate realistic and natural colors. Camera photo realism.
         //   Preserve the exact original shape.
         //   Keep exact view layout.
         //   Do not duplicate views.
@@ -174,7 +174,6 @@ export default class ViewportControls {
         // window.open(results[0].url, '_blank');
 
         // const generatedBlob = await fetch(results[0].url).then(r => r.blob());
-
 
         const imageUrl = '../assets/images/building.jpeg';
         const generatedBlob = await fetch(imageUrl).then(r => r.blob());
@@ -186,13 +185,6 @@ export default class ViewportControls {
         bakeGeometry.dispose();
 
         TextureBaker.applyToMesh(object, renderTarget);
-
-        // download baked PNG
-        // const png  = await TextureBaker.toBlob(this.renderer.renderer, renderTarget);
-        // const link = document.createElement('a');
-        // link.href = URL.createObjectURL(png);
-        // link.download = 'baked.png';
-        // link.click();
       });
     }
 
