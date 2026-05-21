@@ -2,8 +2,8 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { consumeCredits } from "../_shared/consumeCredits.ts";
 
 const COST = {
-  free: 10,
-  pro: 10,
+  free: 20,
+  pro: 20,
 };
 
 Deno.serve(async (req) => {

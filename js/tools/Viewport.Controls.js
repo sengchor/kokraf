@@ -4,6 +4,8 @@ import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { TextureBaker } from '../texture/TextureBaker.js';
 import { NanoBanana } from '../texture/NanoBanana.js';
+import { auth } from '/supabase/services/AuthService.js';
+import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -139,15 +141,37 @@ export default class ViewportControls {
 
     if (this.generateButton) {
       this.generateButton.addEventListener('click', async () => {
-        const object = this.selection.selectedObjects[0];
+        if (!auth.isLoggedIn()) {
+          this.signals.showLoginPanel.dispatch();
+          return;
+        }
 
+        const objects = this.selection.selectedObjects;
+        if (objects.length > 1) {
+          alert('Please select a single mesh, or merge the meshes into one.');
+          return;
+        }
+        
+        const object = objects[0];
         if (!(object && object.isMesh)) {
-          alert('Select a mesh first.');
+          alert('First, select a mesh, then click the generate button.');
           return;
         }
 
         const meshData = object.userData.meshData;
-        const uvOutput = await AutoUVUnwrap.unwrap(meshData);
+        let uvOutput;
+        try {
+          uvOutput = await AutoUVUnwrap.unwrap(meshData);
+        } catch (error) {
+          console.error("UV Unwrapping crashed:", error);
+          alert('Failed to process mesh geometry. The operation was aborted.');
+          return;
+        }
+        
+        if (!uvOutput || !uvOutput.positions || uvOutput.positions.length === 0 || uvOutput.indices.length === 0) {
+          alert('UV unwrapping failed. Please check if your mesh topology is valid.');
+          return;
+        }
         this.vertexEditor.setObject(object);
         this.vertexEditor.transform.updateGeometryAndHelpers();
 
@@ -156,12 +180,14 @@ export default class ViewportControls {
         tempBakeMesh.matrixWorld.copy(object.matrixWorld);
 
         const { blob: matcapBlob, views } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender);
-        const matcapUrl = URL.createObjectURL(matcapBlob);
-        window.open(matcapUrl, '_blank');
-
         const { blob: normalBlob } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender);
-        const normalUrl = URL.createObjectURL(normalBlob);
-        window.open(normalUrl, '_blank');
+
+        const { allowed, reason } = await consumeCredits('generate-texture');
+        if (!allowed) {
+          alert(getCreditsErrorMessage(reason));
+          bakeGeometry.dispose()
+          return;
+        }
 
         // const results = await NanoBanana.generate([matcapBlob, normalBlob], {
         //   prompt: `Texture this 3D render with realistic materials.

@@ -53,3 +53,14 @@ entrypoint = "./functions/generate-texture/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-texture/*.html" ]
+
+[functions.consume-credits-generate-texture]
+enabled = true
+verify_jwt = true
+import_map = "./functions/consume-credits-generate-texture/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/consume-credits-generate-texture/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/consume-credits-generate-texture/*.html" ]

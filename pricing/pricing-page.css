@@ -305,3 +305,38 @@ body {
 .site-footer a:hover {
   color: #111;
 }
+
+/* Checkmark icon */
+.custom-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background-color: #22c55e;
+  border: 1.5px solid #22c55e;
+  border-radius: 50%;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.custom-check svg {
+  width: 12px;
+  height: 12px;
+  color: #ffffff;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.custom-check.normal {
+  background-color: #ffffff;
+  border: 1.5px solid #ffffff;
+}
+
+.custom-check.normal svg {
+  color: #000000;
+}
