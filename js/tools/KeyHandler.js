@@ -215,6 +215,8 @@ export class KeyHandler {
   }
 
   onKeyUp(event) {
+    if (!event.key) return;
+
     const key = event.key.toLowerCase();
     delete this.keysPressed[key];
 

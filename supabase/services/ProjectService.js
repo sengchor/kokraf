@@ -3,20 +3,16 @@ import { auth } from './AuthService.js';
 import { createEmptyProject } from '/js/utils/ProjectFactory.js';
 
 export async function createProject(projectId, name = 'Untitled Project', isPublic = 'false') {
-  const user = auth.user;
+  const { data, error } = await supabase.functions.invoke('create-project', {
+    body: { projectId, name, isPublic },
+  });
 
-  const { data, error } = await supabase
-    .from('projects')
-    .insert({
-      id: projectId,
-      user_id: user.id,
-      name: name,
-      is_public: isPublic,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
+  if (error) {
+    const body = await error.context?.json?.().catch(() => null);
+    const creditError = new Error(body?.reason ?? error.message);
+    creditError.reason = body?.reason;
+    throw creditError;
+  }
 
   return data;
 }
@@ -26,28 +22,24 @@ export async function saveProject(editor, {name = null, isPublic = false, overri
   const camera = editor.cameraManager.camera;
   const blob = await editor.renderer.captureThumbnail(editor.sceneManager, camera);
 
-  try {
-    if (override) {
-      await Promise.all([
-        uploadProject(json, editor.currentProjectId),
-        uploadThumbnail(blob, editor.currentProjectId),
-      ]);
-    } else {
-      const project = await createProject(editor.currentProjectId, name, isPublic);
-      editor.currentProjectId = project.id;
+  if (override) {
+    await Promise.all([
+      uploadProject(json, editor.currentProjectId),
+      uploadThumbnail(blob, editor.currentProjectId),
+    ]);
+  } else {
+    const project = await createProject(editor.currentProjectId, name, isPublic);
+    editor.currentProjectId = project.id;
 
-      const [filePath] = await Promise.all([
-        uploadProject(json, project.id),
-        uploadThumbnail(blob, project.id)
-      ]);
+    const [filePath] = await Promise.all([
+      uploadProject(json, project.id),
+      uploadThumbnail(blob, project.id)
+    ]);
 
-      await updateProjectFilePath(project.id, filePath);
-    }
-
-    history.replaceState(null, '', `/?projectId=${editor.currentProjectId}`);
-  } catch (err) {
-    console.error('Save failed:', err);
+    await updateProjectFilePath(project.id, filePath);
   }
+
+  history.replaceState(null, '', `/?projectId=${editor.currentProjectId}`);
 }
 
 export async function uploadProject(json, projectId) {

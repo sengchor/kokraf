@@ -1,5 +1,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
+import { consumeCredits } from "../_shared/consumeCredits.ts";
 
+const COST = { free: 20, pro: 20 };
 const REPLICATE_API_TOKEN = Deno.env.get("REPLICATE_API_TOKEN");
 
 Deno.serve(async (req) => {
@@ -13,6 +15,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const result = await consumeCredits(req, COST);
+  if (result instanceof Response) return result;
 
   try {
     const { prompt, image_input } = await req.json();

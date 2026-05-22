@@ -3,7 +3,7 @@ import { initExplore } from './explore.js';
 import { LoginPanel } from '/js/panels/LoginPanel.js';
 import { AccountPanel } from '/js/panels/AccountPanel.js';
 import { createEmptyCloudProject } from '/supabase/services/ProjectService.js';
-import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
+import { getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 
 document.addEventListener('DOMContentLoaded', initApp);
 
@@ -27,13 +27,12 @@ async function initApp() {
       return;
     }
 
-    const { allowed, reason } = await consumeCredits('cloud-save');
-    if (!allowed) {
-      alert(getCreditsErrorMessage(reason));
-      return;
+    try {
+      const project = await createEmptyCloudProject();
+      window.location.href = `/?projectId=${project.id}`;
+    } catch (err) {
+      alert(getCreditsErrorMessage(err.reason) ?? err.message);
     }
-    const project = await createEmptyCloudProject();
-    window.location.href = `/?projectId=${project.id}`;
   });
 
   await initExplore(user, { onRequireAuth: createLoginPanel });

@@ -5,7 +5,7 @@ import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { TextureBaker } from '../texture/TextureBaker.js';
 import { NanoBanana } from '../texture/NanoBanana.js';
 import { auth } from '/supabase/services/AuthService.js';
-import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
+import { getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -182,27 +182,23 @@ export default class ViewportControls {
         const { blob: matcapBlob, views } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender);
         const { blob: normalBlob } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender);
 
-        const { allowed, reason } = await consumeCredits('generate-texture');
-        if (!allowed) {
-          alert(getCreditsErrorMessage(reason));
-          bakeGeometry.dispose()
+        try {
+          const results = await NanoBanana.generate([matcapBlob, normalBlob], {
+            prompt: `Texture this 3D render with realistic materials.
+            Generate realistic and natural colors. Camera photo realism.
+            Preserve the exact original shape.
+            Keep exact view layout.
+            Do not duplicate views.
+            Do not remove background.`,
+          });
+        } catch (err) {
+          bakeGeometry.dispose();
+          alert(getCreditsErrorMessage(err.reason)?? err.message);
           return;
         }
+        window.open(results[0].url, '_blank');
 
-        // const results = await NanoBanana.generate([matcapBlob, normalBlob], {
-        //   prompt: `Texture this 3D render with realistic materials.
-        //   Generate realistic and natural colors. Camera photo realism.
-        //   Preserve the exact original shape.
-        //   Keep exact view layout.
-        //   Do not duplicate views.
-        //   Do not remove background.`,
-        // });
-        // window.open(results[0].url, '_blank');
-
-        // const generatedBlob = await fetch(results[0].url).then(r => r.blob());
-
-        const imageUrl = '../assets/images/building.jpeg';
-        const generatedBlob = await fetch(imageUrl).then(r => r.blob());
+        const generatedBlob = await fetch(results[0].url).then(r => r.blob());
 
         object.geometry = object.geometry.toNonIndexed();
         const renderTarget = await TextureBaker.bake(

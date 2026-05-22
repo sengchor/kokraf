@@ -15,7 +15,12 @@ export class NanoBanana {
       body: { prompt, image_input },
     });
 
-    if (error) throw new Error(`generate-nano-banana: ${error.message}`);
+    if (error) {
+      const body = await error.context?.json?.().catch(() => null);
+      const creditError = new Error(body?.reason ?? error.message);
+      creditError.reason = body?.reason;
+      throw creditError;
+    }
 
     const urls = Array.isArray(data.url) ? data.url : [data.url];
     return urls.map(url => ({ url }));
