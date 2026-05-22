@@ -191,22 +191,22 @@ export default class ViewportControls {
             Do not duplicate views.
             Do not remove background.`,
           });
+
+          window.open(results[0].url, '_blank');
+
+          const generatedBlob = await fetch(results[0].url).then(r => r.blob());
+
+          const renderTarget = await TextureBaker.bake(
+            this.renderer.renderer, tempBakeMesh, generatedBlob, views, 1024
+          );
+          bakeGeometry.dispose();
+
+          TextureBaker.applyToMesh(object, renderTarget);
         } catch (err) {
           bakeGeometry.dispose();
           alert(getCreditsErrorMessage(err.reason)?? err.message);
           return;
         }
-        window.open(results[0].url, '_blank');
-
-        const generatedBlob = await fetch(results[0].url).then(r => r.blob());
-
-        object.geometry = object.geometry.toNonIndexed();
-        const renderTarget = await TextureBaker.bake(
-          this.renderer.renderer, tempBakeMesh, generatedBlob, views, 1024
-        );
-        bakeGeometry.dispose();
-
-        TextureBaker.applyToMesh(object, renderTarget);
       });
     }
 
