@@ -1,10 +1,11 @@
 import { auth } from '/supabase/services/AuthService.js';
 
 export class LoginPanel {
-  constructor({ rootSelector = 'body', onSuccess, closeable = true } = {}) {
+  constructor({ rootSelector = 'body', onSuccess, closeable = true, signals } = {}) {
     this.closeable = closeable;
     this.mode = 'login';
     this.root = document.querySelector(rootSelector);
+    this.signals = signals;
     this.onSuccess = onSuccess;
     this.load();
   }
@@ -74,11 +75,13 @@ export class LoginPanel {
   }
 
   open() {
+    this.signals?.disableKeyHandler.dispatch(true);
     this.overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
   }
 
   close() {
+    this.signals?.disableKeyHandler.dispatch(false);
     this.overlay.classList.add('hidden');
     document.body.style.overflow = '';
     this.error.textContent = '';

@@ -48,6 +48,8 @@ export class GenerateTexturePanel {
     }
 
     const meshData = object.userData.meshData;
+    
+    this._showLoading('Unwrapping UVs');
     let uvOutput;
     try {
       uvOutput = await AutoUVUnwrap.unwrap(meshData);
@@ -68,10 +70,12 @@ export class GenerateTexturePanel {
     const tempBakeMesh = new THREE.Mesh(bakeGeometry);
     tempBakeMesh.matrixWorld.copy(object.matrixWorld);
 
+    await this._nextStep('Capturing views');
     const { blob: matcapBlob, views } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender);
     const { blob: normalBlob } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender);
 
     try {
+      await this._nextStep('Generating texture');
       const results = await NanoBanana.generate([matcapBlob, normalBlob], {
         prompt: `Texture this 3D render with realistic materials.
         Generate realistic and natural colors. Camera photo realism.
@@ -80,11 +84,9 @@ export class GenerateTexturePanel {
         Do not duplicate views.
         Do not remove background.`,
       });
-
-      window.open(results[0].url, '_blank');
-
       const generatedBlob = await fetch(results[0].url).then(r => r.blob());
 
+      await this._nextStep('Baking to mesh');
       const renderTarget = await TextureBaker.bake(
         this.renderer.renderer, tempBakeMesh, generatedBlob, views, 1024
       );
@@ -103,8 +105,10 @@ export class GenerateTexturePanel {
       this.editor.execute(new SetMaterialCommand(this.editor, object, material));
 
       this.signals.shadingModeChanged.dispatch('material');
+      await this._nextStep();
     } catch (err) {
       bakeGeometry.dispose();
+      this._hideLoading();
       alert(getCreditsErrorMessage(err.reason)?? err.message);
       return;
     }
@@ -122,5 +126,47 @@ export class GenerateTexturePanel {
       const light = this.objectFactory.createLight('Hemisphere');
       this.editor.execute(new AddObjectCommand(this.editor, light));
     }
+  }
+
+  _showLoading(message) {
+    this.signals.disableKeyHandler.dispatch(true);
+
+    this._loadingEl = document.createElement('div');
+    this._loadingEl.className = 'gen-loading-overlay';
+    this._loadingEl.innerHTML = `
+      <div class="gen-loading-box">
+        <div class="gen-step-row">
+          <span class="gen-step-icon">
+            <svg viewBox="0 0 24 24"><polyline points="4 12 9 17 20 6"/></svg>
+          </span>
+          <span class="gen-step-label">${message}</span>
+        </div>
+        <div class="gen-step-track"><div class="gen-step-bar"></div></div>
+      </div>
+    `;
+    document.body.appendChild(this._loadingEl);
+  }
+
+  async _nextStep(message) {
+    if (!this._loadingEl) return;
+    const icon = this._loadingEl.querySelector('.gen-step-icon');
+    const label = this._loadingEl.querySelector('.gen-step-label');
+
+    icon.classList.add('done');
+    await new Promise(r => setTimeout(r, 600));
+
+    if (!message) {
+      this._hideLoading();
+      return;
+    }
+
+    icon.classList.remove('done');
+    label.textContent = message;
+  }
+
+  _hideLoading() {
+    this.signals.disableKeyHandler.dispatch(false);
+    this._loadingEl?.remove();
+    this._loadingEl = null;
   }
 }

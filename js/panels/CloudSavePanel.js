@@ -4,8 +4,9 @@ import { getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 import { Dropdown } from '../ui/DropDown.js';
 
 export class CloudSavePanel {
-  constructor({ rootSelector = 'body', editor} = {}) {
+  constructor({ rootSelector = 'body', editor, signals } = {}) {
     this.root = document.querySelector(rootSelector);
+    this.signals = signals;
     this.editor = editor;
 
     this.load();
@@ -91,6 +92,7 @@ export class CloudSavePanel {
   }
 
   async open() {
+    this.signals?.disableKeyHandler.dispatch(true);
     const user = await auth.waitForUser();
 
     if (!user) return;
@@ -104,6 +106,7 @@ export class CloudSavePanel {
   }
 
   close() {
+    this.signals?.disableKeyHandler.dispatch(false);
     this.overlay.classList.add('hidden');
     document.body.style.overflow = '';
   }

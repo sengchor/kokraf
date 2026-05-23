@@ -1,0 +1,101 @@
+.gen-loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.gen-loading-box {
+  background: #fff;
+  border: 1px solid #e6e8eb;
+  border-radius: 2px;
+  padding: 20px 28px 28px 28px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gen-step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gen-step-label {
+  color: #111;
+  font-size: 14px;
+  font-family: sans-serif;
+  text-align: left;
+}
+
+/* Icon */
+.gen-step-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background-color: #ffffff;
+  border: 1.5px solid #666;
+  border-radius: 50%;
+  margin-right: 0px;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+
+.gen-step-icon.done {
+  background-color: #22c55e;
+  border-color: #22c55e;
+}
+
+.gen-step-icon svg {
+  width: 12px;
+  height: 12px;
+  color: #ffffff;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+}
+
+.gen-step-icon svg polyline {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.gen-step-icon.done svg polyline {
+  stroke-dashoffset: 0;
+}
+
+/* Bar */
+.gen-step-track {
+  height: 4px;
+  background: #333;
+  border-radius: 0.5px;
+  overflow: hidden;
+}
+
+.gen-step-track.done {
+  opacity: 0;
+}
+
+.gen-step-bar {
+  height: 100%;
+  width: 40%;
+  background: #73d802;
+  border-radius: 0.5px;
+  animation: gen-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes gen-slide {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}

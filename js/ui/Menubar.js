@@ -33,9 +33,9 @@ export default class Menubar {
     this.cloudSaveButton = document.querySelector('.cloud-save-button');
     this.projectsButton = document.querySelector('.projects-button');
 
-    this.loginPanel = new LoginPanel();
-    this.accountPanel = new AccountPanel();
-    this.cloudSavePanel = new CloudSavePanel({ editor });
+    this.loginPanel = new LoginPanel({ signals: this.signals });
+    this.accountPanel = new AccountPanel({ signals: this.signals });
+    this.cloudSavePanel = new CloudSavePanel({ editor, signals: this.signals });
 
     this.cloudSaveLabel = this.cloudSaveButton.querySelector('.label');
 

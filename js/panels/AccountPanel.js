@@ -1,8 +1,9 @@
 import { supabase, SUPABASE_URL } from '/supabase/supabase.js';
 
 export class AccountPanel {
-  constructor({ rootSelector = 'body' } = {}) {
+  constructor({ rootSelector = 'body', signals } = {}) {
     this.root = document.querySelector(rootSelector);
+    this.signals = signals;
 
     this.load();
   }
@@ -84,6 +85,7 @@ export class AccountPanel {
   }
 
   async open() {
+    this.signals?.disableKeyHandler.dispatch(true);
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session || !session.user) {
@@ -123,6 +125,7 @@ export class AccountPanel {
   }
 
   close() {
+    this.signals?.disableKeyHandler.dispatch(false);
     this.overlay.classList.add('hidden');
     document.body.style.overflow = '';
   }

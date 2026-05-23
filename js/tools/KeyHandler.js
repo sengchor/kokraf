@@ -13,6 +13,7 @@ export class KeyHandler {
     this.lastKeyTime = 0;
     this.doubleTapThreshold = 300;
     this.isTransformDragging = false;
+    this.disabled = false;
 
     this.activeInteraction = null;
     
@@ -43,9 +44,15 @@ export class KeyHandler {
     this.signals.transformDragEnded.add(() => {
       this.isTransformDragging = false;
     });
+
+    this.signals.disableKeyHandler.add((disabled) => {
+      this.disabled = disabled;
+    })
   }
 
   onKeyDown(event) {
+    if (this.disabled) return;
+
     if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
       return;
     }

@@ -86,6 +86,7 @@ export default class Editor {
 
       transformDragStarted: new Signal(),
       transformDragEnded: new Signal(),
+      disableKeyHandler: new Signal(),
 
       transformOrientationChanged: new Signal(),
 
