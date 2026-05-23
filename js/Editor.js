@@ -69,6 +69,7 @@ export default class Editor {
       sceneGraphChanged: new Signal(),
       modeChanged: new Signal(),
       subSelectionModeChanged: new Signal(),
+      shadingModeChanged: new Signal(),
       switchMode: new Signal(),
       multiSelectChanged: new Signal(),
 

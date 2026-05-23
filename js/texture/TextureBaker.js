@@ -113,7 +113,7 @@ export class TextureBaker {
       throw new Error('TextureBaker.bake: mesh geometry is missing a uv attribute - run UV unwrap first');
     }
 
-    const atlasTexture = await TextureBaker._blobToTexture(atlasBlob);
+    const atlasTexture = await TextureBaker.blobToTexture(atlasBlob);
 
     const material = new THREE.ShaderMaterial({
       uniforms: {
@@ -173,15 +173,6 @@ export class TextureBaker {
     return renderTarget;
   }
 
-  static applyToMesh(mesh, renderTarget) {
-    if (mesh.material?.dispose) mesh.material.dispose();
-
-    mesh.material = new THREE.MeshStandardMaterial({
-      map: renderTarget.texture,
-      side: THREE.FrontSide,
-    });
-  }
-
   static async toBlob(threeRenderer, renderTarget) {
     const { width, height } = renderTarget;
     const buf = new Uint8Array(width * height * 4);
@@ -204,22 +195,22 @@ export class TextureBaker {
     return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
   }
 
-  static _blobToTexture(blob) {
+  static async blobToTexture(blob) {
+    const dataUrl = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+
     return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(blob);
       new THREE.TextureLoader().load(
-        url,
+        dataUrl,
         (tex) => {
-          URL.revokeObjectURL(url);
           tex.flipY = true;
-          tex.colorSpace = THREE.SRGBColorSpace;
           resolve(tex);
         },
         undefined,
-        (err) => {
-          URL.revokeObjectURL(url);
-          reject(err);
-        }
+        reject
       );
     });
   }

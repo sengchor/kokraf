@@ -1,11 +1,7 @@
 import * as THREE from 'three';
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
-import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
-import { TextureBaker } from '../texture/TextureBaker.js';
-import { NanoBanana } from '../texture/NanoBanana.js';
-import { auth } from '/supabase/services/AuthService.js';
-import { getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
+import { GenerateTexturePanel } from '../panels/GenerateTexturePanel.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -20,8 +16,6 @@ export default class ViewportControls {
     this.editHelpers = editor.editHelpers;
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
-    this.vertexEditor = editor.vertexEditor;
-    this.renderer = editor.renderer;
     this.currentMode = 'object';
     this.transformOrientation = 'global';
 
@@ -34,6 +28,8 @@ export default class ViewportControls {
     this.setupViewportControls();
     this.setupListeners();
     this.resetCameraOption(this.cameraManager.cameras);
+
+    this.generateTexturePanel = new GenerateTexturePanel(this.editor);
   }
 
   setupViewportControls() {
@@ -49,7 +45,6 @@ export default class ViewportControls {
     this.meshMenu = document.getElementById('mesh-menu');
     this.selectMenu = document.getElementById('select-menu');
     this.leftControls = document.getElementById('left-controls-container');
-    this.generateButton = document.getElementById('generate-texture');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -139,77 +134,6 @@ export default class ViewportControls {
       this.leftControlsResizeObserver.observe(this.leftControls);
     }
 
-    if (this.generateButton) {
-      this.generateButton.addEventListener('click', async () => {
-        if (!auth.isLoggedIn()) {
-          this.signals.showLoginPanel.dispatch();
-          return;
-        }
-
-        const objects = this.selection.selectedObjects;
-        if (objects.length > 1) {
-          alert('Please select a single mesh, or merge the meshes into one.');
-          return;
-        }
-        
-        const object = objects[0];
-        if (!(object && object.isMesh)) {
-          alert('First, select a mesh, then click the generate button.');
-          return;
-        }
-
-        const meshData = object.userData.meshData;
-        let uvOutput;
-        try {
-          uvOutput = await AutoUVUnwrap.unwrap(meshData);
-        } catch (error) {
-          console.error("UV Unwrapping crashed:", error);
-          alert('Failed to process mesh geometry. The operation was aborted.');
-          return;
-        }
-        
-        if (!uvOutput || !uvOutput.positions || uvOutput.positions.length === 0 || uvOutput.indices.length === 0) {
-          alert('UV unwrapping failed. Please check if your mesh topology is valid.');
-          return;
-        }
-        this.vertexEditor.setObject(object);
-        this.vertexEditor.transform.updateGeometryAndHelpers();
-
-        const bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
-        const tempBakeMesh = new THREE.Mesh(bakeGeometry);
-        tempBakeMesh.matrixWorld.copy(object.matrixWorld);
-
-        const { blob: matcapBlob, views } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender);
-        const { blob: normalBlob } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender);
-
-        try {
-          const results = await NanoBanana.generate([matcapBlob, normalBlob], {
-            prompt: `Texture this 3D render with realistic materials.
-            Generate realistic and natural colors. Camera photo realism.
-            Preserve the exact original shape.
-            Keep exact view layout.
-            Do not duplicate views.
-            Do not remove background.`,
-          });
-
-          window.open(results[0].url, '_blank');
-
-          const generatedBlob = await fetch(results[0].url).then(r => r.blob());
-
-          const renderTarget = await TextureBaker.bake(
-            this.renderer.renderer, tempBakeMesh, generatedBlob, views, 1024
-          );
-          bakeGeometry.dispose();
-
-          TextureBaker.applyToMesh(object, renderTarget);
-        } catch (err) {
-          bakeGeometry.dispose();
-          alert(getCreditsErrorMessage(err.reason)?? err.message);
-          return;
-        }
-      });
-    }
-
     if (this.objectMenu) {
       this.initMenu(this.objectMenu, this.objectActions);
     }
@@ -293,6 +217,11 @@ export default class ViewportControls {
       } else {
         this.signals.objectFocused.dispatch();
       }
+    });
+
+    this.signals.shadingModeChanged.add((shadingMode) => {
+      this.shadingDropdown.value = shadingMode;
+      this.shadingDropdown.dispatchEvent(new Event('change', { bubbles: true }));
     });
   }
 

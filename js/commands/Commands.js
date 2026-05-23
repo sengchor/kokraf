@@ -39,6 +39,7 @@ import { SubdivideSelectionCommand } from './SubdivideSelectionCommand.js';
 import { UnionCommand } from './UnionCommand.js';
 import { DifferenceCommand } from './DifferenceCommand.js';
 import { IntersectCommand } from './IntersectCommand.js';
+import { SetMaterialCommand } from './SetMaterialCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -82,4 +83,5 @@ export const commands = new Map([
   [UnionCommand.type, UnionCommand],
   [DifferenceCommand.type, DifferenceCommand],
   [IntersectCommand.type, IntersectCommand],
+  [SetMaterialCommand.type, SetMaterialCommand],
 ]);

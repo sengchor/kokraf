@@ -63,7 +63,7 @@ export class ObjectFactory {
         break;
 
       case 'Hemisphere':
-        light = new THREE.HemisphereLight(0xffffff, 0x444444, 10);
+        light = new THREE.HemisphereLight(0xffffff, 0x444444, 7);
         break;
 
       case 'Point':
