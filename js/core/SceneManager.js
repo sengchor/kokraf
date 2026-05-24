@@ -23,6 +23,7 @@ export default class SceneManager {
 
     this.shadingMode = 'material';
     this.xrayMode = false;
+    this._matcapTexture = new THREE.TextureLoader().load('assets/textures/matcaps/040full.jpg');
 
     this.setupListeners();
   }
@@ -310,9 +311,8 @@ export default class SceneManager {
         material = null;
         break;
       case 'solid': {
-        const matcapTexture = new THREE.TextureLoader().load('assets/textures/matcaps/040full.jpg');
         material = new THREE.MeshMatcapMaterial({
-          matcap: matcapTexture,
+          matcap: this._matcapTexture,
           color: 0xcccccc,
           side: THREE.DoubleSide
         });

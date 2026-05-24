@@ -100,7 +100,9 @@ export default class Renderer {
     return blob;
   }
 
-captureShadedRender(sceneManager, camera, size = 512) {
+  captureShadedRender(sceneManager, camera, size = 512) {
+    sceneManager.updateShadingMode('solid', false);
+
     const currentSize = new THREE.Vector2();
     this.renderer.getSize(currentSize);
     const originalPixelRatio = this.renderer.getPixelRatio();
@@ -121,7 +123,7 @@ captureShadedRender(sceneManager, camera, size = 512) {
   }
 
   captureNormalRender(sceneManager, camera, size = 512) {
-    sceneManager.updateShadingMode('material', false);
+    sceneManager.updateShadingMode('normal', false);
 
     const currentSize = new THREE.Vector2();
     this.renderer.getSize(currentSize);
@@ -157,7 +159,6 @@ captureShadedRender(sceneManager, camera, size = 512) {
     // Restore the renderer
     this.renderer.setPixelRatio(originalPixelRatio);
     this.renderer.setSize(currentSize.x, currentSize.y);
-    sceneManager.updateShadingMode('solid', false);
 
     return blob;
   }
@@ -180,16 +181,13 @@ captureShadedRender(sceneManager, camera, size = 512) {
     const target = box.getCenter(new THREE.Vector3());
     const sphere = box.getBoundingSphere(new THREE.Sphere());
 
-    const fov = THREE.MathUtils.degToRad(camera.fov);
+    const captureCamera = camera.clone();
+    captureCamera.aspect = 1.0;
+    captureCamera.updateProjectionMatrix();
+
+    const fov = THREE.MathUtils.degToRad(captureCamera.fov);
     const radius = sphere.radius;
     const distance = radius / Math.sin(fov / 2);
-
-    const originalPosition = camera.position.clone();
-    const originalQuaternion = camera.quaternion.clone();
-
-    const originalAspect = camera.aspect;
-    camera.aspect = 1.0;
-    camera.updateProjectionMatrix();
 
     // 4 angled directions
     const views = [
@@ -206,36 +204,30 @@ captureShadedRender(sceneManager, camera, size = 512) {
       const x = target.x + Math.cos(view.yaw) * distance;
       const z = target.z + Math.sin(view.yaw) * distance;
 
-      camera.position.set(x, target.y, z);
-      camera.up.set(0, 1, 0);
-      camera.lookAt(target);
-      camera.updateMatrixWorld();
+      captureCamera.position.set(x, target.y, z);
+      captureCamera.up.set(0, 1, 0);
+      captureCamera.lookAt(target);
+      captureCamera.updateMatrixWorld();
 
       const vpMatrix = new THREE.Matrix4().multiplyMatrices(
-        camera.projectionMatrix,
-        camera.matrixWorldInverse,
+        captureCamera.projectionMatrix,
+        captureCamera.matrixWorldInverse,
       );
 
-      const depthTexture = this.captureDepthRender(sceneManager, camera, size);
+      const depthTexture = this.captureDepthRender(sceneManager, captureCamera, size);
       depthTexture.minFilter = THREE.LinearFilter;
       depthTexture.magFilter = THREE.LinearFilter;
 
       viewSnapshots.push({
         vpMatrix,
-        camWorldPos: camera.position.clone(),
+        camWorldPos: captureCamera.position.clone(),
         depthTexture
       });
 
-      const blob = await captureFn.call(this, sceneManager, camera, size);
+      const blob = await captureFn.call(this, sceneManager, captureCamera, size);
       const bitmap = await createImageBitmap(blob);
       images.push(bitmap);
     }
-
-    // Restore camera
-    camera.position.copy(originalPosition);
-    camera.quaternion.copy(originalQuaternion);
-    camera.aspect = originalAspect;
-    camera.updateProjectionMatrix();
 
     // Stitch images into 2x2 atlas
     const canvas = document.createElement('canvas');
