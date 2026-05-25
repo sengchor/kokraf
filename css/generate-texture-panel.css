@@ -99,3 +99,224 @@
   0%   { transform: translateX(-120%); }
   100% { transform: translateX(320%); }
 }
+
+/* ─── Generate Texture Config Panel ─── */
+
+.gentex-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.gentex-panel {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e6e8eb;
+  border-radius: 5px;
+  width: 400px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: sans-serif;
+  font-size: 14px;
+  color: #222;
+}
+
+.gentex-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  color: #111;
+  text-align: center;
+}
+
+.gentex-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.gentex-close:hover {
+  color: #111;
+}
+
+.gentex-divider {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 0 -28px;
+}
+
+.gentex-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gentex-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.gentex-label-hint {
+  font-size: 12px;
+  color: #aaa;
+  margin-left: 4px;
+}
+
+/* ─── Style grid ─── */
+
+.gentex-style-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.gentex-style-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: 1px solid #e6e8eb;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.gentex-style-card:hover {
+  background: #f9f9f9;
+  border-color: #ccc;
+}
+
+.gentex-style-card.active {
+  border-color: #111;
+  background: #f5f5f5;
+}
+
+.gentex-style-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.gentex-style-name {
+  font-size: 12px;
+  color: #333;
+}
+
+/* ─── Resolution row ─── */
+
+.gentex-res-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.gentex-res-btn {
+  padding: 8px 0;
+  font-size: 13px;
+  color: #333;
+  background: #fff;
+  border: 1px solid #e6e8eb;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.gentex-res-btn:hover {
+  background: #f9f9f9;
+  border-color: #ccc;
+}
+
+.gentex-res-btn.active {
+  border-color: #111;
+  background: #f5f5f5;
+  font-weight: 500;
+}
+
+/* ─── Prompt textarea ─── */
+
+.gentex-prompt {
+  font-size: 13px;
+  font-family: sans-serif;
+  padding: 9px 10px;
+  border: 1px solid #e6e8eb;
+  border-radius: 3px;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+  color: #222;
+  transition: border-color 0.15s;
+}
+
+.gentex-prompt:focus {
+  border-color: #0a7cff;
+}
+
+.gentex-prompt::placeholder {
+  color: #aaa;
+}
+
+/* ─── Actions ─── */
+
+.gentex-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.gentex-btn-cancel {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+.gentex-btn-cancel:hover {
+  background: #f5f5f5;
+}
+
+.gentex-btn-confirm {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 3px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.gentex-btn-confirm:hover {
+  background: #000;
+}
+
+.gentex-btn-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gentex-credits-badge {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.7;
+  margin-left: 6px;
+}

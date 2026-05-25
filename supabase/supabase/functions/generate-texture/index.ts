@@ -1,7 +1,18 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { consumeCredits } from "../_shared/consumeCredits.ts";
 
-const COST = { free: 20, pro: 20 };
+const COST_MAP: Record<number, { free: number; pro: number }> = {
+  512:  { free: 20, pro: 20 },
+  1024: { free: 30, pro: 30 },
+  2048: { free: 40, pro: 40 },
+};
+
+const RESOLUTION_INPUT: Record<number, string> = {
+  512: "1K",
+  1024: "2K",
+  2048: "4K",
+};
+
 const REPLICATE_API_TOKEN = Deno.env.get("REPLICATE_API_TOKEN");
 
 Deno.serve(async (req) => {
@@ -16,11 +27,8 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const result = await consumeCredits(req, COST);
-  if (result instanceof Response) return result;
-
   try {
-    const { prompt, image_input } = await req.json();
+    const { prompt, image_input, resolution } = await req.json();
 
     if (!prompt || !Array.isArray(image_input) || image_input.length === 0) {
       return new Response(
@@ -28,6 +36,12 @@ Deno.serve(async (req) => {
         { status: 400, headers: corsHeaders }
       );
     }
+
+    const cost = COST_MAP[resolution] ?? COST_MAP[512];
+    const result = await consumeCredits(req, cost);
+    if (result instanceof Response) return result;
+
+    const resolution_input = RESOLUTION_INPUT[resolution] ?? "1K";
 
     // Create prediction
     const createRes = await fetch("https://api.replicate.com/v1/models/google/nano-banana-2/predictions", {
@@ -38,7 +52,7 @@ Deno.serve(async (req) => {
         "Prefer": "wait", // wait up to 60s for result inline
       },
       body: JSON.stringify({
-        input: { prompt, image_input },
+        input: { prompt, image_input, resolution: resolution_input },
       }),
     });
 

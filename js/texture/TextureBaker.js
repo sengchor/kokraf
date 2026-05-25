@@ -105,7 +105,7 @@ const FRAGMENT_SHADER = `
 `;
 
 export class TextureBaker {
-  static async bake(threeRenderer, mesh, atlasBlob, views, size = 1024) {
+  static async bake(threeRenderer, mesh, atlasBlob, views, size = 512) {
     if (views.length !== 4) {
       throw new Error('TextureBaker.bake: expected exactly 4 view snapshots');
     }

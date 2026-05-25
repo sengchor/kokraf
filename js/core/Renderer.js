@@ -241,12 +241,15 @@ export default class Renderer {
     ctx.drawImage(images[2], size, size, size, size);
     ctx.drawImage(images[3], 0, size, size, size);
 
+    const labelPadding = size / 512 * 20;
+    const labelFontSize = size / 512 * 32;
+
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 32px Arial';
-    ctx.fillText('FRONT LEFT', 20, 40);
-    ctx.fillText('FRONT RIGHT', size + 20, 40);
-    ctx.fillText('BACK RIGHT', size + 20, size + 40);
-    ctx.fillText('BACK LEFT', 20, size + 40);
+    ctx.font = `bold ${labelFontSize}px Arial`;
+    ctx.fillText('FRONT LEFT', labelPadding, labelPadding + labelFontSize);
+    ctx.fillText('FRONT RIGHT', size + labelPadding, labelPadding + labelFontSize);
+    ctx.fillText('BACK RIGHT', size + labelPadding, size + labelPadding + labelFontSize);
+    ctx.fillText('BACK LEFT', labelPadding, size + labelPadding + labelFontSize);
 
     const blob = await new Promise(resolve =>
       canvas.toBlob(resolve, 'image/png')

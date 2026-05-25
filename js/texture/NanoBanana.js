@@ -2,7 +2,7 @@ import { supabase } from '/supabase/supabase.js';
 
 export class NanoBanana {
   static async generate(imageInputs, options = {}) {
-    const { prompt } = options;
+    const { prompt, resolution } = options;
 
     if (!prompt) throw new Error('NanoBanana: prompt is required');
     if (!Array.isArray(imageInputs) || imageInputs.length === 0)
@@ -12,7 +12,7 @@ export class NanoBanana {
     const image_input = await Promise.all(imageInputs.map(input => this._toUrl(input)));
 
     const { data, error } = await supabase.functions.invoke('generate-texture', {
-      body: { prompt, image_input },
+      body: { prompt, image_input, resolution },
     });
 
     if (error) {
