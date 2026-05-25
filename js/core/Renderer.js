@@ -176,8 +176,8 @@ export default class Renderer {
     return target.depthTexture;
   }
 
-  async captureMultiView(sceneManager, camera, captureFn, size = 512) {
-    const box = new THREE.Box3().setFromObject(sceneManager.mainScene);
+  async captureMultiView(selectedObject, sceneManager, camera, captureFn, size = 512) {
+    const box = new THREE.Box3().setFromObject(selectedObject);
     const target = box.getCenter(new THREE.Vector3());
     const sphere = box.getBoundingSphere(new THREE.Sphere());
 

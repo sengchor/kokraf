@@ -204,8 +204,8 @@ export class GenerateTexturePanel {
     tempBakeMesh.matrixWorld.copy(object.matrixWorld);
 
     await this._nextStep('Capturing views');
-    const { blob: matcapBlob, views } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender, resolution);
-    const { blob: normalBlob } = await this.renderer.captureMultiView(this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender, resolution);
+    const { blob: matcapBlob, views } = await this.renderer.captureMultiView(object, this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender, resolution);
+    const { blob: normalBlob } = await this.renderer.captureMultiView(object, this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender, resolution);
     this.signals.shadingModeChanged.dispatch('solid');
 
     try {

@@ -145,8 +145,9 @@ export class TextureBaker {
     });
 
     const bakeMesh = new THREE.Mesh(mesh.geometry, material);
-    bakeMesh.matrixWorld.copy(mesh.matrixWorld);
+    bakeMesh.matrix.copy(mesh.matrixWorld);
     bakeMesh.matrixAutoUpdate = false;
+    bakeMesh.frustumCulled = false;
 
     const bakeScene = new THREE.Scene();
     bakeScene.add(bakeMesh);
