@@ -161,16 +161,13 @@ export class GenerateTexturePanel {
     }
 
     const objects = this.selection.selectedObjects;
-    if (objects.length > 1) {
-      alert('Please select a single mesh, or merge the meshes into one.');
+    const meshes = objects.filter(o => o?.isMesh);
+    if (meshes.length === 0) {
+      alert('Select at least one mesh.');
       return;
     }
     
-    const object = objects[0];
-    if (!(object && object.isMesh)) {
-      alert('First, select a mesh, then click the generate button.');
-      return;
-    }
+    // UV unwrap each mesh
     const confirmed = await this._openPanel();
     if (!confirmed) return;
 
@@ -179,34 +176,39 @@ export class GenerateTexturePanel {
     const finalPrompt = userPrompt ? `${stylePrompt} ${userPrompt}` : stylePrompt;
     const resolution = this._selectedResolution;
 
-    const meshData = object.userData.meshData;
-    
+    // UV unwrap each mesh
     this._showLoading('Unwrapping UVs');
-    let uvOutput;
-    try {
-      uvOutput = await AutoUVUnwrap.unwrap(meshData);
-    } catch (error) {
-      console.error("UV Unwrapping crashed:", error);
-      this._hideLoading();
-      alert('Failed to process mesh geometry. The operation was aborted.');
-      return;
-    }
-    
-    if (!uvOutput || !uvOutput.positions || uvOutput.positions.length === 0 || uvOutput.indices.length === 0) {
-      this._hideLoading();
-      alert('UV unwrapping failed. Please check if your mesh topology is valid.');
-      return;
-    }
-    this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    const bakeTargets = [];
+    for (const object of meshes) {
+      let uvOutput;
+      try {
+        uvOutput = await AutoUVUnwrap.unwrap(object.userData.meshData);
+      } catch (e) {
+        this._hideLoading();
+        alert(`UV unwrap failed for "${object.name}".`);
+        return;
+      }
 
-    const bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
-    const tempBakeMesh = new THREE.Mesh(bakeGeometry);
-    tempBakeMesh.matrixWorld.copy(object.matrixWorld);
+      if (!uvOutput || !uvOutput.positions || uvOutput.positions.length === 0 || uvOutput.indices.length === 0) {
+        this._hideLoading();
+        alert(`Invalid UV output for "${object.name}".`);
+        return;
+      }
 
+      this.vertexEditor.setObject(object);
+      this.vertexEditor.transform.updateGeometryAndHelpers();
+
+      const bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
+      const tempBakeMesh = new THREE.Mesh(bakeGeometry);
+      tempBakeMesh.matrixWorld.copy(object.matrixWorld);
+      bakeTargets.push({ object, bakeGeometry, tempBakeMesh });
+    }
+
+    // Single capture pass
     await this._nextStep('Capturing views');
-    const { blob: matcapBlob, views } = await this.renderer.captureMultiView(object, this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender, resolution);
-    const { blob: normalBlob } = await this.renderer.captureMultiView(object, this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender, resolution);
+    const { blob: matcapBlob, views } = await this.renderer.captureMultiView(meshes, this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureShadedRender, resolution);
+
+    const { blob: normalBlob } = await this.renderer.captureMultiView(meshes, this.editor.sceneManager, this.cameraManager.camera, this.renderer.captureNormalRender, resolution);
     this.signals.shadingModeChanged.dispatch('solid');
 
     try {
@@ -224,31 +226,33 @@ export class GenerateTexturePanel {
       });
       const generatedBlob = await fetch(results[0].url).then(r => r.blob());
 
-      await this._nextStep('Baking to mesh');
-      const renderTarget = await TextureBaker.bake(
-        this.renderer.renderer, tempBakeMesh, generatedBlob, views, resolution * 2
-      );
-      bakeGeometry.dispose();
-
-      const rawBlob  = await TextureBaker.toBlob(this.renderer.renderer, renderTarget);
-      const bakedBlob = await TexturePatchFill.fill(rawBlob, {
-        patchRadius: 4, 
-        iterations: 8, 
-        spatialWeight: 1.5 
-      });
-      const texture = await TextureBaker.blobToTexture(bakedBlob);
-      texture.colorSpace = THREE.SRGBColorSpace;
-
-      const material = new THREE.MeshStandardMaterial({ map: texture, side: THREE.FrontSide });
-
       this.ensureDefaultLight();
-      this.editor.execute(new SetMaterialCommand(this.editor, object, material));
+
+      await this._nextStep('Baking to meshes');
+      for (const { object, bakeGeometry, tempBakeMesh } of bakeTargets) {
+        const renderTarget = await TextureBaker.bake(
+          this.renderer.renderer, tempBakeMesh, generatedBlob, views, resolution * 2
+        );
+        bakeGeometry.dispose();
+
+        const rawBlob  = await TextureBaker.toBlob(this.renderer.renderer, renderTarget);
+        const bakedBlob = await TexturePatchFill.fill(rawBlob, {
+          patchRadius: 3, 
+          iterations: 12, 
+          spatialWeight: 0.01
+        });
+        const texture = await TextureBaker.blobToTexture(bakedBlob);
+        texture.colorSpace = THREE.SRGBColorSpace;
+
+        const material = new THREE.MeshStandardMaterial({ map: texture, side: THREE.FrontSide });
+        this.editor.execute(new SetMaterialCommand(this.editor, object, material));
+      }
 
       this.signals.shadingModeChanged.dispatch('material');
       await this._nextStep();
     } catch (err) {
       console.log(err);
-      bakeGeometry.dispose();
+      bakeTargets.forEach(({ bakeGeometry }) => bakeGeometry.dispose());
       this._hideLoading();
       alert(getCreditsErrorMessage(err.reason)?? err.message);
     }
