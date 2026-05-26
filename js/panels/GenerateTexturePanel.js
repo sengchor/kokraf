@@ -6,6 +6,7 @@ import { getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { TextureBaker } from '../texture/TextureBaker.js';
 import { NanoBanana } from '../texture/NanoBanana.js';
+import { TexturePatchFill } from '../texture/TexturePatchFill.js';
 
 const STYLE_PROMPTS = {
   realistic: 'Texture this 3D render with realistic materials. Generate realistic and natural colors. Camera photo realism.',
@@ -229,10 +230,12 @@ export class GenerateTexturePanel {
       );
       bakeGeometry.dispose();
 
-      const bakedBlob = await TextureBaker.toBlob(
-        this.renderer.renderer,
-        renderTarget
-      );
+      const rawBlob  = await TextureBaker.toBlob(this.renderer.renderer, renderTarget);
+      const bakedBlob = await TexturePatchFill.fill(rawBlob, {
+        patchRadius: 4, 
+        iterations: 8, 
+        spatialWeight: 1.5 
+      });
       const texture = await TextureBaker.blobToTexture(bakedBlob);
       texture.colorSpace = THREE.SRGBColorSpace;
 
@@ -244,6 +247,7 @@ export class GenerateTexturePanel {
       this.signals.shadingModeChanged.dispatch('material');
       await this._nextStep();
     } catch (err) {
+      console.log(err);
       bakeGeometry.dispose();
       this._hideLoading();
       alert(getCreditsErrorMessage(err.reason)?? err.message);

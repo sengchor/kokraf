@@ -79,7 +79,7 @@ const FRAGMENT_SHADER = `
 
     float projectedDepth = ndc.z * 0.5 + 0.5;
     float sceneDepth = texture2D(depthTex, projUV).r;
-    float bias = 0.001;
+    float bias = 0.0001;
     if (projectedDepth > sceneDepth + bias) return;
 
     colorSum += texture2D(uAtlas, atlasUV) * facing;
@@ -98,8 +98,8 @@ const FRAGMENT_SHADER = `
     if (weightSum > 0.0) {
       gl_FragColor = colorSum / weightSum;
     } else {
-      // UV islands with zero coverage get a neutral mid-grey placeholder
-      gl_FragColor = vec4(0.5, 0.5, 0.5, 1.0);
+      // UV islands with zero coverage
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
     }
   }
 `;
