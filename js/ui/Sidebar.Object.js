@@ -461,12 +461,28 @@ export class SidebarObject {
 
   bindInput(input, getValue, apply) {
     if (!input) return;
+    let originalValue;
+
+    input.addEventListener('focus', () => {
+      originalValue = getValue();
+    });
+
     input.addEventListener('change', function() {
       const object = this.lastSelectedObject;
       if (!object) return;
       const value = getValue();
       apply(object, value);
     }.bind(this));
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') input.blur();
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        input.value = originalValue;
+        input.blur();
+      }
+    });
   }
 
   bindCheckbox(checkbox, key) {
@@ -479,6 +495,12 @@ export class SidebarObject {
 
   bindVectorInputs(inputs, getNewValue, getOldValue, CommandClass) {
     inputs.forEach(input => {
+      let originalValue;
+
+      input.addEventListener('focus', () => {
+        originalValue = input.value;
+      });
+
       input.addEventListener('blur', () => {
         const object = this.lastSelectedObject;
         if (!object) return;
@@ -494,6 +516,12 @@ export class SidebarObject {
 
       input.addEventListener('keydown', e => {
         if (e.key === 'Enter') input.blur();
+
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          input.value = originalValue;
+          input.blur();
+        }
       });
     });
   }
