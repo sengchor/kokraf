@@ -192,10 +192,10 @@ export default class Renderer {
 
     // 4 angled directions
     const views = [
-      { yaw: Math.PI * 0.25 },
-      { yaw: Math.PI * 1.75 },
-      { yaw: Math.PI * 1.25 },
-      { yaw: Math.PI * 0.75 },
+      { yaw: Math.PI * 0.25, height: target.y + (radius / 2) },
+      { yaw: Math.PI * 1.75, height: target.y + (radius / 2) },
+      { yaw: Math.PI * 1.25, height: target.y },
+      { yaw: Math.PI * 0.75, height: target.y },
     ];
 
     const images = [];
@@ -205,7 +205,7 @@ export default class Renderer {
       const x = target.x + Math.cos(view.yaw) * distance;
       const z = target.z + Math.sin(view.yaw) * distance;
 
-      captureCamera.position.set(x, target.y, z);
+      captureCamera.position.set(x, view.height, z);
       captureCamera.up.set(0, 1, 0);
       captureCamera.lookAt(target);
       captureCamera.updateMatrixWorld();

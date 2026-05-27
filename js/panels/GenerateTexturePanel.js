@@ -218,6 +218,7 @@ export class GenerateTexturePanel {
           finalPrompt,
           'Preserve the exact original shape.',
           'Keep exact view layout.',
+          'Maintain consistent materials across all views.',
           'Do not duplicate views.',
           'Do not remove background.',
           'Do not include shadow.',
