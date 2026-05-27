@@ -7,6 +7,7 @@ import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { TextureBaker } from '../texture/TextureBaker.js';
 import { NanoBanana } from '../texture/NanoBanana.js';
 import { TexturePatchFill } from '../texture/TexturePatchFill.js';
+import { TextureIslandMask } from '../texture/TextureIslandMask.js';
 
 const STYLE_PROMPTS = {
   realistic: 'Texture this 3D render with realistic materials. Generate realistic and natural colors. Camera photo realism.',
@@ -237,12 +238,14 @@ export class GenerateTexturePanel {
         bakeGeometry.dispose();
 
         const rawBlob  = await TextureBaker.toBlob(this.renderer.renderer, renderTarget);
-        const bakedBlob = await TexturePatchFill.fill(rawBlob, {
+        const patchedBlob = await TexturePatchFill.fill(rawBlob, {
           patchRadius: 3, 
           iterations: 12, 
           spatialWeight: 0.01
         });
-        const texture = await TextureBaker.blobToTexture(bakedBlob);
+        const maskedBlob = await TextureIslandMask.apply(patchedBlob, bakeGeometry, { dilation: 1 });
+        
+        const texture = await TextureBaker.blobToTexture(maskedBlob);
         texture.colorSpace = THREE.SRGBColorSpace;
 
         const material = new THREE.MeshStandardMaterial({ map: texture, side: THREE.FrontSide });
