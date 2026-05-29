@@ -139,13 +139,20 @@ export class MenubarFile {
   importObject(editor) {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.obj';
+    input.accept = '.obj, .glb, .gltf, .bin';
+    input.multiple = true;
     input.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
+      const files = Array.from(event.target.files);
+      if (!files.length) return;
 
       const loader = new Loader(editor);
-      loader.load(file);
+      for (const file of files) {
+        const extension = file.name.split('.').pop().toLowerCase();
+        if (extension === 'bin') continue;
+
+        const siblingFiles = files.filter(f => f !== file);
+        loader.load(file, siblingFiles);
+      }
     });
 
     input.click();
