@@ -4,60 +4,78 @@ import { MeshData } from '../core/MeshData.js';
 export default class OBJLoader {
   static fromOBJText(objText) {
     const lines = objText.split('\n');
+
+    const globalPositions = [];
+
     const objects = [];
-    let current = { name: '', positions: [], faces: [], vertexOffset: 0 };
+    let current = null;
+
+    const pushCurrent = () => {
+      if (current && current.faces.length > 0) objects.push(current);
+    };
+
+    const makeCurrent = (name) => ({ name, faces: [], });
 
     for (const line of lines) {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length === 0) continue;
+      const trimmed = line.trim();
+      if (!trimmed || trimmed[0] === '#') continue;
+
+      const parts = trimmed.split(/\s+/);
 
       switch (parts[0]) {
         case 'o':
-        case 'g':
-          if (current.faces.length > 0) {
-            objects.push(current);
-            current.vertexOffset += current.positions.length;
-          }
-          current = { 
-            name: parts.slice(1).join(' '), 
-            positions: [], 
-            faces: [], 
-            vertexOffset: current.vertexOffset 
-          };
+        case 'g': {
+          const name = parts.slice(1).join(' ');
+          // Skip anonymous/default groups Maya emits before vertex blocks
+          if (name === '' || name === 'default') break;
+          pushCurrent();
+          current = makeCurrent(name);
           break;
+        }
 
-        case 'v':
+        case 'v': {
           const x = parseFloat(parts[1]);
           const y = parseFloat(parts[2]);
           const z = parseFloat(parts[3]);
-
-          if (!isFinite(x) || !isFinite(y) || !isFinite(z)) {
-            current.positions.push(null);
-          } else {
-            current.positions.push([x, y, z]);
-          }
+          globalPositions.push(
+            isFinite(x) && isFinite(y) && isFinite(z)
+              ? new THREE.Vector3(x, y, z)
+              : null
+          );
           break;
+        }
 
-        case 'f':
-          const faceIndices = parts.slice(1).map(token => {
-            const idx = parseInt(token.split('/')[0], 10) - 1 - current.vertexOffset;
-            return idx;
-          });
-          current.faces.push(faceIndices);
+        case 'f': {
+          if (!current) current = makeCurrent('unnamed');
+          const indices = parts.slice(1).map(
+            token => parseInt(token.split('/')[0], 10) - 1
+          );
+          current.faces.push(indices);
           break;
+        }
       }
     }
-    
-    if (current.faces.length > 0) objects.push(current);
+    pushCurrent();
 
-    return objects.map(obj => {
-      const { positions, faces, name } = obj;
+    return objects.map(({ name, faces }) => {
       const meshData = new MeshData();
-      const verts = positions.map(p => p ? meshData.addVertex(new THREE.Vector3(...p)) : null);
+
+      const vertexCache = new Map();
+
+      const getVertex = (globalIdx) => {
+        if (vertexCache.has(globalIdx)) return vertexCache.get(globalIdx);
+        const pos = globalPositions[globalIdx];
+        if (!pos) return null;
+        const id = meshData.addVertex(pos.clone());
+        vertexCache.set(globalIdx, id);
+        return id;
+      };
+
       for (const face of faces) {
-        const vertexArray = face.map(i => verts[i]).filter(v => v !== null && v !== undefined);
-        if (vertexArray.length >= 3) meshData.addFace(vertexArray);
+        const verts = face.map(getVertex).filter(v => v !== null && v !== undefined);
+        if (verts.length >= 3) meshData.addFace(verts);
       }
+
       return { name, meshData };
     });
   }
