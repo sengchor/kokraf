@@ -59,6 +59,7 @@ export class ObjectFactory {
       case 'Directional':
         light = new THREE.DirectionalLight(0xffffff, 10);
         light.position.set(5, 5, 5);
+        light.shadow.normalBias = 0.05;
         light.castShadow = true;
         break;
 
@@ -69,12 +70,14 @@ export class ObjectFactory {
       case 'Point':
         light = new THREE.PointLight(0xffffff, 10, 10);
         light.position.set(0, 0, 0);
+        light.shadow.normalBias = 0.05;
         light.castShadow = true;
         break;
 
       case 'Spot':
         light = new THREE.SpotLight(0xffffff, 100);
         light.position.set(5, 5, 5);
+        light.shadow.normalBias = 0.05;
         light.angle = Math.PI * 0.1;
         light.penumbra = 0;
         light.distance = 20;

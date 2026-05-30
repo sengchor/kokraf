@@ -207,6 +207,8 @@ export default class Editor {
     ]);
     
     this.shortcutLabel = new ShortcutLabel(this);
+
+    this.renderer.applyConfig();
     
     this.setupListeners();
     this.animate();

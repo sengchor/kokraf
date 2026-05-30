@@ -43,31 +43,23 @@ export class SidebarProject {
     this.shadowTypeSelect.value = this.config.get('shadowType');
     this.tonemappingSelect.value = this.config.get('tonemapping');
 
-    this.antialiasCheckbox.addEventListener('change', () => {
-      const confirmed = confirm('Changing antialiasing requires reloading the page. Do you want to continue?');
-
+    const reloadRequired = (configKey, parse) => async (e) => {
+      const newVal = parse ? parse(e.target.value) : e.target.checked;
+      const confirmed = confirm('Changing this setting requires reloading the page. Do you want to continue?');
       if (confirmed) {
-        this.config.set('antialias', this.antialiasCheckbox.checked);
+        await this.config.set(configKey, newVal);
         window.location.reload();
       } else {
-        this.antialiasCheckbox.checked = this.config.get('antialias');
+        const current = this.config.get(configKey);
+        if (parse) e.target.value = current;
+        else e.target.checked = current;
       }
-    });
+    }
 
-    this.shadowsCheckbox.addEventListener('change', () => {
-      this.config.set('shadows', this.shadowsCheckbox.checked);
-      this.renderer.applyConfig();
-    });
-
-    this.shadowTypeSelect.addEventListener('change', () => {
-      this.config.set('shadowType', parseInt(this.shadowTypeSelect.value));
-      this.renderer.applyConfig();
-    });
-
-    this.tonemappingSelect.addEventListener('change', () => {
-      this.config.set('tonemapping', parseInt(this.tonemappingSelect.value));
-      this.renderer.applyConfig();
-    });
+    this.antialiasCheckbox.addEventListener('change', reloadRequired('antialias'));
+    this.shadowsCheckbox.addEventListener('change', reloadRequired('shadows'));
+    this.shadowTypeSelect.addEventListener('change', reloadRequired('shadowType', parseInt));
+    this.tonemappingSelect.addEventListener('change', reloadRequired('tonemapping', parseInt));
   }
 
   initImageRenderUI() {

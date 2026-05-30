@@ -58,6 +58,8 @@ export class Loader {
         mesh.name = uniqueName;
         reservedNames.add(uniqueName);
 
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
         mesh.userData.meshData = meshData;
         mesh.userData.shading = shading;
         mesh.geometry.computeBoundingSphere();
@@ -105,6 +107,8 @@ export class Loader {
       mesh.name = uniqueName;
       reservedNames.add(uniqueName);
 
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       mesh.userData.meshData = meshData;
       mesh.userData.shading = 'auto';
       mesh.geometry.computeBoundingSphere();
