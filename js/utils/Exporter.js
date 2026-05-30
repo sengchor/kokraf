@@ -20,13 +20,19 @@ export class Exporter {
     const canExport = await this.canExport();
     if (!canExport) return;
 
+    const meshObjects = objects.filter(obj => obj && obj.isMesh);
+    if (meshObjects.length === 0) {
+      alert("No valid meshes found to export.");
+      return;
+    }
+
     const handlers = {
-      'glb': () => this.exportGlb(objects),
-      'gltf': () => this.exportGltf(objects),
-      'obj': () => this.exportObj(objects),
-      'stl': () => this.exportStl(objects),
-      'stl-binary': () => this.exportStlBinary(objects),
-      'usdz': () => this.exportUsdz(objects),
+      'glb': () => this.exportGlb(meshObjects),
+      'gltf': () => this.exportGltf(meshObjects),
+      'obj': () => this.exportObj(meshObjects),
+      'stl': () => this.exportStl(meshObjects),
+      'stl-binary': () => this.exportStlBinary(meshObjects),
+      'usdz': () => this.exportUsdz(meshObjects),
     };
 
     const handler = handlers[format.toLowerCase()];
@@ -125,6 +131,7 @@ export class Exporter {
 
     let globalVertexIndex = 1;
     let globalNormalIndex = 1;
+    let globalUVIndex = 1;
 
     for (const object of objects) {
       result += `\no ${object.name || object.uuid}\n`;
@@ -144,6 +151,19 @@ export class Exporter {
     .applyMatrix4(object.matrixWorld);
         result += `v ${format(pos.x)} ${format(pos.y)} ${format(pos.z)}\n`;
         vertexIdToObjIndex.set(v.id, globalVertexIndex++);
+      }
+
+      // Write UVs
+      const hasUVs = meshData.uvs && meshData.uvs.size > 0;
+      const uvKeyToObjIndex = new Map();
+      if (hasUVs) {
+        for (const [faceId, faceUVs] of meshData.uvs) {
+          for (let slot = 0; slot < faceUVs.length; slot++) {
+            const uv = faceUVs[slot];
+            result += `vt ${format(uv.u)} ${format(uv.v)}\n`;
+            uvKeyToObjIndex.set(`${faceId}_${slot}`, globalUVIndex++);
+          }
+        }
       }
 
       // Compute normals depending on shading mode
@@ -184,22 +204,20 @@ export class Exporter {
       for (let f of meshData.faces.values()) { 
         let faceLine = "f";
 
-        if (shading === "smooth") {
-          for (let vId of f.vertexIds) {
-            const vIdx = vertexIdToObjIndex.get(vId);
-            const nIdx = normalIndexMap.get(vId);
-            faceLine += ` ${vIdx}//${nIdx}`;
-          }
-        } else if (shading === "flat") {
-          const nIdx = normalIndexMap.get(f.id);
-          for (let vId of f.vertexIds) {
-            const vIdx = vertexIdToObjIndex.get(vId);
-            faceLine += ` ${vIdx}//${nIdx}`;
-          }
-        } else if (shading === "auto") {
-          for (let vId of f.vertexIds) {
-            const vIdx = vertexIdToObjIndex.get(vId);
-            const nIdx = normalIndexMap.get(`${f.id}_${vId}`);
+        for (let slot = 0; slot < f.vertexIds.length; slot++) {
+          const vId = f.vertexIds[slot];
+          const vIdx = vertexIdToObjIndex.get(vId);
+
+          let nIdx;
+          if (shading === "smooth") nIdx = normalIndexMap.get(vId);
+          else if (shading === "flat") nIdx = normalIndexMap.get(f.id);
+          else if (shading === "auto") nIdx = normalIndexMap.get(`${f.id}_${vId}`);
+
+          const uvIdx = hasUVs ? uvKeyToObjIndex.get(`${f.id}_${slot}`) : null;
+
+          if (uvIdx != null) {
+            faceLine += ` ${vIdx}/${uvIdx}/${nIdx}`;
+          } else {
             faceLine += ` ${vIdx}//${nIdx}`;
           }
         }
