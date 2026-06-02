@@ -270,21 +270,17 @@ export default class EditSelection {
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    const edgeLines = [];
-    this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLines' && obj.userData.edge) {
-        edgeLines.push(obj);
-      }
-    });
+    const thinLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLines');
+    if (!thinLine) return null;
 
     this.raycaster.setFromCamera(this.mouse, camera);
     this.raycaster.params.Line.threshold = threshold;
     
-    const edgeHits = this.raycaster.intersectObjects(edgeLines, false);
+    const edgeHits = this.raycaster.intersectObjects([thinLine], false);
     if (edgeHits.length === 0) return null;
 
     const xrayMode = this.sceneManager.xrayMode;
-    const edgeCandidates = this.buildEdgeCandidates(edgeHits);
+    const edgeCandidates = this.buildEdgeCandidates(edgeHits, thinLine);
     const visibleEdges = xrayMode ? edgeCandidates : this.filterVisibleEdges(edgeCandidates, camera);
     if (visibleEdges.length === 0) return null;
 
@@ -337,18 +333,14 @@ export default class EditSelection {
     const frustum = this.selectionBox.computeFrustumFromSelection();
     if (!frustum) return null;
 
-    const edgeLines = [];
-    this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLines' && obj.userData.edge) {
-        edgeLines.push(obj);
-      }
-    });
+    const thinLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLines');
+    if (!thinLine) return null;
 
-    const edgeHits = this.selectionBox.getEdgesInFrustum(edgeLines, frustum);
+    const edgeHits = this.selectionBox.getEdgesInFrustum(thinLine, frustum);
     if (edgeHits.length === 0) return null;
 
     const xrayMode = this.sceneManager.xrayMode;
-    const edgeCandidates = this.buildEdgeCandidates(edgeHits);
+    const edgeCandidates = this.buildEdgeCandidates(edgeHits, thinLine);
     const visibleEdges = xrayMode ? edgeCandidates : this.filterVisibleEdges(edgeCandidates, this.camera);
     if (visibleEdges.length === 0) return null;
 
@@ -652,32 +644,37 @@ export default class EditSelection {
     return vertices;
   }
 
-  buildEdgeCandidates(edgeHits) {
+  buildEdgeCandidates(edgeHits, thinLine) {
     const edges = [];
+    const pos = thinLine.geometry.getAttribute('position');
+    const { edgeIdList } = thinLine.userData;
 
     for (const hit of edgeHits) {
-      const thinLine = hit.object;
-      const geo = thinLine.geometry;
-      const pos = geo.getAttribute('position');
+      const edgeIndex = Math.floor(hit.index / 2);
+      const edgeId = edgeIdList[edgeIndex];
+      if (edgeId === undefined) continue;
 
-      if (!pos || pos.count < 2) continue;
+      const baseIndex = edgeIndex * 2;
 
-      // world-space endpoints
-      const vA = new THREE.Vector3(pos.getX(0), pos.getY(0), pos.getZ(0))
-        .applyMatrix4(thinLine.matrixWorld);
+      const vA = new THREE.Vector3(
+        pos.getX(baseIndex),
+        pos.getY(baseIndex),
+        pos.getZ(baseIndex)
+      ).applyMatrix4(thinLine.matrixWorld);
 
-      const vB = new THREE.Vector3(pos.getX(1), pos.getY(1), pos.getZ(1))
-        .applyMatrix4(thinLine.matrixWorld);
+      const vB = new THREE.Vector3(
+        pos.getX(baseIndex + 1),
+        pos.getY(baseIndex + 1),
+        pos.getZ(baseIndex + 1)
+      ).applyMatrix4(thinLine.matrixWorld);
 
       edges.push({
-        thinLine,
-        visualLine: thinLine.userData.visualLine,
-        edge: thinLine.userData.edge,
+        edge: { id: edgeId },
         vA,
         vB,
-        screenDist: hit.distance,
         hitPoint: hit.point,
-        type: hit.type,
+        screenDist: hit.distance,
+        type: hit.type ?? 'endpoint',
       });
     }
 

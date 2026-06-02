@@ -147,18 +147,25 @@ export class SelectionBox {
     return vertexHits;
   }
 
-  getEdgesInFrustum(edgeLines, frustum) {
+  getEdgesInFrustum(thinLine, frustum) {
     const edgeHits = [];
 
     const camera = this.cameraManager.camera;
     const camPos = new THREE.Vector3();
     camera.getWorldPosition(camPos);
 
-    for (const edgeLine of edgeLines) {
-      const pos = edgeLine.geometry.attributes.position.array;
+    const pos = thinLine.geometry.attributes.position;
+    const { edgeIdList } = thinLine.userData;
+    const matrixWorld = thinLine.matrixWorld;
 
-      const a = new THREE.Vector3(pos[0], pos[1], pos[2]).applyMatrix4(edgeLine.matrixWorld);
-      const b = new THREE.Vector3(pos[3], pos[4], pos[5]).applyMatrix4(edgeLine.matrixWorld);
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+
+    for (let i = 0; i < edgeIdList.length; i++) {
+      const baseIndex = i * 2;
+
+      a.fromBufferAttribute(pos, baseIndex).applyMatrix4(matrixWorld);
+      b.fromBufferAttribute(pos, baseIndex + 1).applyMatrix4(matrixWorld);
 
       const aInside = frustum.containsPoint(a);
       const bInside = frustum.containsPoint(b);
@@ -167,9 +174,9 @@ export class SelectionBox {
         const hitPoint = this.getSafePointOnEdge(a, b, camPos);
         edgeHits.push({
           type,
-          index: edgeLine.userData.edge?.id ?? null,
+          index: baseIndex,
           distance: hitPoint.distanceTo(camPos),
-          object: edgeLine,
+          object: thinLine,
           point: hitPoint,
         });
       };

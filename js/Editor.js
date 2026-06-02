@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import Stats from 'stats.js';
 import Renderer from './core/Renderer.js';
 import SceneManager from './core/SceneManager.js';
 import CameraManager from './core/CameraManager.js';
@@ -207,6 +208,9 @@ export default class Editor {
     ]);
     
     this.shortcutLabel = new ShortcutLabel(this);
+    this.stats = new Stats();
+    this.stats.showPanel(0);
+    document.body.appendChild(this.stats.dom);
 
     this.renderer.applyConfig();
     
@@ -222,6 +226,8 @@ export default class Editor {
 
   animate() {
     requestAnimationFrame(this.animate);
+
+    this.stats.begin();
 
     const delta = this.clock.getDelta();
 
@@ -249,6 +255,8 @@ export default class Editor {
     }
 
     this.viewportViewHelper.render();
+
+    this.stats.end();
   }
 
   async fromJSON(json) {

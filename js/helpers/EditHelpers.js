@@ -91,56 +91,81 @@ export default class EditHelpers {
     const meshData = selectedObject.userData.meshData;
     const matrixWorld = selectedObject.matrixWorld;
 
+    const allPositions = [];
+    const edgeIdToBufferIndex = new Map();
+    const edgeIdList = [];
+
+    let i = 0;
+    const _v1 = new THREE.Vector3();
+    const _v2 = new THREE.Vector3();
+
     for (let edge of meshData.edges.values()) {
       const v1 = meshData.getVertex(edge.v1Id);
       const v2 = meshData.getVertex(edge.v2Id);
 
-      const w1 = new THREE.Vector3().copy(v1.position).applyMatrix4(matrixWorld);
-      const w2 = new THREE.Vector3().copy(v2.position).applyMatrix4(matrixWorld);
+      _v1.copy(v1.position).applyMatrix4(matrixWorld);
+      _v2.copy(v2.position).applyMatrix4(matrixWorld);
 
-      const positions = [
-        w1.x, w1.y, w1.z,
-        w2.x, w2.y, w2.z
-      ];
-
-      // Visible Line
-      const fatGeo = new LineSegmentsGeometry().setPositions(positions);
-      const fatMat = new LineMaterial({
-        color: 0x000000,
-        linewidth: 0.9,
-        dashed: false,
-        depthTest: true,
-        
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-        polygonOffsetUnits: -2,
-      });
-      fatMat.resolution.set(window.innerWidth, window.innerHeight);
-
-      const fatLine = new LineSegments2(fatGeo, fatMat);
-      fatLine.computeLineDistances();
-      fatLine.renderOrder = 10;
-      fatLine.userData.isEditorOnly = true;
-      fatLine.userData.edge = edge;
-      fatLine.name = '__EdgeLinesVisual';
-      this.sceneManager.sceneHelpers.add(fatLine);
-
-      // Invisible Raycast Line
-      const thinGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      const thinMat = new THREE.LineBasicMaterial({
-        color: 0x000000,
-        transparent: true,
-        opacity: 0,
-        depthTest: false
-      });
-
-      const thinLine = new THREE.Line(thinGeo, thinMat);
-      thinLine.userData.edge = edge;
-      thinLine.userData.isEditorOnly = true;
-      thinLine.name = '__EdgeLines';
-      thinLine.userData.visualLine = fatLine;
-      this.sceneManager.sceneHelpers.add(thinLine);
+      allPositions.push(_v1.x, _v1.y, _v1.z, _v2.x, _v2.y, _v2.z);
+      edgeIdToBufferIndex.set(edge.id, i);
+      edgeIdList.push(edge.id);
+      i++;
     }
+
+    const posArray = new Float32Array(allPositions);
+
+    // Visible Line
+    const fatGeo = new LineSegmentsGeometry().setPositions(posArray);
+    const fatMat = new LineMaterial({
+      color: 0xffffff,
+      linewidth: 0.9,
+      vertexColors: true,
+      dashed: false,
+      depthTest: true,
+      
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    fatMat.resolution.set(window.innerWidth, window.innerHeight);
+
+    // Per-edge colors for highlight
+    const colorArray = new Float32Array(edgeIdList.length * 2 * 3);
+    colorArray.fill(0);
+    // Replace the custom colorArray block with this:
+    const instanceColorStart = new THREE.InstancedBufferAttribute(
+      new Float32Array(edgeIdList.length * 3).fill(0), 3
+    );
+    const instanceColorEnd = new THREE.InstancedBufferAttribute(
+      new Float32Array(edgeIdList.length * 3).fill(0), 3
+    );
+    fatGeo.setAttribute('instanceColorStart', instanceColorStart);
+    fatGeo.setAttribute('instanceColorEnd', instanceColorEnd);
+
+    const fatLine = new LineSegments2(fatGeo, fatMat);
+    fatLine.computeLineDistances();
+    fatLine.renderOrder = 10;
+    fatLine.userData.isEditorOnly = true;
+    fatLine.userData.edgeIdToBufferIndex = edgeIdToBufferIndex;
+    fatLine.userData.edgeIdList = edgeIdList;
+    fatLine.name = '__EdgeLinesVisual';
+    this.sceneManager.sceneHelpers.add(fatLine);
+
+    // Invisible Raycast Line
+    const thinGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(posArray, 3));
+    const thinMat = new THREE.LineBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthTest: false
+    });
+
+    const thinLine = new THREE.Line(thinGeo, thinMat);
+    thinLine.userData.isEditorOnly = true;
+    thinLine.userData.edgeIdToBufferIndex = edgeIdToBufferIndex;
+    thinLine.userData.edgeIdList = edgeIdList;
+    thinLine.userData.visualLine = fatLine;
+    thinLine.name = '__EdgeLines';
+    this.sceneManager.sceneHelpers.add(thinLine);
   }
 
   removeEdgeLines() {
@@ -322,40 +347,43 @@ export default class EditHelpers {
     }
 
     // Update affected edges
-    const edgeLines = [];
-    this.sceneManager.sceneHelpers.traverse((obj) => {
-      if (obj.userData.isEditorOnly && obj.name === '__EdgeLines') {
-        edgeLines.push(obj);
+    const thinLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLines');
+    const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
+
+    if (thinLine && fatLine) {
+      const { edgeIdToBufferIndex } = thinLine.userData;
+      const thinPosAttr = thinLine.geometry.getAttribute('position');
+      const fatPosArray = fatLine.geometry.attributes.instanceStart.data.array; // LineSegmentsGeometry interleaved
+
+      const _v1 = new THREE.Vector3();
+      const _v2 = new THREE.Vector3();
+
+      for (let edgeId of affectedEdges) {
+        const edge = meshData.edges.get(edgeId);
+        if (!edge) continue;
+
+        const bufferIndex = edgeIdToBufferIndex.get(edgeId);
+        if (bufferIndex === undefined) continue;
+
+        const v1 = meshData.getVertex(edge.v1Id);
+        const v2 = meshData.getVertex(edge.v2Id);
+
+        _v1.copy(v1.position).applyMatrix4(matrixWorld);
+        _v2.copy(v2.position).applyMatrix4(matrixWorld);
+
+        // Thin line: 2 vertices per edge
+        thinPosAttr.setXYZ(bufferIndex * 2, _v1.x, _v1.y, _v1.z);
+        thinPosAttr.setXYZ(bufferIndex * 2 + 1, _v2.x, _v2.y, _v2.z);
+
+        // Fat line: LineSegmentsGeometry interleaved buffer, 6 floats per segment
+        const offset = bufferIndex * 6;
+        fatPosArray[offset] = _v1.x; fatPosArray[offset + 1] = _v1.y; fatPosArray[offset + 2] = _v1.z;
+        fatPosArray[offset + 3] = _v2.x; fatPosArray[offset + 4] = _v2.y; fatPosArray[offset + 5] = _v2.z;
       }
-    });
 
-    for (let edgeId of affectedEdges) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      const thinLine = edgeLines.find(line => line.userData.edge === edge);
-      if (!thinLine) continue;
-
-      const v1 = meshData.getVertex(edge.v1Id);
-      const v2 = meshData.getVertex(edge.v2Id);
-
-      const w1 = new THREE.Vector3().copy(v1.position).applyMatrix4(matrixWorld);
-      const w2 = new THREE.Vector3().copy(v2.position).applyMatrix4(matrixWorld);
-
-      const positions = [
-        w1.x, w1.y, w1.z,
-        w2.x, w2.y, w2.z
-      ];
-
-      const posAttr = thinLine.geometry.getAttribute("position");
-      posAttr.setXYZ(0, positions[0], positions[1], positions[2]);
-      posAttr.setXYZ(1, positions[3], positions[4], positions[5]);
-      posAttr.needsUpdate = true;
-
-      const fatLine = thinLine.userData.visualLine;
-      if (fatLine && fatLine.geometry) {
-        fatLine.geometry.setPositions(positions);
-      }
+      thinPosAttr.needsUpdate = true;
+      fatLine.geometry.attributes.instanceStart.data.needsUpdate = true;
+      fatLine.geometry.attributes.instanceEnd.data.needsUpdate   = true;
     }
 
     // Update affected faces
@@ -398,25 +426,23 @@ export default class EditHelpers {
   }
 
   applyEdgeHighlight(selectedEdgeIds) {
-    const edgeLines = [];
-    this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
-        edgeLines.push(obj);
-      }
-    });
+    const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
+    if (!fatLine) return;
 
-    for (let edgeLine of edgeLines) {
-      const { edge } = edgeLine.userData;
-      const material = edgeLine.material;
+    const { edgeIdList, edgeIdToBufferIndex } = fatLine.userData;
+    const colorStart = fatLine.geometry.getAttribute('instanceColorStart');
+    const colorEnd   = fatLine.geometry.getAttribute('instanceColorEnd');
 
-      if (selectedEdgeIds.has(edge.id)) {
-        material.color.set(0xffffff);
-      } else {
-        material.color.set(0x000000);
-      }
-
-      material.needsUpdate = true;
+    for (let edgeId of edgeIdList) {
+      const idx = edgeIdToBufferIndex.get(edgeId);
+      const selected = selectedEdgeIds.has(edgeId);
+      const r = selected ? 1 : 0, g = selected ? 1 : 0, b = selected ? 1 : 0;
+      colorStart.setXYZ(idx, r, g, b);
+      colorEnd.setXYZ(idx, r, g, b);
     }
+
+    colorStart.needsUpdate = true;
+    colorEnd.needsUpdate = true;
   }
 
   applyFaceHighlight(selectedFaceIds) {
@@ -459,13 +485,15 @@ export default class EditHelpers {
       colors.needsUpdate = true;
     }
 
-    this.sceneManager.sceneHelpers.traverse(obj => {
-      if (obj.name === '__EdgeLinesVisual' && obj.userData.edge) {
-        const material = obj.material;
-        material.color.set(0x000000);
-        material.needsUpdate = true;
-      }
-    });
+    const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
+    if (fatLine) {
+      const colorStart = fatLine.geometry.getAttribute('instanceColorStart');
+      const colorEnd   = fatLine.geometry.getAttribute('instanceColorEnd');
+      colorStart.array.fill(0);
+      colorEnd.array.fill(0);
+      colorStart.needsUpdate = true;
+      colorEnd.needsUpdate = true;
+    }
 
     const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
     if (faceMesh) {
