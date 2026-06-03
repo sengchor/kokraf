@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GPUDepthReader } from '../utils/GPUDepthReader.js';
 
 export default class EditSelection {
   constructor(editor) {
@@ -28,6 +29,12 @@ export default class EditSelection {
     this.selectedVertexIds = new Set();
     this.selectedEdgeIds = new Set();
     this.selectedFaceIds = new Set();
+
+    this.depthReader = new GPUDepthReader(
+      this.renderer.renderer, 
+      window.innerWidth, 
+      window.innerHeight
+    );
     this.setupListeners();
   }
 
@@ -509,39 +516,22 @@ export default class EditSelection {
   }
 
   filterVisibleVertices(vertexHits, vertexPoints, camera) {
-    const mainObjects = this.sceneManager.mainScene.children;
-    const cameraPos = new THREE.Vector3();
-    camera.getWorldPosition(cameraPos);
+    if (!vertexHits || vertexHits.length === 0) return [];
 
-    const reverseRay = new THREE.Raycaster();
     const visibleVertices = [];
-
     const posAttr = vertexPoints.geometry.getAttribute('position');
     const vertexIdToBufferIndex = vertexPoints.userData.vertexIdToBufferIndex;
-    const epsilon = 0.001;
-
-    const occluders = mainObjects.filter(obj => obj !== vertexPoints);
-
-    const dirToCamera = new THREE.Vector3();
-    const rayOrigin = new THREE.Vector3();
     const vertexPos = new THREE.Vector3();
+
+    this.depthReader.updateDepthBuffer(this.sceneManager.mainScene, camera);
 
     for (const hit of vertexHits) {
       const bufferIndex = vertexIdToBufferIndex.get(hit.vertexId);
 
-      // Read vertex position from buffer
       vertexPos.fromBufferAttribute(posAttr, bufferIndex);
       vertexPos.applyMatrix4(vertexPoints.matrixWorld);
 
-      dirToCamera.subVectors(cameraPos, vertexPos).normalize();
-      rayOrigin.copy(vertexPos).add(dirToCamera.clone().multiplyScalar(epsilon));
-
-      reverseRay.set(rayOrigin, dirToCamera);
-      const hits = reverseRay.intersectObjects(occluders, true);
-      const maxDist = vertexPos.distanceTo(cameraPos);
-      const blocked = hits.some(h => h.distance < maxDist - epsilon);
-
-      if (!blocked) {
+      if (this.depthReader.isPointVisible(vertexPos, camera)) {
         visibleVertices.push({
           vertexId: hit.vertexId,
           point: vertexPos.clone()

@@ -130,16 +130,16 @@ export class SelectionBox {
     const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
 
     const worldMatrix = vertexPoints.matrixWorld;
-    const vertex = new THREE.Vector3();
+    const worldPos = new THREE.Vector3();
 
     for (let i = 0; i < position.count; i++) {
-      vertex.fromBufferAttribute(position, i);
-      const worldPos = vertex.clone().applyMatrix4(worldMatrix);
+      worldPos.fromBufferAttribute(position, i);
+      worldPos.applyMatrix4(worldMatrix);
 
       if (frustum.containsPoint(worldPos)) {
         vertexHits.push({
           vertexId: vertexIdAttr.getX(i),
-          point: worldPos
+          point: worldPos.clone()
         });
       }
     }
