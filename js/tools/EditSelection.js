@@ -545,32 +545,23 @@ export default class EditSelection {
   filterVisibleEdges(edgeCandidates, camera) {
     if (edgeCandidates.length === 0) return [];
 
-    const mainObjects = this.sceneManager.mainScene.children;
-    const cameraPos = new THREE.Vector3();
-    camera.getWorldPosition(cameraPos);
-
-    const epsilon = 0.001;
-    const reverseRay = new THREE.Raycaster();
-
-    // occluders: everything in the scene except the edge helper lines
-    const occluders = mainObjects.filter(obj => obj.name !== '__EdgeLines');
+    this.depthReader.updateDepthBuffer(this.sceneManager.mainScene, camera);
 
     const visibleEdges = [];
+    const testPoints = [];
 
     for (const edge of edgeCandidates) {
-      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, edge.hitPoint).normalize();
-      const rayOrigin = (edge.hitPoint).clone().addScaledVector(dirToCamera, epsilon);
+      const midpoint = new THREE.Vector3()
+        .addVectors(edge.vA, edge.vB)
+        .multiplyScalar(0.5);
 
-      reverseRay.set(rayOrigin, dirToCamera);
-
-      const hits = reverseRay.intersectObjects(occluders, true);
-      const maxDist = (edge.hitPoint).distanceTo(cameraPos);
-
-      // If any hit is closer than the camera, the edge is occluded.
-      const blocked = hits.some(h => h.distance < maxDist - epsilon);
-
-      if (!blocked) {
-        visibleEdges.push(edge);
+      const testPoints = [midpoint, edge.vA, edge.vB];
+      
+      for (const testPoint of testPoints) {
+        if (this.depthReader.isPointVisible(testPoint, camera)) {
+          visibleEdges.push(edge);
+          break;
+        }
       }
     }
 
