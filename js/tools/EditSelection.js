@@ -265,7 +265,7 @@ export default class EditSelection {
     const vertexCandidates = this.buildVertexCandidates(vertexHits, vertexPoints);
 
     const xrayMode = this.sceneManager.xrayMode;
-    const visibleVertices = xrayMode ? vertexCandidates : this.filterVisibleVertices(vertexCandidates, vertexPoints, camera);
+    const visibleVertices = xrayMode ? vertexCandidates : this.filterVisibleVertices(vertexCandidates, camera);
     if (visibleVertices.length === 0) return null;
 
     const nearestVertexId = this.pickNearestVertex(visibleVertices, camera, rect);
@@ -333,7 +333,7 @@ export default class EditSelection {
     if (vertexHits.length === 0) return null;
 
     const xrayMode = this.sceneManager.xrayMode;
-    const visibleVertices = xrayMode ? vertexHits : this.filterVisibleVertices(vertexHits, vertexPoints, this.camera);
+    const visibleVertices = xrayMode ? vertexHits : this.filterVisibleVertices(vertexHits, this.camera);
     if (visibleVertices.length === 0) return null;
 
     const vertexIndices = visibleVertices.map(v => v.vertexId);
@@ -518,27 +518,16 @@ export default class EditSelection {
     this.vertexHandle.visible = true;
   }
 
-  filterVisibleVertices(vertexHits, vertexPoints, camera) {
+  filterVisibleVertices(vertexHits, camera) {
     if (!vertexHits || vertexHits.length === 0) return [];
-
-    const visibleVertices = [];
-    const posAttr = vertexPoints.geometry.getAttribute('position');
-    const vertexIdToBufferIndex = vertexPoints.userData.vertexIdToBufferIndex;
-    const vertexPos = new THREE.Vector3();
 
     this.depthReader.updateDepthBuffer(this.sceneManager.mainScene, camera);
 
+    const visibleVertices = [];
+
     for (const hit of vertexHits) {
-      const bufferIndex = vertexIdToBufferIndex.get(hit.vertexId);
-
-      vertexPos.fromBufferAttribute(posAttr, bufferIndex);
-      vertexPos.applyMatrix4(vertexPoints.matrixWorld);
-
-      if (this.depthReader.isPointVisible(vertexPos, camera)) {
-        visibleVertices.push({
-          vertexId: hit.vertexId,
-          point: vertexPos.clone()
-        });
+      if (this.depthReader.isPointVisible(hit.point, camera)) {
+        visibleVertices.push(hit);
       }
     }
 
@@ -553,16 +542,16 @@ export default class EditSelection {
     const visibleEdges = [];
     const testPoints = [];
 
-    for (const edge of edgeHits) {
+    for (const hit of edgeHits) {
       const midpoint = new THREE.Vector3()
-        .addVectors(edge.vA, edge.vB)
+        .addVectors(hit.vA, hit.vB)
         .multiplyScalar(0.5);
 
-      const testPoints = [midpoint, edge.vA, edge.vB];
+      const testPoints = [midpoint, hit.vA, hit.vB];
       
       for (const testPoint of testPoints) {
         if (this.depthReader.isPointVisible(testPoint, camera)) {
-          visibleEdges.push(edge);
+          visibleEdges.push(hit);
           break;
         }
       }
