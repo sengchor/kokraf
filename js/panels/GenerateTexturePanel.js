@@ -33,7 +33,7 @@ export class GenerateTexturePanel {
     this._resolvePanel = null;
 
     this.loadPanel();
-    this._bindEvents();
+    this.setupListeners();
   }
 
   loadPanel() {
@@ -133,6 +133,17 @@ export class GenerateTexturePanel {
         this._creditsBadge.textContent = `${RESOLUTION_COST[this._selectedResolution]} credits`;
       });
     });
+
+    this.generateButton?.addEventListener('click', () => this._onGenerate());
+  }
+
+  setupListeners() {
+    this.signals.modeChanged.add((newMode) => {
+      if (this.generateButton) {
+        this.generateButton.classList.toggle('hidden', newMode === 'edit');
+        this.generateButton.classList.remove('active');
+      }
+    });
   }
 
   _openPanel() {
@@ -149,10 +160,6 @@ export class GenerateTexturePanel {
     document.body.style.overflow = '';
     this._resolvePanel?.(confirmed);
     this._resolvePanel = null;
-  }
-
-  _bindEvents() {
-    this.generateButton?.addEventListener('click', () => this._onGenerate());
   }
 
   async _onGenerate() {

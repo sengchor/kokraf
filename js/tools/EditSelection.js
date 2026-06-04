@@ -317,7 +317,7 @@ export default class EditSelection {
     const visibleFaces = xrayMode ? faceCandidates : this.filterVisibleFaces(faceCandidates, camera);
     if (visibleFaces.length === 0) return null;
 
-    const nearestFaceId = visibleFaces[0].index;
+    const nearestFaceId = visibleFaces[0].faceId;
 
     return nearestFaceId;
   }
@@ -350,10 +350,8 @@ export default class EditSelection {
     const edgeHits = this.selectionBox.getEdgesInFrustum(thinLine, frustum);
     if (edgeHits.length === 0) return null;
 
-    const edgeCandidates = this.buildEdgeCandidates(edgeHits, thinLine);
-
     const xrayMode = this.sceneManager.xrayMode;
-    const visibleEdges = xrayMode ? edgeCandidates : this.filterVisibleEdges(edgeCandidates, this.camera);
+    const visibleEdges = xrayMode ? edgeHits : this.filterVisibleEdges(edgeHits, this.camera);
     if (visibleEdges.length === 0) return null;
 
     const insideHits = visibleEdges.filter(e => e.type === "endpoint");
@@ -362,7 +360,7 @@ export default class EditSelection {
     // Prefer inside hits; if none exist, use clipping hits.
     const selectedEdges = insideHits.length > 0 ? insideHits : clipHits;
 
-    const edgeIndices = selectedEdges.map(e => e.edge.id);
+    const edgeIndices = selectedEdges.map(e => e.edgeId);
     return edgeIndices;
   }
 
@@ -380,7 +378,7 @@ export default class EditSelection {
     const visibleFaces = xrayMode ? faceHits : this.filterVisibleFaces(faceHits, this.camera);
     if (visibleFaces.length === 0) return null;
 
-    const faceIndices = visibleFaces.map(f => f.index);
+    const faceIndices = visibleFaces.map(f => f.faceId);
     return faceIndices;
   }
 
@@ -547,15 +545,15 @@ export default class EditSelection {
     return visibleVertices;
   }
 
-  filterVisibleEdges(edgeCandidates, camera) {
-    if (!edgeCandidates || edgeCandidates.length === 0) return [];
+  filterVisibleEdges(edgeHits, camera) {
+    if (!edgeHits || edgeHits.length === 0) return [];
 
     this.depthReader.updateDepthBuffer(this.sceneManager.mainScene, camera);
 
     const visibleEdges = [];
     const testPoints = [];
 
-    for (const edge of edgeCandidates) {
+    for (const edge of edgeHits) {
       const midpoint = new THREE.Vector3()
         .addVectors(edge.vA, edge.vB)
         .multiplyScalar(0.5);
@@ -618,6 +616,7 @@ export default class EditSelection {
       const position = this.vertexEditor.transform.getVertexPosition(vertexId);
 
       return {
+        ...hit,
         vertexId,
         point: position,
       };
@@ -651,12 +650,10 @@ export default class EditSelection {
       ).applyMatrix4(thinLine.matrixWorld);
 
       edges.push({
-        edge: { id: edgeId },
+        ...hit,
+        edgeId,
         vA,
-        vB,
-        hitPoint: hit.point,
-        screenDist: hit.distance,
-        type: hit.type ?? 'endpoint',
+        vB
       });
     }
 
@@ -691,7 +688,7 @@ export default class EditSelection {
 
       faces.push({
         ...hit,
-        index: faceId,
+        faceId,
         vertices: worldPoints,
       });
     }
@@ -799,7 +796,7 @@ export default class EditSelection {
       cy,
       distSq: dx * dx + dy * dy,
       t,
-      edgeId: edgeHit.edge.id
+      edgeId: edgeHit.edgeId
     };
   }
 

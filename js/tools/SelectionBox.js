@@ -162,6 +162,9 @@ export class SelectionBox {
     const b = new THREE.Vector3();
 
     for (let i = 0; i < edgeIdList.length; i++) {
+      const edgeId = edgeIdList[i];
+      if (edgeId === undefined) continue;
+
       const baseIndex = i * 2;
 
       a.fromBufferAttribute(pos, baseIndex).applyMatrix4(matrixWorld);
@@ -174,10 +177,12 @@ export class SelectionBox {
         const hitPoint = this.getSafePointOnEdge(a, b, camPos);
         edgeHits.push({
           type,
-          index: baseIndex,
+          edgeId,
           distance: hitPoint.distanceTo(camPos),
           object: thinLine,
           point: hitPoint,
+          vA: a.clone(),
+          vB: b.clone()
         });
       };
 
@@ -236,7 +241,7 @@ export class SelectionBox {
         }
 
         faceHits.push({
-          index: faceId,
+          faceId,
           point: closestVertex,
           distance: minDist,
           vertices: worldPoints
