@@ -239,6 +239,7 @@ export class SelectionBox {
           index: faceId,
           point: closestVertex,
           distance: minDist,
+          vertices: worldPoints
         });
       }
     }
