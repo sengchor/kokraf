@@ -135,7 +135,11 @@ export class CloudSavePanel {
     } catch (err) {
       console.error('Save failed:', err);
       this.editor.signals.saveStatusChanged.dispatch('error');
-      this.showError(getCreditsErrorMessage(err.reason) ?? 'Save failed.');
+      if (err.reason === 'size_exceeded') {
+        this.showError(`Your project (${err.sizeMB} MB) exceeds the 50 MB upload limit.`);
+      } else {
+        this.showError(getCreditsErrorMessage(err.reason) ?? 'Save failed.');
+      }
     } finally {
       this.saveBtn.disabled = false;
       this.saveBtn.textContent = 'Save';

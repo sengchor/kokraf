@@ -22,6 +22,17 @@ export async function saveProject(editor, {name = null, isPublic = false, overri
   const camera = editor.cameraManager.camera;
   const blob = await editor.renderer.captureThumbnail(editor.sceneManager, camera);
 
+  // Check serialized size before uploading
+  const jsonString = JSON.stringify(json);
+  const sizeBytes = new Blob([jsonString]).size;
+  if (sizeBytes > 50 * 1024 * 1024) {
+    const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(1);
+    const err = new Error('Project too large');
+    err.reason = 'size_exceeded';
+    err.sizeMB = sizeMB;
+    throw err;
+  }
+
   if (override) {
     await Promise.all([
       uploadProject(json, editor.currentProjectId),

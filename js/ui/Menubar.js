@@ -61,6 +61,9 @@ export default class Menubar {
         this.setSaveStatus(this.cloudSaveLabel, 'saved');
       } catch (err) {
         console.error(err);
+        if (err.reason === 'size_exceeded') {
+          alert(`Your project (${err.sizeMB} MB) exceeds the 50 MB upload limit.`);
+        }
         this.setSaveStatus(this.cloudSaveLabel, 'error');
       }
     }
