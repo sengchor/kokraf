@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import earcut from 'earcut';
-import { computeFaceNormals } from './NormalCalculator.js';
 import { computePlaneNormal, projectTo2D } from './TriangulationUtils.js';
 
 export class MeshRendererAdapter {
@@ -260,31 +259,5 @@ export class MeshRendererAdapter {
     }
 
     return normalsMap;
-  }
-
-  static recomputeNormals(object) {
-    const shading = object.userData.shading;
-    const meshData = object.userData.meshData;
-
-    if (shading === 'flat') {
-      object.geometry.computeVertexNormals();
-      return;
-    }
-
-    let normalsMap;
-
-    if (shading === 'smooth') {
-      normalsMap = this.calculateSmoothNormalsMap(meshData);
-    } else if (shading === 'auto') {
-      normalsMap = this.calculateAngleBasedNormalsMap(meshData);
-    } else {
-      return;
-    }
-
-    const normalAttr = object.geometry.attributes.normal;
-    for (const [bufferIdx, n] of normalsMap) {
-      normalAttr.setXYZ(bufferIdx, n.x, n.y, n.z);
-    }
-    normalAttr.needsUpdate = true;
   }
 }

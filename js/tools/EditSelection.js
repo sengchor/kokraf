@@ -916,7 +916,7 @@ export default class EditSelection {
     const meshData = this.editedObject.userData.meshData;
     if (!meshData) return;
 
-    const linkedVertexIds = this.vertexEditor.selection.selectLinked(meshData, this.selectedVertexIds);
+    const linkedVertexIds = this.vertexEditor.selection.selectVertexLinked(meshData, this.selectedVertexIds);
     this.selectVertices(Array.from(linkedVertexIds));
   }
 

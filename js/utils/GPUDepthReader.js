@@ -117,7 +117,7 @@ export class GPUDepthReader {
 
     // Direct 1D comparison
     // Epsilon may need slight tuning depending on your scene scale
-    const VIEW_EPSILON = 0.05; 
+    const VIEW_EPSILON = 0.001; 
     return testViewZ <= gpuViewZ + VIEW_EPSILON;
   }
 
