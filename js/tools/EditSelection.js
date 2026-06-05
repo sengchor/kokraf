@@ -547,7 +547,10 @@ export default class EditSelection {
         .addVectors(hit.vA, hit.vB)
         .multiplyScalar(0.5);
 
-      const testPoints = [midpoint, hit.vA, hit.vB];
+      const BIAS = 0.1;
+      const biasedA = hit.vA.clone().lerp(midpoint, BIAS);
+      const biasedB = hit.vB.clone().lerp(midpoint, BIAS);
+      const testPoints = [midpoint, biasedA, biasedB];
       
       for (const testPoint of testPoints) {
         if (this.depthReader.isPointVisible(testPoint, camera)) {
@@ -570,16 +573,6 @@ export default class EditSelection {
     const tempCentroid = new THREE.Vector3();
 
     for (const hit of faceHits) {
-      let isVertexVisible = false;
-      for (const vertex of hit.vertices) {
-        if (this.depthReader.isPointVisible(vertex, camera)) {
-          isVertexVisible = true;
-          break;
-        }
-      }
-
-      const isHitPointVisible = this.depthReader.isPointVisible(hit.point, camera);
-
       tempCentroid.set(0, 0, 0);
       for (const vertex of hit.vertices) {
         tempCentroid.add(vertex);
@@ -589,8 +582,18 @@ export default class EditSelection {
       }
 
       const isCentroidVisible = this.depthReader.isPointVisible(tempCentroid, camera);
+
+      const BIAS = 0.1;
+      let isVertexVisible = false;
+      for (const vertex of hit.vertices) {
+        const biased = vertex.clone().lerp(tempCentroid, BIAS);
+        if (this.depthReader.isPointVisible(biased, camera)) {
+          isVertexVisible = true;
+          break;
+        }
+      }
       
-      if (isVertexVisible || isHitPointVisible || isCentroidVisible) {
+      if (isVertexVisible || isCentroidVisible) {
         visibleFaces.push(hit);
       }
     }
