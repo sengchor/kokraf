@@ -125,6 +125,46 @@ export class ObjectFactory {
     return group;
   }
 
+  createImageRef(type, file) {
+    return new Promise ((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+
+      new THREE.TextureLoader().load(
+        url,
+        (texture) => {
+          URL.revokeObjectURL(url);
+
+          const { width, height } = texture.image;
+          const aspect = width / height;
+
+          const planeW = aspect >= 1 ? 1 : aspect;
+          const planeH = aspect >= 1 ? 1 / aspect : 1;
+
+          const geometry = new THREE.PlaneGeometry(planeW, planeH);
+          const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            alphaTest: 0.01,
+          });
+
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.name = this.editor.nameManager.generateUniqueName(type);
+          mesh.userData.isImageRef = true;
+          mesh.userData.sourceFile = file.name;
+          mesh.userData.imageSize = { width, height };
+
+          resolve(mesh);
+        },
+        undefined,
+        (error) => {
+          URL.revokeObjectURL(url);
+          reject(error);
+        }
+      );
+    });
+  }
+
   createHelper(object) {
     let helper = null;
 

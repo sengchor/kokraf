@@ -38,7 +38,28 @@ export class MenubarAdd {
         const cameraType = event.target.getAttribute('data-camera');
         const camera = this.objectFactory.createCamera(cameraType);
         this.editor.execute(new AddObjectCommand(this.editor, camera));
-      })
+      });
+    });
+
+    document.querySelectorAll('[data-image]').forEach(item => {
+      item.addEventListener('click', (event) => {
+        const imageType = event.target.getAttribute('data-image');
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.png, .jpg, .jpeg, .webp';
+        input.multiple = false;
+
+        input.addEventListener('change', async (changeEvent) => {
+          const file = changeEvent.target.files[0];
+          if (!file) return;
+
+          const imageRef = await this.objectFactory.createImageRef(imageType, file);
+          this.editor.execute(new AddObjectCommand(this.editor, imageRef));
+        });
+
+        input.click();
+      });
     });
   }
 }
