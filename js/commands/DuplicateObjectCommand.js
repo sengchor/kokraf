@@ -31,6 +31,11 @@ export class DuplicateObjectCommand {
       const state = this.duplicateStates[i];
       const obj = loader.parse(state.json);
       obj.uuid = state.uuid;
+
+      if (obj.userData?.isImageRef && obj.material) {
+        obj.material.allowOverride = false;
+      }
+      
       created[i] = obj;
     }
 

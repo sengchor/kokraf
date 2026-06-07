@@ -94,7 +94,8 @@ export class ObjectActions {
     }
 
     if (action === 'shade-smooth' || action === 'shade-flat' || action === 'shade-auto') {
-      const objects = this.selection.selectedObjects;
+      const objects = this.selection.selectedObjects
+        .filter(object => object?.isMesh && !object.userData?.isImageRef);
       if (!objects || objects.length === 0) return;
 
       objects.forEach(obj => {
@@ -138,7 +139,8 @@ export class ObjectActions {
   }
 
   joinSelectedObjects() {
-    const objects = this.selection.selectedObjects;
+    const objects = this.selection.selectedObjects
+      .filter(object => object?.isMesh && !object.userData?.isImageRef);
     if (!objects || objects.length < 2) return;
     
     const allMeshes = objects.every(obj => obj?.isMesh === true);
@@ -164,7 +166,8 @@ export class ObjectActions {
   }
 
   setGeometryToOrigin() {
-    const objects = this.selection.selectedObjects;
+    const objects = this.selection.selectedObjects
+      .filter(object => object?.isMesh && !object.userData?.isImageRef);
     if (!objects || objects.length === 0) return;
 
     const multi = new SequentialMultiCommand(this.editor, 'Origin to Geometry');
@@ -180,7 +183,8 @@ export class ObjectActions {
   }
 
   setOriginToGeometry() {
-    const objects = this.selection.selectedObjects;
+    const objects = this.selection.selectedObjects
+      .filter(object => object?.isMesh && !object.userData?.isImageRef);
     if (!objects || objects.length === 0) return;
 
     const multi = new SequentialMultiCommand(this.editor, 'Origin to Geometry');

@@ -272,7 +272,7 @@ switchMode(newMode) {
   }
 
 
-  if (newMode === 'edit' && !(object && object.isMesh) && !object.userData.isImageRef) {
+  if (newMode === 'edit' && (!object?.isMesh || object.userData?.isImageRef)) {
     alert('No mesh selected. Please select a mesh object.');
     this.interactionDropdown.value = previousMode;
     return;

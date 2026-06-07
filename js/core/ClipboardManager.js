@@ -66,6 +66,18 @@ export class ClipboardManager {
     };
   }
 
+  buildImageRefClipboardItem(obj) {
+    const clone = obj.clone(false);
+    clone.children.length = 0;
+
+    return {
+      ...this.buildBaseClipboardItem(obj),
+      type: 'imageRef',
+      objectData: clone.toJSON(),
+      imageSize: obj.userData.imageSize,
+    };
+  }
+
   applyTransform(obj, transform) {
     obj.position.fromArray(transform.position);
     obj.quaternion.fromArray(transform.rotation);
@@ -108,6 +120,15 @@ export class ClipboardManager {
     return new THREE.Group();
   }
 
+  pasteImageRef(item) {
+    const mesh = new THREE.ObjectLoader().parse(item.objectData);
+    mesh.material.allowOverride = false;
+    mesh.userData.isImageRef = true;
+    mesh.userData.selectable = true;
+    mesh.userData.imageSize = item.imageSize ?? { width: 1, height: 1 };
+    return mesh;
+  }
+
   copyObjects(objects) {
     if (!objects || objects.length === 0) return;
 
@@ -123,6 +144,8 @@ export class ClipboardManager {
         data.push(this.buildCameraClipboardItem(obj));
       } else if (obj.isGroup) {
         data.push(this.buildGroupClipboardItem(obj));
+      } else if (obj.userData?.isImageRef) {
+        data.push(this.buildImageRefClipboardItem(obj));
       }
     }
 
@@ -136,8 +159,12 @@ export class ClipboardManager {
       data,
     };
 
-    this.memeoryPayload = payload;
-    this._saveToStorage(payload);
+    this.memoryPayload = payload;
+
+    const storableData = data.filter(item => item.type !== 'imageRef');
+    if (storableData.length > 0) {
+      this._saveToStorage({ ...payload, data: storableData });
+    }
   }
 
   pasteObjects() {
@@ -156,6 +183,7 @@ export class ClipboardManager {
         case 'light': obj = this.pasteLight(item); break;
         case 'camera': obj = this.pasteCamera(item); break;
         case 'group': obj = this.pasteGroup(item); break;
+        case 'imageRef': obj = this.pasteImageRef(item); break;
         default: continue;
       }
 
@@ -231,10 +259,10 @@ export class ClipboardManager {
   }
 
   _getPayload() {
-    if (this.memoryPayload) return this.memeoryPayload;
+    if (this.memoryPayload) return this.memoryPayload;
 
     const stored = this._loadFromStorage();
-    this.memeoryPayload = stored;
+    this.memoryPayload = stored;
     return stored;
   }
 
