@@ -93,6 +93,10 @@ export default class SceneManager {
       MeshData.rehydrateMeshData(object);
     }
 
+    if (object.userData.isImageRef && object.material) {
+      object.material.allowOverride = false;
+    }
+
     if (parent === undefined) {
       this.mainScene.add(object);
     } else {

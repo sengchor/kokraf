@@ -151,11 +151,13 @@ export default class Selection {
 
     this.sceneManager.mainScene.traverseVisible(child => {
       if (!child.visible) return;
+      if (child.userData.selectable === false) return;
       objects.push(child);
     });
 
     this.sceneManager.sceneHelpers.traverseVisible(child => {
       if (child.name === 'picker') {
+        if (child.userData.selectable === false) return;
         objects.push(child);
       }
     });

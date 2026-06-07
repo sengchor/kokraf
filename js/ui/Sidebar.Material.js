@@ -11,6 +11,7 @@ export class SidebarMaterial {
 
     this.optionsPerType = {
       'MeshStandardMaterial': ['type', 'uuid', 'color', 'metalness', 'roughness', 'flatShading'],
+      'ImageRefMaterial': ['type', 'uuid', 'side', 'opacity', 'depthTest', 'depthWrite'],
       'Default': ['type', 'uuid']
     }
     this.options = null;
@@ -57,7 +58,10 @@ export class SidebarMaterial {
     if (!object) return [];
     if (!object.material) return [];
 
-    const type = object.material.type;
+    let type = object.material.type;
+    if (object.userData.isImageRef) { 
+      type = 'ImageRefMaterial'; 
+    }
     return this.optionsPerType[type] || this.optionsPerType['Default'];
   }
 
@@ -69,6 +73,10 @@ export class SidebarMaterial {
       metalness: document.getElementById('material-metalness'),
       roughness: document.getElementById('material-roughness'),
       flatShading: document.getElementById('material-flatShading'),
+      opacity: document.getElementById('material-opacity'),
+      side: document.getElementById('material-side'),
+      depthTest: document.getElementById('material-depthTest'),
+      depthWrite: document.getElementById('material-depthWrite'),
     }
   }
 
@@ -120,6 +128,38 @@ export class SidebarMaterial {
         `;
         break;
       }
+      case 'opacity': {
+        li.innerHTML = `
+          <span class="label">Opacity</span>
+          <input class="number-input" id="material-opacity" type="number" min="0" max="1" step="0.01" value="1" onclick="this.select()" onkeydown="handleEnter(event, this)" />
+        `;
+        break;
+      }
+      case 'side': {
+        li.innerHTML = `
+          <span class="label">Side</span>
+          <select class="select-input" id="material-side">
+            <option value="0">Front</option>
+            <option value="1">Back</option>
+            <option value="2">Both</option>
+          </select>
+        `;
+        break;
+      }
+      case 'depthTest': {
+        li.innerHTML = `
+          <span class="label">Depth Test</span>
+          <input type="checkbox" id="material-depthTest" checked/>
+        `;
+        break;
+      }
+      case 'depthWrite': {
+        li.innerHTML = `
+          <span class="label">Depth Write</span>
+          <input type="checkbox" id="material-depthWrite" checked/>
+        `;
+        break;
+      }
     }
 
     return li;
@@ -135,6 +175,11 @@ export class SidebarMaterial {
     for (const option of this.options) {
       switch (option) {
         case 'type':
+          if (object.userData.isImageRef) {
+            f.type.textContent = 'ImageRefMaterial';
+            break;
+          }
+
           f.type.textContent = material.type || 'Unknown';
           break;
         case 'uuid':
@@ -145,10 +190,24 @@ export class SidebarMaterial {
           break;
         case 'metalness':
           f.metalness.value = fix(material.metalness, 2);
+          break;
         case 'roughness':
           f.roughness.value = fix(material.roughness, 2);
+          break;
         case 'flatShading':
           f.flatShading.checked = !!material.flatShading;
+          break;
+        case 'opacity':
+          f.opacity.value = fix (material.opacity, 2);
+          break;
+        case 'side':
+          f.side.value = material.side;
+          break;
+        case 'depthTest':
+          f.depthTest.checked = !!material.depthTest;
+          break;
+        case 'depthWrite':
+          f.depthWrite.checked = !!material.depthWrite;
           break;
       }
     }
@@ -188,7 +247,7 @@ export class SidebarMaterial {
           break;
 
         case 'metalness':
-          this.bindInput(f.metalness, () => parseFloat(f.metalness.value), (object, value) => {
+          this.bindInput(f.metalness, () => this.clampInput(f.metalness), (object, value) => {
             if (object.material.metalness !== value) {
               this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'metalness', value));
             }
@@ -196,7 +255,7 @@ export class SidebarMaterial {
           break;
 
         case 'roughness':
-          this.bindInput(f.roughness, () => parseFloat(f.roughness.value), (object, value) => {
+          this.bindInput(f.roughness, () => this.clampInput(f.roughness), (object, value) => {
             if (object.material.roughness !== value) {
               this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'roughness', value));
             }
@@ -206,7 +265,40 @@ export class SidebarMaterial {
         case 'flatShading':
           this.bindCheckbox(f.flatShading, 'flatShading');
           break;
+
+        case 'opacity':
+          this.bindInput(f.opacity, () => this.clampInput(f.opacity), (object, value) => {
+            if (object.material.opacity !== value) {
+              this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'opacity', value));
+            }
+          });
+          break;
+
+        case 'side':
+          this.bindInput(f.side, () => parseFloat(f.side.value), (object, value) => {
+            if (object.material.side !== value) {
+              this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'side', value));
+            }
+          });
+          break;
+
+        case 'depthTest':
+          this.bindCheckbox(f.depthTest, 'depthTest');
+          break;
+
+        case 'depthWrite':
+          this.bindCheckbox(f.depthWrite, 'depthWrite');
+          break;
       }
     }
+  }
+
+  clampInput(input) {
+    const value = parseFloat(input.value);
+    const min = input.min !== '' ? parseFloat(input.min) : -Infinity;
+    const max = input.max !== '' ? parseFloat(input.max) : Infinity;
+    const clamped = Math.min(Math.max(value, min), max);
+    input.value = clamped;
+    return clamped;
   }
 }

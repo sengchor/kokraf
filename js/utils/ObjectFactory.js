@@ -134,6 +134,7 @@ export class ObjectFactory {
         (texture) => {
           URL.revokeObjectURL(url);
 
+          texture.colorSpace = THREE.SRGBColorSpace;
           const { width, height } = texture.image;
           const aspect = width / height;
 
@@ -146,12 +147,16 @@ export class ObjectFactory {
             transparent: true,
             side: THREE.DoubleSide,
             alphaTest: 0.01,
+            opacity: 1.0,
+            depthTest: true,
+            depthWrite: true,
           });
+          material.allowOverride = false;
 
           const mesh = new THREE.Mesh(geometry, material);
           mesh.name = this.editor.nameManager.generateUniqueName(type);
           mesh.userData.isImageRef = true;
-          mesh.userData.sourceFile = file.name;
+          mesh.userData.selectable = true;
           mesh.userData.imageSize = { width, height };
 
           resolve(mesh);

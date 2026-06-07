@@ -5,6 +5,7 @@ import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 import { SetValueCommand } from '../commands/SetValueCommand.js';
 import { SetColorCommand } from '../commands/SetColorCommand.js';
 import { SetShadowValueCommand } from '../commands/SetShadowValueCommand.js';
+import { SetUserDataValueCommand } from '../commands/SetUserDataValueCommand.js';
 
 export class SidebarObject {
   constructor(editor) {
@@ -27,6 +28,7 @@ export class SidebarObject {
       'SpotLight': ['type', 'uuid', 'name', 'position', 'intensity', 'color', 'distance', 'angle', 'penumbra', 'decay', 'shadow', 'shadowIntensity', 'shadowBias', 'shadowNormalBias', 'shadowRadius', 'visible', 'frustumCull', 'renderOrder'],
       'OrthographicCamera': ['type', 'uuid', 'name', 'position', 'rotation', 'scale', 'left', 'right', 'top', 'bottom', 'near', 'far', 'shadow', 'visible', 'frustumCull', 'renderOrder'],
       'PerspectiveCamera': ['type', 'uuid', 'name', 'position', 'rotation', 'scale', 'fov', 'near', 'far', 'shadow', 'visible', 'frustumCull', 'renderOrder'],
+      'ImageRef': ['type', 'uuid', 'position', 'rotation', 'scale', 'visible', 'selectable'],
       'Default': ['type', 'uuid', 'name', 'position', 'rotation', 'scale', 'shadow', 'visible', 'frustumCull', 'renderOrder']
     }
     this.options = null;
@@ -80,7 +82,10 @@ export class SidebarObject {
   getOptionsFor(object) {
     if (!object) return [];
 
-    const type = object.type;
+    let type = object.type;
+    if (object.userData.isImageRef) { 
+      type = 'ImageRef'; 
+    }
     return this.optionsPerType[type] || this.optionsPerType['Default'];
   }
 
@@ -106,6 +111,7 @@ export class SidebarObject {
       shadowReceive: document.getElementById('setting-shadow-receive'),
 
       visible: document.getElementById('setting-visible'),
+      selectable: document.getElementById('setting-selectable'),
       frustumCull: document.getElementById('setting-frustum-cull'),
       renderOrder: document.getElementById('setting-render-order'),
 
@@ -199,6 +205,13 @@ export class SidebarObject {
         li.innerHTML = `
           <span class="label">Visible</span>
           <input type="checkbox" id="setting-visible" checked/>
+        `;
+        break;
+      }
+      case 'selectable': {
+        li.innerHTML = `
+          <span class="label">Selectable</span>
+          <input type="checkbox" id="setting-selectable" checked/>
         `;
         break;
       }
@@ -358,6 +371,11 @@ export class SidebarObject {
     for (const option of this.options) {
       switch (option) {
         case 'type':
+          if (object.userData.isImageRef) {
+            f.type.textContent = 'ImageRef';
+            break;
+          }
+
           f.type.textContent = object.type || 'Unknown';
           break;
         case 'uuid':
@@ -394,6 +412,9 @@ export class SidebarObject {
           break;
         case 'visible':
           f.visible.checked = !!object.visible;
+          break;
+        case 'selectable':
+          f.selectable.checked = object.userData.selectable !== false;
           break;
         case 'frustumCull':
           f.frustumCull.checked = !!object.frustumCulled;
@@ -490,6 +511,14 @@ export class SidebarObject {
       return checkbox.checked;
     }, function(object, value) {
       this.editor.execute(new SetValueCommand(this.editor, object, key, value));
+    }.bind(this));
+  }
+
+  bindUserDataCheckbox(checkbox, key) {
+    this.bindInput(checkbox, function() {
+      return checkbox.checked;
+    }, function(object, value) {
+      this.editor.execute(new SetUserDataValueCommand(this.editor, object, key, value));
     }.bind(this));
   }
 
@@ -607,6 +636,10 @@ export class SidebarObject {
 
         case 'visible':
           this.bindCheckbox(f.visible, 'visible');
+          break;
+
+        case 'selectable':
+          this.bindUserDataCheckbox(f.selectable, 'selectable');
           break;
 
         case 'frustumCull':
