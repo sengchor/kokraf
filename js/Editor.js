@@ -61,6 +61,9 @@ export default class Editor {
       objectDeleted: new Signal(),
       objectDuplicated: new Signal(),
       objectJoined: new Signal(),
+      hideSelected: new Signal(),
+      hideUnselected: new Signal(),
+      unhideAll: new Signal(),
 
       historyChanged: new Signal(),
       emptyScene: new Signal(),

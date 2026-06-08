@@ -150,6 +150,15 @@ export class KeyHandler {
       } else if (matchesShortcut(event, this.shortcuts['selectAll'])) {
         this.signals.objectSelectAll.dispatch();
         handled = true;
+      } else if (matchesShortcut(event, this.shortcuts['hideSelected'])) {
+        this.signals.hideSelected.dispatch();
+        handled = true;
+      } else if (matchesShortcut(event, this.shortcuts['hideUnselected'])) {
+        this.signals.hideUnselected.dispatch();
+        handled = true;
+      } else if (matchesShortcut(event, this.shortcuts['unhideAll'])) {
+        this.signals.unhideAll.dispatch();
+        handled = true;
       }
     }
 

@@ -10,6 +10,7 @@ import { SetGeometryToOriginCommand } from '../commands/SetGeometryToOriginComma
 import { ApplyLocationCommand } from '../commands/ApplyLocationCommand.js';
 import { ApplyRotationCommand } from '../commands/ApplyRotationCommand.js';
 import { ApplyScaleCommand } from '../commands/ApplyScaleCommand.js';
+import { SetValueCommand } from '../commands/SetValueCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -30,6 +31,9 @@ export class ObjectActions {
     this.signals.objectSelectAll.add(() => this.objectSelectAll());
     this.signals.objectsCopied.add(() => this.copyObjects());
     this.signals.objectsPasted.add(() => this.pasteObjects());
+    this.signals.hideSelected.add(() => this.hideSelectedObjects());
+    this.signals.hideUnselected.add(() => this.hideUnselectedObjects());
+    this.signals.unhideAll.add(() => this.unhideAllObjects());
   }
 
   handleAction(action) {
@@ -110,6 +114,21 @@ export class ObjectActions {
           this.editor.execute(new SetShadingCommand(this.editor, obj, 'auto', currentShading));
         }
       });
+      return;
+    }
+
+    if (action === 'hide-selected') {
+      this.hideSelectedObjects();
+      return;
+    }
+
+    if (action === 'hide-unselected') {
+      this.hideUnselectedObjects();
+      return;
+    }
+
+    if (action === 'unhide-all') {
+      this.unhideAllObjects();
       return;
     }
 
@@ -291,5 +310,46 @@ export class ObjectActions {
 
     this.editor.selection.select(objects);
     this.editor.toolbar.updateTools();
+  }
+
+  setObjectsVisibility(objects, visible, commandName) {
+    if (!objects.length) return;
+
+    const multi = new SequentialMultiCommand(this.editor, commandName);
+
+    for (const object of objects) {
+      multi.add(() => new SetValueCommand(this.editor, object, 'visible', visible));
+    }
+
+    this.editor.execute(multi);
+    this.editor.toolbar.updateTools();
+  }
+
+  hideSelectedObjects() {
+    const objects = this.selection.selectedObjects;
+
+    this.setObjectsVisibility(objects, false, 'Hide Selected');
+
+    this.editor.selection.deselect();
+  }
+
+  hideUnselectedObjects() {
+    const selected = new Set(this.selection.selectedObjects);
+
+    const objects = this.sceneManager.getSceneObjects().filter(
+      (object) => !selected.has(object)
+    );
+
+    this.setObjectsVisibility(objects, false, 'Hide Unselected');
+  }
+
+  unhideAllObjects() {
+    this.setObjectsVisibility(
+      this.sceneManager.getSceneObjects(),
+      true,
+      'Unhide All'
+    );
+
+    this.editor.selection.deselect();
   }
 }

@@ -415,4 +415,16 @@ export default class SceneManager {
       obj.updateMatrix();
     });
   }
+
+  getSceneObjects() {
+    const objects = [];
+
+    this.mainScene.traverse((object) => {
+      if (object !== this.mainScene) {
+        objects.push(object);
+      }
+    });
+
+    return objects;
+  }
 }

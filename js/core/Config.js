@@ -25,6 +25,9 @@ export default class Config {
         focusOrigin: 'shift+c', 
         focusSelected: 'shift+f',
         duplicate: 'shift+d',
+        unhideAll: 'alt+h',
+        hideSelected: 'h',
+        hideUnselected: 'shift+h',
         
         join: 'ctrl+j',
         selectAll: 'a',
