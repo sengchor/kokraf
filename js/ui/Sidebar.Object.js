@@ -6,6 +6,7 @@ import { SetValueCommand } from '../commands/SetValueCommand.js';
 import { SetColorCommand } from '../commands/SetColorCommand.js';
 import { SetShadowValueCommand } from '../commands/SetShadowValueCommand.js';
 import { SetUserDataValueCommand } from '../commands/SetUserDataValueCommand.js';
+import { SetVisibilityCommand } from '../commands/SetVisibilityCommand.js';
 
 export class SidebarObject {
   constructor(editor) {
@@ -635,7 +636,9 @@ export class SidebarObject {
           break;
 
         case 'visible':
-          this.bindCheckbox(f.visible, 'visible');
+          this.bindInput(f.visible, () => f.visible.checked, (object, value) => {
+            this.editor.execute(new SetVisibilityCommand(this.editor, object, value));
+          });
           break;
 
         case 'selectable':
@@ -685,7 +688,7 @@ export class SidebarObject {
           break;
 
         case 'shadowNormalBias':
-          this.bindInput(f.shadowNormalBias, () =>parseFloat(f.shadowNormalBias.value), (object, value) => {
+          this.bindInput(f.shadowNormalBias, () => parseFloat(f.shadowNormalBias.value), (object, value) => {
             this.editor.execute(new SetShadowValueCommand(this.editor, object, 'normalBias', value));
           });
           break;

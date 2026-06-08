@@ -41,6 +41,7 @@ import { DifferenceCommand } from './DifferenceCommand.js';
 import { IntersectCommand } from './IntersectCommand.js';
 import { SetMaterialCommand } from './SetMaterialCommand.js';
 import { SetUserDataValueCommand } from './SetUserDataValueCommand.js';
+import { SetVisibilityCommand } from './SetVisibilityCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -86,4 +87,5 @@ export const commands = new Map([
   [IntersectCommand.type, IntersectCommand],
   [SetMaterialCommand.type, SetMaterialCommand],
   [SetUserDataValueCommand.type, SetUserDataValueCommand],
+  [SetVisibilityCommand.type, SetVisibilityCommand],
 ]);

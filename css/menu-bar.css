@@ -122,7 +122,7 @@
   line-height: 1.5;
 }
 
-.submenu li:hover .shortcut {
+.submenu li:hover > .shortcut {
   border-color: rgba(255, 255, 255, 0.7);
   color: rgba(255, 255, 255, 0.9);
 }

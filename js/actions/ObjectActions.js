@@ -10,7 +10,7 @@ import { SetGeometryToOriginCommand } from '../commands/SetGeometryToOriginComma
 import { ApplyLocationCommand } from '../commands/ApplyLocationCommand.js';
 import { ApplyRotationCommand } from '../commands/ApplyRotationCommand.js';
 import { ApplyScaleCommand } from '../commands/ApplyScaleCommand.js';
-import { SetValueCommand } from '../commands/SetValueCommand.js';
+import { SetVisibilityCommand } from '../commands/SetVisibilityCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -318,7 +318,7 @@ export class ObjectActions {
     const multi = new SequentialMultiCommand(this.editor, commandName);
 
     for (const object of objects) {
-      multi.add(() => new SetValueCommand(this.editor, object, 'visible', visible));
+      multi.add(() => new SetVisibilityCommand(this.editor, object, visible));
     }
 
     this.editor.execute(multi);
