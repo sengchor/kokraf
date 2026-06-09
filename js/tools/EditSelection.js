@@ -658,17 +658,17 @@ export default class EditSelection {
     const geom = faceMesh.geometry;
     const pos = geom.attributes.position.array;
     const matrixWorld = faceMesh.matrixWorld;
-    const faceRanges = faceMesh.userData.faceRanges;
+    const faceIdToRange = faceMesh.userData.faceIdToRange;
 
     const faces = [];
 
     for (const hit of faceHits) {
-      const faceId = this.findFaceIdFromTriIndex(hit.faceIndex, faceRanges);
-      
-      const range = faceRanges.find(r => r.faceId === faceId);
+      const range = this.findRangeFromTriIndex(hit.faceIndex, faceIdToRange);
       const worldPoints = [];
+      let faceId = null;
       
       if (range) {
+        faceId = range.faceId;
         const startIndex = range.start * 3;
         const endIndex = (range.start + range.count) * 3;
         
@@ -732,10 +732,10 @@ export default class EditSelection {
     return nearestEdgeId;
   }
 
-  findFaceIdFromTriIndex(triIndex, faceRanges) {
-    for (const fr of faceRanges) {
+  findRangeFromTriIndex(triIndex, faceIdToRange) {
+    for (const fr of faceIdToRange.values()) {
       if (triIndex >= fr.triStart && triIndex < fr.triStart + fr.triCount) {
-        return fr.faceId;
+        return fr;
       }
     }
     return null;

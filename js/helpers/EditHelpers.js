@@ -68,6 +68,7 @@ export default class EditHelpers {
 
     const vertexPoints = new THREE.Points(pointGeometry, pointMaterial);
     vertexPoints.renderOrder = 11;
+    vertexPoints.frustumCulled = false;
     vertexPoints.userData.isEditorOnly = true;
     vertexPoints.userData.vertexIdToBufferIndex = vertexIdToBufferIndex;
     vertexPoints.name = '__VertexPoints';
@@ -96,17 +97,11 @@ export default class EditHelpers {
     const edgeIdList = [];
 
     let i = 0;
-    const _v1 = new THREE.Vector3();
-    const _v2 = new THREE.Vector3();
-
     for (let edge of meshData.edges.values()) {
       const v1 = meshData.getVertex(edge.v1Id);
       const v2 = meshData.getVertex(edge.v2Id);
 
-      _v1.copy(v1.position).applyMatrix4(matrixWorld);
-      _v2.copy(v2.position).applyMatrix4(matrixWorld);
-
-      allPositions.push(_v1.x, _v1.y, _v1.z, _v2.x, _v2.y, _v2.z);
+      allPositions.push(v1.position.x, v1.position.y, v1.position.z, v2.position.x, v2.position.y, v2.position.z);
       edgeIdToBufferIndex.set(edge.id, i);
       edgeIdList.push(edge.id);
       i++;
@@ -122,33 +117,28 @@ export default class EditHelpers {
       vertexColors: true,
       dashed: false,
       depthTest: true,
-      
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
     });
     fatMat.resolution.set(window.innerWidth, window.innerHeight);
 
-    // Per-edge colors for highlight
-    const colorArray = new Float32Array(edgeIdList.length * 2 * 3);
-    colorArray.fill(0);
-    // Replace the custom colorArray block with this:
-    const instanceColorStart = new THREE.InstancedBufferAttribute(
-      new Float32Array(edgeIdList.length * 3).fill(0), 3
-    );
-    const instanceColorEnd = new THREE.InstancedBufferAttribute(
-      new Float32Array(edgeIdList.length * 3).fill(0), 3
-    );
+    const instanceColorStart = new THREE.InstancedBufferAttribute(new Float32Array(edgeIdList.length * 3).fill(0), 3);
+    const instanceColorEnd = new THREE.InstancedBufferAttribute(new Float32Array(edgeIdList.length * 3).fill(0), 3);
     fatGeo.setAttribute('instanceColorStart', instanceColorStart);
     fatGeo.setAttribute('instanceColorEnd', instanceColorEnd);
 
     const fatLine = new LineSegments2(fatGeo, fatMat);
     fatLine.computeLineDistances();
     fatLine.renderOrder = 10;
+    fatLine.frustumCulled = false;
     fatLine.userData.isEditorOnly = true;
     fatLine.userData.edgeIdToBufferIndex = edgeIdToBufferIndex;
     fatLine.userData.edgeIdList = edgeIdList;
     fatLine.name = '__EdgeLinesVisual';
+    
+    fatLine.matrixAutoUpdate = false;
+    fatLine.matrix.copy(matrixWorld);
     this.sceneManager.sceneHelpers.add(fatLine);
 
     // Invisible Raycast Line
@@ -160,11 +150,15 @@ export default class EditHelpers {
     });
 
     const thinLine = new THREE.Line(thinGeo, thinMat);
+    thinLine.frustumCulled = false;
     thinLine.userData.isEditorOnly = true;
     thinLine.userData.edgeIdToBufferIndex = edgeIdToBufferIndex;
     thinLine.userData.edgeIdList = edgeIdList;
     thinLine.userData.visualLine = fatLine;
     thinLine.name = '__EdgeLines';
+
+    thinLine.matrixAutoUpdate = false;
+    thinLine.matrix.copy(matrixWorld);
     this.sceneManager.sceneHelpers.add(thinLine);
   }
 
@@ -190,7 +184,7 @@ export default class EditHelpers {
     const indices = [];
     const alphas = [];
 
-    const faceRanges = [];
+    const faceIdToRange = new Map();
     let vertexOffset = 0;
     let triangleOffset = 0;
 
@@ -209,7 +203,7 @@ export default class EditHelpers {
         triCount = verts.length - 2;
       }
 
-      faceRanges.push({
+      faceIdToRange.set(face.id, {
         faceId: face.id,
         start: vertexOffset,
         count: verts.length,
@@ -284,7 +278,8 @@ export default class EditHelpers {
 
     const faceMesh = new THREE.Mesh(geometry, material);
     faceMesh.renderOrder = 5;
-    faceMesh.userData.faceRanges = faceRanges;
+    faceMesh.frustumCulled = false;
+    faceMesh.userData.faceIdToRange = faceIdToRange;
     faceMesh.userData.isEditorOnly = true;
     faceMesh.name = '__FacePolygons';
 
@@ -353,10 +348,7 @@ export default class EditHelpers {
     if (thinLine && fatLine) {
       const { edgeIdToBufferIndex } = thinLine.userData;
       const thinPosAttr = thinLine.geometry.getAttribute('position');
-      const fatPosArray = fatLine.geometry.attributes.instanceStart.data.array; // LineSegmentsGeometry interleaved
-
-      const _v1 = new THREE.Vector3();
-      const _v2 = new THREE.Vector3();
+      const fatPosArray = fatLine.geometry.attributes.instanceStart.data.array;
 
       for (let edgeId of affectedEdges) {
         const edge = meshData.edges.get(edgeId);
@@ -368,32 +360,27 @@ export default class EditHelpers {
         const v1 = meshData.getVertex(edge.v1Id);
         const v2 = meshData.getVertex(edge.v2Id);
 
-        _v1.copy(v1.position).applyMatrix4(matrixWorld);
-        _v2.copy(v2.position).applyMatrix4(matrixWorld);
+        thinPosAttr.setXYZ(bufferIndex * 2, v1.position.x, v1.position.y, v1.position.z);
+        thinPosAttr.setXYZ(bufferIndex * 2 + 1, v2.position.x, v2.position.y, v2.position.z);
 
-        // Thin line: 2 vertices per edge
-        thinPosAttr.setXYZ(bufferIndex * 2, _v1.x, _v1.y, _v1.z);
-        thinPosAttr.setXYZ(bufferIndex * 2 + 1, _v2.x, _v2.y, _v2.z);
-
-        // Fat line: LineSegmentsGeometry interleaved buffer, 6 floats per segment
         const offset = bufferIndex * 6;
-        fatPosArray[offset] = _v1.x; fatPosArray[offset + 1] = _v1.y; fatPosArray[offset + 2] = _v1.z;
-        fatPosArray[offset + 3] = _v2.x; fatPosArray[offset + 4] = _v2.y; fatPosArray[offset + 5] = _v2.z;
+        fatPosArray[offset]     = v1.position.x; fatPosArray[offset + 1] = v1.position.y; fatPosArray[offset + 2] = v1.position.z;
+        fatPosArray[offset + 3] = v2.position.x; fatPosArray[offset + 4] = v2.position.y; fatPosArray[offset + 5] = v2.position.z;
       }
 
       thinPosAttr.needsUpdate = true;
       fatLine.geometry.attributes.instanceStart.data.needsUpdate = true;
-      fatLine.geometry.attributes.instanceEnd.data.needsUpdate   = true;
     }
 
     // Update affected faces
     const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
     if (faceMesh) {
       const facePosAttr = faceMesh.geometry.getAttribute('position');
-      const faceRanges = faceMesh.userData.faceRanges;
+      const faceIdToRange = faceMesh.userData.faceIdToRange;
 
-      for (let fr of faceRanges) {
-        if (!affectedFaces.has(fr.faceId)) continue;
+      for (let faceId of affectedFaces) {
+        const fr = faceIdToRange.get(faceId);
+        if (!fr) continue;
 
         const { start, vertexIds } = fr;
         for (let i = 0; i < vertexIds.length; i++) {
@@ -403,7 +390,6 @@ export default class EditHelpers {
       }
 
       facePosAttr.needsUpdate = true;
-      faceMesh.geometry.computeBoundingSphere();
     }
   }
 
@@ -449,13 +435,13 @@ export default class EditHelpers {
     const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
     if (!faceMesh) return;
 
-    const faceRanges = faceMesh.userData.faceRanges;
-    if (!faceRanges) return;
+    const faceIdToRange = faceMesh.userData.faceIdToRange;
+    if (!faceIdToRange) return;
 
     const colors = faceMesh.geometry.getAttribute('color');
     const alphas = faceMesh.geometry.getAttribute('alpha');
 
-    for (let fr of faceRanges) {
+    for (let fr of faceIdToRange.values()) {
       const { faceId, start, count } = fr;
 
       for (let i = 0; i < count; i++) {

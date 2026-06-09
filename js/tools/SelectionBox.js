@@ -206,7 +206,7 @@ export class SelectionBox {
     const pos = geom.attributes.position.array;
     const matrixWorld = faceMesh.matrixWorld;
 
-    const faceRanges = faceMesh.userData.faceRanges;
+    const faceIdToRange = faceMesh.userData.faceIdToRange;
     const faceHits = [];
 
     const camera = this.cameraManager.camera;
@@ -215,8 +215,8 @@ export class SelectionBox {
 
     const v = new THREE.Vector3();
 
-    for (let range of faceRanges) {
-      const { start, count, faceId } = range;
+    for (let fr of faceIdToRange.values()) {
+      const { start, count, faceId } = fr;
       const startIndex = start * 3;
       const endIndex = (start + count) * 3;
 

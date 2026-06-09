@@ -70,9 +70,6 @@ export class VertexTransform {
 
     this.positionAttr.needsUpdate = true;
 
-    this.geometry.computeBoundingBox();
-    this.geometry.computeBoundingSphere();
-
     this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData, this.object.matrixWorld.clone());
   }
 
