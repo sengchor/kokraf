@@ -2,6 +2,9 @@ import * as THREE from "three";
 import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { MeshData } from "../core/MeshData.js";
 
+const _inverseW = new THREE.Matrix4();
+const _localPos = new THREE.Vector3();
+
 export class VertexTransform {
   constructor(vertexEditor) {
     this.vertexEditor = vertexEditor;
@@ -34,27 +37,32 @@ export class VertexTransform {
     const meshData = this.meshData;
     const vertexIndexMap = meshData.vertexIndexMap;
 
-    const inverseW = new THREE.Matrix4().copy(this.object.matrixWorld).invert();
+    _inverseW.copy(this.object.matrixWorld).invert();
 
     const affectedVertices = new Set();
     const affectedEdges = new Set();
     const affectedFaces = new Set();
 
-    vertexIds.forEach((vertexId, i) => {
+    for (let i = 0; i < vertexIds.length; i++) {
+      const vertexId = vertexIds[i];
       const worldPos = worldPositions[i];
-      if (!worldPos) return;
-      const localPos = worldPos.clone().applyMatrix4(inverseW);
+
+      if (!worldPos) continue;
+
+      _localPos.copy(worldPos).applyMatrix4(_inverseW);
 
       const indices = vertexIndexMap.get(vertexId);
-      if (!indices) return;
+      if (!indices) continue;
 
-      for (let bufferIndex of indices) {
-        this.positionAttr.setXYZ(bufferIndex, localPos.x, localPos.y, localPos.z);
+      for (let j = 0; j < indices.length; j++) {
+        this.positionAttr.setXYZ(indices[j], _localPos.x, _localPos.y, _localPos.z);
       }
 
       const v = meshData.getVertex(vertexId);
       if (v) {
-        v.position = { x: localPos.x, y: localPos.y, z: localPos.z };
+        v.position.x = _localPos.x;
+        v.position.y = _localPos.y;
+        v.position.z = _localPos.z;
 
         affectedVertices.add(v.id);
 
@@ -66,11 +74,11 @@ export class VertexTransform {
           affectedFaces.add(faceId);
         }
       }
-    });
+    }
 
     this.positionAttr.needsUpdate = true;
 
-    this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData, this.object.matrixWorld.clone());
+    this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData, this.object.matrixWorld);
   }
 
   getVertexPosition(vertexId) {
