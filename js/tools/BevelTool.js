@@ -525,6 +525,9 @@ export class BevelTool {
 
       for (const oldVId of face.vertexIds) {
         if (substitutions.has(oldVId)) {
+          const oldVertex = meshData.getVertex(oldVId);
+          if (oldVId) oldVertex.faceIds.delete(faceId);
+
           finalVertexIds.push(...substitutions.get(oldVId));
         } else {
           finalVertexIds.push(oldVId);

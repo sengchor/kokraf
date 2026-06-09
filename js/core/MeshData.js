@@ -29,12 +29,24 @@ export class MeshData {
     this.vertices = new Map();
     this.edges = new Map();
     this.faces = new Map();
+
+    this.edgeKeyMap = new Map();
+    this.faceKeyMap = new Map();
+
     this.uvs = new Map();
     this.vertexIndexMap = new Map();
     this.bufferIndexToVertexId = new Map();
     this.nextVertexId = 0;
     this.nextEdgeId = 0;
     this.nextFaceId = 0;
+  }
+
+  _getEdgeKey(v1Id, v2Id) {
+    return v1Id < v2Id ? `${v1Id}_${v2Id}` : `${v2Id}_${v1Id}`;
+  }
+
+  _getFaceKey(vertexIds) {
+    return [...vertexIds].sort((a, b) => a - b).join('_');
   }
 
   addVertex(position) {
@@ -44,11 +56,13 @@ export class MeshData {
   }
 
   addEdge(v1, v2) {
-    const existingEdge = this.getEdge(v1.id, v2.id);
-    if (existingEdge) return existingEdge;
+    const key = this._getEdgeKey(v1.id, v2.id);
+    if (this.edgeKeyMap.has(key)) return this.edgeKeyMap.get(key);
 
     const e = new Edge(this.nextEdgeId++, v1.id, v2.id);
     this.edges.set(e.id, e);
+    this.edgeKeyMap.set(key, e);
+
     v1.edgeIds.add(e.id);
     v2.edgeIds.add(e.id);
 
@@ -63,13 +77,13 @@ export class MeshData {
 
     const f = new Face(this.nextFaceId++, vIds);
     this.faces.set(f.id, f);
+    this.faceKeyMap.set(this._getFaceKey(vIds), f);
 
     const len = vIds.length;
     for (let i = 0; i < len; i++) {
       const v1 = vertices[i];
       const v2 = vertices[(i + 1) % len];
-      let e = this.getEdge(v1.id, v2.id);
-      if (!e) e = this.addEdge(v1, v2);
+      const e = this.addEdge(v1, v2);
       f.edgeIds.add(e.id);
       e.faceIds.add(f.id);
     }
@@ -83,52 +97,12 @@ export class MeshData {
   }
 
   getEdge(v1Id, v2Id) {
-    const v1 = this.vertices.get(v1Id);
-    if (!v1) return null;
-
-    for (let edgeId of v1.edgeIds) {
-      const edge = this.edges.get(edgeId);
-      if (!edge) continue;
-
-      if ((edge.v1Id === v1Id && edge.v2Id === v2Id) ||
-          (edge.v1Id === v2Id && edge.v2Id === v1Id)) {
-        return edge;
-      }
-    }
-
-    return null;
+    return this.edgeKeyMap.get(this._getEdgeKey(v1Id, v2Id)) || null;
   }
 
   getFace(vertexIds) {
     if (!vertexIds || vertexIds.length === 0) return null;
-
-    const firstVertex = this.getVertex(vertexIds[0]);
-    if (!firstVertex) return null;
-
-    let candidateFaceIds = new Set(firstVertex.faceIds);
-
-    for (let i = 1; i < vertexIds.length; i++) {
-      const v = this.getVertex(vertexIds[i]);
-      if (!v) return null;
-
-      candidateFaceIds = new Set(
-        [...candidateFaceIds].filter(fid => v.faceIds.has(fid))
-      );
-
-      if (candidateFaceIds.size === 0) return null;
-    }
-
-    for (let fid of candidateFaceIds) {
-      const face = this.faces.get(fid);
-      if (!face || face.vertexIds.length !== vertexIds.length) continue;
-
-      const faceSet = new Set(face.vertexIds);
-      if (vertexIds.every(vId => faceSet.has(vId))) {
-        return face;
-      }
-    }
-
-    return null;
+    return this.faceKeyMap.get(this._getFaceKey(vertexIds)) || null;
   }
 
   deleteVertex(vertex) {
@@ -154,11 +128,11 @@ export class MeshData {
   deleteEdge(edge) {
     if (!edge || !this.edges.has(edge.id)) return;
 
-    for (let faceId of edge.faceIds) {
+    this.edgeKeyMap.delete(this._getEdgeKey(edge.v1Id, edge.v2Id));
+
+    for (let faceId of [...edge.faceIds]) {
       const face = this.faces.get(faceId);
-      if (face) {
-        this.deleteFace(face);
-      }
+      if (face) this.deleteFace(face);
     }
 
     const v1 = this.getVertex(edge.v1Id);
@@ -171,6 +145,8 @@ export class MeshData {
 
   deleteFace(face) {
     if (!face || !this.faces.has(face.id)) return;
+
+    this.faceKeyMap.delete(this._getFaceKey(face.vertexIds));
 
     for (let i = 0; i < face.vertexIds.length; i++) {
       const v1Id = face.vertexIds[i];
@@ -274,6 +250,16 @@ export class MeshData {
           return [id, face];
         })
       );
+    }
+
+    meshData.edgeKeyMap = new Map();
+    for (const edge of meshData.edges.values()) {
+      meshData.edgeKeyMap.set(meshData._getEdgeKey(edge.v1Id, edge.v2Id), edge);
+    }
+
+    meshData.faceKeyMap = new Map();
+    for (const face of meshData.faces.values()) {
+      meshData.faceKeyMap.set(meshData._getFaceKey(face.vertexIds), face);
     }
 
     meshData.uvs = new Map(raw.uvs);
