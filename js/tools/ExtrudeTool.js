@@ -328,7 +328,7 @@ export class ExtrudeTool {
     this.newEdgeIds = duplicationResult.newEdgeIds;
     this.newFaceIds = duplicationResult.newFaceIds;
 
-    this.vertexEditor.transform.updateGeometryAndHelpers(false);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
     this.initialDuplicatedPositions = this.vertexEditor.transform.getVertexPositions(this.newVertexIds);
 
     this.boundaryEdges = this.vertexEditor.selection.getBoundaryEdges(selectedVertexIds, selectedEdgeIds, selectedFaceIds);
@@ -390,15 +390,15 @@ export class ExtrudeTool {
     // Delete old selection
     if (mode === 'vertex') {
       this.vertexEditor.delete.deleteSelectionVertices(selectedVertexIds);
-      this.vertexEditor.transform.updateGeometryAndHelpers(false);
+      this.vertexEditor.transform.updateGeometryAndHelpers();
       this.editSelection.selectVertices(this.newVertexIds);
     } else if (mode === 'edge') {
       this.vertexEditor.delete.deleteSelectionEdges(selectedEdgeIds);
-      this.vertexEditor.transform.updateGeometryAndHelpers(false);
+      this.vertexEditor.transform.updateGeometryAndHelpers();
       this.editSelection.selectEdges(this.newEdgeIds);
     } else if (mode === 'face') {
       this.vertexEditor.delete.deleteSelectionFaces(selectedFaceIds);
-      this.vertexEditor.transform.updateGeometryAndHelpers(false);
+      this.vertexEditor.transform.updateGeometryAndHelpers();
       this.editSelection.selectFaces(this.newFaceIds);
     }
   }

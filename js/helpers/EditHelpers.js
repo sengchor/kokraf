@@ -3,7 +3,7 @@ import { LineSegmentsGeometry } from 'jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 import earcut from 'earcut';
-import { computePlaneNormal, projectTo2D, removeCollinearVertices } from '../geometry/TriangulationUtils.js';
+import { computePlaneNormal, projectTo2D } from '../geometry/TriangulationUtils.js';
 import { MeshData } from '../core/MeshData.js';
 
 export default class EditHelpers {
@@ -30,8 +30,8 @@ export default class EditHelpers {
       this.updateHelpersAfterMeshEdit(verts, edges, faces, meshData, matrixWorld);
     });
 
-    this.signals.refreshEditHelpers.add((editedObject, mode, allSelectedIds, useEarcut) => {
-      this.refreshHelpers(editedObject, mode, allSelectedIds, useEarcut);
+    this.signals.refreshEditHelpers.add((editedObject, mode, allSelectedIds) => {
+      this.refreshHelpers(editedObject, mode, allSelectedIds);
     });
   }
 
@@ -177,7 +177,7 @@ export default class EditHelpers {
     }
   }
 
-  addFacePolygons(selectedObject, useEarcut) {
+  addFacePolygons(selectedObject) {
     const meshData = selectedObject.userData.meshData;
     const positions = [];
     const colors = [];
@@ -193,11 +193,11 @@ export default class EditHelpers {
       let triangulated = null;
       let triCount = 0;
 
-      if (useEarcut) {
-        verts = removeCollinearVertices(verts);
-        const normal = computePlaneNormal(verts);
-        const flatVertices2D = projectTo2D(verts, normal);
-        triangulated = earcut(flatVertices2D);
+      const normal = computePlaneNormal(verts);
+      const flatVertices2D = projectTo2D(verts, normal);
+      triangulated = earcut(flatVertices2D);
+
+      if (triangulated.length > 0) {
         triCount = triangulated.length / 3;
       } else {
         triCount = verts.length - 2;
@@ -219,7 +219,7 @@ export default class EditHelpers {
         alphas.push(0.0);
       }
 
-      if (useEarcut) {
+      if (triangulated.length > 0) {
         for (let i = 0; i < triangulated.length; i += 3) {
           indices.push(
             vertexOffset + triangulated[i],
@@ -298,7 +298,7 @@ export default class EditHelpers {
     }
   }
 
-  refreshHelpers(editedObject, mode, allSelectedIds, useEarcut = true) {
+  refreshHelpers(editedObject, mode, allSelectedIds) {
     if (!editedObject) return;
 
     if (editedObject.userData.meshData && !(editedObject.userData.meshData instanceof MeshData)) {
@@ -312,13 +312,13 @@ export default class EditHelpers {
     if (mode === 'vertex') {
       this.addVertexPoints(editedObject);
       this.addEdgeLines(editedObject);
-      this.addFacePolygons(editedObject, useEarcut);
+      this.addFacePolygons(editedObject);
     } else if (mode === 'edge') {
       this.addEdgeLines(editedObject);
-      this.addFacePolygons(editedObject, useEarcut);
+      this.addFacePolygons(editedObject);
     } else if (mode === 'face') {
       this.addEdgeLines(editedObject);
-      this.addFacePolygons(editedObject, useEarcut);
+      this.addFacePolygons(editedObject);
     }
 
     this.applyVertexHighlight(allSelectedIds.selectedVertexIds);

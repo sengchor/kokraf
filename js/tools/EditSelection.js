@@ -71,8 +71,8 @@ export default class EditSelection {
       this.enable = true;
     });
 
-    this.signals.editSelectionRefresh.add((useEarcut = true) => {
-      this.signals.refreshEditHelpers.dispatch(this.editedObject, this.subSelectionMode, this.selectionState, useEarcut);
+    this.signals.editSelectionRefresh.add(() => {
+      this.signals.refreshEditHelpers.dispatch(this.editedObject, this.subSelectionMode, this.selectionState);
     });
 
     this.signals.editSelectAll.add(() => {

@@ -111,16 +111,16 @@ export class VertexTransform {
     return positions;
   }
 
-  updateGeometryAndHelpers(useEarcut = true) {
+  updateGeometryAndHelpers() {
     const meshData = this.meshData;
     if (!meshData) return;
 
     const shading = this.object.userData.shading;
-    this.geometry = ShadingUtils.createGeometryWithShading(meshData, shading, useEarcut);
+    this.geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
 
-    this.signals.editSelectionRefresh.dispatch(useEarcut);
+    this.signals.editSelectionRefresh.dispatch();
   }
 
   applyMeshData(newMeshData) {

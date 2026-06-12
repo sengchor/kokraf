@@ -406,7 +406,7 @@ export class BevelTool {
       this.solveBevelScales(meshData, vertexGraph);
     }
 
-    this.vertexEditor.transform.updateGeometryAndHelpers(false);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
   }
 
   updateBevel() {

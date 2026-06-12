@@ -482,7 +482,7 @@ export class InsetTool {
     };
 
     this.vertexEditor.delete.deleteSelectionFaces(selectedFaceIds);
-    this.vertexEditor.transform.updateGeometryAndHelpers(false);
+    this.vertexEditor.transform.updateGeometryAndHelpers();
   }
 
   updateInset() {

@@ -36,9 +36,17 @@ export class MeshData {
     this.uvs = new Map();
     this.vertexIndexMap = new Map();
     this.bufferIndexToVertexId = new Map();
+
     this.nextVertexId = 0;
     this.nextEdgeId = 0;
     this.nextFaceId = 0;
+
+    this.faceIndexMap = new Map();
+    this.faceTriangleOffset = new Map();
+    this.faceTriangleCount = new Map();
+
+    this.slotAllocator = null;
+    this.indexSlotAllocator = null;
   }
 
   _getEdgeKey(v1Id, v2Id) {

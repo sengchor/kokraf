@@ -10,14 +10,14 @@ export class ShadingUtils {
     object.userData.shading = mode;
   }
 
-  static createGeometryWithShading(meshData, mode, useEarcut = true) {
+  static createGeometryWithShading(meshData, mode) {
     let geometry;
     if (mode === 'smooth') {
-      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "smooth", useEarcut: useEarcut });
+      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "smooth" });
     } else if (mode === 'flat') {
-      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat", useEarcut: useEarcut });
+      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat" });
     } else if (mode === 'auto') {
-      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "auto", useEarcut: useEarcut });
+      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "auto" });
     }
     return geometry;
   }
