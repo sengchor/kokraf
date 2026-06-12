@@ -84,14 +84,14 @@ export class MeshRendererAdapter {
   }
 
   static buildDuplicatedMeshData(meshData) {
-    console.log('Rebuild');
     const positions = [];
     const uvs = [];
     const indices = [];
     let currentIndex = 0;
 
-    meshData.vertexIndexMap.clear();
-    meshData.faceIndexMap.clear();
+    meshData.vertexIdToBufferIndex.clear();
+    meshData.bufferIndexToVertexId.clear();
+    meshData.faceIdToBufferIndices.clear();
     meshData.faceTriangleOffset.clear();
     meshData.faceTriangleCount.clear();
 
@@ -112,14 +112,14 @@ export class MeshRendererAdapter {
           uvs.push(0, 0);
         }
 
-        if (!meshData.vertexIndexMap.has(v.id)) meshData.vertexIndexMap.set(v.id, []);
-        meshData.vertexIndexMap.get(v.id).push(currentIndex);
+        if (!meshData.vertexIdToBufferIndex.has(v.id)) meshData.vertexIdToBufferIndex.set(v.id, []);
+        meshData.vertexIdToBufferIndex.get(v.id).push(currentIndex);
 
         faceBufferIndices.push(baseIndex + i);
 
         currentIndex++;
       }
-      meshData.faceIndexMap.set(f.id, faceBufferIndices);
+      meshData.faceIdToBufferIndices.set(f.id, faceBufferIndices);
 
       const normal = computePlaneNormal(verts);
       const flatVertices = projectTo2D(verts, normal);
@@ -145,17 +145,18 @@ export class MeshRendererAdapter {
     }
 
     for (let v of meshData.vertices.values()) {
-      if (!meshData.vertexIndexMap.has(v.id)) {
+      if (!meshData.vertexIdToBufferIndex.has(v.id)) {
         positions.push(v.position.x, v.position.y, v.position.z);
         uvs.push(0, 0);
-        meshData.vertexIndexMap.set(v.id, [currentIndex]);
+        meshData.vertexIdToBufferIndex.set(v.id, [currentIndex]);
         currentIndex++;
       }
     }
 
-    meshData.bufferIndexToVertexId = new Map();
-    for (let [logicalId, indicesArr] of meshData.vertexIndexMap) {
-      for (let i of indicesArr) meshData.bufferIndexToVertexId.set(i, logicalId);
+    for (let [vertexId, bufferIndices] of meshData.vertexIdToBufferIndex) {
+      for (let bufferIndex of bufferIndices) {
+        meshData.bufferIndexToVertexId.set(bufferIndex, vertexId);
+      }
     }
 
     const vertCapacity = Math.ceil(currentIndex * 2);
@@ -198,12 +199,12 @@ export class MeshRendererAdapter {
       uvAttr.setXY(slot, faceUVs?.[i]?.u ?? 0, faceUVs?.[i]?.v ?? 0);
 
       faceBufferIndices.push(slot);
-      if (!meshData.vertexIndexMap.has(v.id)) meshData.vertexIndexMap.set(v.id, []);
-      meshData.vertexIndexMap.get(v.id).push(slot);
+      if (!meshData.vertexIdToBufferIndex.has(v.id)) meshData.vertexIdToBufferIndex.set(v.id, []);
+      meshData.vertexIdToBufferIndex.get(v.id).push(slot);
       meshData.bufferIndexToVertexId.set(slot, v.id);
     }
 
-    meshData.faceIndexMap.set(face.id, faceBufferIndices);
+    meshData.faceIdToBufferIndices.set(face.id, faceBufferIndices);
 
     const normal = computePlaneNormal(verts);
     const flat = projectTo2D(verts, normal);
@@ -229,8 +230,7 @@ export class MeshRendererAdapter {
   }
 
   static deleteFace(meshData, geometry, faceId) {
-    console.log('deleteFace');
-    const bufferIndices = meshData.faceIndexMap.get(faceId);
+    const bufferIndices = meshData.faceIdToBufferIndices.get(faceId);
     if (!bufferIndices) return;
 
     // Mask triangles as degenerate (all indices → same slot)
@@ -250,16 +250,16 @@ export class MeshRendererAdapter {
       const vertId = meshData.bufferIndexToVertexId.get(slot);
       meshData.bufferIndexToVertexId.delete(slot);
       if (vertId !== undefined) {
-        const arr = meshData.vertexIndexMap.get(vertId);
+        const arr = meshData.vertexIdToBufferIndex.get(vertId);
         if (arr) {
           const i = arr.indexOf(slot);
           if (i !== -1) arr.splice(i, 1);
-          if (arr.length === 0) meshData.vertexIndexMap.delete(vertId);
+          if (arr.length === 0) meshData.vertexIdToBufferIndex.delete(vertId);
         }
       }
     }
 
-    meshData.faceIndexMap.delete(faceId);
+    meshData.faceIdToBufferIndices.delete(faceId);
     meshData.faceTriangleOffset.delete(faceId);
     meshData.faceTriangleCount.delete(faceId);
 
@@ -314,15 +314,15 @@ export class MeshRendererAdapter {
     const positions = [];
     const indices = [];
 
-    const vertexIdToIndex = new Map();
-    const indexToVertexId = new Map();
+    const vertexIdToSharedIndex = new Map();
+    const sharedIndexToVertexId = new Map();
     let currentIndex = 0;
 
     // Build the strictly shared geometry arrays
     for (let v of meshData.vertices.values()) {
       positions.push(v.position.x, v.position.y, v.position.z);
-      vertexIdToIndex.set(v.id, currentIndex);
-      indexToVertexId.set(currentIndex, v.id);
+      vertexIdToSharedIndex.set(v.id, currentIndex);
+      sharedIndexToVertexId.set(currentIndex, v.id);
       currentIndex++;
     }
 
@@ -335,9 +335,9 @@ export class MeshRendererAdapter {
       const triangulated = earcut(flatVertices);
 
       for (let i = 0; i < triangulated.length; i += 3) {
-        const a = vertexIdToIndex.get(verts[triangulated[i]].id);
-        const b = vertexIdToIndex.get(verts[triangulated[i + 1]].id);
-        const c = vertexIdToIndex.get(verts[triangulated[i + 2]].id);
+        const a = vertexIdToSharedIndex.get(verts[triangulated[i]].id);
+        const b = vertexIdToSharedIndex.get(verts[triangulated[i + 1]].id);
+        const c = vertexIdToSharedIndex.get(verts[triangulated[i + 2]].id);
         indices.push(a, b, c);
       }
     }
@@ -349,11 +349,11 @@ export class MeshRendererAdapter {
     tmpGeo.computeVertexNormals();
     const computedNormals = tmpGeo.attributes.normal.array;
 
-    // Map the results back to the original logical Vertex IDs
-    const logicalNormalsMap = new Map();
+    // Map the results back to the original Vertex IDs
+    const vertexNormalsMap = new Map();
     for (let i = 0; i < currentIndex; i++) {
-      const logicalId = indexToVertexId.get(i);
-      logicalNormalsMap.set(logicalId, new THREE.Vector3(
+      const vertexId = sharedIndexToVertexId.get(i);
+      vertexNormalsMap.set(vertexId, new THREE.Vector3(
         computedNormals[i * 3],
         computedNormals[(i * 3) + 1],
         computedNormals[(i * 3) + 2]
@@ -363,8 +363,8 @@ export class MeshRendererAdapter {
     tmpGeo.dispose();
 
     const normalsMap = new Map();
-    for (const [bufferIdx, logicalId] of meshData.bufferIndexToVertexId) {
-      normalsMap.set(bufferIdx, logicalNormalsMap.get(logicalId));
+    for (const [bufferIdx, vertexId] of meshData.bufferIndexToVertexId) {
+      normalsMap.set(bufferIdx, vertexNormalsMap.get(vertexId));
     }
     return normalsMap;
   }

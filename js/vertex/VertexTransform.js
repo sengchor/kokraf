@@ -35,7 +35,7 @@ export class VertexTransform {
     if (!this.object || !this.positionAttr) return;
 
     const meshData = this.meshData;
-    const vertexIndexMap = meshData.vertexIndexMap;
+    const vertexIdToBufferIndex = meshData.vertexIdToBufferIndex;
 
     _inverseW.copy(this.object.matrixWorld).invert();
 
@@ -51,7 +51,7 @@ export class VertexTransform {
 
       _localPos.copy(worldPos).applyMatrix4(_inverseW);
 
-      const indices = vertexIndexMap.get(vertexId);
+      const indices = vertexIdToBufferIndex.get(vertexId);
       if (!indices) continue;
 
       for (let j = 0; j < indices.length; j++) {
@@ -84,8 +84,8 @@ export class VertexTransform {
   getVertexPosition(vertexId) {
     if (!this.object || !this.positionAttr) return null;
 
-    const vertexIndexMap = this.meshData.vertexIndexMap;
-    const indices = vertexIndexMap.get(vertexId);
+    const vertexIdToBufferIndex = this.meshData.vertexIdToBufferIndex;
+    const indices = vertexIdToBufferIndex.get(vertexId);
     if (!indices || indices.length === 0) return null;
 
     const bufferIndex = indices[0];

@@ -30,18 +30,19 @@ export class MeshData {
     this.edges = new Map();
     this.faces = new Map();
 
-    this.edgeKeyMap = new Map();
-    this.faceKeyMap = new Map();
-
-    this.uvs = new Map();
-    this.vertexIndexMap = new Map();
-    this.bufferIndexToVertexId = new Map();
-
     this.nextVertexId = 0;
     this.nextEdgeId = 0;
     this.nextFaceId = 0;
 
-    this.faceIndexMap = new Map();
+    this.edgeKeyMap = new Map();
+    this.faceKeyMap = new Map();
+
+    this.uvs = new Map();
+
+    this.vertexIdToBufferIndex = new Map();
+    this.bufferIndexToVertexId = new Map();
+
+    this.faceIdToBufferIndices = new Map();
     this.faceTriangleOffset = new Map();
     this.faceTriangleCount = new Map();
 
@@ -200,8 +201,11 @@ export class MeshData {
         }
       ]),
       uvs: Array.from(this.uvs.entries()),
-      vertexIndexMap: Array.from(this.vertexIndexMap.entries()),
+      vertexIdToBufferIndex: Array.from(this.vertexIdToBufferIndex.entries()),
       bufferIndexToVertexId: Array.from(this.bufferIndexToVertexId.entries()),
+      faceIdToBufferIndices: Array.from(this.faceIdToBufferIndices.entries()),
+      faceTriangleOffset: Array.from(this.faceTriangleOffset.entries()),
+      faceTriangleCount: Array.from(this.faceTriangleCount.entries()),
       nextVertexId: this.nextVertexId,
       nextEdgeId: this.nextEdgeId,
       nextFaceId: this.nextFaceId
@@ -271,8 +275,11 @@ export class MeshData {
     }
 
     meshData.uvs = new Map(raw.uvs);
-    meshData.vertexIndexMap = new Map(raw.vertexIndexMap);
+    meshData.vertexIdToBufferIndex = new Map(raw.vertexIdToBufferIndex);
     meshData.bufferIndexToVertexId = new Map(raw.bufferIndexToVertexId);
+    meshData.faceIdToBufferIndices = new Map(raw.faceIdToBufferIndices);
+    meshData.faceTriangleOffset = new Map(raw.faceTriangleOffset);
+    meshData.faceTriangleCount = new Map(raw.faceTriangleCount);
     meshData.nextVertexId = raw.nextVertexId;
     meshData.nextEdgeId = raw.nextEdgeId;
     meshData.nextFaceId = raw.nextFaceId;
