@@ -255,7 +255,7 @@ export class InsetTool {
     }
 
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     if (this.selectedFaceIds.length <= 0) {
       this.editSelection.clearSelection();
@@ -277,7 +277,7 @@ export class InsetTool {
 
     this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     this.handle.position.copy(this.startPivotPosition);
     this.handle.updateMatrixWorld(true);
@@ -482,7 +482,7 @@ export class InsetTool {
     };
 
     this.vertexEditor.delete.deleteSelectionFaces(selectedFaceIds);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
   }
 
   updateInset() {

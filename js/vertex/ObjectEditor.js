@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ShadingUtils } from "../utils/ShadingUtils.js";
+import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import { MeshData } from '../core/MeshData.js';
 
 export class ObjectEditor {
@@ -82,13 +82,14 @@ export class ObjectEditor {
     const inverseBaseWorld = baseObject.matrixWorld.clone().invert();
     const mergedMeshData = this.meshEditor.mergeMeshData(meshDatas, transforms, inverseBaseWorld);
 
-    const geometry = ShadingUtils.createGeometryWithShading(mergedMeshData, baseShading);
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(mergedMeshData, { mode: baseShading });
 
     const material = Array.isArray(baseMaterial) ? baseMaterial.map(m => m.clone()) : baseMaterial.clone();
 
     const mesh = new THREE.Mesh(geometry, material);
 
     mesh.userData.meshData = mergedMeshData;
+    mesh.userData.renderBuffer = renderBuffer;
     mesh.userData.shading = baseShading;
     mesh.name = baseObject.name;
 
@@ -105,7 +106,7 @@ export class ObjectEditor {
     const shading = object.userData.shading;
     const material = object.material;
 
-    const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
 
     const clonedMaterial = Array.isArray(material) ? material.map(m => m.clone()) : material.clone();
 
@@ -117,6 +118,7 @@ export class ObjectEditor {
     mesh.updateMatrixWorld(true);
 
     mesh.userData.meshData = meshData;
+    mesh.userData.renderBuffer = renderBuffer;
     mesh.userData.shading = shading;
 
     const baseName = this.editor.nameManager.getBaseName(object.name);

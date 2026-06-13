@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { MeshData } from "../core/MeshData.js";
 
 const _inverseW = new THREE.Matrix4();
@@ -31,11 +30,15 @@ export class VertexTransform {
     return this.vertexEditor.object;
   }
 
+  get renderBuffer() {
+    return this.vertexEditor.renderBuffer;
+  }
+
   setVerticesWorldPositions(vertexIds, worldPositions) {
     if (!this.object || !this.positionAttr) return;
 
     const meshData = this.meshData;
-    const vertexIdToBufferIndex = meshData.vertexIdToBufferIndex;
+    const vertexIdToBufferIndex = this.renderBuffer.vertexIdToBufferIndex;
 
     _inverseW.copy(this.object.matrixWorld).invert();
 
@@ -84,7 +87,7 @@ export class VertexTransform {
   getVertexPosition(vertexId) {
     if (!this.object || !this.positionAttr) return null;
 
-    const vertexIdToBufferIndex = this.meshData.vertexIdToBufferIndex;
+    const vertexIdToBufferIndex = this.renderBuffer.vertexIdToBufferIndex;
     const indices = vertexIdToBufferIndex.get(vertexId);
     if (!indices || indices.length === 0) return null;
 
@@ -111,16 +114,16 @@ export class VertexTransform {
     return positions;
   }
 
-  updateGeometryAndHelpers() {
-    const meshData = this.meshData;
-    if (!meshData) return;
+  getVertexPositionsMeshData(vertexIds) {
+    const positions = [];
 
-    const shading = this.object.userData.shading;
-    this.geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
-    this.geometry.computeBoundingBox();
-    this.geometry.computeBoundingSphere();
+    for (const vertexId of vertexIds) {
+      const vertex = this.meshData.getVertex(vertexId);
+      const position = new THREE.Vector3().copy(vertex.position);
+      positions.push(position.applyMatrix4(this.object.matrixWorld));
+    }
 
-    this.signals.editSelectionRefresh.dispatch();
+    return positions;
   }
 
   applyMeshData(newMeshData) {

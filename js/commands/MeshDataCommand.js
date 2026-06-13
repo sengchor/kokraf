@@ -9,6 +9,7 @@ export class MeshDataCommand {
    */
   constructor(editor, object, beforeMeshData, afterMeshData, name = 'MeshDataCommand') {
     this.editor = editor;
+    this.signals = editor.signals;
     this.vertexEditor = editor.vertexEditor;
     this.name = name;
     this.objectUuid = object ? object.uuid : null;
@@ -33,7 +34,7 @@ export class MeshDataCommand {
 
     this.vertexEditor.setObject(object);
     this.vertexEditor.transform.applyMeshData(meshData);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
   }
 
   toJSON() {

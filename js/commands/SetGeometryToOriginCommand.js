@@ -10,6 +10,8 @@ export class SetGeometryToOriginCommand {
   constructor(editor, object = null) {
     this.editor = editor;
     this.name = 'Set Geometry To Origin';
+
+    this.signals = editor.signals;
     this.meshEditor = editor.meshEditor;
     this.vertexEditor = editor.vertexEditor;
 
@@ -33,7 +35,7 @@ export class SetGeometryToOriginCommand {
       }
     }
     this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     this.editor.toolbar.updateTools();
   }
@@ -49,7 +51,7 @@ export class SetGeometryToOriginCommand {
     }
 
     this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     this.editor.toolbar.updateTools();
   }

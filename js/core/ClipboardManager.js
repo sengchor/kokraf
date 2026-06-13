@@ -3,6 +3,7 @@ import { ShadingUtils } from '../utils/ShadingUtils.js';
 import { MeshData } from './MeshData.js';
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
+import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 
 export class ClipboardManager {
   static STORAGE_KEY = "kokraf.clipboard";
@@ -99,10 +100,11 @@ export class ClipboardManager {
         side: THREE.DoubleSide,
       });
 
-    const geometry = ShadingUtils.createGeometryWithShading(meshData, item.shading);
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: item.shading });
 
     const obj = new THREE.Mesh(geometry, material);
     obj.userData.meshData = meshData;
+    obj.userData.renderBuffer = renderBuffer;
     obj.userData.shading = item.shading;
 
     return obj;

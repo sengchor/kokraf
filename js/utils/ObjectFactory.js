@@ -35,13 +35,14 @@ export class ObjectFactory {
       default: return null;
     }
 
-    const geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat" });
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat" });
     
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.userData.meshData = meshData;
+    mesh.userData.renderBuffer = renderBuffer;
     mesh.userData.shading = 'flat';
     mesh.position.set(0, 0, 0);
     mesh.name = this.editor.nameManager.generateUniqueName(type);

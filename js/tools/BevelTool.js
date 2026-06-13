@@ -290,7 +290,7 @@ export class BevelTool {
     }
 
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     if (this.selectedEdgeIds.length <= 0) {
       this.editSelection.clearSelection();
@@ -312,7 +312,7 @@ export class BevelTool {
 
     this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     if (this.startPivotPosition) {
       this.handle.position.copy(this.startPivotPosition);
@@ -406,7 +406,7 @@ export class BevelTool {
       this.solveBevelScales(meshData, vertexGraph);
     }
 
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
   }
 
   updateBevel() {
@@ -1250,7 +1250,7 @@ export class BevelTool {
         }
 
         const vertices = quadIds.map(id => meshData.getVertex(id));
-        const newFace = meshData.addFace(vertices);
+        const newFace = this.vertexEditor.addFace(vertices);
         this.rebuildFaceTopology(meshData, newFace);
 
         newFaceIds.push(newFace.id);
@@ -1291,7 +1291,7 @@ export class BevelTool {
       } else if (orderedVertexIds.length > 3 && valence === 1) {
         const { newLoop } = this.insertSegmentsIntoLoop(orderedVertexIds);
         const vertices = newLoop.map(id => meshData.getVertex(id));
-        const newFace = meshData.addFace(vertices);
+        const newFace = this.vertexEditor.addFace(vertices);
         newFaceIds.push(newFace.id);
         continue;
       }
@@ -1960,7 +1960,7 @@ export class BevelTool {
       const v2Id = rotatedLoop[i + 1];
 
       const vertices = [originId, v1Id, v2Id].map(id => meshData.getVertex(id));
-      const newFace = meshData.addFace(vertices);
+      const newFace = this.vertexEditor.addFace(vertices);
 
       if (newFace) {
         this.rebuildFaceTopology(meshData, newFace);

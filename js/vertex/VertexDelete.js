@@ -27,7 +27,7 @@ export class VertexDelete {
     for (const faceId of faceIds) {
       const face = this.meshData.faces.get(faceId);
       if (!face) continue;
-      this.meshData.deleteFace(face);
+      this.vertexEditor.deleteFace(face);
     }
   }
 
@@ -65,7 +65,7 @@ export class VertexDelete {
         candidateVertices.add(vId);
       }
 
-      this.meshData.deleteFace(face);
+      this.vertexEditor.deleteFace(face);
     }
 
     this.cleanupOrphanEdges(this.meshData, candidateEdges);
@@ -91,7 +91,7 @@ export class VertexDelete {
           candidateVertices.add(vId);
         }
 
-        this.meshData.deleteFace(face);
+        this.vertexEditor.deleteFace(face);
         deletedFaces.add(face.id);
       }
     }
@@ -125,7 +125,7 @@ export class VertexDelete {
           candidateVertices.add(vId);
         }
 
-        this.meshData.deleteFace(face);
+        this.vertexEditor.deleteFace(face);
         deletedFaces.add(face.id);
       }
     }
@@ -160,7 +160,7 @@ export class VertexDelete {
         candidateVertices.add(vId);
       }
 
-      this.meshData.deleteFace(face);
+      this.vertexEditor.deleteFace(face);
       deletedFaces.add(faceId);
     }
 

@@ -5,6 +5,7 @@ import { MeshData } from './MeshData.js';
 
 export default class SceneManager {
   constructor(editor) {
+    this.editor = editor;
     this.signals = editor.signals;
     this.cameraManager = editor.cameraManager;
     this.helpers = editor.helpers;
@@ -63,7 +64,10 @@ export default class SceneManager {
 
   setScene(scene) {
     scene.traverse(obj => {
-      MeshData.rehydrateMeshData(obj);
+      if (obj.isMesh && obj.userData.meshData) {
+        this.editor.vertexEditor.setObject(obj);
+        this.editor.vertexEditor.updateGeometryAndHelpers();
+      }
     });
 
     this.mainScene.uuid = scene.uuid;

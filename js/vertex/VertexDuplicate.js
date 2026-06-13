@@ -39,7 +39,7 @@ export class VertexDuplicate {
     // Duplicate faces
     for (let oldFace of facesToDuplicate) {
       const newVertices = oldFace.vertexIds.map(vId => duplicatedVertices.get(vId));
-      const newFace = this.meshData.addFace(newVertices);
+      const newFace = this.vertexEditor.addFace(newVertices);
       duplicatedFaces.set(oldFace.id, newFace);
     }
 
@@ -123,7 +123,7 @@ export class VertexDuplicate {
       if (allEdgesSelected) {
         const newVertices = face.vertexIds.map(vId => duplicatedVertices.get(vId));
         if (newVertices.every(v => v)) {
-          const newFace = this.meshData.addFace(newVertices);
+          const newFace = this.vertexEditor.addFace(newVertices);
           duplicatedFaces.set(face.id, newFace);
         }
       }
@@ -198,7 +198,7 @@ export class VertexDuplicate {
 
       if (!newVertices.every(v => v)) continue;
 
-      const newFace = this.meshData.addFace(newVertices);
+      const newFace = this.vertexEditor.addFace(newVertices);
       duplicatedFaces.set(faceId, newFace);
     }
 

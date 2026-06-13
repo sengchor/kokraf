@@ -14,6 +14,7 @@ export class KnifeTool {
     this.scene = editor.sceneManager.sceneEditorHelpers;
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
+    this.vertexEditor = editor.vertexEditor;
 
     this.active = false;
     this.editSelection = editor.editSelection;
@@ -81,6 +82,7 @@ export class KnifeTool {
     if (event.button !== 0 || !this.active) return;
 
     const editedObject = this.editSelection.editedObject;
+    this.vertexEditor.setObject(editedObject);
     const objectMatrix = editedObject.matrixWorld;
     const meshData = editedObject.userData.meshData;
 
@@ -385,7 +387,7 @@ export class KnifeTool {
 
       if (cutPoints.length === 0) continue;
 
-      meshData.deleteFace(face);
+      this.vertexEditor.deleteFace(face);
 
       // Create faces
       if (cutPoints.length === 1) {
@@ -400,15 +402,15 @@ export class KnifeTool {
           }
         }
 
-        meshData.addFace(newFaceVerts);
+        this.vertexEditor.addFace(newFaceVerts);
       } else if (cutPoints.length === 2) {
         const [cutA, cutB] = cutPoints;
 
         const firstFaceVertices = this.buildFaceFromCuts(vertexIds, meshData, [cutA, cutB]);
         const secondFaceVertices = this.buildFaceFromCuts(vertexIds, meshData, [cutB, cutA]);
 
-        meshData.addFace(firstFaceVertices);
-        meshData.addFace(secondFaceVertices);
+        this.vertexEditor.addFace(firstFaceVertices);
+        this.vertexEditor.addFace(secondFaceVertices);
 
         const newEdge = meshData.getEdge(cutA.newVertex.id, cutB.newVertex.id);
         this.newEdges.push(newEdge);

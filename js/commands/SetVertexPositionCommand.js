@@ -12,6 +12,7 @@ export class SetVertexPositionCommand {
    */
   constructor(editor, object = null, vertexIndices = null, newPositions = null, oldPositions = null) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.vertexEditor = editor.vertexEditor;
     this.name = 'Set Vertex Position';
 
@@ -27,7 +28,7 @@ export class SetVertexPositionCommand {
 
     this.vertexEditor.setObject(object);
     this.vertexEditor.transform.setVerticesWorldPositions(this.vertexIndices, this.newPositions);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
     
     this.editor.editSelection.selectVertices(this.vertexIndices, true);
   }
@@ -37,7 +38,7 @@ export class SetVertexPositionCommand {
     
     this.vertexEditor.setObject(object);
     this.vertexEditor.transform.setVerticesWorldPositions(this.vertexIndices, this.oldPositions);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     this.editor.editSelection.selectVertices(this.vertexIndices, true);
   }

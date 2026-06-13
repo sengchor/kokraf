@@ -347,7 +347,7 @@ export class EditActions {
     if (selectedFaceIds.size === 0) return;
     this.meshEditor.flipNormals(meshData, selectedFaceIds);
 
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     const afterMeshData = structuredClone(meshData);
     this.editor.execute(new FlipNormalsCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
@@ -365,8 +365,8 @@ export class EditActions {
     const result = this.vertexEditor.subdivide.subdivideEdges(selectedEdgeIds);
     const { newVertexIds, newFaceIds } = result;
 
-    this.vertexEditor.transform.updateGeometryAndHelpers();
-
+    this.vertexEditor.updateGeometryAndHelpers();
+    
     const afterMeshData = structuredClone(meshData);
     this.editor.execute(new SubdivideSelectionCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
 

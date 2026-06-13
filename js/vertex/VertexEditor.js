@@ -6,6 +6,7 @@ import { VertexTransform } from "./VertexTransform.js";
 import { VertexSubdivide } from "./VertexSubdivide.js";
 import { VertexSelection } from "./VertexSelection.js";
 import { MeshData } from '../core/MeshData.js';
+import { MeshRendererAdapter } from "../geometry/MeshRendererAdapter.js";
 
 export class VertexEditor {
   constructor(editor) {
@@ -26,6 +27,26 @@ export class VertexEditor {
     return this.object.userData.meshData;
   }
 
+  set meshData(value) {
+    this.object.meshData = value;
+  }
+
+  get geometry() {
+    return this.object.geometry;
+  }
+
+  set geometry(value) {
+    this.object.geometry = value;
+  }
+
+  get renderBuffer() {
+    return this.object.userData.renderBuffer;
+  }
+
+  set renderBuffer(value) {
+    this.object.userData.renderBuffer = value;
+  }
+
   setObject(object3D) {
     this.object = object3D || null;
 
@@ -36,5 +57,35 @@ export class VertexEditor {
     if (meshData && !(meshData instanceof MeshData)) {
       MeshData.rehydrateMeshData(this.object);
     }
+  }
+
+  addFace(vertices) {
+    const face = this.meshData.addFace(vertices);
+    MeshRendererAdapter.addFace(this.meshData, this.renderBuffer, this.geometry, face.id);
+    return face;
+  }
+
+  deleteFace(faceId) {
+    const face = this.meshData.faces.get(faceId);
+    if (!face) return;
+    MeshRendererAdapter.deleteFace(this.meshData, this.renderBuffer, this.geometry, faceId);
+    this.meshData.deleteFace(face);
+  }
+
+  addVertex(position) { return this.meshData.addVertex(position); }
+  deleteVertex(vertex) { return this.meshData.deleteVertex(vertex); }
+  addEdge(v1, v2) { return this.meshData.addEdge(v1, v2); }
+  deleteEdge(edge) { return this.meshData.deleteEdge(edge); }
+
+  updateGeometryAndHelpers() {
+    const shading = this.object.userData.shading;
+    
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(this.meshData, { mode: shading });
+    this.geometry = geometry;
+    this.renderBuffer = renderBuffer;
+    this.geometry.computeBoundingBox();
+    this.geometry.computeBoundingSphere();
+
+    this.signals.editSelectionRefresh.dispatch();
   }
 }

@@ -70,11 +70,11 @@ export class VertexDissolve {
         const newVertexIds = face.vertexIds.filter(id => id !== vId);
 
         if (newVertexIds.length < 3) {
-          this.meshData.deleteFace(face);
+          this.vertexEditor.deleteFace(face);
           continue;
         }
 
-        this.meshData.deleteFace(face);
+        this.vertexEditor.deleteFace(face);
         this.topology.createFaceFromVertices(newVertexIds);
       }
 
@@ -356,7 +356,7 @@ export class VertexDissolve {
 
     for (const fId of candidateFaces) {
       const face = this.meshData.faces.get(fId);
-      if (face) this.meshData.deleteFace(face);
+      if (face) this.vertexEditor.deleteFace(face);
     }
 
     for (const eId of candidateEdges) {
@@ -408,7 +408,7 @@ export class VertexDissolve {
 
     for (const fId of candidateFaces) {
       const face = this.meshData.faces.get(fId);
-      if (face) this.meshData.deleteFace(face);
+      if (face) this.vertexEditor.deleteFace(face);
     }
 
     // Delete interior edges (non-boundary)

@@ -192,7 +192,7 @@ export class DuplicateTool {
     const mode = this.editSelection.subSelectionMode;
 
     this.vertexEditor.setObject(editedObject);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
     const meshData = editedObject.userData.meshData;
     this.afterMeshData = structuredClone(meshData);
 
@@ -276,7 +276,7 @@ export class DuplicateTool {
     this.newEdgeIds = duplicationResult.newEdgeIds;
     this.newFaceIds = duplicationResult.newFaceIds;
 
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
     this.editSelection.clearSelection();
     this.initialDuplicatedPositions = this.vertexEditor.transform.getVertexPositions(this.newVertexIds);
 

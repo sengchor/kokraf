@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { ShadingUtils } from "../utils/ShadingUtils.js";
+import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import OBJLoader from './OBJLoader.js';
 import GLBLoader from './GLBLoader.js';
 
@@ -43,7 +44,7 @@ export class Loader {
       const reservedNames = new Set();
       const meshes = meshObjects.map(({ name, meshData }, i) => {
         const shading = shadingObjects[i] || 'flat';
-        const geometry = ShadingUtils.createGeometryWithShading(meshData, shading);
+        const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
 
         const material = new THREE.MeshStandardMaterial({
           color: 0xcccccc,
@@ -61,6 +62,7 @@ export class Loader {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         mesh.userData.meshData = meshData;
+        mesh.userData.renderBuffer = renderBuffer;
         mesh.userData.shading = shading;
         mesh.geometry.computeBoundingSphere();
         mesh.geometry.computeBoundingBox();
@@ -92,7 +94,7 @@ export class Loader {
     const reservedNames = new Set();
 
     const meshes = meshObjects.map(({ name, meshData }) => {
-      const geometry = ShadingUtils.createGeometryWithShading(meshData, 'auto');
+      const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: 'auto' });
 
       const material = new THREE.MeshStandardMaterial({
         color: 0xcccccc,
@@ -110,6 +112,7 @@ export class Loader {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData.meshData = meshData;
+      mesh.userData.renderBuffer = renderBuffer;
       mesh.userData.shading = 'auto';
       mesh.geometry.computeBoundingSphere();
       mesh.geometry.computeBoundingBox();

@@ -31,7 +31,7 @@ export class ApplyScaleCommand {
     object.updateMatrixWorld(true);
 
     this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     this.editor.toolbar.updateTools();
     this.signals.objectChanged.dispatch();
@@ -53,7 +53,7 @@ export class ApplyScaleCommand {
     object.updateMatrixWorld(true);
 
     this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     this.editor.toolbar.updateTools();
     this.signals.objectChanged.dispatch();

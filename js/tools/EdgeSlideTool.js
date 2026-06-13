@@ -255,7 +255,7 @@ export class EdgeSlideTool {
     }
 
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     const meshData = this.editedObject.userData.meshData;
     this.afterMeshData = structuredClone(meshData);
@@ -276,7 +276,7 @@ export class EdgeSlideTool {
 
     this.vertexEditor.setObject(this.editedObject);
     this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
 
     this.handle.position.copy(this.startPivotPosition);
     this.handle.updateMatrixWorld(true);

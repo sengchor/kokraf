@@ -14,6 +14,7 @@ export class SeparateSelectionCommand {
   constructor(editor, object, beforeMeshData, afterMeshData, newMeshData) {
     this.editor = editor;
     this.name = 'Separate Selection';
+    this.signals = editor.signals;
     this.vertexEditor = editor.vertexEditor;
 
     this.objectUuid = object ? object.uuid : null;
@@ -70,7 +71,7 @@ export class SeparateSelectionCommand {
 
     this.vertexEditor.setObject(object);
     this.vertexEditor.transform.applyMeshData(meshData);
-    this.vertexEditor.transform.updateGeometryAndHelpers();
+    this.vertexEditor.updateGeometryAndHelpers();
   }
 
   toJSON() {

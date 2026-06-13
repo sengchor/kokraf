@@ -3,23 +3,12 @@ import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 export class ShadingUtils {
   static applyShading(object, mode) {
     const meshData = object.userData.meshData;
-    const geometry = this.createGeometryWithShading(meshData, mode);
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode });
 
     object.geometry.dispose();
     object.geometry = geometry;
+    object.userData.renderBuffer = renderBuffer;
     object.userData.shading = mode;
-  }
-
-  static createGeometryWithShading(meshData, mode) {
-    let geometry;
-    if (mode === 'smooth') {
-      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "smooth" });
-    } else if (mode === 'flat') {
-      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat" });
-    } else if (mode === 'auto') {
-      geometry = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "auto" });
-    }
-    return geometry;
   }
 
   static getShadingFromOBJ(objText) {

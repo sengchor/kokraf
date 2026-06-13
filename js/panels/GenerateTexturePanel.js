@@ -202,9 +202,9 @@ export class GenerateTexturePanel {
         alert(`Invalid UV output for "${object.name}".`);
         return;
       }
-
+      
       this.vertexEditor.setObject(object);
-      this.vertexEditor.transform.updateGeometryAndHelpers();
+      this.vertexEditor.updateGeometryAndHelpers();
 
       const bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
       const tempBakeMesh = new THREE.Mesh(bakeGeometry);

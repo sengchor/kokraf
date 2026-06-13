@@ -15,6 +15,7 @@ export class LoopCutTool {
     this.scene = editor.sceneManager.sceneEditorHelpers;
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
+    this.vertexEditor = editor.vertexEditor;
 
     this.active = false;
     this.editSelection = editor.editSelection;
@@ -62,6 +63,7 @@ export class LoopCutTool {
 
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
+    this.vertexEditor.setObject(this.editedObject);
     const meshData = this.editedObject.userData.meshData;
     this.beforeMeshData = structuredClone(meshData);
 
@@ -265,11 +267,11 @@ export class LoopCutTool {
     return { edges: directionEdges, closedLoop };
   }
 
-  getStartEdgeFromIntersect(meshData, intersect) {
+  getStartEdgeFromIntersect(meshData, renderBuffer, intersect) {
     if (!intersect || !intersect.face) return null;
 
     const { a, b, c } = intersect.face;
-    const toVertexId = meshData.bufferIndexToVertexId.get.bind(meshData.bufferIndexToVertexId);
+    const toVertexId = renderBuffer.bufferIndexToVertexId.get.bind(renderBuffer.bufferIndexToVertexId);
 
     const v1 = toVertexId(a);
     const v2 = toVertexId(b);
@@ -335,7 +337,7 @@ export class LoopCutTool {
       const face = this.findSharedFace(meshData, edge, nextEdge);
       if (!face) continue;
       const originalFaceNormal = calculateFaceNormal(meshData, face);
-      meshData.deleteFace(face);
+      this.vertexEditor.deleteFace(face);
 
       // Get correctly aligned vertices for this face segment
       const alignA = alignedVertices[i];
@@ -367,7 +369,7 @@ export class LoopCutTool {
           quad.reverse();
         }
 
-        meshData.addFace(quad);
+        this.vertexEditor.addFace(quad);
       }
 
       // collect new loop edges
@@ -454,8 +456,8 @@ export class LoopCutTool {
         }
       }
 
-      meshData.deleteFace(face);
-      meshData.addFace(newVertexIds.map(id => meshData.getVertex(id)));
+      this.vertexEditor.deleteFace(face);
+      this.vertexEditor.addFace(newVertexIds.map(id => meshData.getVertex(id)));
     }
   }
 
@@ -536,7 +538,9 @@ export class LoopCutTool {
     const intersects = this.raycaster.intersectObject(this.editedObject, false);
     if (intersects.length === 0) return null;
 
-    const startEdge = this.getStartEdgeFromIntersect(meshData, intersects[0]);
+    const renderBuffer = this.editedObject.userData.renderBuffer;
+
+    const startEdge = this.getStartEdgeFromIntersect(meshData, renderBuffer, intersects[0]);
     if (!startEdge) return null;
 
     const loopEdges = this.getLoopEdges(meshData, startEdge);

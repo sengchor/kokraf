@@ -99,6 +99,7 @@ export class SnapManager {
 
       const posAttr = obj.geometry.attributes.position;
       const meshData = obj.userData.meshData;
+      const renderBuffer = obj.userData.renderBuffer;
 
       const local = new THREE.Vector3();
       const world = new THREE.Vector3();
@@ -106,7 +107,7 @@ export class SnapManager {
 
       for (let bufferIndex = 0; bufferIndex < posAttr.count; bufferIndex++) {
         if (obj === editedObject && meshData) {
-          const vertexId = meshData.bufferIndexToVertexId.get(bufferIndex);
+          const vertexId = renderBuffer.bufferIndexToVertexId.get(bufferIndex);
           if (vertexId !== undefined && selectedVertexIds.includes(vertexId)) continue;
         }
 
@@ -225,10 +226,11 @@ export class SnapManager {
 
       const meshData = obj.userData.meshData;
       if (!meshData) continue;
+      const renderBuffer = obj.userData.renderBuffer;
 
       // Skip self-face with selected vertices
       if (obj === editedObject) {
-        const face = this.getMeshDataFaceFromTriangle(meshData, obj.geometry, hit.faceIndex);
+        const face = this.getMeshDataFaceFromTriangle(meshData, renderBuffer, obj.geometry, hit.faceIndex);
 
         if (face) {
           const hasSelectedVertex = face.vertexIds.some(id =>selectedVertexIds.includes(id));
@@ -322,7 +324,7 @@ export class SnapManager {
     return positions;
   }
 
-  getMeshDataFaceFromTriangle(meshData, geometry, faceIndex) {
+  getMeshDataFaceFromTriangle(meshData, renderBuffer, geometry, faceIndex) {
     const index = geometry.index;
     if (!index) return null;
 
@@ -330,9 +332,9 @@ export class SnapManager {
     const i1 = index.getX(faceIndex * 3 + 1);
     const i2 = index.getX(faceIndex * 3 + 2);
 
-    const vId0 = meshData.bufferIndexToVertexId.get(i0);
-    const vId1 = meshData.bufferIndexToVertexId.get(i1);
-    const vId2 = meshData.bufferIndexToVertexId.get(i2);
+    const vId0 = renderBuffer.bufferIndexToVertexId.get(i0);
+    const vId1 = renderBuffer.bufferIndexToVertexId.get(i1);
+    const vId2 = renderBuffer.bufferIndexToVertexId.get(i2);
 
     if (vId0 === undefined || vId1 === undefined || vId2 === undefined) {
       return null;

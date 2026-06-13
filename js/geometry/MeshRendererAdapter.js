@@ -2,13 +2,11 @@ import * as THREE from 'three';
 import earcut from 'earcut';
 import { computePlaneNormal, projectTo2D } from './TriangulationUtils.js';
 import { SlotAllocator } from './SlotAllocator.js';
+import { MeshRenderBuffer } from './MeshRenderBuffer.js';
 
 export class MeshRendererAdapter {
   static toBufferGeometry(meshData, options = {}) {
-    const {
-      mode = "angle",
-      angle = 60,
-    } = options;
+    const { mode = "angle", angle = 60 } = options;
 
     switch (mode) {
       case "flat":
@@ -21,22 +19,22 @@ export class MeshRendererAdapter {
   }
 
   static generateFlatGeometry(meshData) {
-    const data = this.buildDuplicatedMeshData(meshData);
+    const { positions, uvs, indices, renderBuffer } = this.buildDuplicatedMeshData(meshData);
 
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
-    geometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 
     geometry.computeVertexNormals();
 
-    return geometry;
+    return { geometry, renderBuffer };
   }
 
   static generateSmoothGeometry(meshData) {
-    const data = this.buildDuplicatedMeshData(meshData);
+    const { positions, uvs, indices, renderBuffer } = this.buildDuplicatedMeshData(meshData);
 
-    const smoothNormalsMap = this.calculateSmoothNormalsMap(meshData);
+    const smoothNormalsMap = this.calculateSmoothNormalsMap(meshData, renderBuffer);
 
     const normals = [];
     for (let i = 0; i < data.positions.length / 3; i++) {
@@ -50,18 +48,18 @@ export class MeshRendererAdapter {
     }
 
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
-    geometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 
-    return geometry;
+    return { geometry, renderBuffer };
   }
 
   static generateAngleBasedGeometry(meshData, angle = 60) {
-    const data = this.buildDuplicatedMeshData(meshData);
+    const { positions, uvs, indices, renderBuffer } = this.buildDuplicatedMeshData(meshData);
 
-    const angleBasedNormalsMap = this.calculateAngleBasedNormalsMap(meshData, angle);
+    const angleBasedNormalsMap = this.calculateAngleBasedNormalsMap(meshData, renderBuffer, angle);
 
     const normals = [];
     for (let i = 0; i < data.positions.length / 3; i++) {
@@ -75,25 +73,22 @@ export class MeshRendererAdapter {
     }
 
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
-    geometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 
-    return geometry;
+    return { geometry, renderBuffer };
   }
 
   static buildDuplicatedMeshData(meshData) {
+    console.log('rebuild');
+    const renderBuffer = new MeshRenderBuffer();
+
     const positions = [];
     const uvs = [];
     const indices = [];
     let currentIndex = 0;
-
-    meshData.vertexIdToBufferIndex.clear();
-    meshData.bufferIndexToVertexId.clear();
-    meshData.faceIdToBufferIndices.clear();
-    meshData.faceTriangleOffset.clear();
-    meshData.faceTriangleCount.clear();
 
     for (let f of meshData.faces.values()) {
       let verts = f.vertexIds.map(id => meshData.vertices.get(id));
@@ -101,31 +96,28 @@ export class MeshRendererAdapter {
 
       const baseIndex = currentIndex;
       const faceBufferIndices = [];
+
       for (let i = 0; i < verts.length; i++) {
         let v = verts[i];
 
         positions.push(v.position.x, v.position.y, v.position.z);
+        uvs.push(faceUVs?.[i]?.u ?? 0, faceUVs?.[i]?.v ?? 0);
 
-        if (faceUVs && faceUVs[i]) {
-          uvs.push(faceUVs[i].u, faceUVs[i].v);
-        } else {
-          uvs.push(0, 0);
-        }
-
-        if (!meshData.vertexIdToBufferIndex.has(v.id)) meshData.vertexIdToBufferIndex.set(v.id, []);
-        meshData.vertexIdToBufferIndex.get(v.id).push(currentIndex);
+        if (!renderBuffer.vertexIdToBufferIndex.has(v.id)) 
+          renderBuffer.vertexIdToBufferIndex.set(v.id, []);
+        renderBuffer.vertexIdToBufferIndex.get(v.id).push(currentIndex);
 
         faceBufferIndices.push(baseIndex + i);
 
         currentIndex++;
       }
-      meshData.faceIdToBufferIndices.set(f.id, faceBufferIndices);
+      renderBuffer.faceIdToBufferIndices.set(f.id, faceBufferIndices);
 
       const normal = computePlaneNormal(verts);
       const flatVertices = projectTo2D(verts, normal);
       const triangulated = earcut(flatVertices);
-      
       const triOffset = indices.length;
+
       if (triangulated.length > 0) {
         for (let i = 0; i < triangulated.length; i += 3) {
           indices.push(
@@ -140,33 +132,32 @@ export class MeshRendererAdapter {
         }
       }
 
-      meshData.faceTriangleOffset.set(f.id, triOffset);
-      meshData.faceTriangleCount.set(f.id, triangulated.length);
+      renderBuffer.faceTriangleOffset.set(f.id, triOffset);
+      renderBuffer.faceTriangleCount.set(f.id, triangulated.length);
     }
 
     for (let v of meshData.vertices.values()) {
-      if (!meshData.vertexIdToBufferIndex.has(v.id)) {
+      if (!renderBuffer.vertexIdToBufferIndex.has(v.id)) {
         positions.push(v.position.x, v.position.y, v.position.z);
         uvs.push(0, 0);
-        meshData.vertexIdToBufferIndex.set(v.id, [currentIndex]);
+        renderBuffer.vertexIdToBufferIndex.set(v.id, [currentIndex]);
         currentIndex++;
       }
     }
 
-    for (let [vertexId, bufferIndices] of meshData.vertexIdToBufferIndex) {
+    for (let [vertexId, bufferIndices] of renderBuffer.vertexIdToBufferIndex) {
       for (let bufferIndex of bufferIndices) {
-        meshData.bufferIndexToVertexId.set(bufferIndex, vertexId);
+        renderBuffer.bufferIndexToVertexId.set(bufferIndex, vertexId);
       }
     }
 
     const vertCapacity = Math.ceil(currentIndex * 2);
     const idxCapacity = Math.ceil(indices.length * 2);
 
-    meshData.slotAllocator = new SlotAllocator(vertCapacity);
-    meshData.slotAllocator.alloc(currentIndex);
-
-    meshData.indexSlotAllocator = new SlotAllocator(idxCapacity);
-    meshData.indexSlotAllocator.alloc(indices.length);
+    renderBuffer.slotAllocator = new SlotAllocator(vertCapacity);
+    renderBuffer.slotAllocator.alloc(currentIndex);
+    renderBuffer.indexSlotAllocator = new SlotAllocator(idxCapacity);
+    renderBuffer.indexSlotAllocator.alloc(indices.length);
 
     const paddedPositions = new Float32Array(vertCapacity * 3);
     paddedPositions.set(positions);
@@ -175,17 +166,18 @@ export class MeshRendererAdapter {
     const paddedIndices = new Uint32Array(idxCapacity);
     paddedIndices.set(indices);
 
-    return { positions: paddedPositions, uvs: paddedUVs, indices: paddedIndices };
+    return { positions: paddedPositions, uvs: paddedUVs, indices: paddedIndices, renderBuffer };
   }
 
-  static addFace(meshData, geometry, face) {
+  static addFace(meshData, renderBuffer, geometry, faceId) {
+    const face = meshData.faces.get(faceId);
     const verts = face.vertexIds.map(id => meshData.vertices.get(id));
-    const faceUVs = meshData.uvs.get(face.id);
+    const faceUVs = meshData.uvs.get(faceId);
 
-    let vertSlot = meshData.slotAllocator.alloc(verts.length);
+    let vertSlot = renderBuffer.slotAllocator.alloc(verts.length);
     if (vertSlot === -1) {
-      this._growVertexBuffer(meshData, geometry, verts.length * 2);
-      vertSlot = meshData.slotAllocator.alloc(verts.length);
+      this._growVertexBuffer(renderBuffer, geometry, verts.length * 2);
+      vertSlot = renderBuffer.slotAllocator.alloc(verts.length);
     }
 
     const posAttr = geometry.attributes.position;
@@ -199,21 +191,27 @@ export class MeshRendererAdapter {
       uvAttr.setXY(slot, faceUVs?.[i]?.u ?? 0, faceUVs?.[i]?.v ?? 0);
 
       faceBufferIndices.push(slot);
-      if (!meshData.vertexIdToBufferIndex.has(v.id)) meshData.vertexIdToBufferIndex.set(v.id, []);
-      meshData.vertexIdToBufferIndex.get(v.id).push(slot);
-      meshData.bufferIndexToVertexId.set(slot, v.id);
+      if (!renderBuffer.vertexIdToBufferIndex.has(v.id))
+        renderBuffer.vertexIdToBufferIndex.set(v.id, []);
+      renderBuffer.vertexIdToBufferIndex.get(v.id).push(slot);
+      renderBuffer.bufferIndexToVertexId.set(slot, v.id);
     }
 
-    meshData.faceIdToBufferIndices.set(face.id, faceBufferIndices);
+    renderBuffer.faceIdToBufferIndices.set(faceId, faceBufferIndices);
 
     const normal = computePlaneNormal(verts);
     const flat = projectTo2D(verts, normal);
     const tris = earcut(flat);
+    if (tris.length === 0) {
+      for (let i = 1; i < verts.length - 1; i++) {
+        tris.push(0, i, i + 1);
+      }
+    }
 
-    let idxSlot = meshData.indexSlotAllocator.alloc(tris.length);
+    let idxSlot = renderBuffer.indexSlotAllocator.alloc(tris.length);
     if (idxSlot === -1) {
-      this._growIndexBuffer(meshData, geometry, tris.length * 2);
-      idxSlot = meshData.indexSlotAllocator.alloc(tris.length);
+      this._growIndexBuffer(renderBuffer, geometry, tris.length * 2);
+      idxSlot = renderBuffer.indexSlotAllocator.alloc(tris.length);
     }
 
     const indexAttr = geometry.index;
@@ -221,21 +219,21 @@ export class MeshRendererAdapter {
       indexAttr.setX(idxSlot + i, vertSlot + tris[i]);
     }
 
-    meshData.faceTriangleOffset.set(face.id, idxSlot);
-    meshData.faceTriangleCount.set(face.id, tris.length);
+    renderBuffer.faceTriangleOffset.set(faceId, idxSlot);
+    renderBuffer.faceTriangleCount.set(faceId, tris.length);
 
     posAttr.needsUpdate = true;
     uvAttr.needsUpdate = true;
     indexAttr.needsUpdate = true;
   }
 
-  static deleteFace(meshData, geometry, faceId) {
-    const bufferIndices = meshData.faceIdToBufferIndices.get(faceId);
+  static deleteFace(meshData, renderBuffer, geometry, faceId) {
+    const bufferIndices = renderBuffer.faceIdToBufferIndices.get(faceId);
     if (!bufferIndices) return;
 
     // Mask triangles as degenerate (all indices → same slot)
-    const triOffset = meshData.faceTriangleOffset.get(faceId);
-    const triCount = meshData.faceTriangleCount.get(faceId);
+    const triOffset = renderBuffer.faceTriangleOffset.get(faceId);
+    const triCount = renderBuffer.faceTriangleCount.get(faceId);
     const indexAttr = geometry.index;
     const degSlot = bufferIndices[0];
 
@@ -243,36 +241,37 @@ export class MeshRendererAdapter {
       indexAttr.setX(triOffset + i, degSlot);
     }
 
-    meshData.slotAllocator.free(bufferIndices[0], bufferIndices.length);
-    meshData.indexSlotAllocator.free(triOffset, triCount);
+    renderBuffer.slotAllocator.free(bufferIndices[0], bufferIndices.length);
+    renderBuffer.indexSlotAllocator.free(triOffset, triCount);
 
     for (const slot of bufferIndices) {
-      const vertId = meshData.bufferIndexToVertexId.get(slot);
-      meshData.bufferIndexToVertexId.delete(slot);
+      const vertId = renderBuffer.bufferIndexToVertexId.get(slot);
+      renderBuffer.bufferIndexToVertexId.delete(slot);
       if (vertId !== undefined) {
-        const arr = meshData.vertexIdToBufferIndex.get(vertId);
+        const arr = renderBuffer.vertexIdToBufferIndex.get(vertId);
         if (arr) {
           const i = arr.indexOf(slot);
           if (i !== -1) arr.splice(i, 1);
-          if (arr.length === 0) meshData.vertexIdToBufferIndex.delete(vertId);
+          if (arr.length === 0) renderBuffer.vertexIdToBufferIndex.delete(vertId);
         }
       }
     }
 
-    meshData.faceIdToBufferIndices.delete(faceId);
-    meshData.faceTriangleOffset.delete(faceId);
-    meshData.faceTriangleCount.delete(faceId);
+    renderBuffer.faceIdToBufferIndices.delete(faceId);
+    renderBuffer.faceTriangleOffset.delete(faceId);
+    renderBuffer.faceTriangleCount.delete(faceId);
 
     indexAttr.needsUpdate = true;
 
-    if (meshData.slotAllocator.utilization < 0.25) {
-      this.compact(meshData, geometry);
+    if (renderBuffer.slotAllocator.utilization < 0.25) {
+      this.compact(meshData, renderBuffer, geometry);
     }
   }
 
-  static _growVertexBuffer(meshData, geometry, additionalSlots) {
+  static _growVertexBuffer(renderBuffer, geometry, additionalSlots) {
     const posAttr = geometry.attributes.position;
     const uvAttr = geometry.attributes.uv;
+    const oldCount = posAttr.count;
     const newCount = posAttr.count + additionalSlots;
 
     const newPos = new Float32Array(newCount * 3);
@@ -283,12 +282,12 @@ export class MeshRendererAdapter {
     geometry.setAttribute('position', new THREE.BufferAttribute(newPos, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(newUV, 2));
 
-    meshData.slotAllocator.capacity += additionalSlots;
-    meshData.slotAllocator.freeBlocks.push({ start: posAttr.count, count: additionalSlots });
-    meshData.slotAllocator._mergeBlocks();
+    renderBuffer.slotAllocator.capacity += additionalSlots;
+    renderBuffer.slotAllocator.freeBlocks.push({ start: oldCount, count: additionalSlots });
+    renderBuffer.slotAllocator._mergeBlocks();
   }
 
-  static _growIndexBuffer(meshData, geometry, additionalSlots) {
+  static _growIndexBuffer(renderBuffer, geometry, additionalSlots) {
     const idxAttr = geometry.index;
     const newCount = idxAttr.count + additionalSlots;
     
@@ -296,21 +295,23 @@ export class MeshRendererAdapter {
     newIdx.set(idxAttr.array);
     geometry.setIndex(new THREE.BufferAttribute(newIdx, 1));
 
-    meshData.indexSlotAllocator.capacity += additionalSlots;
-    meshData.indexSlotAllocator.freeBlocks.push({ start: idxAttr.count, count: additionalSlots });
-    meshData.indexSlotAllocator._mergeBlocks();
+    renderBuffer.indexSlotAllocator.capacity += additionalSlots;
+    renderBuffer.indexSlotAllocator.freeBlocks.push({ start: idxAttr.count, count: additionalSlots });
+    renderBuffer.indexSlotAllocator._mergeBlocks();
   }
 
-  static compact(meshData, geometry) {
-    const { positions, uvs, indices } = this.buildDuplicatedMeshData(meshData);
+  static compact(meshData, renderBuffer, geometry) {
+    const { positions, uvs, indices, renderBuffer: fresh } = this.buildDuplicatedMeshData(meshData);
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
     geometry.setIndex(new THREE.BufferAttribute(indices, 1));
     geometry.computeVertexNormals();
+
+    Object.assign(renderBuffer, fresh);
   }
 
-  static calculateSmoothNormalsMap(meshData) {
+  static calculateSmoothNormalsMap(meshData, renderBuffer) {
     const positions = [];
     const indices = [];
 
@@ -363,13 +364,13 @@ export class MeshRendererAdapter {
     tmpGeo.dispose();
 
     const normalsMap = new Map();
-    for (const [bufferIdx, vertexId] of meshData.bufferIndexToVertexId) {
+    for (const [bufferIdx, vertexId] of renderBuffer.bufferIndexToVertexId) {
       normalsMap.set(bufferIdx, vertexNormalsMap.get(vertexId));
     }
     return normalsMap;
   }
 
-  static calculateAngleBasedNormalsMap(meshData, angleDegree = 60) {
+  static calculateAngleBasedNormalsMap(meshData, renderBuffer, angleDegree = 60) {
     const threshold = (angleDegree * Math.PI) / 180;
     const normalsMap = new Map();
 
@@ -389,19 +390,14 @@ export class MeshRendererAdapter {
     }
 
     // Calculate Normals per Buffer Index
-    const seenVertexIds = new Set();
-    let currentIndex = 0;
-    
     for (const face of meshData.faces.values()) {
       let verts = face.vertexIds.map(id => meshData.vertices.get(id));
-
+      const faceBufferIndices = renderBuffer.faceIdToBufferIndices.get(face.id);
       const currentFaceNormal = faceNormals.get(face.id);
 
-      for (const v of verts) {
-        seenVertexIds.add(v.id);
-
-        const averagedNormal = new THREE.Vector3(0, 0, 0);
-        const neighborFaceIds = vertexToFaces.get(v.id);
+      for (let i = 0; i < verts.length; i++) {
+        const averagedNormal = new THREE.Vector3();
+        const neighborFaceIds = vertexToFaces.get(verts[i].id);
 
         for (const neighborId of neighborFaceIds) {
           const neighborNormal = faceNormals.get(neighborId);
@@ -411,20 +407,16 @@ export class MeshRendererAdapter {
             averagedNormal.add(neighborNormal);
           }
         }
-
-        averagedNormal.normalize();
         
-        normalsMap.set(currentIndex, averagedNormal);
-        currentIndex++;
+        normalsMap.set(faceBufferIndices[i], averagedNormal.normalize());
       }
     }
 
-    // Handle extra vertices
+    // Isolated vertices
     for (const v of meshData.vertices.values()) {
-      if (!seenVertexIds.has(v.id)) {
-        normalsMap.set(currentIndex, new THREE.Vector3(0, 1, 0));
-        currentIndex++;
-      }
+      if (vertexToFaces.has(v.id)) continue;
+      for (const bufferIdx of renderBuffer.vertexIdToBufferIndex.get(v.id) ?? [])
+        normalsMap.set(bufferIdx, new THREE.Vector3(0, 1, 0));
     }
 
     return normalsMap;

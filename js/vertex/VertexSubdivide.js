@@ -329,7 +329,7 @@ export class VertexSubdivide {
       }
 
       for (const faceVertices of cornerFaceVertices) {
-        const face = this.meshData.addFace(faceVertices);
+        const face = this.vertexEditor.addFace(faceVertices);
         newFaces.push(face);
       }
 
@@ -348,14 +348,14 @@ export class VertexSubdivide {
       }
 
       for (const faceVertices of edgeFaceVertices) {
-        const face = this.meshData.addFace(faceVertices);
+        const face = this.vertexEditor.addFace(faceVertices);
         newFaces.push(face);
       }
     }
 
     if (segments % 2 !== 0) {
       const lastLayer = vertexOrderPerLayer[vertexOrderPerLayer.length - 1];
-      const face = this.meshData.addFace(lastLayer);
+      const face = this.vertexEditor.addFace(lastLayer);
       newFaces.push(face);
     }
 
@@ -429,12 +429,12 @@ export class VertexSubdivide {
         const m12 = edgeMidMap.get(this.meshData.getEdge(v1.id, v2.id).id);
         const m20 = edgeMidMap.get(this.meshData.getEdge(v2.id, v0.id).id);
 
-        this.meshData.deleteFace(face);
+        this.vertexEditor.deleteFace(face);
 
-        newFaces.push(this.meshData.addFace([v0, m01, m20]));
-        newFaces.push(this.meshData.addFace([m01, v1, m12]));
-        newFaces.push(this.meshData.addFace([m12, v2, m20]));
-        newFaces.push(this.meshData.addFace([m20, m01, m12]));
+        newFaces.push(this.vertexEditor.addFace([v0, m01, m20]));
+        newFaces.push(this.vertexEditor.addFace([m01, v1, m12]));
+        newFaces.push(this.vertexEditor.addFace([m12, v2, m20]));
+        newFaces.push(this.vertexEditor.addFace([m20, m01, m12]));
 
       } else if (n === 4 && allEdgesSubdivided) {
         const [v0, v1, v2, v3] = verts;
@@ -451,12 +451,12 @@ export class VertexSubdivide {
         );
         newVertices.push(center);
 
-        this.meshData.deleteFace(face);
+        this.vertexEditor.deleteFace(face);
 
-        newFaces.push(this.meshData.addFace([v0, m01, center, m30]));
-        newFaces.push(this.meshData.addFace([m01, v1, m12, center]));
-        newFaces.push(this.meshData.addFace([center, m12, v2, m23]));
-        newFaces.push(this.meshData.addFace([m30, center, m23, v3]));
+        newFaces.push(this.vertexEditor.addFace([v0, m01, center, m30]));
+        newFaces.push(this.vertexEditor.addFace([m01, v1, m12, center]));
+        newFaces.push(this.vertexEditor.addFace([center, m12, v2, m23]));
+        newFaces.push(this.vertexEditor.addFace([m30, center, m23, v3]));
 
       } else {
         // n-gon or partial edge selection: insert midpoints along winding, keep as single face
@@ -475,9 +475,9 @@ export class VertexSubdivide {
         }
 
         if (inserted) {
-          this.meshData.deleteFace(face);
+          this.vertexEditor.deleteFace(face);
           newFaces.push(
-            this.meshData.addFace(newVertexIds.map(id => this.meshData.getVertex(id)))
+            this.vertexEditor.addFace(newVertexIds.map(id => this.meshData.getVertex(id)))
           );
         }
       }

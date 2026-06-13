@@ -17,7 +17,7 @@ export class VertexTopologyUtils {
     const vertices = vertexIds.map(id => this.meshData.getVertex(id)).filter(v => v !== undefined);
     if (vertices.length < 3) return null;
 
-    const newFace = this.meshData.addFace(vertices);
+    const newFace = this.vertexEditor.addFace(vertices);
 
     return newFace ? newFace.id : null;
   }
@@ -41,7 +41,7 @@ export class VertexTopologyUtils {
       return edge ? { edgeId: edge.id, faceId: null } : null;
     }
 
-    const face = this.meshData.addFace(vertices);
+    const face = this.vertexEditor.addFace(vertices);
     return face ? { edgeId: null, faceId: face.id } : null;
   }
 
@@ -173,7 +173,7 @@ export class VertexTopologyUtils {
       // Delete face if it collapses to a line or point
       const uniqueSet = new Set(uniqueIds);
       if (uniqueSet.size < 3) {
-        this.meshData.deleteFace(face);
+        this.vertexEditor.deleteFace(face);
         continue;
       }
 
