@@ -65,10 +65,8 @@ export class VertexEditor {
     return face;
   }
 
-  deleteFace(faceId) {
-    const face = this.meshData.faces.get(faceId);
-    if (!face) return;
-    MeshRendererAdapter.deleteFace(this.meshData, this.renderBuffer, this.geometry, faceId);
+  deleteFace(face) {
+    MeshRendererAdapter.deleteFace(this.meshData, this.renderBuffer, this.geometry, face.id);
     this.meshData.deleteFace(face);
   }
 

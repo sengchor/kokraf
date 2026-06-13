@@ -342,7 +342,7 @@ export class KnifeTool {
       } else {
         const pos = this.intersections[i];
         const localPos = pos.clone().applyMatrix4(worldToLocal);
-        newVertex = meshData.addVertex({ x: localPos.x, y: localPos.y, z: localPos.z });
+        newVertex = this.vertexEditor.addVertex({ x: localPos.x, y: localPos.y, z: localPos.z });
       }
       this.newVertices.push(newVertex);
     }
@@ -419,7 +419,7 @@ export class KnifeTool {
 
     // Remove all intersected edges
     for (const edge of this.edgeIntersections) {
-      meshData.deleteEdge(edge);
+      this.vertexEditor.deleteEdge(edge);
     }
   }
 

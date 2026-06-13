@@ -24,7 +24,7 @@ export class VertexDuplicate {
         z: oldVertex.position.z
       };
 
-      const newVertex = this.meshData.addVertex(newPos);
+      const newVertex = this.vertexEditor.addVertex(newPos);
       duplicatedVertices.set(oldVertex.id, newVertex);
     }
 
@@ -58,7 +58,7 @@ export class VertexDuplicate {
           const v2 = duplicatedVertices.get(edge.v2Id);
 
           if (v1 && v2) {
-            const newEdge = this.meshData.addEdge(v1, v2);
+            const newEdge = this.vertexEditor.addEdge(v1, v2);
             duplicatedEdges.set(edge.id, newEdge);
           }
         }
@@ -93,7 +93,7 @@ export class VertexDuplicate {
           const oldVertex = this.meshData.getVertex(vId);
           if (!oldVertex) return;
 
-          const newVertex = this.meshData.addVertex({
+          const newVertex = this.vertexEditor.addVertex({
             x: oldVertex.position.x,
             y: oldVertex.position.y,
             z: oldVertex.position.z
@@ -113,7 +113,7 @@ export class VertexDuplicate {
       const v2 = duplicatedVertices.get(oldEdge.v2Id);
       if (!v1 || !v2) continue;
 
-      const newEdge = this.meshData.addEdge(v1, v2);
+      const newEdge = this.vertexEditor.addEdge(v1, v2);
       duplicatedEdges.set(edgeId, newEdge);
     }
 
@@ -157,7 +157,7 @@ export class VertexDuplicate {
           const oldVertex = this.meshData.getVertex(vId);
           if (!oldVertex) continue;
 
-          const newVertex = this.meshData.addVertex({
+          const newVertex = this.vertexEditor.addVertex({
             x: oldVertex.position.x,
             y: oldVertex.position.y,
             z: oldVertex.position.z
@@ -184,7 +184,7 @@ export class VertexDuplicate {
 
         if (!v1 || !v2) continue;
 
-        const newEdge = this.meshData.addEdge(v1, v2);
+        const newEdge = this.vertexEditor.addEdge(v1, v2);
         duplicatedEdges.set(eId, newEdge);
       }
     }

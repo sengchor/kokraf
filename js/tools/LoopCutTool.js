@@ -93,7 +93,7 @@ export class LoopCutTool {
         }
 
         const pos = new THREE.Vector3().lerpVectors(v1.position, v2.position, t);
-        edgeVertices.push(meshData.addVertex(pos));
+        edgeVertices.push(this.vertexEditor.addVertex(pos));
 
         lastVertex = v1;
       }
@@ -123,6 +123,7 @@ export class LoopCutTool {
 
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
+    this.vertexEditor.setObject(this.editedObject);
     const meshData = this.editedObject.userData.meshData;
 
     const loopEdges = this.getLoopEdgesFromMouse(event, meshData);
@@ -271,11 +272,11 @@ export class LoopCutTool {
     if (!intersect || !intersect.face) return null;
 
     const { a, b, c } = intersect.face;
-    const toVertexId = renderBuffer.bufferIndexToVertexId.get.bind(renderBuffer.bufferIndexToVertexId);
+    const bufferIndexToVertexId = renderBuffer.bufferIndexToVertexId;
 
-    const v1 = toVertexId(a);
-    const v2 = toVertexId(b);
-    const v3 = toVertexId(c);
+    const v1 = bufferIndexToVertexId.get(a);
+    const v2 = bufferIndexToVertexId.get(b);
+    const v3 = bufferIndexToVertexId.get(c);
 
     const edges = [
       meshData.getEdge(v1, v2),
@@ -397,7 +398,7 @@ export class LoopCutTool {
     }
 
     for (const edge of loopEdges) {
-      meshData.deleteEdge(edge);
+      this.vertexEditor.deleteEdge(edge);
     }
 
     return newEdges;

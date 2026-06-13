@@ -37,7 +37,7 @@ export class VertexTopologyUtils {
 
     if (vertices.length === 2) {
       const [v1, v2] = vertices;
-      const edge = this.meshData.addEdge(v1, v2);
+      const edge = this.vertexEditor.addEdge(v1, v2);
       return edge ? { edgeId: edge.id, faceId: null } : null;
     }
 
@@ -74,7 +74,7 @@ export class VertexTopologyUtils {
       z: p1.z + p2.z - p0.z
     }
 
-    const v3 = this.meshData.addVertex(newPos);
+    const v3 = this.vertexEditor.addVertex(newPos);
 
     const quadVertexIds = [v1.id, v0.id, v2.id, v3.id];
     const openEdgeIds = [openEdges[0].id, openEdges[1].id];

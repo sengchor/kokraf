@@ -190,7 +190,8 @@ export class BevelTool {
 
     this.segments = Math.max(1, this.segments);
 
-    this.vertexEditor.applyMeshData(this.beforeMeshData);
+    this.vertexEditor.setObject(this.editedObject);
+    this.vertexEditor.applyMeshData(structuredClone(this.beforeMeshData));
 
     this.newVertexIds = [];
     this.newEdgeIds = [];
@@ -705,7 +706,7 @@ export class BevelTool {
       let direction = p2.clone().sub(p1).normalize();
 
       const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
-      const newVertex = meshData.addVertex(baseLocal);
+      const newVertex = this.vertexEditor.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
       if (Math.abs(direction.dot(edgeDirection)) === 1) {
@@ -819,7 +820,7 @@ export class BevelTool {
       for (const faceId of sharedFaceIds) {
         const basePosition = p0.clone();
         const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
-        const newVertex = meshData.addVertex(baseLocal);
+        const newVertex = this.vertexEditor.addVertex(baseLocal);
         newVertexIds.push(newVertex.id);
 
         const face = meshData.faces.get(faceId);
@@ -882,7 +883,7 @@ export class BevelTool {
       }
 
       const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
-      const newVertex = meshData.addVertex(baseLocal);
+      const newVertex = this.vertexEditor.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
       const scale1 = this.calculateScaleFactor(direction, dir1);
@@ -989,7 +990,7 @@ export class BevelTool {
 
           const basePosition = p0.clone();
           const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
-          const newVertex = meshData.addVertex(baseLocal);
+          const newVertex = this.vertexEditor.addVertex(baseLocal);
           newVertexIds.push(newVertex.id);
 
           const EPS = 1e-8;
@@ -1057,7 +1058,7 @@ export class BevelTool {
 
       const basePosition = p1.clone();
       const baseLocal = basePosition.clone().applyMatrix4(new THREE.Matrix4().copy(this.editedObject.matrixWorld).invert());
-      const newVertex = meshData.addVertex(baseLocal);
+      const newVertex = this.vertexEditor.addVertex(baseLocal);
       newVertexIds.push(newVertex.id);
 
       const edgeScaleConstraints = new Map();
@@ -1152,7 +1153,7 @@ export class BevelTool {
       let edge = meshData.getEdge(v1.id, v2.id);
 
       if (!edge) {
-        edge = meshData.addEdge(v1, v2);
+        edge = this.vertexEditor.addEdge(v1, v2);
       }
 
       face.edgeIds.add(edge.id);
@@ -1360,7 +1361,7 @@ export class BevelTool {
       const vertex = meshData.getVertex(vertexId);
       if (!vertex) continue;
 
-      meshData.deleteVertex(vertex);
+      this.vertexEditor.deleteVertex(vertex);
     }
   }
 
@@ -1806,7 +1807,7 @@ export class BevelTool {
       let sv2Id = this.findExistingSegmentVertex(v2a.id, v2b.id, i);
 
       if (!sv1Id) {
-        const sv1 = meshData.addVertex(p1);
+        const sv1 = this.vertexEditor.addVertex(p1);
 
         this.segmentMoveData.set(sv1.id, {
           vertexId: sv1.id,
@@ -1819,7 +1820,7 @@ export class BevelTool {
       }
 
       if (!sv2Id) {
-        const sv2 = meshData.addVertex(p2);
+        const sv2 = this.vertexEditor.addVertex(p2);
 
         this.segmentMoveData.set(sv2.id, {
           vertexId: sv2.id,

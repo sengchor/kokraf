@@ -61,7 +61,7 @@ export class VertexSubdivide {
         const offsetVA = this.quadraticBezierPoint(vAPos, controlA, curvedCenter, t);
         const offsetVB = this.quadraticBezierPoint(vBPos, controlB, curvedCenter, t);
 
-        const vertexA = this.meshData.addVertex(new THREE.Vector3().copy(offsetVA));
+        const vertexA = this.vertexEditor.addVertex(new THREE.Vector3().copy(offsetVA));
         layerVertices.push(vertexA);
 
         const outerEdgeVerts = vertexOrderPerLayer[layer - 1].filter(v => Array.isArray(v));
@@ -86,7 +86,7 @@ export class VertexSubdivide {
 
           const innerPt = outerPt.clone().add(displacement);
 
-          const vertex = this.meshData.addVertex(innerPt);
+          const vertex = this.vertexEditor.addVertex(innerPt);
           edgeVertices.push(vertex);
         }
         if (edgeVertices.length > 0) {
@@ -100,7 +100,7 @@ export class VertexSubdivide {
     const allVertices = vertexOrderPerLayer.flat(2);
 
     if (segments % 2 === 0) {
-      const centerVertex = this.meshData.addVertex(curvedCenter);
+      const centerVertex = this.vertexEditor.addVertex(curvedCenter);
       const edgeVertices = [];
       for (let i = 0; i < faceVertices.length; i++) {
         edgeVertices.push(centerVertex);
@@ -145,13 +145,13 @@ export class VertexSubdivide {
       const pointNums = segments - 2 * layer;
 
       for (let vIndex = 0; vIndex < faceVertexIds.length; vIndex++) {
-        const vertexA = this.meshData.addVertex(targetPosition);
+        const vertexA = this.vertexEditor.addVertex(targetPosition);
         layerVertices.push(vertexA);
 
         const edgeVertices = [];
 
         for (let i = 0; i < pointNums - 1; i++) {
-          const vertex = this.meshData.addVertex(targetPosition);
+          const vertex = this.vertexEditor.addVertex(targetPosition);
           edgeVertices.push(vertex);
         }
         if (edgeVertices.length > 0) {
@@ -165,7 +165,7 @@ export class VertexSubdivide {
     const allVertices = vertexOrderPerLayer.flat(2);
 
     if (segments % 2 === 0) {
-      const centerVertex = this.meshData.addVertex(targetPosition);
+      const centerVertex = this.vertexEditor.addVertex(targetPosition);
       const edgeVertices = [];
       for (let i = 0; i < faceVertexIds.length; i++) {
         edgeVertices.push(centerVertex);
@@ -394,7 +394,7 @@ export class VertexSubdivide {
       newVertices.push(v1);
       newVertices.push(v2);
 
-      const mid = this.meshData.addVertex(
+      const mid = this.vertexEditor.addVertex(
         new THREE.Vector3().addVectors(v1.position, v2.position).multiplyScalar(0.5)
       );
       newVertices.push(mid);
@@ -443,7 +443,7 @@ export class VertexSubdivide {
         const m23 = edgeMidMap.get(this.meshData.getEdge(v2.id, v3.id).id);
         const m30 = edgeMidMap.get(this.meshData.getEdge(v3.id, v0.id).id);
 
-        const center = this.meshData.addVertex(
+        const center = this.vertexEditor.addVertex(
           new THREE.Vector3()
             .add(v0.position).add(v1.position)
             .add(v2.position).add(v3.position)
@@ -491,10 +491,10 @@ export class VertexSubdivide {
       const v1 = this.meshData.getVertex(edge.v1Id);
       const v2 = this.meshData.getVertex(edge.v2Id);
 
-      this.meshData.deleteEdge(edge);
+      this.vertexEditor.deleteEdge(edge);
 
-      if (v1 && mid) this.meshData.addEdge(v1, mid);
-      if (v2 && mid) this.meshData.addEdge(mid, v2);
+      if (v1 && mid) this.vertexEditor.addEdge(v1, mid);
+      if (v2 && mid) this.vertexEditor.addEdge(mid, v2);
     }
 
     const newVertexIds = newVertices.map(vertex => vertex.id);

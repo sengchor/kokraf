@@ -381,7 +381,7 @@ export class ExtrudeTool {
       const vertexB = meshData.getVertex(newVId);
 
       if (vertexA && vertexB) {
-        meshData.addEdge(vertexA, vertexB);
+        this.vertexEditor.addEdge(vertexA, vertexB);
       }
     }
 

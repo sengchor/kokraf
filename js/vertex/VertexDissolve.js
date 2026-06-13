@@ -79,9 +79,9 @@ export class VertexDissolve {
       }
 
       // Remove old edges and vertex
-      this.meshData.deleteEdge(e1);
-      this.meshData.deleteEdge(e2);
-      this.meshData.deleteVertex(v);
+      this.vertexEditor.deleteEdge(e1);
+      this.vertexEditor.deleteEdge(e2);
+      this.vertexEditor.deleteVertex(v);
     }
   }
 
@@ -362,7 +362,7 @@ export class VertexDissolve {
     for (const eId of candidateEdges) {
       if (!boundaryEdgeIds.has(eId)) {
         const edge = this.meshData.edges.get(eId);
-        if (edge) this.meshData.deleteEdge(edge);
+        if (edge) this.vertexEditor.deleteEdge(edge);
       }
     }
 
@@ -416,7 +416,7 @@ export class VertexDissolve {
     for (const eId of candidateEdges) {
       if (!boundaryEdgeIds.has(eId)) {
         const edge = this.meshData.edges.get(eId);
-        if (edge) this.meshData.deleteEdge(edge);
+        if (edge) this.vertexEditor.deleteEdge(edge);
       }
     }
 
