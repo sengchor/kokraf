@@ -275,8 +275,7 @@ export class EdgeSlideTool {
     if (!this.editedObject) return;
 
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
-    this.vertexEditor.updateGeometryAndHelpers();
+    this.vertexEditor.applyMeshData(this.beforeMeshData);
 
     this.handle.position.copy(this.startPivotPosition);
     this.handle.updateMatrixWorld(true);
@@ -601,7 +600,7 @@ export class EdgeSlideTool {
       .multiplyScalar(this.slideFactor)
       .add(data.origin).applyMatrix4(this.editedObject.matrixWorld);
 
-    this.vertexEditor.transform.setVerticesWorldPositions([vertexId], [newPos]);
+    this.vertexEditor.transform.setVertexPositions([vertexId], [newPos]);
 
     this.updateSlidePreview(data, bestSide);
   }
@@ -637,7 +636,7 @@ export class EdgeSlideTool {
       }
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, newPositions);
+    this.vertexEditor.transform.setVertexPositions(vertexIds, newPositions);
   }
 
   getCandidateEdges(meshData, vertex, selectedEdgeSet) {

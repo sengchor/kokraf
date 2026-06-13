@@ -276,8 +276,7 @@ export class InsetTool {
     if (!this.editedObject || !this.startPivotPosition) return;
 
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
-    this.vertexEditor.updateGeometryAndHelpers();
+    this.vertexEditor.applyMeshData(this.beforeMeshData);
 
     this.handle.position.copy(this.startPivotPosition);
     this.handle.updateMatrixWorld(true);
@@ -655,6 +654,6 @@ export class InsetTool {
       newPositions.push(newPos);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(newBoundaryVertexIds, newPositions);
+    this.vertexEditor.transform.setVertexPositions(newBoundaryVertexIds, newPositions);
   }
 }

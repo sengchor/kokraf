@@ -262,7 +262,7 @@ export class ExtrudeTool {
     }
 
     // Restore duplicated vertices
-    this.vertexEditor.transform.setVerticesWorldPositions(
+    this.vertexEditor.transform.setVertexPositions(
       this.newVertexIds,
       this.initialDuplicatedPositions
     );
@@ -327,7 +327,7 @@ export class ExtrudeTool {
     this.newEdgeIds = duplicationResult.newEdgeIds;
     this.newFaceIds = duplicationResult.newFaceIds;
 
-    this.initialDuplicatedPositions = this.vertexEditor.transform.getVertexPositionsMeshData(this.newVertexIds);
+    this.initialDuplicatedPositions = this.vertexEditor.transform.getVertexPositions(this.newVertexIds);
 
     this.boundaryEdges = this.vertexEditor.selection.getBoundaryEdges(selectedVertexIds, selectedEdgeIds, selectedFaceIds);
 
@@ -420,7 +420,7 @@ export class ExtrudeTool {
 
     // Move duplicated vertices
     const newPositions = this.initialDuplicatedPositions.map(pos => pos.clone().add(offset));
-    this.vertexEditor.transform.setVerticesWorldPositions(this.newVertexIds, newPositions);
+    this.vertexEditor.transform.setVertexPositions(this.newVertexIds, newPositions);
   }
 
   // Utilities

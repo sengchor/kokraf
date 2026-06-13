@@ -37,7 +37,7 @@ export class MeshRendererAdapter {
     const smoothNormalsMap = this.calculateSmoothNormalsMap(meshData, renderBuffer);
 
     const normals = [];
-    for (let i = 0; i < data.positions.length / 3; i++) {
+    for (let i = 0; i < positions.length / 3; i++) {
       const n = smoothNormalsMap.get(i);
 
       if (!n) {
@@ -62,7 +62,7 @@ export class MeshRendererAdapter {
     const angleBasedNormalsMap = this.calculateAngleBasedNormalsMap(meshData, renderBuffer, angle);
 
     const normals = [];
-    for (let i = 0; i < data.positions.length / 3; i++) {
+    for (let i = 0; i < positions.length / 3; i++) {
       const n = angleBasedNormalsMap.get(i);
 
       if (!n) {

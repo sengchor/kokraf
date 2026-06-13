@@ -27,7 +27,7 @@ export class SetVertexPositionCommand {
     const object = this.editor.objectByUuid(this.objectUuid);
 
     this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.setVerticesWorldPositions(this.vertexIndices, this.newPositions);
+    this.vertexEditor.transform.setVertexPositions(this.vertexIndices, this.newPositions);
     this.vertexEditor.updateGeometryAndHelpers();
     
     this.editor.editSelection.selectVertices(this.vertexIndices, true);
@@ -37,7 +37,7 @@ export class SetVertexPositionCommand {
     const object = this.editor.objectByUuid(this.objectUuid);
     
     this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.setVerticesWorldPositions(this.vertexIndices, this.oldPositions);
+    this.vertexEditor.transform.setVertexPositions(this.vertexIndices, this.oldPositions);
     this.vertexEditor.updateGeometryAndHelpers();
 
     this.editor.editSelection.selectVertices(this.vertexIndices, true);

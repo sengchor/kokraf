@@ -28,7 +28,7 @@ export class VertexEditor {
   }
 
   set meshData(value) {
-    this.object.meshData = value;
+    this.object.userData.meshData = value;
   }
 
   get geometry() {
@@ -87,5 +87,13 @@ export class VertexEditor {
     this.geometry.computeBoundingSphere();
 
     this.signals.editSelectionRefresh.dispatch();
+  }
+
+  applyMeshData(newMeshData) {
+    if (!this.object) return;
+
+    this.meshData = newMeshData;
+    MeshData.rehydrateMeshData(this.object);
+    this.updateGeometryAndHelpers();
   }
 }

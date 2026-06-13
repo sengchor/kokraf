@@ -182,7 +182,7 @@ export class DuplicateTool {
 
     // Move duplicated vertices
     const newPositions = this.initialDuplicatedPositions.map(pos => pos.clone().add(offset));
-    this.vertexEditor.transform.setVerticesWorldPositions(this.newVertexIds, newPositions);
+    this.vertexEditor.transform.setVertexPositions(this.newVertexIds, newPositions);
   }
 
   commitDuplicateSession() {
@@ -220,7 +220,7 @@ export class DuplicateTool {
     }
 
     // Restore duplicated vertices
-    this.vertexEditor.transform.setVerticesWorldPositions(
+    this.vertexEditor.transform.setVertexPositions(
       this.newVertexIds,
       this.initialDuplicatedPositions
     );

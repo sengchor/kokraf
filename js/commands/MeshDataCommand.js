@@ -33,8 +33,7 @@ export class MeshDataCommand {
     if (!object || !meshData) return;
 
     this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.applyMeshData(meshData);
-    this.vertexEditor.updateGeometryAndHelpers();
+    this.vertexEditor.applyMeshData(meshData);
   }
 
   toJSON() {

@@ -190,7 +190,7 @@ export class BevelTool {
 
     this.segments = Math.max(1, this.segments);
 
-    this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
+    this.vertexEditor.applyMeshData(this.beforeMeshData);
 
     this.newVertexIds = [];
     this.newEdgeIds = [];
@@ -311,8 +311,7 @@ export class BevelTool {
     if (!this.editedObject) return;
 
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.transform.applyMeshData(this.beforeMeshData);
-    this.vertexEditor.updateGeometryAndHelpers();
+    this.vertexEditor.applyMeshData(this.beforeMeshData);
 
     if (this.startPivotPosition) {
       this.handle.position.copy(this.startPivotPosition);
@@ -1872,7 +1871,7 @@ export class BevelTool {
       newBoundaryPositions.push(newPosition);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(newBoundaryVertexIds, newBoundaryPositions);
+    this.vertexEditor.transform.setVertexPositions(newBoundaryVertexIds, newBoundaryPositions);
 
     const newSegmentVertexIds = [];
     const newSegmentPositions = [];
@@ -1905,7 +1904,7 @@ export class BevelTool {
       newSegmentPositions.push(pos);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(newSegmentVertexIds, newSegmentPositions);
+    this.vertexEditor.transform.setVertexPositions(newSegmentVertexIds, newSegmentPositions);
 
     const newCornerVertexIds = [];
     const newCornerPositions = [];
@@ -1917,7 +1916,7 @@ export class BevelTool {
       newCornerPositions.push(...result.vertexPositions);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(newCornerVertexIds, newCornerPositions);
+    this.vertexEditor.transform.setVertexPositions(newCornerVertexIds, newCornerPositions);
   }
 
   triangulateEdgesCorner(meshData, edgeChains) {

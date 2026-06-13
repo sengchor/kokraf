@@ -279,7 +279,7 @@ export class EditTransformTool {
       this.vertexEditor.setObject(editedObject);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(this.selectedVertexIds, this.oldPositions);
+    this.vertexEditor.transform.setVertexPositions(this.selectedVertexIds, this.oldPositions);
 
     // restore pivot / handle
     this.handle.position.copy(this.startPivotPosition);
@@ -340,7 +340,7 @@ export class EditTransformTool {
       this.newPositionsPool[i].copy(this.oldPositions[i]).add(_vec2);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, this.newPositionsPool);
+    this.vertexEditor.transform.setVertexPositions(vertexIds, this.newPositionsPool);
   }
 
   applyRotate(vertexIds, handle) {
@@ -388,7 +388,7 @@ export class EditTransformTool {
     handle.quaternion.copy(_deltaQuat).multiply(this.startPivotQuaternion);
     this.transformControls.update();
 
-    this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, this.newPositionsPool);
+    this.vertexEditor.transform.setVertexPositions(vertexIds, this.newPositionsPool);
   }
 
   applyScale(vertexIds, handle) {
@@ -444,7 +444,7 @@ export class EditTransformTool {
       targetVec.add(_pivot);
     }
 
-    this.vertexEditor.transform.setVerticesWorldPositions(vertexIds, this.newPositionsPool);
+    this.vertexEditor.transform.setVertexPositions(vertexIds, this.newPositionsPool);
 
     handle.scale.set(1, 1, 1);
     handle.updateMatrixWorld(true);

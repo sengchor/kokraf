@@ -11,15 +11,7 @@ export class VertexTransform {
   }
 
   get geometry() {
-    return this.object.geometry;
-  }
-
-  set geometry(value) {
-    this.object.geometry = value;
-  }
-
-  get positionAttr() {
-    return this.object.geometry?.attributes?.position;
+    return this.vertexEditor.geometry;
   }
 
   get meshData() {
@@ -34,11 +26,12 @@ export class VertexTransform {
     return this.vertexEditor.renderBuffer;
   }
 
-  setVerticesWorldPositions(vertexIds, worldPositions) {
-    if (!this.object || !this.positionAttr) return;
+  setVertexPositions(vertexIds, worldPositions) {
+    if (!this.object) return;
 
     const meshData = this.meshData;
     const vertexIdToBufferIndex = this.renderBuffer.vertexIdToBufferIndex;
+    const positionAttr = this.geometry.attributes.position;
 
     _inverseW.copy(this.object.matrixWorld).invert();
 
@@ -58,7 +51,7 @@ export class VertexTransform {
       if (!indices) continue;
 
       for (let j = 0; j < indices.length; j++) {
-        this.positionAttr.setXYZ(indices[j], _localPos.x, _localPos.y, _localPos.z);
+        positionAttr.setXYZ(indices[j], _localPos.x, _localPos.y, _localPos.z);
       }
 
       const v = meshData.getVertex(vertexId);
@@ -79,59 +72,27 @@ export class VertexTransform {
       }
     }
 
-    this.positionAttr.needsUpdate = true;
+    positionAttr.needsUpdate = true;
 
     this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData, this.object.matrixWorld);
   }
 
   getVertexPosition(vertexId) {
-    if (!this.object || !this.positionAttr) return null;
+    if (!this.object) return null;
 
-    const vertexIdToBufferIndex = this.renderBuffer.vertexIdToBufferIndex;
-    const indices = vertexIdToBufferIndex.get(vertexId);
-    if (!indices || indices.length === 0) return null;
+    const vertex = this.meshData.getVertex(vertexId);
+    if (!vertex) return null;
 
-    const bufferIndex = indices[0];
-    const localPos = new THREE.Vector3();
-    localPos.fromBufferAttribute(this.positionAttr, bufferIndex);
-
-    const worldPos = localPos.clone().applyMatrix4(this.object.matrixWorld);
-    return worldPos;
+    return new THREE.Vector3()
+      .copy(vertex.position)
+      .applyMatrix4(this.object.matrixWorld);
   }
 
   getVertexPositions(vertexIds) {
-    const positions = [];
+    if (!this.object || !vertexIds?.length) return [];
 
-    if (!this.object || !this.positionAttr || !vertexIds || vertexIds.length === 0) {
-      return positions;
-    }
-
-    for (let vId of vertexIds) {
-      const pos = this.getVertexPosition(vId);
-      if (pos) positions.push(pos.clone());
-    }
-
-    return positions;
-  }
-
-  getVertexPositionsMeshData(vertexIds) {
-    const positions = [];
-
-    for (const vertexId of vertexIds) {
-      const vertex = this.meshData.getVertex(vertexId);
-      const position = new THREE.Vector3().copy(vertex.position);
-      positions.push(position.applyMatrix4(this.object.matrixWorld));
-    }
-
-    return positions;
-  }
-
-  applyMeshData(newMeshData) {
-    if (!this.object) return false;
-
-    const cloned = structuredClone(newMeshData);
-    this.object.userData.meshData = cloned;
-
-    MeshData.rehydrateMeshData(this.object);
+    return vertexIds
+      .map(id => this.getVertexPosition(id))
+      .filter(Boolean);
   }
 }
