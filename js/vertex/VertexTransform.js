@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { MeshData } from "../core/MeshData.js";
+import { MeshRendererAdapter } from "../geometry/MeshRendererAdapter.js";
 
 const _inverseW = new THREE.Matrix4();
 const _localPos = new THREE.Vector3();
@@ -73,6 +74,8 @@ export class VertexTransform {
     }
 
     positionAttr.needsUpdate = true;
+
+    MeshRendererAdapter.updateNormalsForAffectedFaces(meshData, this.renderBuffer, this.geometry, affectedFaces, affectedVertices);
 
     this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData, this.object.matrixWorld);
   }

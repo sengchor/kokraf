@@ -7,6 +7,9 @@ export class MeshRenderBuffer {
     this.faceTriangleOffset = new Map();
     this.faceTriangleCount = new Map();
 
+    this.normalMode = null;
+    this.normalAngle = null;
+
     this.slotAllocator = null;
     this.indexSlotAllocator = null;
   }
