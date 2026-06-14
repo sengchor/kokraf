@@ -169,6 +169,53 @@ export class MeshRendererAdapter {
     return { positions: paddedPositions, uvs: paddedUVs, indices: paddedIndices, renderBuffer };
   }
 
+  static addVertex(meshData, renderBuffer, geometry, vertexId) {
+    const vertex = meshData.vertices.get(vertexId);
+    if (!vertex) return;
+
+    if (renderBuffer.vertexIdToBufferIndex.has(vertexId)) return;
+
+    let slot = renderBuffer.slotAllocator.alloc(1);
+
+    if (slot === -1) {
+      this._growVertexBuffer(renderBuffer, geometry, 2);
+      slot = renderBuffer.slotAllocator.alloc(1);
+    }
+
+    const posAttr = geometry.attributes.position;
+    const uvAttr = geometry.attributes.uv;
+
+    posAttr.setXYZ(slot, vertex.position.x, vertex.position.y, vertex.position.z);
+    uvAttr.setXY(slot, 0, 0);
+
+    renderBuffer.vertexIdToBufferIndex.set(vertexId, [slot]);
+    renderBuffer.bufferIndexToVertexId.set(slot, vertexId);
+
+    posAttr.needsUpdate = true;
+    uvAttr.needsUpdate = true;
+  }
+
+  static deleteVertex(meshData, renderBuffer, geometry, vertexId) {
+    const bufferIndices = renderBuffer.vertexIdToBufferIndex.get(vertexId);
+
+    if (!bufferIndices || bufferIndices.length === 0) return;
+
+    // Safe only for standalone vertices.
+    // Face vertices should be removed through deleteFace().
+    if (bufferIndices.length > 1) return;
+
+    const slot = bufferIndices[0];
+
+    renderBuffer.slotAllocator.free(slot, 1);
+
+    renderBuffer.vertexIdToBufferIndex.delete(vertexId);
+    renderBuffer.bufferIndexToVertexId.delete(slot);
+
+    if (renderBuffer.slotAllocator.utilization < 0.25) {
+      this.compact(meshData, renderBuffer, geometry);
+    }
+  }
+
   static addFace(meshData, renderBuffer, geometry, faceId) {
     const face = meshData.faces.get(faceId);
     const verts = face.vertexIds.map(id => meshData.vertices.get(id));

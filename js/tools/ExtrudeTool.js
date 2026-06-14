@@ -231,10 +231,13 @@ export class ExtrudeTool {
     const mode = this.editSelection.subSelectionMode;
     const editedObject = this.editSelection.editedObject;
     this.vertexEditor.setObject(editedObject);
-    const meshData = editedObject.userData.meshData;
-    this.afterMeshData = structuredClone(meshData);
+    // const meshData = editedObject.userData.meshData;
+    // this.afterMeshData = structuredClone(meshData);
 
-    this.editor.execute(new ExtrudeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+    // this.editor.execute(new ExtrudeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+    editedObject.geometry.computeBoundingBox();
+    editedObject.geometry.computeBoundingSphere();
+    this.signals.editSelectionRefresh.dispatch();
 
     // Keep selection on the new vertices
     if (mode === 'vertex') {
@@ -306,7 +309,7 @@ export class ExtrudeTool {
     const editedObject = this.editSelection.editedObject;
     this.vertexEditor.setObject(editedObject);
     const meshData = editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
+    // this.beforeMeshData = structuredClone(meshData);
 
     const mode = this.editSelection.subSelectionMode;
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);

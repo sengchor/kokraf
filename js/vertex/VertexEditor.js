@@ -70,8 +70,17 @@ export class VertexEditor {
     this.meshData.deleteFace(face);
   }
 
-  addVertex(position) { return this.meshData.addVertex(position); }
-  deleteVertex(vertex) { return this.meshData.deleteVertex(vertex); }
+  addVertex(position) {
+    const vertex = this.meshData.addVertex(position); 
+    MeshRendererAdapter.addVertex(this.meshData, this.renderBuffer, this.geometry, vertex.id);
+    return vertex;
+  }
+
+  deleteVertex(vertex) {
+    MeshRendererAdapter.deleteVertex(this.meshData, this.renderBuffer, this.geometry, vertex.id);
+    this.meshData.deleteVertex(vertex);
+  }
+  
   addEdge(v1, v2) { return this.meshData.addEdge(v1, v2); }
   deleteEdge(edge) { return this.meshData.deleteEdge(edge); }
 
