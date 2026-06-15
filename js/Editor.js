@@ -333,4 +333,8 @@ export default class Editor {
   redo() {
     this.history.redo();
   }
+
+  add(cmd) {
+    this.history.add(cmd);
+  }
 }

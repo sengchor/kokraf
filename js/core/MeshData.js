@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 class Vertex {
   constructor(id, position) {
     this.id = id;
@@ -164,32 +166,9 @@ export class MeshData {
 
   toJSON() {
     return {
-      vertices: Array.from(this.vertices.entries()).map(([id, v]) => [
-        id,
-        {
-          id: v.id,
-          position: v.position,
-          edgeIds: Array.from(v.edgeIds),
-          faceIds: Array.from(v.faceIds)
-        }
-      ]),
-      edges: Array.from(this.edges.entries()).map(([id, e]) => [
-        id,
-        {
-          id: e.id,
-          v1Id: e.v1Id,
-          v2Id: e.v2Id,
-          faceIds: Array.from(e.faceIds)
-        }
-      ]),
-      faces: Array.from(this.faces.entries()).map(([id, f]) => [
-        id,
-        {
-          id: f.id,
-          vertexIds: f.vertexIds,
-          edgeIds: Array.from(f.edgeIds)
-        }
-      ]),
+      vertices: Array.from(this.vertices.entries()).map(([id, v]) => [id, MeshData.serializeVertex(v)]),
+      edges: Array.from(this.edges.entries()).map(([id, e]) => [id, MeshData.serializeEdge(e)]),
+      faces: Array.from(this.faces.entries()).map(([id, f]) => [id, MeshData.serializeFace(f)]),
       uvs: Array.from(this.uvs.entries()),
       nextVertexId: this.nextVertexId,
       nextEdgeId: this.nextEdgeId,
@@ -216,12 +195,7 @@ export class MeshData {
       meshData.vertices = raw.vertices;
     } else if (Array.isArray(raw.vertices)) {
       meshData.vertices = new Map(
-        raw.vertices.map(([id, v]) => {
-          const vertex = Object.assign(new Vertex(v.id, v.position), v);
-          vertex.edgeIds = new Set(v.edgeIds || []);
-          vertex.faceIds = new Set(v.faceIds || []);
-          return [id, vertex];
-        })
+        raw.vertices.map(([id, v]) => [id, MeshData.rehydrateVertex(v)])
       );
     }
 
@@ -229,11 +203,7 @@ export class MeshData {
       meshData.edges = raw.edges;
     } else if (Array.isArray(raw.edges)) {
       meshData.edges = new Map(
-        raw.edges.map(([id, e]) => {
-          const edge = Object.assign(new Edge(e.id, e.v1Id, e.v2Id), e);
-          edge.faceIds = new Set(e.faceIds || []);
-          return [id, edge];
-        })
+        raw.edges.map(([id, e]) => [id, MeshData.rehydrateEdge(e)])
       );
     }
 
@@ -241,11 +211,7 @@ export class MeshData {
       meshData.faces = raw.faces;
     } else if (Array.isArray(raw.faces)) {
       meshData.faces = new Map(
-        raw.faces.map(([id, f]) => {
-          const face = Object.assign(new Face(f.id, f.vertexIds), f);
-          face.edgeIds = new Set(f.edgeIds || []);
-          return [id, face];
-        })
+        raw.faces.map(([id, f]) => [id, MeshData.rehydrateFace(f)])
       );
     }
 
@@ -265,5 +231,50 @@ export class MeshData {
     meshData.nextFaceId = raw.nextFaceId;
 
     return meshData;
+  }
+
+  static serializeVertex(vertex) {
+    return {
+      id: vertex.id,
+      position: { x: vertex.position.x, y: vertex.position.y, z: vertex.position.z },
+      edgeIds: Array.from(vertex.edgeIds),
+      faceIds: Array.from(vertex.faceIds),
+    };
+  }
+
+  static rehydrateVertex(data) {
+    const vertex = new Vertex(data.id, new THREE.Vector3(data.position.x, data.position.y, data.position.z));
+    vertex.edgeIds = new Set(data.edgeIds);
+    vertex.faceIds = new Set(data.faceIds);
+    return vertex;
+  }
+
+  static serializeEdge(edge) {
+    return {
+      id: edge.id,
+      v1Id: edge.v1Id,
+      v2Id: edge.v2Id,
+      faceIds: Array.from(edge.faceIds),
+    };
+  }
+
+  static rehydrateEdge(data) {
+    const edge = new Edge(data.id, data.v1Id, data.v2Id);
+    edge.faceIds = new Set(data.faceIds);
+    return edge;
+  }
+
+  static serializeFace(face) {
+    return {
+      id: face.id,
+      vertexIds: [...face.vertexIds],
+      edgeIds: Array.from(face.edgeIds),
+    };
+  }
+
+  static rehydrateFace(data) {
+    const face = new Face(data.id, [...data.vertexIds]);
+    face.edgeIds = new Set(data.edgeIds);
+    return face;
   }
 }

@@ -4,6 +4,7 @@ import { calculateVertexIdsNormal, getCentroidFromVertices, getEdgeMidpoint, com
 import { ExtrudeCommand } from '../commands/ExtrudeCommand.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { TransformNumericInput } from './TransformNumericInput.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 
 export class ExtrudeTool {
   constructor(editor) {
@@ -231,10 +232,13 @@ export class ExtrudeTool {
     const mode = this.editSelection.subSelectionMode;
     const editedObject = this.editSelection.editedObject;
     this.vertexEditor.setObject(editedObject);
-    // const meshData = editedObject.userData.meshData;
-    // this.afterMeshData = structuredClone(meshData);
+    const meshData = editedObject.userData.meshData;
 
-    // this.editor.execute(new ExtrudeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.add(new ExtrudeCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
     editedObject.geometry.computeBoundingBox();
     editedObject.geometry.computeBoundingSphere();
     this.signals.editSelectionRefresh.dispatch();
@@ -315,6 +319,19 @@ export class ExtrudeTool {
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
     const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
+
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { vertexIds: selectedVertexIds, edgeIds: selectedEdgeIds, faceIds: selectedFaceIds },
+      2
+    );
+    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    this.startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId
+    };
 
     // Duplicate the selected vertices
     let duplicationResult;

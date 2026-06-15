@@ -49,6 +49,17 @@ export class History {
     }
   }
 
+  add(cmd) {
+    this.undos.push(cmd);
+    this.redos.length = 0;
+
+    while (this.undos.length + this.redos.length > this.maxCommands) {
+      this.undos.shift();
+    }
+
+    this.signals.historyChanged.dispatch();
+  }
+
   clear() {
     this.undos.length = 0;
     this.redos.length = 0;
