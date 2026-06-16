@@ -240,7 +240,6 @@ export class ExtrudeTool {
 
     this.editor.add(new ExtrudeCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
     editedObject.geometry.computeBoundingBox();
-    editedObject.geometry.computeBoundingSphere();
     this.signals.editSelectionRefresh.dispatch();
 
     // Keep selection on the new vertices
@@ -313,7 +312,6 @@ export class ExtrudeTool {
     const editedObject = this.editSelection.editedObject;
     this.vertexEditor.setObject(editedObject);
     const meshData = editedObject.userData.meshData;
-    // this.beforeMeshData = structuredClone(meshData);
 
     const mode = this.editSelection.subSelectionMode;
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);

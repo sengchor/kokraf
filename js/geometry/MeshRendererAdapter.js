@@ -181,7 +181,7 @@ export class MeshRendererAdapter {
     uvAttr.needsUpdate = true;
   }
 
-  static deleteVertex(meshData, renderBuffer, geometry, vertexId) {
+  static deleteVertex(meshData, renderBuffer, geometry, vertexId, skipCompact = false) {
     const bufferIndices = renderBuffer.vertexIdToBufferIndex.get(vertexId);
 
     if (!bufferIndices || bufferIndices.length === 0) return;
@@ -197,7 +197,7 @@ export class MeshRendererAdapter {
     renderBuffer.vertexIdToBufferIndex.delete(vertexId);
     renderBuffer.bufferIndexToVertexId.delete(slot);
 
-    if (renderBuffer.slotAllocator.utilization < 0.25) {
+    if (!skipCompact && renderBuffer.slotAllocator.utilization < 0.25) {
       this.compact(meshData, renderBuffer, geometry);
     }
   }
@@ -273,7 +273,7 @@ export class MeshRendererAdapter {
     normalAttr.needsUpdate = true;
   }
 
-  static deleteFace(meshData, renderBuffer, geometry, faceId) {
+  static deleteFace(meshData, renderBuffer, geometry, faceId, skipCompact = false) {
     const { normalMode: mode = 'auto', normalAngle: angle = 60 } = renderBuffer;
     const bufferIndices = renderBuffer.faceIdToBufferIndices.get(faceId);
     if (!bufferIndices) return;
@@ -320,7 +320,7 @@ export class MeshRendererAdapter {
 
     indexAttr.needsUpdate = true;
 
-    if (renderBuffer.slotAllocator.utilization < 0.25) {
+    if (!skipCompact && renderBuffer.slotAllocator.utilization < 0.25) {
       this.compact(meshData, renderBuffer, geometry);
     }
   }
@@ -367,7 +367,6 @@ export class MeshRendererAdapter {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
     geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-    geometry.computeVertexNormals();
 
     Object.assign(renderBuffer, fresh);
   }

@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 
@@ -46,14 +47,14 @@ export class MeshDeltaCommand {
       const id = Number(key);
 
       if (meshData.faces.has(id)) {
-        MeshRendererAdapter.deleteFace(meshData, renderBuffer, geometry, id);
+        MeshRendererAdapter.deleteFace(meshData, renderBuffer, geometry, id, true);
       }
     }
 
     for (const [key, data] of Object.entries(delta.vertices)) {
       const id = Number(key);
       if (data === null && meshData.vertices.has(id)) {
-        MeshRendererAdapter.deleteVertex(meshData, renderBuffer, geometry, id);
+        MeshRendererAdapter.deleteVertex(meshData, renderBuffer, geometry, id, true);
       }
     }
 
@@ -85,6 +86,14 @@ export class MeshDeltaCommand {
     }
 
     geometry.attributes.position.needsUpdate = true;
+    
+    const box = new THREE.Box3();
+    for (const id of meshData.vertices.keys()) {
+      const slot = renderBuffer.vertexIdToBufferIndex.get(id)?.[0];
+      if (slot === undefined) continue;
+      box.expandByPoint(meshData.vertices.get(id).position);
+    }
+    geometry.boundingBox = box;
 
     MeshRendererAdapter.updateNormalsForAffectedFaces(meshData, renderBuffer, geometry, affectedFaces, affectedVertices);
 

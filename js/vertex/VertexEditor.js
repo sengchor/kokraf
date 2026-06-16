@@ -91,7 +91,6 @@ export class VertexEditor {
     this.geometry = geometry;
     this.renderBuffer = renderBuffer;
     this.geometry.computeBoundingBox();
-    this.geometry.computeBoundingSphere();
 
     this.signals.editSelectionRefresh.dispatch();
   }
