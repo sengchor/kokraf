@@ -4,6 +4,7 @@ import { LoopCutCommand } from '../commands/LoopCutCommand.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 
 export class LoopCutTool {
   constructor(editor) {
@@ -65,10 +66,23 @@ export class LoopCutTool {
     if (!this.editedObject) return;
     this.vertexEditor.setObject(this.editedObject);
     const meshData = this.editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
 
     const loopEdges = this.getLoopEdgesFromMouse(event, meshData);
     if (!loopEdges) return;
+
+    const loopEdgeIds = loopEdges.map(e => e.id);
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { edgeIds: loopEdgeIds },
+      1
+    );
+    const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    const startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId
+    }
 
     const isClosedLoop = loopEdges[0].id === loopEdges[loopEdges.length - 1].id;
     const count = isClosedLoop ? loopEdges.length - 1 : loopEdges.length;
@@ -102,8 +116,11 @@ export class LoopCutTool {
 
     const newEdges = this.applyLoopCut(meshData, loopEdges, newVertices, isClosedLoop);
 
-    this.afterMeshData = structuredClone(meshData);
-    this.editor.execute(new LoopCutCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
+    MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.execute(new LoopCutCommand(this.editor, this.editedObject, beforeSnapshot, afterSnapshot));
     this.onPointerMove(event);
 
     const mode = this.editSelection.subSelectionMode;

@@ -1,8 +1,8 @@
-import { MeshDataCommand } from './MeshDataCommand.js';
+import { MeshDeltaCommand } from './MeshDeltaCommand.js';
 
-export class LoopCutCommand extends MeshDataCommand {
+export class LoopCutCommand extends MeshDeltaCommand {
   static type = 'LoopCutCommand';
-  constructor(editor, object, beforeMeshData, afterMeshData) {
-    super(editor, object, beforeMeshData, afterMeshData, 'Loop Cut');
+  constructor(editor, object, beforeDelta, afterDelta) {
+    super(editor, object, beforeDelta, afterDelta, 'Loop Cut');
   }
 }
