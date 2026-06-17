@@ -2,15 +2,19 @@ import * as THREE from 'three';
 
 export function computePlaneNormal(verts) {
   if (verts.length < 3) return new THREE.Vector3(0, 0, 1);
-  const v0 = verts[0].position;
-  const v1 = verts[1].position;
-  const v2 = verts[2].position;
 
-  const edge1 = new THREE.Vector3().subVectors(v1, v0);
-  const edge2 = new THREE.Vector3().subVectors(v2, v0);
+  const normal = new THREE.Vector3(0, 0, 0);
 
-  const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
-  return normal;
+  for (let i = 0; i < verts.length; i++) {
+    const current = verts[i].position;
+    const next = verts[(i + 1) % verts.length].position;
+
+    normal.x += (current.y - next.y) * (current.z + next.z);
+    normal.y += (current.z - next.z) * (current.x + next.x);
+    normal.z += (current.x - next.x) * (current.y + next.y);
+  }
+
+  return normal.normalize();
 }
 
 export function projectTo2D(verts, normal) {

@@ -609,4 +609,45 @@ export class MeshRendererAdapter {
 
     normalAttr.needsUpdate = true;
   }
+
+  static retriangulateFace(meshData, renderBuffer, geometry, faceId) {
+    const face = meshData.faces.get(faceId);
+    if (!face) return 'skip';
+
+    const verts = face.vertexIds.map(id => meshData.vertices.get(id));
+    if (verts.length <= 3) return 'skip';
+
+    const faceBufferIndices = renderBuffer.faceIdToBufferIndices.get(faceId);
+    const triOffset = renderBuffer.faceTriangleOffset.get(faceId);
+    const triCount = renderBuffer.faceTriangleCount.get(faceId);
+    if (!faceBufferIndices || triOffset === undefined || triCount === undefined) return 'skip';
+
+    const normal = computePlaneNormal(verts);
+    const flat = projectTo2D(verts, normal);
+    let tris = earcut(flat);
+
+    if (tris.length === 0) {
+      tris = [];
+      for (let i = 1; i < verts.length - 1; i++) tris.push(0, i, i + 1);
+    }
+
+    if (tris.length !== triCount) {
+      this.compact(meshData, renderBuffer, geometry);
+      return 'rebuilt';
+    }
+
+    const indexAttr = geometry.index;
+    for (let i = 0; i < tris.length; i++) {
+      indexAttr.setX(triOffset + i, faceBufferIndices[tris[i]]);
+    }
+    indexAttr.needsUpdate = true;
+    return 'ok';
+  }
+
+  static retriangulateFaces(meshData, renderBuffer, geometry, faceIds) {
+    for (const faceId of faceIds) {
+      const status = this.retriangulateFace(meshData, renderBuffer, geometry, faceId);
+      if (status === 'rebuilt') return;
+    }
+  }
 }

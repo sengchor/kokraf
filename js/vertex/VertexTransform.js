@@ -27,7 +27,7 @@ export class VertexTransform {
     return this.vertexEditor.renderBuffer;
   }
 
-  setVertexPositions(vertexIds, worldPositions) {
+  setVertexPositions(vertexIds, worldPositions, retriangulate = false) {
     if (!this.object) return;
 
     const meshData = this.meshData;
@@ -75,6 +75,9 @@ export class VertexTransform {
 
     positionAttr.needsUpdate = true;
 
+    if (retriangulate) {
+      MeshRendererAdapter.retriangulateFaces(meshData, this.renderBuffer, this.geometry, affectedFaces);
+    }
     MeshRendererAdapter.updateNormalsForAffectedFaces(meshData, this.renderBuffer, this.geometry, affectedFaces, affectedVertices);
 
     this.signals.vertexPositionsUpdated.dispatch(affectedVertices, affectedEdges, affectedFaces, meshData, this.object.matrixWorld);

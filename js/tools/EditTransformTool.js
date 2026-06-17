@@ -276,7 +276,7 @@ export class EditTransformTool {
       this.vertexEditor.setObject(editedObject);
     }
 
-    this.vertexEditor.transform.setVertexPositions(this.selectedVertexIds, this.oldPositions);
+    this.vertexEditor.transform.setVertexPositions(this.selectedVertexIds, this.oldPositions, true);
 
     // restore pivot / handle
     this.handle.position.copy(this.startPivotPosition);
