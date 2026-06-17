@@ -28,7 +28,6 @@ export class SetVertexPositionCommand {
 
     this.vertexEditor.setObject(object);
     this.vertexEditor.transform.setVertexPositions(this.vertexIndices, this.newPositions);
-    this.vertexEditor.updateGeometryAndHelpers();
     
     this.editor.editSelection.selectVertices(this.vertexIndices, true);
   }
@@ -38,7 +37,6 @@ export class SetVertexPositionCommand {
     
     this.vertexEditor.setObject(object);
     this.vertexEditor.transform.setVertexPositions(this.vertexIndices, this.oldPositions);
-    this.vertexEditor.updateGeometryAndHelpers();
 
     this.editor.editSelection.selectVertices(this.vertexIndices, true);
   }

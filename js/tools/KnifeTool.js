@@ -3,6 +3,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { KnifeCommand } from '../commands/KnifeCommand.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 
 export class KnifeTool {
   constructor(editor) {
@@ -122,12 +123,38 @@ export class KnifeTool {
       return;
     }
     this.updatePreview(aCut.position, bCut.position);
-    this.beforeMeshData = structuredClone(meshData);
+    
+    const seedEdgeIds = this.edgeIntersections.filter(e => e !== null).map(e => e.id);
+    const seedVertexIds = [];
+    for (let i = 0; i < this.edgeIntersections.length; i++) {
+      if (this.edgeIntersections[i] === null) {
+        const cp = this.cutPoints.find(c => c.position.equals(this.intersections[i]));
+        if (cp && cp.snapVertexId !== null) {
+          seedVertexIds.push(cp.snapVertexId);
+        }
+      }
+    }
+
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { edgeIds: seedEdgeIds, vertexIds: seedVertexIds },
+      1
+    );
+    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    const startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId
+    };
     
     this.applyCut();
 
-    this.afterMeshData = structuredClone(meshData);
-    this.editor.execute(new KnifeCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+    MeshDataRegion.captureNewElements(meshData, startElements, this.beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.execute(new KnifeCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
 
     const mode = this.editSelection.subSelectionMode;
     if (mode === 'vertex') {

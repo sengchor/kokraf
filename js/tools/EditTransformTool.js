@@ -265,9 +265,6 @@ export class EditTransformTool {
       this.commitScale(editedObject, this.selectedVertexIds);
     }
 
-    if (editedObject.userData.shading === 'auto') {
-      ShadingUtils.applyShading(editedObject, 'auto');
-    }
     this.clearStartData();
   }
 

@@ -526,6 +526,8 @@ export default class EditSelection {
     const visibleVertices = [];
 
     for (const hit of vertexHits) {
+      if (!hit.point) continue;
+
       if (this.depthReader.isPointVisible(hit.point, camera)) {
         visibleVertices.push(hit);
       }
