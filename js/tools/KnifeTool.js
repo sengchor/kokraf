@@ -154,7 +154,7 @@ export class KnifeTool {
     const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    this.editor.execute(new KnifeCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
+    this.editor.add(new KnifeCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
 
     const mode = this.editSelection.subSelectionMode;
     if (mode === 'vertex') {

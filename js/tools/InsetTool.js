@@ -4,6 +4,7 @@ import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
 import { InsetCommand } from '../commands/InsetCommand.js';
 import { ToolNumericInput } from './ToolNumericInput.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 
 export class InsetTool {
   constructor(editor) {
@@ -209,9 +210,6 @@ export class InsetTool {
     this.newFaceIds = [];
     this.insetMoveData = new Map();
 
-    const meshData = this.editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
-
     this.selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
     if (this.selectedFaceIds.length <= 0) {
       this.clearStartData();
@@ -254,9 +252,6 @@ export class InsetTool {
       return;
     }
 
-    this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.updateGeometryAndHelpers();
-
     if (this.selectedFaceIds.length <= 0) {
       this.editSelection.clearSelection();
       this.disable();
@@ -264,8 +259,12 @@ export class InsetTool {
     }
 
     const meshData = this.editedObject.userData.meshData;
-    this.afterMeshData = structuredClone(meshData);
-    this.editor.execute(new InsetCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
+
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.add(new InsetCommand(this.editor, this.editedObject, this.beforeSnapshot, afterSnapshot));
 
     this.updateSelectionAfterInset();
     this.clearStartData();
@@ -275,8 +274,13 @@ export class InsetTool {
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject || !this.startPivotPosition) return;
 
-    this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.applyMeshData(this.beforeMeshData);
+    const meshData = this.editedObject.userData.meshData;
+
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+    MeshDataRegion.apply(meshData, this.beforeSnapshot);
+
+    // this.vertexEditor.setObject(this.editedObject);
+    // this.vertexEditor.applyMeshData(this.beforeMeshData);
 
     this.handle.position.copy(this.startPivotPosition);
     this.handle.updateMatrixWorld(true);
@@ -309,6 +313,20 @@ export class InsetTool {
     const meshData = this.editedObject.userData.meshData;
     const faceSet = this.editSelection.selectedFaceIds;
     const selectedFaceIds = Array.from(faceSet);
+
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { vertexIds: [], edgeIds: [], faceIds: selectedFaceIds },
+      1
+    );
+
+    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    this.startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId
+    };
     
     const faceIslands = this.vertexEditor.dissolve.splitFaceIslands(selectedFaceIds);
     this.boundaryVertexIdsSet = new Set();
@@ -481,7 +499,7 @@ export class InsetTool {
     };
 
     this.vertexEditor.delete.deleteSelectionFaces(selectedFaceIds);
-    this.vertexEditor.updateGeometryAndHelpers();
+    this.signals.editSelectionRefresh.dispatch();
   }
 
   updateInset() {
