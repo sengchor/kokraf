@@ -5,6 +5,7 @@ import { computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
 import { InsetCommand } from '../commands/InsetCommand.js';
 import { ToolNumericInput } from './ToolNumericInput.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 
 export class InsetTool {
   constructor(editor) {
@@ -275,12 +276,10 @@ export class InsetTool {
     if (!this.editedObject || !this.startPivotPosition) return;
 
     const meshData = this.editedObject.userData.meshData;
-
     MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
-    MeshDataRegion.apply(meshData, this.beforeSnapshot);
 
-    // this.vertexEditor.setObject(this.editedObject);
-    // this.vertexEditor.applyMeshData(this.beforeMeshData);
+    this.vertexEditor.setObject(this.editedObject);
+    this.vertexEditor.applyDelta(this.beforeSnapshot);
 
     this.handle.position.copy(this.startPivotPosition);
     this.handle.updateMatrixWorld(true);

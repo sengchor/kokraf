@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { VertexDuplicate } from "./VertexDuplicate.js";
 import { VertexDelete } from "./VertexDelete.js";
 import { VertexDissolve } from "./VertexDissolve.js";
@@ -6,6 +7,7 @@ import { VertexTransform } from "./VertexTransform.js";
 import { VertexSubdivide } from "./VertexSubdivide.js";
 import { VertexSelection } from "./VertexSelection.js";
 import { MeshData } from '../core/MeshData.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { MeshRendererAdapter } from "../geometry/MeshRendererAdapter.js";
 
 export class VertexEditor {
@@ -101,5 +103,72 @@ export class VertexEditor {
     this.meshData = newMeshData;
     MeshData.rehydrateMeshData(this.object);
     this.updateGeometryAndHelpers();
+  }
+
+  applyDelta(delta) {
+    if (!this.object || !delta) return;
+
+    const meshData = this.meshData;
+    const renderBuffer = this.renderBuffer;
+    const geometry = this.geometry;
+
+    const affectedFaces = new Set();
+    const affectedVertices = new Set();
+
+    for (const [key, data] of Object.entries(delta.faces)) {
+      const id = Number(key);
+
+      if (meshData.faces.has(id)) {
+        MeshRendererAdapter.deleteFace(meshData, renderBuffer, geometry, id, true);
+      }
+    }
+
+    for (const [key, data] of Object.entries(delta.vertices)) {
+      const id = Number(key);
+      if (data === null && meshData.vertices.has(id)) {
+        MeshRendererAdapter.deleteVertex(meshData, renderBuffer, geometry, id, true);
+      }
+    }
+
+    MeshDataRegion.apply(meshData, delta);
+
+    for (const [key, data] of Object.entries(delta.vertices)) {
+      const id = Number(key);
+      if (data !== null) {
+        if (!renderBuffer.vertexIdToBufferIndex.has(id)) {
+          MeshRendererAdapter.addVertex(meshData, renderBuffer, geometry, id);
+        }
+
+        const vertex = meshData.vertices.get(id);
+        const slots = renderBuffer.vertexIdToBufferIndex.get(id) || [];
+
+        for (const slot of slots) {
+          geometry.attributes.position.setXYZ(slot, vertex.position.x, vertex.position.y, vertex.position.z);
+        }
+        affectedVertices.add(id);
+      }
+    }
+
+    for (const [key, data] of Object.entries(delta.faces)) {
+      const id = Number(key);
+      if (data !== null) {
+        MeshRendererAdapter.addFace(meshData, renderBuffer, geometry, id);
+        affectedFaces.add(id);
+      }
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+    
+    const box = new THREE.Box3();
+    for (const id of meshData.vertices.keys()) {
+      const slot = renderBuffer.vertexIdToBufferIndex.get(id)?.[0];
+      if (slot === undefined) continue;
+      box.expandByPoint(meshData.vertices.get(id).position);
+    }
+    geometry.boundingBox = box;
+
+    MeshRendererAdapter.updateNormalsForAffectedFaces(meshData, renderBuffer, geometry, affectedFaces, affectedVertices);
+
+    this.signals.editSelectionRefresh.dispatch();
   }
 }
