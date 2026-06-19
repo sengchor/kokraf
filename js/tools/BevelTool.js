@@ -4,6 +4,8 @@ import { calculateFaceNormal, getCentroidFromVertices, calculateVertexNormal } f
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { BevelCommand } from '../commands/BevelCommand.js';
 import { ToolNumericInput } from './ToolNumericInput.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 
 export class BevelTool {
   constructor(editor) {
@@ -190,8 +192,11 @@ export class BevelTool {
 
     this.segments = Math.max(1, this.segments);
 
+    const meshData = this.editedObject.userData.meshData;
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.applyMeshData(structuredClone(this.beforeMeshData));
+    this.vertexEditor.applyDelta(this.beforeSnapshot);
 
     this.newVertexIds = [];
     this.newEdgeIds = [];
@@ -247,7 +252,6 @@ export class BevelTool {
     this.segmentEdgeMap = new Map();
 
     const meshData = this.editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
 
     const rawEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
     this.selectedEdgeIds = this.filterValidBevelEdges(meshData, rawEdgeIds);
@@ -290,9 +294,6 @@ export class BevelTool {
       this.toolNumericInput.reset();
     }
 
-    this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.updateGeometryAndHelpers();
-
     if (this.selectedEdgeIds.length <= 0) {
       this.editSelection.clearSelection();
       this.disable();
@@ -300,8 +301,13 @@ export class BevelTool {
     }
 
     const meshData = this.editedObject.userData.meshData;
-    this.afterMeshData = structuredClone(meshData);
-    this.editor.execute(new BevelCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
+    
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.add(new BevelCommand(this.editor, this.editedObject, this.beforeSnapshot, afterSnapshot));
+    this.signals.editSelectionRefresh.dispatch();
 
     this.updateSelectionAfterBevel();
     this.clearStartData();
@@ -311,8 +317,11 @@ export class BevelTool {
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
 
+    const meshData = this.editedObject.userData.meshData;
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.applyMeshData(this.beforeMeshData);
+    this.vertexEditor.applyDelta(this.beforeSnapshot);
 
     if (this.startPivotPosition) {
       this.handle.position.copy(this.startPivotPosition);
@@ -357,10 +366,24 @@ export class BevelTool {
     const meshData = this.editedObject.userData.meshData;
     if (!meshData) return;
 
+    this.selectedVertexIds = this.getVertexIdsFromEdges(meshData, this.selectedEdgeIds);
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { vertexIds: this.selectedVertexIds, edgeIds: this.selectedEdgeIds, faceIds: [] },
+      2
+    );
+    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    this.startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId
+    };
+
     const edgeGroups = this.groupConnectedSelectedEdges(meshData, this.selectedEdgeIds);
 
     for (const edgeGroup of edgeGroups) {
-      const vertexNeighborFaceIds = this.getFacesAdjacentToEdgeVertices(meshData, edgeGroup);
+      this.vertexNeighborFaceIds = this.getFacesAdjacentToEdgeVertices(meshData, edgeGroup);
 
       const vertexGraph = this.buildSelectedVertexGraph(meshData, edgeGroup);
       const bevelResults = new Map();
@@ -384,7 +407,7 @@ export class BevelTool {
 
       this.insertFaceSegments(meshData, splitedFaces);
 
-      for (const faceId of vertexNeighborFaceIds) {
+      for (const faceId of this.vertexNeighborFaceIds) {
         const face = meshData.faces.get(faceId);
         if (!face) continue;
 
@@ -406,7 +429,7 @@ export class BevelTool {
       this.solveBevelScales(meshData, vertexGraph);
     }
 
-    this.vertexEditor.updateGeometryAndHelpers();
+    this.signals.editSelectionRefresh.dispatch();
   }
 
   updateBevel() {
@@ -1122,6 +1145,11 @@ export class BevelTool {
   }
 
   rebuildFaceTopology(meshData, face) {
+    const renderBuffer = this.vertexEditor.renderBuffer;
+    const geometry = this.vertexEditor.geometry;
+
+    MeshRendererAdapter.deleteFace(meshData, renderBuffer, geometry, face.id, true);
+
     // Remove this face from all old edges
     for (const edgeId of face.edgeIds) {
       const edge = meshData.edges.get(edgeId);
@@ -1162,6 +1190,8 @@ export class BevelTool {
       v1.faceIds.add(face.id);
       v2.faceIds.add(face.id);
     }
+
+    MeshRendererAdapter.addFace(meshData, renderBuffer, geometry, face.id);
   }
 
   getOrderedSplit(meshData, faceId, oldVertexId, edgeVertexMap) {
@@ -1251,7 +1281,6 @@ export class BevelTool {
 
         const vertices = quadIds.map(id => meshData.getVertex(id));
         const newFace = this.vertexEditor.addFace(vertices);
-        this.rebuildFaceTopology(meshData, newFace);
 
         newFaceIds.push(newFace.id);
       }
@@ -1361,7 +1390,7 @@ export class BevelTool {
       const vertex = meshData.getVertex(vertexId);
       if (!vertex) continue;
 
-      this.vertexEditor.deleteVertex(vertex);
+      this.vertexEditor.deleteVertex(vertex, true);
     }
   }
 
@@ -1918,6 +1947,11 @@ export class BevelTool {
     }
 
     this.vertexEditor.transform.setVertexPositions(newCornerVertexIds, newCornerPositions);
+
+    for (const faceId of this.vertexNeighborFaceIds) {
+      const face = meshData.faces.get(faceId);
+      this.rebuildFaceTopology(meshData, face);
+    }
   }
 
   triangulateEdgesCorner(meshData, edgeChains) {
@@ -1963,7 +1997,6 @@ export class BevelTool {
       const newFace = this.vertexEditor.addFace(vertices);
 
       if (newFace) {
-        this.rebuildFaceTopology(meshData, newFace);
         newFaceIds.push(newFace.id);
       }
     }
@@ -1979,5 +2012,15 @@ export class BevelTool {
       .addScaledVector(v2, t * t);
 
     return point;
+  }
+
+  getVertexIdsFromEdges(meshData, edgeIds) {
+    const vertexIds = new Set();
+    for (const edgeId of edgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      vertexIds.add(edge.v1Id);
+      vertexIds.add(edge.v2Id);
+    }
+    return Array.from(vertexIds);
   }
 }

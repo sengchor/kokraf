@@ -67,8 +67,8 @@ export class VertexEditor {
     return face;
   }
 
-  deleteFace(face) {
-    MeshRendererAdapter.deleteFace(this.meshData, this.renderBuffer, this.geometry, face.id);
+  deleteFace(face, skipCompact = false) {
+    MeshRendererAdapter.deleteFace(this.meshData, this.renderBuffer, this.geometry, face.id, skipCompact);
     this.meshData.deleteFace(face);
   }
 
@@ -78,8 +78,8 @@ export class VertexEditor {
     return vertex;
   }
 
-  deleteVertex(vertex) {
-    MeshRendererAdapter.deleteVertex(this.meshData, this.renderBuffer, this.geometry, vertex.id);
+  deleteVertex(vertex, skipCompact = false) {
+    MeshRendererAdapter.deleteVertex(this.meshData, this.renderBuffer, this.geometry, vertex.id, skipCompact);
     this.meshData.deleteVertex(vertex);
   }
   

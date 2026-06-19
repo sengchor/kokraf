@@ -364,8 +364,22 @@ export class MeshRendererAdapter {
   static compact(meshData, renderBuffer, geometry) {
     const { positions, uvs, indices, renderBuffer: fresh } = this.buildDuplicatedMeshData(meshData);
 
+    let normals;
+
+    const mode = renderBuffer.normalMode;
+    const angle = renderBuffer.normalAngle ?? 60;
+
+    if (mode === 'flat') {
+      normals = this.calculateFlatNormals(meshData, fresh);
+    } else if (mode === 'smooth') {
+      normals = this.calculateSmoothNormalsMap(meshData, fresh);
+    } else {
+      normals = this.calculateAngleBasedNormalsMap(meshData, fresh, angle);
+    }
+
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
     geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 
     Object.assign(renderBuffer, fresh);
