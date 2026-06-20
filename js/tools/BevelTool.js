@@ -308,6 +308,8 @@ export class BevelTool {
 
     this.editor.add(new BevelCommand(this.editor, this.editedObject, this.beforeSnapshot, afterSnapshot));
     this.signals.editSelectionRefresh.dispatch();
+    this.editedObject.geometry.computeBoundingBox();
+    this.editedObject.geometry.computeBoundingSphere();
 
     this.updateSelectionAfterBevel();
     this.clearStartData();

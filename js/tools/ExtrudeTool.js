@@ -239,8 +239,9 @@ export class ExtrudeTool {
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
     this.editor.add(new ExtrudeCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
-    editedObject.geometry.computeBoundingBox();
     this.signals.editSelectionRefresh.dispatch();
+    editedObject.geometry.computeBoundingBox();
+    editedObject.geometry.computeBoundingSphere();
 
     // Keep selection on the new vertices
     if (mode === 'vertex') {

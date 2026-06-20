@@ -6,6 +6,7 @@ import { ToolNumericInput } from './ToolNumericInput.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 
 export class EdgeSlideTool {
   constructor(editor) {
@@ -209,10 +210,22 @@ export class EdgeSlideTool {
     this.slideData = new Map();
 
     const meshData = this.editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
 
     this.selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     this.selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
+
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { vertexIds: this.selectedVertexIds, edgeIds: this.selectedEdgeIds, faceIds: [] },
+      2
+    );
+    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    this.startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId
+    };
 
     this.transformSolver.beginSession(this.startPivotPosition, null, null);
 
@@ -255,11 +268,16 @@ export class EdgeSlideTool {
     }
 
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.updateGeometryAndHelpers();
-
     const meshData = this.editedObject.userData.meshData;
-    this.afterMeshData = structuredClone(meshData);
-    this.editor.execute(new EdgeSlideCommand(this.editor, this.editedObject, this.beforeMeshData, this.afterMeshData));
+
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.add(new EdgeSlideCommand(this.editor, this.editedObject, this.beforeSnapshot, afterSnapshot));
+    this.signals.editSelectionRefresh.dispatch();
+    this.editedObject.geometry.computeBoundingBox();
+    this.editedObject.geometry.computeBoundingSphere();
 
     this.editSelection.clearSelection();
     if (this.selectedVertexIds.length === 1) {
@@ -274,8 +292,11 @@ export class EdgeSlideTool {
     this.editedObject = this.editSelection.editedObject;
     if (!this.editedObject) return;
 
+    const meshData = this.editedObject.userData.meshData;
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+
     this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.applyMeshData(this.beforeMeshData);
+    this.vertexEditor.applyDelta(this.beforeSnapshot);
 
     this.handle.position.copy(this.startPivotPosition);
     this.handle.updateMatrixWorld(true);

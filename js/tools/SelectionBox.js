@@ -260,6 +260,7 @@ export class SelectionBox {
 
       if (!obj.geometry.boundingBox) {
         obj.geometry.computeBoundingBox();
+        obj.geometry.computeBoundingSphere();
       }
 
       const worldBB = new THREE.Box3().copy(obj.geometry.boundingBox);

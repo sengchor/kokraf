@@ -138,7 +138,7 @@ export class KnifeTool {
     const beforeRegionIds = MeshDataRegion.expand(
       meshData,
       { edgeIds: seedEdgeIds, vertexIds: seedVertexIds },
-      1
+      2
     );
     this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
 
@@ -155,6 +155,9 @@ export class KnifeTool {
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
     this.editor.add(new KnifeCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
+    this.signals.editSelectionRefresh.dispatch();
+    editedObject.geometry.computeBoundingBox();
+    editedObject.geometry.computeBoundingSphere();
 
     const mode = this.editSelection.subSelectionMode;
     if (mode === 'vertex') {

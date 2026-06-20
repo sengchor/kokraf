@@ -266,6 +266,9 @@ export class InsetTool {
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
     this.editor.add(new InsetCommand(this.editor, this.editedObject, this.beforeSnapshot, afterSnapshot));
+    this.signals.editSelectionRefresh.dispatch();
+    this.editedObject.geometry.computeBoundingBox();
+    this.editedObject.geometry.computeBoundingSphere();
 
     this.updateSelectionAfterInset();
     this.clearStartData();
@@ -316,7 +319,7 @@ export class InsetTool {
     const beforeRegionIds = MeshDataRegion.expand(
       meshData,
       { vertexIds: [], edgeIds: [], faceIds: selectedFaceIds },
-      1
+      2
     );
 
     this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);

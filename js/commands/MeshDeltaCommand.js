@@ -35,6 +35,9 @@ export class MeshDeltaCommand {
 
     this.vertexEditor.setObject(object);
     this.vertexEditor.applyDelta(delta);
+
+    object.geometry.computeBoundingBox();
+    object.geometry.computeBoundingSphere();
   }
 
   toJSON() {

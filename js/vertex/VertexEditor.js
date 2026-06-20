@@ -7,6 +7,7 @@ import { VertexTransform } from "./VertexTransform.js";
 import { VertexSubdivide } from "./VertexSubdivide.js";
 import { VertexSelection } from "./VertexSelection.js";
 import { MeshData } from '../core/MeshData.js';
+import { MeshRenderBuffer } from '../geometry/MeshRenderBuffer.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { MeshRendererAdapter } from "../geometry/MeshRendererAdapter.js";
 
@@ -55,9 +56,14 @@ export class VertexEditor {
     if (!this.object) return;
 
     const meshData = this.object.userData.meshData;
+    const renderBuffer = this.object.userData.renderBuffer;
 
     if (meshData && !(meshData instanceof MeshData)) {
       MeshData.rehydrateMeshData(this.object);
+    }
+
+    if (renderBuffer && !(renderBuffer instanceof MeshRenderBuffer)) {
+      MeshRenderBuffer.rehydrateRenderBuffer(this.object);
     }
   }
 
@@ -93,6 +99,7 @@ export class VertexEditor {
     this.geometry = geometry;
     this.renderBuffer = renderBuffer;
     this.geometry.computeBoundingBox();
+    this.geometry.computeBoundingSphere();
 
     this.signals.editSelectionRefresh.dispatch();
   }

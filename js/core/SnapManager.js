@@ -299,6 +299,7 @@ export class SnapManager {
 
       if (!obj.geometry.boundingBox) {
         obj.geometry.computeBoundingBox();
+        obj.geometry.computeBoundingSphere();
       }
 
       localBox.copy(obj.geometry.boundingBox);

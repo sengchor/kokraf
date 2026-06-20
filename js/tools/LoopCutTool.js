@@ -74,7 +74,7 @@ export class LoopCutTool {
     const beforeRegionIds = MeshDataRegion.expand(
       meshData,
       { edgeIds: loopEdgeIds },
-      1
+      2
     );
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
 
@@ -121,6 +121,9 @@ export class LoopCutTool {
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
     this.editor.add(new LoopCutCommand(this.editor, this.editedObject, beforeSnapshot, afterSnapshot));
+    this.signals.editSelectionRefresh.dispatch();
+    this.editedObject.geometry.computeBoundingBox();
+    this.editedObject.geometry.computeBoundingSphere();
     this.onPointerMove(event);
 
     const mode = this.editSelection.subSelectionMode;

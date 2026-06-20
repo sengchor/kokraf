@@ -458,6 +458,8 @@ export class EditTransformTool {
     const newPositions = this.oldPositions.map(pos => pos.clone().add(offset));
 
     this.editor.execute(new SetVertexPositionCommand(this.editor, object, vertexIds, newPositions, this.oldPositions));
+    object.geometry.computeBoundingBox();
+    object.geometry.computeBoundingSphere();
   }
 
   commitRotation(object, vertexIds) {
@@ -475,6 +477,8 @@ export class EditTransformTool {
     });
 
     this.editor.execute(new SetVertexPositionCommand(this.editor, object, vertexIds, newPositions, this.oldPositions));
+    object.geometry.computeBoundingBox();
+    object.geometry.computeBoundingSphere();
   }
 
   commitScale(object, vertexIds) {
@@ -504,6 +508,8 @@ export class EditTransformTool {
     });
 
     this.editor.execute(new SetVertexPositionCommand(this.editor, object, vertexIds, newPositions, this.oldPositions));
+    object.geometry.computeBoundingBox();
+    object.geometry.computeBoundingSphere();
   }
 
   // Utilities

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GridHelper } from '../helpers/GridHelper.js';
 import { Storage } from './Storage.js';
 import { MeshData } from './MeshData.js';
+import { MeshRenderBuffer } from '../geometry/MeshRenderBuffer.js';
 
 export default class SceneManager {
   constructor(editor) {
@@ -95,6 +96,9 @@ export default class SceneManager {
 
     if (object.userData.meshData && !(object.userData.meshData instanceof MeshData)) {
       MeshData.rehydrateMeshData(object);
+    }
+    if (object.userData.renderBuffer && !(object.userData.renderBuffer instanceof MeshRenderBuffer)) {
+      MeshRenderBuffer.rehydrateRenderBuffer(object);
     }
 
     if (object.userData?.isImageRef && object.material) {
