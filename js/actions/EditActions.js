@@ -8,6 +8,7 @@ import { MergeSelectionCommand } from '../commands/MergeSelectionCommand.js';
 import { SplitSelectionCommand } from '../commands/SplitSelectionCommand.js';
 import { FlipNormalsCommand } from '../commands/FlipNormalsCommand.js';
 import { SubdivideSelectionCommand } from '../commands/SubdivideSelectionCommand.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 
 export class EditActions {
   constructor(editor) {
@@ -355,20 +356,31 @@ export class EditActions {
 
   subdivideSelection() {
     const editedObject = this.editSelection.editedObject;
-
-    const selectedEdgeIds = this.editSelection.selectedEdgeIds;
-
+    const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
     const meshData = editedObject.userData.meshData;
-    const beforeMeshData = structuredClone(meshData);
-
-    this.vertexEditor.setObject(editedObject);
-    const result = this.vertexEditor.subdivide.subdivideEdges(selectedEdgeIds);
-    const { newVertexIds, newFaceIds } = result;
-
-    this.vertexEditor.updateGeometryAndHelpers();
     
-    const afterMeshData = structuredClone(meshData);
-    this.editor.execute(new SubdivideSelectionCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
+    this.vertexEditor.setObject(editedObject);
+
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { edgeIds: selectedEdgeIds },
+      1
+    );
+    const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    const startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId,
+    };
+
+    const { newVertexIds } = this.vertexEditor.subdivide.subdivideEdges(selectedEdgeIds);
+
+    MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.execute(new SubdivideSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot));
 
     this.editSelection.selectVertices(newVertexIds);
   }

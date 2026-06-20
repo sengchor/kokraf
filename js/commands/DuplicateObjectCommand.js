@@ -12,6 +12,7 @@ export class DuplicateObjectCommand {
   constructor(editor, originals = [], duplicates = []) {
     this.editor = editor;
     this.name = 'Duplicate Objects';
+    this.vertexEditor = editor.vertexEditor;
 
     this.originalUuids = originals.map(object => object.uuid);
 
@@ -59,6 +60,13 @@ export class DuplicateObjectCommand {
 
       sceneManager.addHelper(duplicate);
       sceneManager.addCamera(duplicate);
+
+      duplicate.traverse(child => {
+        if (child.isMesh && ! child.userData?.isImageRef ) {
+          this.vertexEditor.setObject(child);
+          this.vertexEditor.updateGeometryAndHelpers();
+        }
+      });
     }
 
     this.editor.selection.deselect();
