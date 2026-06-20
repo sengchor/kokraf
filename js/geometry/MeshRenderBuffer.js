@@ -16,6 +16,20 @@ export class MeshRenderBuffer {
     this.indexSlotAllocator = null;
   }
 
+  toJSON() {
+    return {
+      vertexIdToBufferIndex: Array.from(this.vertexIdToBufferIndex.entries()),
+      bufferIndexToVertexId: Array.from(this.bufferIndexToVertexId.entries()),
+      faceIdToBufferIndices: Array.from(this.faceIdToBufferIndices.entries()),
+      faceTriangleOffset: Array.from(this.faceTriangleOffset.entries()),
+      faceTriangleCount: Array.from(this.faceTriangleCount.entries()),
+      normalMode: this.normalMode,
+      normalAngle: this.normalAngle,
+      slotAllocator: this.slotAllocator,
+      indexSlotAllocator: this.indexSlotAllocator,
+    };
+  }
+
   static rehydrateRenderBuffer(object) {
     const renderBuffer = object.userData.renderBuffer;
     if (!renderBuffer) return null;
@@ -24,7 +38,6 @@ export class MeshRenderBuffer {
       renderBuffer,
       MeshRenderBuffer.prototype
     );
-    console.log(renderBuffer);
 
     renderBuffer.vertexIdToBufferIndex =
       renderBuffer.vertexIdToBufferIndex instanceof Map
