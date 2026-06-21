@@ -1,8 +1,8 @@
-import { MeshDataCommand } from './MeshDataCommand.js';
+import { MeshDeltaCommand } from './MeshDeltaCommand.js';
 
-export class DuplicateSelectionCommand extends MeshDataCommand {
+export class DuplicateSelectionCommand extends MeshDeltaCommand {
   static type = 'DuplicateSelectionCommand';
-  constructor(editor, object, beforeMeshData, afterMeshData) {
-    super(editor, object, beforeMeshData, afterMeshData, 'Duplicate Selection');
+  constructor(editor, object, beforeDelta, afterDelta) {
+    super(editor, object, beforeDelta, afterDelta, 'Duplicate Selection');
   }
 }

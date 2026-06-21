@@ -165,7 +165,7 @@ export class VertexEditor {
     }
 
     geometry.attributes.position.needsUpdate = true;
-    
+
     const box = new THREE.Box3();
     for (const id of meshData.vertices.keys()) {
       const slot = renderBuffer.vertexIdToBufferIndex.get(id)?.[0];
@@ -173,6 +173,7 @@ export class VertexEditor {
       box.expandByPoint(meshData.vertices.get(id).position);
     }
     geometry.boundingBox = box;
+    geometry.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
 
     MeshRendererAdapter.updateNormalsForAffectedFaces(meshData, renderBuffer, geometry, affectedFaces, affectedVertices);
 

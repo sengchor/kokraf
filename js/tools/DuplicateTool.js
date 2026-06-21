@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
 import { DuplicateSelectionCommand } from '../commands/DuplicateSelectionCommand.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 
 export class DuplicateTool {
   constructor(editor) {
@@ -148,6 +149,9 @@ export class DuplicateTool {
     this.startPivotScale = this.handle.getWorldScale(new THREE.Vector3());
 
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+    const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
+    const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
+
     if (!selectedVertexIds.length) return;
 
     this.transformSolver.beginSession(this.startPivotPosition, this.startPivotQuaternion, this.startPivotScale);
@@ -155,7 +159,19 @@ export class DuplicateTool {
     this.vertexEditor.setObject(editedObject);
     this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
     const meshData = editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
+
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { vertexIds: selectedVertexIds, edgeIds: selectedEdgeIds, faceIds: selectedFaceIds },
+      1
+    );
+    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    this.startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId,
+    };
 
     this.duplicateSelection();
   }
@@ -190,13 +206,13 @@ export class DuplicateTool {
     if (!editedObject || !this.handle) return;
 
     const mode = this.editSelection.subSelectionMode;
-
-    this.vertexEditor.setObject(editedObject);
-    this.vertexEditor.updateGeometryAndHelpers();
     const meshData = editedObject.userData.meshData;
-    this.afterMeshData = structuredClone(meshData);
 
-    this.editor.execute(new DuplicateSelectionCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.execute(new DuplicateSelectionCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
 
     if (mode === 'vertex') {
       this.editSelection.selectVertices(this.newVertexIds);
@@ -276,7 +292,7 @@ export class DuplicateTool {
     this.newEdgeIds = duplicationResult.newEdgeIds;
     this.newFaceIds = duplicationResult.newFaceIds;
 
-    this.vertexEditor.updateGeometryAndHelpers();
+    this.signals.editSelectionRefresh.dispatch();
     this.editSelection.clearSelection();
     this.initialDuplicatedPositions = this.vertexEditor.transform.getVertexPositions(this.newVertexIds);
 

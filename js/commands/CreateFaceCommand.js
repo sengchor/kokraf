@@ -1,8 +1,8 @@
-import { MeshDataCommand } from './MeshDataCommand.js';
+import { MeshDeltaCommand } from './MeshDeltaCommand.js';
 
-export class CreateFaceCommand extends MeshDataCommand {
+export class CreateFaceCommand extends MeshDeltaCommand {
   static type = 'CreateFaceCommand';
-  constructor(editor, object, beforeMeshData, afterMeshData) {
-    super(editor, object, beforeMeshData, afterMeshData, 'Create Face');
+  constructor(editor, object, beforeDelta, afterDelta) {
+    super(editor, object, beforeDelta, afterDelta, 'Create Face');
   }
 }

@@ -108,7 +108,6 @@ export class EditActions {
 
     const meshData = editedObject.userData.meshData;
     if (!editedObject || !meshData) return null;
-    this.beforeMeshData = structuredClone(meshData);
 
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
@@ -123,6 +122,19 @@ export class EditActions {
       }
     }
     this.vertexEditor.setObject(editedObject);
+
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { vertexIds: selectedVertexIds, edgeIds: selectedEdgeIds },
+      1
+    );
+    const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    const startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId,
+    };
     
     let result;
     let createdFromSingleVertex = false;
@@ -184,8 +196,11 @@ export class EditActions {
       newEdges = [edgeId];
     }
 
-    this.afterMeshData = structuredClone(meshData);
-    this.editor.execute(new CreateFaceCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+    MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.execute(new CreateFaceCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot));
 
     if (mode === 'vertex') {
       if (createdFromSingleVertex && newVertexId !== null) {
