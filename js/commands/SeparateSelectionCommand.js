@@ -6,12 +6,12 @@ export class SeparateSelectionCommand {
   /**
    * @param {Editor} editor
    * @param {THREE.Object3D|null} object
-   * @param {object|null} beforeMeshData
-   * @param {object|null} afterMeshData
+   * @param {object|null} beforeSnapshot
+   * @param {object|null} afterSnapshot
    * @param {object|null} newMeshData
    * @constructor
    */
-  constructor(editor, object, beforeMeshData, afterMeshData, newMeshData) {
+  constructor(editor, object, beforeSnapshot, afterSnapshot, newMeshData) {
     this.editor = editor;
     this.name = 'Separate Selection';
     this.signals = editor.signals;
@@ -19,9 +19,9 @@ export class SeparateSelectionCommand {
 
     this.objectUuid = object ? object.uuid : null;
 
-    this.beforeMeshData = beforeMeshData ? structuredClone(beforeMeshData) : null;
-    this.afterMeshData = afterMeshData ? structuredClone(afterMeshData) : null;
-    this.newMeshData = newMeshData ? structuredClone(newMeshData) : null;
+    this.beforeSnapshot = beforeSnapshot ?? null;
+    this.afterSnapshot = afterSnapshot ?? null;
+    this.newMeshData = newMeshData ?? null;
 
     if (!object) return;
     this.parentUuid = object.parent ? object.parent.uuid : null;
@@ -32,7 +32,7 @@ export class SeparateSelectionCommand {
   execute() {
     this.editor.editSelection.clearSelection();
 
-    this.applyMeshData(this.afterMeshData);
+    this.applyDelta(this.afterSnapshot);
 
     const object = this.editor.objectByUuid(this.objectUuid);
     if (!object || !this.newMeshData) return;
@@ -54,7 +54,7 @@ export class SeparateSelectionCommand {
   undo() {
     this.editor.editSelection.clearSelection();
 
-    this.applyMeshData(this.beforeMeshData);
+    this.applyDelta(this.beforeSnapshot);
 
     const newObject = this.editor.objectByUuid(this.newObjectUuid);
     if (newObject) {
@@ -65,20 +65,20 @@ export class SeparateSelectionCommand {
     this.editor.toolbar.updateTools();
   }
 
-  applyMeshData(meshData) {
+  applyDelta(delta) {
     const object = this.editor.objectByUuid(this.objectUuid);
-    if (!object || !meshData) return;
+    if (!object || !delta) return;
 
     this.vertexEditor.setObject(object);
-    this.vertexEditor.applyMeshData(meshData);
+    this.vertexEditor.applyDelta(delta);
   }
 
   toJSON() {
     return {
       type: SeparateSelectionCommand.type,
       objectUuid: this.objectUuid,
-      beforeMeshData: this.beforeMeshData,
-      afterMeshData: this.afterMeshData,
+      beforeSnapshot: this.beforeSnapshot,
+      afterSnapshot: this.afterSnapshot,
       newMeshData: this.newMeshData,
       parentUuid: this.parentUuid,
       index: this.index,
@@ -89,7 +89,7 @@ export class SeparateSelectionCommand {
   static fromJSON(editor, json) {
     if (!json || json.type !== SeparateSelectionCommand.type) return null;
 
-    const cmd = new SeparateSelectionCommand(editor, null, json.beforeMeshData, json.afterMeshData, json.newMeshData);
+    const cmd = new SeparateSelectionCommand(editor, null, json.beforeSnapshot, json.afterSnapshot, json.newMeshData);
     cmd.objectUuid = json.objectUuid;
     cmd.parentUuid = json.parentUuid;
     cmd.index = json.index;

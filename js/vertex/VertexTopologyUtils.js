@@ -199,7 +199,7 @@ export class VertexTopologyUtils {
 
     // Remove merged vertices
     for (const v of removedVertices) {
-      this.meshData.vertices.delete(v.id);
+      this.vertexEditor.deleteVertex(v);
     }
 
     return target.id;
