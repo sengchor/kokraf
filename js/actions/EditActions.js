@@ -216,17 +216,28 @@ export class EditActions {
   deleteSelected(action) {
     const editedObject = this.editSelection.editedObject;
 
-    const selectedVertexIds = this.editSelection.selectedVertexIds;
-    const selectedEdgeIds = this.editSelection.selectedEdgeIds;
-    const selectedFaceIds = this.editSelection.selectedFaceIds;
+    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+    const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
+    const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
 
     if (
-      selectedVertexIds.size === 0 && selectedEdgeIds.size === 0 && selectedFaceIds.size === 0
+      selectedVertexIds.length === 0 && selectedEdgeIds.length === 0 && selectedFaceIds.length === 0
     ) return;
 
-
     const meshData = editedObject.userData.meshData;
-    this.beforeMeshData = structuredClone(meshData);
+
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { vertexIds: selectedVertexIds, edgeIds: selectedEdgeIds, faceIds: selectedFaceIds },
+      2
+    );
+    const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    const startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId,
+    };
 
     this.vertexEditor.setObject(editedObject);
     if (action === 'delete-vertices') {
@@ -247,8 +258,11 @@ export class EditActions {
       this.vertexEditor.dissolve.dissolveFaces(selectedFaceIds);
     }
 
-    this.afterMeshData = structuredClone(meshData);
-    this.editor.execute(new DeleteSelectionCommand(this.editor, editedObject, this.beforeMeshData, this.afterMeshData));
+    MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+
+    this.editor.execute(new DeleteSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot));
   }
 
   separateSelection() {
@@ -396,20 +410,33 @@ export class EditActions {
 
   flipSelectedFacesNormal() {
     const editedObject = this.editSelection.editedObject;
-    
     const meshData = editedObject.userData.meshData;
-    const beforeMeshData = structuredClone(meshData);
+
+    const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
+    if (selectedFaceIds.length === 0) return;
 
     this.vertexEditor.setObject(editedObject);
 
-    const selectedFaceIds = this.editSelection.selectedFaceIds;
-    if (selectedFaceIds.size === 0) return;
+    const beforeRegionIds = MeshDataRegion.expand(
+      meshData,
+      { faceIds: selectedFaceIds },
+      1
+    );
+    const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
+
+    const startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId,
+    };
+
     this.meshEditor.flipNormals(meshData, selectedFaceIds);
 
-    this.vertexEditor.updateGeometryAndHelpers();
+    MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
+    const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
+    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    const afterMeshData = structuredClone(meshData);
-    this.editor.execute(new FlipNormalsCommand(this.editor, editedObject, beforeMeshData, afterMeshData));
+    this.editor.execute(new FlipNormalsCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot));
   }
 
   subdivideSelection() {

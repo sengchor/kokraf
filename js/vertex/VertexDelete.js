@@ -8,17 +8,55 @@ export class VertexDelete {
   }
   
   deleteVertices(vertexIds) {
+    const faceIds = new Set();
+
     for (const vId of vertexIds) {
       const vertex = this.meshData.vertices.get(vId);
       if (!vertex) continue;
+
+      for (const faceId of vertex.faceIds) {
+        faceIds.add(faceId);
+      }
+    }
+
+    for (const faceId of faceIds) {
+      const face = this.meshData.faces.get(faceId);
+      if (!face) continue;
+
+      this.vertexEditor.deleteFace(face);
+    }
+
+    for (const vId of vertexIds) {
+      const vertex = this.meshData.vertices.get(vId);
+      if (!vertex) continue;
+
       this.vertexEditor.deleteVertex(vertex);
     }
   }
 
   deleteEdgesAndFacesOnly(edgeIds) {
+    const faceIds = new Set();
+
     for (const edgeId of edgeIds) {
       const edge = this.meshData.edges.get(edgeId);
       if (!edge) continue;
+
+      for (const faceId of edge.faceIds) {
+        faceIds.add(faceId);
+      }
+    }
+
+    for (const faceId of faceIds) {
+      const face = this.meshData.faces.get(faceId);
+      if (!face) continue;
+
+      this.vertexEditor.deleteFace(face);
+    }
+
+    for (const edgeId of edgeIds) {
+      const edge = this.meshData.edges.get(edgeId);
+      if (!edge) continue;
+      
       this.vertexEditor.deleteEdge(edge);
     }
   }
@@ -33,6 +71,7 @@ export class VertexDelete {
 
   deleteEdges(edgeIds) {
     const candidateVertices = new Set();
+    const faceIds = new Set();
 
     // Delete edges & track affected vertices
     for (const edgeId of edgeIds) {
@@ -41,6 +80,22 @@ export class VertexDelete {
 
       candidateVertices.add(edge.v1Id);
       candidateVertices.add(edge.v2Id);
+
+      for (const faceId of edge.faceIds) {
+        faceIds.add(faceId);
+      }
+    }
+
+    for (const faceId of faceIds) {
+      const face = this.meshData.faces.get(faceId);
+      if (!face) continue;
+
+      this.vertexEditor.deleteFace(face);
+    }
+
+    for (const edgeId of edgeIds) {
+      const edge = this.meshData.edges.get(edgeId);
+      if (!edge) continue;
 
       this.vertexEditor.deleteEdge(edge);
     }
