@@ -73,8 +73,8 @@ export class VertexEditor {
     return face;
   }
 
-  deleteFace(face, skipCompact = false) {
-    MeshRendererAdapter.deleteFace(this.meshData, this.renderBuffer, this.geometry, face.id, skipCompact);
+  deleteFace(face) {
+    MeshRendererAdapter.deleteFace(this.meshData, this.renderBuffer, this.geometry, face.id);
     this.meshData.deleteFace(face);
   }
 
@@ -84,8 +84,8 @@ export class VertexEditor {
     return vertex;
   }
 
-  deleteVertex(vertex, skipCompact = false) {
-    MeshRendererAdapter.deleteVertex(this.meshData, this.renderBuffer, this.geometry, vertex.id, skipCompact);
+  deleteVertex(vertex) {
+    MeshRendererAdapter.deleteVertex(this.meshData, this.renderBuffer, this.geometry, vertex.id);
     this.meshData.deleteVertex(vertex);
   }
   
@@ -126,14 +126,14 @@ export class VertexEditor {
       const id = Number(key);
 
       if (meshData.faces.has(id)) {
-        MeshRendererAdapter.deleteFace(meshData, renderBuffer, geometry, id, true);
+        MeshRendererAdapter.deleteFace(meshData, renderBuffer, geometry, id);
       }
     }
 
     for (const [key, data] of Object.entries(delta.vertices)) {
       const id = Number(key);
       if (data === null && meshData.vertices.has(id)) {
-        MeshRendererAdapter.deleteVertex(meshData, renderBuffer, geometry, id, true);
+        MeshRendererAdapter.deleteVertex(meshData, renderBuffer, geometry, id);
       }
     }
 

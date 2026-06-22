@@ -1150,7 +1150,7 @@ export class BevelTool {
     const renderBuffer = this.vertexEditor.renderBuffer;
     const geometry = this.vertexEditor.geometry;
 
-    MeshRendererAdapter.deleteFace(meshData, renderBuffer, geometry, face.id, true);
+    MeshRendererAdapter.deleteFace(meshData, renderBuffer, geometry, face.id);
 
     // Remove this face from all old edges
     for (const edgeId of face.edgeIds) {
@@ -1392,7 +1392,7 @@ export class BevelTool {
       const vertex = meshData.getVertex(vertexId);
       if (!vertex) continue;
 
-      this.vertexEditor.deleteVertex(vertex, true);
+      this.vertexEditor.deleteVertex(vertex);
     }
   }
 

@@ -17,6 +17,14 @@ export class MeshDeltaCommand {
 
     this.beforeDelta = beforeDelta ? structuredClone(beforeDelta) : null;
     this.afterDelta = afterDelta ? structuredClone(afterDelta) : null;
+
+    if (object) {
+      const renderBuffer = object.userData.renderBuffer;
+      if (renderBuffer?.slotAllocator?.utilization < 0.25) {
+        this.vertexEditor.setObject(object);
+        this.vertexEditor.updateGeometryAndHelpers();
+      }
+    }
   }
 
   execute() {

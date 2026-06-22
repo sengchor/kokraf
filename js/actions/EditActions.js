@@ -22,6 +22,8 @@ export class EditActions {
   }
 
   handleAction(action) {
+    if (!action) return;
+    
     if (action === 'subdivide-selection') {
       this.signals.subdivideSelection.dispatch();
       return;

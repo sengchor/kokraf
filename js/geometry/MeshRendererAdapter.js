@@ -181,7 +181,7 @@ export class MeshRendererAdapter {
     uvAttr.needsUpdate = true;
   }
 
-  static deleteVertex(meshData, renderBuffer, geometry, vertexId, skipCompact = false) {
+  static deleteVertex(meshData, renderBuffer, geometry, vertexId) {
     const bufferIndices = renderBuffer.vertexIdToBufferIndex.get(vertexId);
 
     if (!bufferIndices || bufferIndices.length === 0) return;
@@ -196,10 +196,6 @@ export class MeshRendererAdapter {
 
     renderBuffer.vertexIdToBufferIndex.delete(vertexId);
     renderBuffer.bufferIndexToVertexId.delete(slot);
-
-    if (!skipCompact && renderBuffer.slotAllocator.utilization < 0.25) {
-      this.compact(meshData, renderBuffer, geometry);
-    }
   }
 
   static addFace(meshData, renderBuffer, geometry, faceId) {
@@ -273,7 +269,7 @@ export class MeshRendererAdapter {
     normalAttr.needsUpdate = true;
   }
 
-  static deleteFace(meshData, renderBuffer, geometry, faceId, skipCompact = false) {
+  static deleteFace(meshData, renderBuffer, geometry, faceId) {
     const { normalMode: mode = 'auto', normalAngle: angle = 60 } = renderBuffer;
     const bufferIndices = renderBuffer.faceIdToBufferIndices.get(faceId);
     if (!bufferIndices) return;
@@ -319,10 +315,6 @@ export class MeshRendererAdapter {
     renderBuffer.faceTriangleCount.delete(faceId);
 
     indexAttr.needsUpdate = true;
-
-    if (!skipCompact && renderBuffer.slotAllocator.utilization < 0.25) {
-      this.compact(meshData, renderBuffer, geometry);
-    }
   }
 
   static _growVertexBuffer(renderBuffer, geometry, additionalSlots) {
@@ -359,30 +351,6 @@ export class MeshRendererAdapter {
     renderBuffer.indexSlotAllocator.capacity += additionalSlots;
     renderBuffer.indexSlotAllocator.freeBlocks.push({ start: idxAttr.count, count: additionalSlots });
     renderBuffer.indexSlotAllocator._mergeBlocks();
-  }
-
-  static compact(meshData, renderBuffer, geometry) {
-    const { positions, uvs, indices, renderBuffer: fresh } = this.buildDuplicatedMeshData(meshData);
-
-    let normals;
-
-    const mode = renderBuffer.normalMode;
-    const angle = renderBuffer.normalAngle ?? 60;
-
-    if (mode === 'flat') {
-      normals = this.calculateFlatNormals(meshData, fresh);
-    } else if (mode === 'smooth') {
-      normals = this.calculateSmoothNormalsMap(meshData, fresh);
-    } else {
-      normals = this.calculateAngleBasedNormalsMap(meshData, fresh, angle);
-    }
-
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-
-    Object.assign(renderBuffer, fresh);
   }
 
   static calculateFlatNormals(meshData, renderBuffer) {
@@ -646,7 +614,6 @@ export class MeshRendererAdapter {
     }
 
     if (tris.length !== triCount) {
-      this.compact(meshData, renderBuffer, geometry);
       return 'rebuilt';
     }
 
