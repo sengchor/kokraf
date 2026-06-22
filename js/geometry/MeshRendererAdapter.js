@@ -68,7 +68,6 @@ export class MeshRendererAdapter {
   }
 
   static buildDuplicatedMeshData(meshData) {
-    console.log('rebuild');
     const renderBuffer = new MeshRenderBuffer();
 
     const positions = [];

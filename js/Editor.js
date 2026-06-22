@@ -217,6 +217,7 @@ export default class Editor {
     document.body.appendChild(this.stats.dom);
     this.stats.dom.style.left = 'auto';
     this.stats.dom.style.right = '0px';
+    this.stats.dom.style.display = 'none';
 
     this.renderer.applyConfig();
     
