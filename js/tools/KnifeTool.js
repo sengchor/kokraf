@@ -4,6 +4,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { KnifeCommand } from '../commands/KnifeCommand.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { GPUEdgePicker } from '../utils/GPUEdgePicker.js';
 
 export class KnifeTool {
   constructor(editor) {
@@ -12,6 +13,7 @@ export class KnifeTool {
 
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
+    this.sceneManager = editor.sceneManager;
     this.scene = editor.sceneManager.sceneEditorHelpers;
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -44,6 +46,8 @@ export class KnifeTool {
       opacity: 0.8
     });
 
+    this.edgePicker = new GPUEdgePicker(this.editor);
+
     this.setupListeners();
 
     this._onPointerDown = this.onPointerDown.bind(this);
@@ -62,6 +66,9 @@ export class KnifeTool {
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
     this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
     window.addEventListener('keydown', this._onKeyDown);
+
+    const edgeHelper = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
+    this.edgePicker.buildFromHelper(edgeHelper);
   }
 
   disable() {
@@ -310,7 +317,15 @@ export class KnifeTool {
     const skipVIdA = aCut.snapVertexId;
     const skipVIdB = bCut.snapVertexId;
 
-    for (let edge of meshData.edges.values()) {
+    const aScreen = this.worldToScreen(aPos, this.camera, this.renderer.renderer);
+    const bScreen = this.worldToScreen(bPos, this.camera, this.renderer.renderer);
+
+    const edgeIds = this.edgePicker.pickSegment(aScreen.x, aScreen.y, bScreen.x, bScreen.y, this.camera);
+    
+    for (let edgeId of edgeIds) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
       // Skip edges touching snapped endpoints
       if (skipVIdA !== null && (edge.v1Id === skipVIdA || edge.v2Id === skipVIdA)) continue;
       if (skipVIdB !== null && (edge.v1Id === skipVIdB || edge.v2Id === skipVIdB)) continue;
@@ -680,5 +695,14 @@ export class KnifeTool {
     // Unpack back into the class arrays
     this.intersections = unique.map(u => u.p);
     this.edgeIntersections = unique.map(u => u.edge);
+  }
+
+  worldToScreen(pos, camera, renderer) {
+    const ndc = pos.clone().project(camera);
+
+    return {
+      x: (ndc.x * 0.5 + 0.5) * renderer.domElement.width,
+      y: (-ndc.y * 0.5 + 0.5) * renderer.domElement.height
+    };
   }
 }
