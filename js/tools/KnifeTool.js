@@ -26,26 +26,10 @@ export class KnifeTool {
     this.edgeIntersections = [];
     this.newVertices = [];
 
-    this.previewLine = null;
-    this.lineMaterial = new LineMaterial({
-      color: 0xffff00,
-      linewidth: 1.0,
-      dashed: false,
-      worldUnits: true,
-      depthTest: false,
-      worldUnits: false,
-    });
+    this._rafPending = false;
+    this._pendingMoveEvent = null;
 
-    this.previewPoints;
-    this.pointMaterial = new THREE.PointsMaterial({
-      color: 0xffff00,
-      size: 6,
-      sizeAttenuation: false,
-      depthTest: false,
-      transparent: true,
-      opacity: 0.8
-    });
-
+    this.createPreview();
     this.edgePicker = new GPUEdgePicker(this.editor);
 
     this.setupListeners();
@@ -67,8 +51,10 @@ export class KnifeTool {
     this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
     window.addEventListener('keydown', this._onKeyDown);
 
+    const editedObject = this.editSelection.editedObject;
     const edgeHelper = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
     this.edgePicker.buildFromHelper(edgeHelper);
+    this.edgePicker.buildFromObject(editedObject);
   }
 
   disable() {
@@ -84,9 +70,19 @@ export class KnifeTool {
         this.raycaster.camera = camera;
       }
     });
+
+    this.signals.viewportResized.add((width, height) => {
+      this.edgePicker.resize(width, height);
+    });
   }
 
   onPointerDown(event) {
+    if (event.button === 1) {
+      this.middleButton = true;
+      this.previewLine.visible = false;
+      return;
+    }
+
     if (event.button !== 0 || !this.active) return;
 
     const editedObject = this.editSelection.editedObject;
@@ -178,8 +174,21 @@ export class KnifeTool {
   }
 
   onPointerMove(event) {
-    if (!this.active) return;
+    if (this.middleButton || !this.active) return;
 
+    this._pendingMoveEvent = event;
+    if (!this._rafPending) {
+      this._rafPending = true;
+      requestAnimationFrame(() => {
+        this._rafPending = false;
+        const e = this._pendingMoveEvent;
+        this._pendingMoveEvent = null;
+        if (e) this._processMoveEvent(e);
+      });
+    }
+  }
+
+  _processMoveEvent(event) {
     const intersect = this.getMouseIntersect(event);
     if (!intersect) return;
 
@@ -232,6 +241,11 @@ export class KnifeTool {
   }
 
   onPointerUp() {
+    if (this.middleButton) {
+      this.edgePicker.dirty = true;
+    }
+    this.middleButton = false;
+    
     if (!this.active || (this.cutPoints.length !== 0)) return;
 
     requestAnimationFrame(() => {
@@ -339,18 +353,6 @@ export class KnifeTool {
       const line = new THREE.Line3(p1, p2);
       const intersection = plane.intersectLine(line, new THREE.Vector3());
       if (!intersection) continue;
-
-      // Front Intersection Only
-      const dirToCamera = new THREE.Vector3().subVectors(cameraPos, intersection).normalize();
-      const offset = 1e-4;
-      const start = new THREE.Vector3().addVectors(intersection, dirToCamera.clone().multiplyScalar(offset));
-
-      this.raycaster.set(start, dirToCamera);
-      this.raycaster.far = intersection.distanceTo(cameraPos) - offset;
-
-      const hits = this.raycaster.intersectObject(editedObject, true);
-
-      if (hits.length > 0 && hits[0].distance < this.raycaster.far) continue;
 
       if (!this.isIntersectionWithinScreenSegment(aPos, bPos, intersection, this.camera)) continue;
 
@@ -469,12 +471,51 @@ export class KnifeTool {
   }
 
   cancelCut() {
-    this.scene.remove(this.previewLine);
-    this.scene.remove(this.previewPoints);
+    this.previewLine.visible = false;
+    this.previewPoints.visible = false;
     this.cutPoints = [];
     this.intersections = [];
     this.edgeIntersections = [];
     this.newVertices = [];
+    this.edgePicker.dispose();
+  }
+
+  createPreview() {
+    this.lineMaterial = new LineMaterial({
+      color: 0xffff00,
+      linewidth: 1.0,
+      dashed: false,
+      worldUnits: true,
+      depthTest: false,
+      worldUnits: false,
+    });
+
+    this.pointMaterial = new THREE.PointsMaterial({
+      color: 0xffff00,
+      size: 6,
+      sizeAttenuation: false,
+      depthTest: false,
+      transparent: true,
+      opacity: 0.8
+    });
+
+    this.previewLineGeometry = new LineGeometry();
+    this.previewLine = new Line2(
+      this.previewLineGeometry,
+      this.lineMaterial
+    );
+
+    this.previewLine.visible = false;
+    this.scene.add(this.previewLine);
+
+    this.previewPointGeometry = new THREE.BufferGeometry();
+    this.previewPoints = new THREE.Points(
+      this.previewPointGeometry,
+      this.pointMaterial
+    );
+
+    this.previewPoints.visible = false;
+    this.scene.add(this.previewPoints);
   }
 
   updatePreview(aPos, bPos = null) {
@@ -484,27 +525,15 @@ export class KnifeTool {
     // --- Preview Line ---
     if (hasA && hasB) {
       const positions = [aPos.x, aPos.y, aPos.z, bPos.x, bPos.y, bPos.z];
-      const geometry = new LineGeometry();
-      geometry.setPositions(positions);
+      this.previewLineGeometry.setPositions(positions);
 
-      if (this.previewLine) {
-        this.scene.remove(this.previewLine);
-        this.previewLine.geometry.dispose();
-      }
-
-      this.previewLine = new Line2(geometry, this.lineMaterial);
       this.previewLine.computeLineDistances();
-      this.previewLine.scale.set(1, 1, 1);
-      this.scene.add(this.previewLine);
+      this.previewLine.visible = true;
+    } else {
+      this.previewLine.visible = false;
     }
 
     // --- Preview Points ---
-    if (this.previewPoints) {
-      this.scene.remove(this.previewPoints);
-      this.previewPoints.geometry.dispose();
-      this.previewPoints.material.dispose();
-    }
-
     const pointPositions = [];
     if (hasA && !hasB && this.intersections.length === 0) {
       if (aPos) {
@@ -516,11 +545,17 @@ export class KnifeTool {
       }
     }
 
-    const pointGeometry = new THREE.BufferGeometry();
-    pointGeometry.setAttribute('position', new THREE.Float32BufferAttribute(pointPositions, 3));
+    if (pointPositions.length > 0) {
+      this.previewPointGeometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(pointPositions, 3)
+      );
 
-    this.previewPoints = new THREE.Points(pointGeometry, this.pointMaterial);
-    this.scene.add(this.previewPoints);
+      this.previewPointGeometry.computeBoundingSphere();
+      this.previewPoints.visible = true;
+    } else {
+      this.previewPoints.visible = false;
+    }
   }
 
   isIntersectionWithinScreenSegment(a, b, intersection, camera) {

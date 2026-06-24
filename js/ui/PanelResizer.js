@@ -100,6 +100,8 @@ export default class PanelResizer {
 
     this.renderer.setSize(width, height);
     this.cameraManager.updateAspect(width / height);
+    this.signals.viewportResized.dispatch(width, height);
+    
     this.viewportViewHelper.updatePosition(this.renderer.domElement);
     this.adjustOutlinerHeight();
 

@@ -7,6 +7,7 @@ export class GPUEdgePicker {
     this.editor = editor;
     this.renderer = editor.renderer.renderer;
     this.scene = new THREE.Scene();
+    this.depthScene = new THREE.Scene();
     this.buildRenderTarget();
     this.pickLine = null;
     this.dirty = false;
@@ -25,10 +26,19 @@ export class GPUEdgePicker {
 
   dispose() {
     this.renderTarget.dispose();
+    
     if (this.pickLine) {
-      this.scene.remove(this.pickLine);
+      this.scene.clear();
       this.pickLine.material.dispose();
     }
+
+    this.depthScene.traverse(child => {
+      if (child.isMesh && child.material) {
+        child.material.dispose();
+      }
+    });
+
+    this.depthScene.clear();
   }
 
   resize(width, height) {
@@ -83,12 +93,29 @@ export class GPUEdgePicker {
     this.pickLine.matrix.copy(edgeHelper.matrix);
     this.scene.add(this.pickLine);
 
-    this.dirty = true; // mark for one re-render; skip all subsequent moves
+    this.dirty = true;
+  }
+
+  buildFromObject(object) {
+    this.depthScene.clear();
+
+    const depthMesh = object.clone();
+
+    depthMesh.traverse(child => {
+      if (child.isMesh) {
+        child.material = new THREE.MeshBasicMaterial({
+          colorWrite: false
+        });
+      }
+    });
+
+    this.depthScene.add(depthMesh);
   }
 
   render(camera) {
     this.renderer.setRenderTarget(this.renderTarget);
     this.renderer.clear();
+    this.renderer.render(this.depthScene, camera);
     this.renderer.render(this.scene, camera);
     this.renderer.setRenderTarget(null);
     this.dirty = false;
