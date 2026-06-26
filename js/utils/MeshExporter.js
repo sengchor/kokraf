@@ -5,7 +5,7 @@ import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import { computePerVertexNormals, computeFaceNormals, computeVertexNormalsWithAngle } from '../geometry/NormalCalculator.js';
 import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 
-export class Exporter {
+export class MeshExporter {
   constructor(editor) {
     this.editor = editor;
   }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Loader } from '../loaders/Loader.js';
-import { Exporter } from '../utils/Exporter.js';
+import { MeshExporter } from '../utils/MeshExporter.js';
+import { TextureExporter } from '../utils/TextureExporter.js';
 
 export class MenubarFile {
   constructor(editor) {
@@ -14,30 +15,34 @@ export class MenubarFile {
   }
 
   init(editor) {
-     document.querySelectorAll('[data-new]').forEach(item => {
+    document.querySelectorAll('[data-new]').forEach(item => {
       item.addEventListener('click', (event) => {
         const sceneType = event.target.getAttribute('data-new');
         this.tryCreateScene(sceneType);
-      })
-     });
+      });
+    });
 
-     document.querySelector('.open').addEventListener('click', () => {
+    document.querySelector('.open').addEventListener('click', () => {
       this.openProject(editor);
-     });
+    });
 
-     document.querySelector('.save').addEventListener('click', () => {
+    document.querySelector('.save').addEventListener('click', () => {
       this.saveProject(editor);
-     });
+    });
 
-     document.querySelector('.import').addEventListener('click', () => {
+    document.querySelector('.import').addEventListener('click', () => {
       this.importObject(editor);
-     });
+    });
 
-     document.querySelectorAll('[data-export]').forEach(item => {
+    document.querySelectorAll('[data-export]').forEach(item => {
       item.addEventListener('click', (event) => {
         const exportFormat = event.target.getAttribute('data-export');
         this.exportObject(editor, exportFormat);
       });
+    });
+
+    document.querySelector('.export-textures').addEventListener('click', () => {
+      this.exportTextures(editor);
     });
   }
 
@@ -160,12 +165,23 @@ export class MenubarFile {
 
   exportObject(editor, format) {
     const objects = this.selection.selectedObjects;
-    const exporter = new Exporter(editor);
+    const exporter = new MeshExporter(editor);
 
     if (!objects || objects.length === 0) {
       alert('Please select an object to export.');
       return;
     }
     exporter.export(objects, format);
+  }
+
+  exportTextures(editor) {
+    const objects = this.selection.selectedObjects;
+    const exporter = new TextureExporter(editor);
+
+    if (!objects || objects.length === 0) {
+      alert('Please select an object to export.');
+      return;
+    }
+    exporter.exportTextures(objects);
   }
 }
