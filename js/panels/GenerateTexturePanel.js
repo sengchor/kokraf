@@ -140,7 +140,7 @@ export class GenerateTexturePanel {
   setupListeners() {
     this.signals.modeChanged.add((newMode) => {
       if (this.generateButton) {
-        this.generateButton.classList.toggle('hidden', newMode === 'edit');
+        this.generateButton.classList.toggle('hidden', newMode === 'edit' || newMode === 'paint');
         this.generateButton.classList.remove('active');
       }
     });

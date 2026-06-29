@@ -45,6 +45,7 @@ export default class ViewportControls {
     this.meshMenu = document.getElementById('mesh-menu');
     this.selectMenu = document.getElementById('select-menu');
     this.leftControls = document.getElementById('left-controls-container');
+    this.middleControls = document.getElementById('middle-controls-container');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -164,27 +165,27 @@ export default class ViewportControls {
       }
 
       if (this.selectionModeBar) {
-        this.selectionModeBar.classList.toggle('hidden', newMode === 'object');
+        this.selectionModeBar.classList.toggle('hidden', newMode === 'object' || newMode === 'paint');
       }
 
       if (this.objectMenu) {
-        this.objectMenu.classList.toggle('hidden', newMode === 'edit');
+        this.objectMenu.classList.toggle('hidden', newMode === 'edit' || newMode === 'paint');
         this.objectMenu.classList.remove('active');
       }
 
       if (this.meshMenu) {
-        this.meshMenu.classList.toggle('hidden', newMode === 'object');
+        this.meshMenu.classList.toggle('hidden', newMode === 'object' || newMode === 'paint');
         this.meshMenu.classList.remove('active');
       }
 
       if (this.selectMenu) {
-        this.selectMenu.classList.toggle('hidden', newMode === 'object');
+        this.selectMenu.classList.toggle('hidden', newMode === 'object' || newMode === 'paint');
         this.selectMenu.classList.remove('active');
       }
 
-      if (this.generateButton) {
-        this.generateButton.classList.toggle('hidden', newMode === 'edit');
-        this.selectMenu.classList.remove('active');
+      if (this.middleControls) {
+        this.middleControls.classList.toggle('hidden', newMode === 'paint');
+        this.middleControls.classList.remove('active');
       }
     });
 
@@ -264,6 +265,14 @@ switchMode(newMode) {
       }
 
       object = selected[0];
+    } else if (newMode === 'paint') {
+      if (selected.length !== 1) {
+        alert('Please select one mesh to enter Texture Paint.');
+        this.interactionDropdown.value = previousMode;
+        return;
+      }
+
+      object = selected[0];
     } else {
       object = this.editSelection.editedObject;
     }
@@ -273,6 +282,12 @@ switchMode(newMode) {
 
 
   if (newMode === 'edit' && (!object?.isMesh || object.userData?.isImageRef)) {
+    alert('No mesh selected. Please select a mesh object.');
+    this.interactionDropdown.value = previousMode;
+    return;
+  }
+
+  if (newMode === 'paint' && (!object?.isMesh || object.userData?.isImageRef)) {
     alert('No mesh selected. Please select a mesh object.');
     this.interactionDropdown.value = previousMode;
     return;
@@ -311,7 +326,25 @@ switchMode(newMode) {
 
     this.transformOrientation = this.transformOrientationSelect.value;
     this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
-    this.signals.objectSelected.dispatch([this.editSelection.editedObject]);
+    this.signals.objectSelected.dispatch([selectedObject]);
+  }
+
+  enterPaintMode(selectedObject) {
+    this.selection.enable = false;
+    this.editSelection.enable = false;
+
+    if (this.editHelpers) {
+      this.editHelpers.removeVertexPoints();
+      this.editHelpers.removeEdgeLines();
+    }
+
+    this.editSelection.editedObject = selectedObject;
+    this.editSelection.clearSelection();
+    this.selection.deselect();
+
+    this.transformOrientation = this.transformOrientationSelect.value;
+    this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
+    this.signals.objectSelected.dispatch([selectedObject]);
   }
 
   updateXRayButtonState(shadingMode) {
@@ -366,6 +399,20 @@ switchMode(newMode) {
         this.selection.select(object);
         this.enterEditMode(object);
         this.signals.modeChanged.dispatch('edit');
+      } else {
+        this.enterObjectMode();
+        this.signals.modeChanged.dispatch('object');
+      }
+    } else if (mode === 'paint' && uuid) {
+      const object = this.editor.objectByUuid(uuid);
+
+      if (object && object.isMesh) {
+        this.selection.select(object);
+        this.enterPaintMode(object);
+        this.signals.modeChanged.dispatch('paint');
+      } else {
+        this.enterObjectMode();
+        this.signals.modeChanged.dispatch('object');
       }
     } else {
       this.enterObjectMode();

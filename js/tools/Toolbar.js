@@ -60,11 +60,11 @@ export default class Toolbar {
     this.updateTools();
 
     if (this.operationToolContainer) {
-      this.operationToolContainer.classList.toggle('hidden', this.currentMode === 'edit');
+      this.operationToolContainer.classList.toggle('hidden', this.currentMode === 'edit' || this.currentMode === 'paint');
     }
     
     if (this.meshToolContainer) {
-      this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object');
+      this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object' || this.currentMode === 'paint');
     }
   }
 
@@ -74,11 +74,11 @@ export default class Toolbar {
       this.updateTools();
 
       if (this.operationToolContainer) {
-        this.operationToolContainer.classList.toggle('hidden', newMode === 'edit');
+        this.operationToolContainer.classList.toggle('hidden', newMode === 'edit' || newMode === 'paint');
       }
 
       if (this.meshToolContainer) {
-        this.meshToolContainer.classList.toggle('hidden', newMode === 'object');
+        this.meshToolContainer.classList.toggle('hidden', newMode === 'object' || newMode === 'paint');
       }
     });
 

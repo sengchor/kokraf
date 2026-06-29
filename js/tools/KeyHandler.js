@@ -7,6 +7,7 @@ export class KeyHandler {
     this.config = editor.config;
     this.shortcuts = null;
     this.currentMode = 'object';
+    this.previousMode = null;
 
     this.keysPressed = {};
     this.lastKey = null;
@@ -127,6 +128,7 @@ export class KeyHandler {
           document.activeElement.blur();
         }
         this.signals.switchMode.dispatch('edit');
+        this.previousMode = 'object';
         return;
       } else if (event.ctrlKey && event.key.toLowerCase() === 'c') {
         this.signals.objectsCopied.dispatch();
@@ -169,7 +171,7 @@ export class KeyHandler {
         if (document.activeElement && document.activeElement.blur) {
           document.activeElement.blur();
         }
-        this.signals.switchMode.dispatch('object');
+        this.signals.switchMode.dispatch(this.previousMode || 'object');
         return;
       } else if (matchesShortcut(event, this.shortcuts['select'])) {
         this.editor.toolbar.setActiveTool('select');
@@ -217,6 +219,17 @@ export class KeyHandler {
       } else if (matchesShortcut(event, this.shortcuts['selectLinked'])) {
         this.signals.mouseSelectLinked.dispatch();
         handled = true;
+      }
+    }
+
+    if (this.currentMode = 'paint') {
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        }
+        this.signals.switchMode.dispatch('edit');
+        this.previousMode = 'paint';
       }
     }
 

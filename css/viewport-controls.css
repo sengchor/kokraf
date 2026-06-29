@@ -114,6 +114,10 @@
   transform: translateX(-50%);
 }
 
+.middle-controls-container.hidden {
+  display: none;
+}
+
 .snap-button {
   width: 20px;
   height: 20px;
