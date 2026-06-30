@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 import { GenerateTexturePanel } from '../panels/GenerateTexturePanel.js';
+import { TexturePainter } from '../texture/TexturePainter.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -341,6 +342,17 @@ switchMode(newMode) {
     this.editSelection.editedObject = selectedObject;
     this.editSelection.clearSelection();
     this.selection.deselect();
+
+    if (!this.texturePainter) {
+      this.texturePainter = new TexturePainter(this.editor);
+    }
+
+    this.texturePainter.attach(selectedObject).catch(err => {
+      alert(err.message);
+      this.interactionDropdown.value = 'object';
+      this.enterObjectMode();
+      this.signals.modeChanged.dispatch('object');
+    });
 
     this.transformOrientation = this.transformOrientationSelect.value;
     this.signals.transformOrientationChanged.dispatch(this.transformOrientation);

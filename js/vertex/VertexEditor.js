@@ -93,6 +93,11 @@ export class VertexEditor {
   deleteEdge(edge) { return this.meshData.deleteEdge(edge); }
 
   updateGeometryAndHelpers() {
+    this.updateGeometry();
+    this.signals.editSelectionRefresh.dispatch();
+  }
+
+  updateGeometry() {
     const shading = this.object.userData.shading;
     
     const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(this.meshData, { mode: shading });
@@ -100,8 +105,6 @@ export class VertexEditor {
     this.renderBuffer = renderBuffer;
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
-
-    this.signals.editSelectionRefresh.dispatch();
   }
 
   applyMeshData(newMeshData) {

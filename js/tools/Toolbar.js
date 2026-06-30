@@ -217,10 +217,12 @@ export default class Toolbar {
     const isObjectMode = this.currentMode === 'object';
 
     // Disable selection for some tools
-    if (isObjectMode) {
+    if (this.currentMode === 'object') {
       this.editSelection.enable = false;
-    } else {
+    } else if (this.currentMode === 'edit') {
       this.editSelection.enable = !['loopcut', 'knife'].includes(activeTool);
+    } else if (this.currentMode === 'paint') {
+      this.editSelection.enable = false;
     }
 
     switch (activeTool) {
