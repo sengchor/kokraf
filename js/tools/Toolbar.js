@@ -183,7 +183,7 @@ export default class Toolbar {
     if (!attachObject.visible) attachObject = null;
 
     this.updateActiveTools(activeTool, attachObject);
-    this.buttons.forEach(btn => {
+    this.buttons?.forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-tool') === activeTool);
     });
   }
