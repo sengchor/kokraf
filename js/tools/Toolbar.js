@@ -59,6 +59,10 @@ export default class Toolbar {
     this.currentMode = this.viewportControls.currentMode;
     this.updateTools();
 
+    if (this.defaultToolContainer) {
+      this.defaultToolContainer.classList.toggle('hidden', this.currentMode === 'paint');
+    }
+
     if (this.operationToolContainer) {
       this.operationToolContainer.classList.toggle('hidden', this.currentMode === 'edit' || this.currentMode === 'paint');
     }

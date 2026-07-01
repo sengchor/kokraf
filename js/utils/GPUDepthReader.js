@@ -25,6 +25,9 @@ const linearDepthFragmentShader = `
   }
 `;
 
+const _proj = new THREE.Vector3();
+const _viewPos = new THREE.Vector3();
+
 export class GPUDepthReader {
   constructor(renderer, width, height) {
     this.renderer = renderer;
@@ -90,14 +93,14 @@ export class GPUDepthReader {
 
   isPointVisible(position, camera) {
     // Get NDC coordinates to find the correct pixel
-    const proj = position.clone().project(camera);
+    const _proj = position.clone().project(camera);
     
-    if (proj.x < -1 || proj.x > 1 || proj.y < -1 || proj.y > 1 || proj.z > 1 || proj.z < -1) {
+    if (_proj.x < -1 || _proj.x > 1 || _proj.y < -1 || _proj.y > 1 || _proj.z > 1 || _proj.z < -1) {
       return false; // Point is outside the frustum
     }
 
-    const x = Math.floor((proj.x + 1) * this.width / 2);
-    const y = Math.floor((proj.y + 1) * this.height / 2);
+    const x = Math.floor((_proj.x + 1) * this.width / 2);
+    const y = Math.floor((_proj.y + 1) * this.height / 2);
     const index = (y * this.width + x) * 4;
 
     // Unpack to normalized linear depth [0, 1]
@@ -112,8 +115,8 @@ export class GPUDepthReader {
     const gpuViewZ = normalizedDepth * (camera.far - camera.near) + camera.near;
 
     // Transform the test point into view space
-    const viewPos = position.clone().applyMatrix4(camera.matrixWorldInverse);
-    const testViewZ = -viewPos.z;
+    _viewPos.copy(position).applyMatrix4(camera.matrixWorldInverse);
+    const testViewZ = -_viewPos.z;
 
     // Direct 1D comparison
     // Epsilon may need slight tuning depending on your scene scale

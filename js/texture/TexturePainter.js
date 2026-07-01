@@ -170,12 +170,20 @@ export class TexturePainter {
   _onPointerMove(event) {
     if (!this.isPainting) return;
     event.stopPropagation();
-    const hit = this._getHit(event);
+    
+    let hit = this._getHit(event);
+
+    if (!hit && this.lastHit) {
+      hit = this._getVirtualHit(event, this.lastHit);
+    }
+
     if (!hit) {
       this.lastHit = null;
       return;
     }
+
     this._paintAt(hit, this.lastHit);
+    
     this.lastHit = hit;
   }
 
@@ -231,5 +239,32 @@ export class TexturePainter {
       const light = this.editor.objectFactory.createLight('Hemisphere');
       this.editor.execute(new AddObjectCommand(this.editor, light));
     }
+  }
+
+  _getVirtualHit(event, lastHit) {
+    const rect = this._domElement.getBoundingClientRect();
+    const sx = event.clientX - rect.left;
+    const sy = event.clientY - rect.top;
+    const ndc = new THREE.Vector2((sx / rect.width) * 2 - 1, -(sy / rect.height) * 2 + 1);
+    
+    const camera = this.editor.cameraManager.camera;
+    this._raycaster.setFromCamera(ndc, camera);
+
+    // Create a virtual plane at the last hit point, facing directly at the camera
+    const planeNormal = camera.getWorldDirection(new THREE.Vector3()).negate();
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, lastHit.point);
+    const target = new THREE.Vector3();
+
+    // Intersect the mouse ray with this invisible plane
+    if (this._raycaster.ray.intersectPlane(plane, target)) {
+      return {
+        point: target,
+        normal: lastHit.normal,
+        screen: { x: sx, y: sy },
+        rect: { width: rect.width, height: rect.height },
+      };
+    }
+    
+    return null;
   }
 }
