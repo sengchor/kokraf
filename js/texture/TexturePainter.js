@@ -58,6 +58,7 @@ export class TexturePainter {
     this.isActive = true;
 
     this._ensureDefaultLight();
+    this.editor.selection.deselect();
     this.signals.shadingModeChanged.dispatch('material');
   }
 
@@ -170,7 +171,10 @@ export class TexturePainter {
     if (!this.isPainting) return;
     event.stopPropagation();
     const hit = this._getHit(event);
-    if (!hit) return;
+    if (!hit) {
+      this.lastHit = null;
+      return;
+    }
     this._paintAt(hit, this.lastHit);
     this.lastHit = hit;
   }

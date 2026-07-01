@@ -312,6 +312,10 @@ switchMode(newMode) {
       this.editSelection.editedObject = null;
     }
 
+    if (this.texturePainter) {
+      this.texturePainter.detach();
+    }
+
     this.transformOrientation = this.transformOrientationSelect.value;
     this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
   }
@@ -324,6 +328,10 @@ switchMode(newMode) {
     this.signals.editSelectionRefresh.dispatch();
     this.editSelection.clearSelection();
     this.selection.deselect();
+
+    if (this.texturePainter) {
+      this.texturePainter.detach();
+    }
 
     this.transformOrientation = this.transformOrientationSelect.value;
     this.signals.transformOrientationChanged.dispatch(this.transformOrientation);

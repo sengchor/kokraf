@@ -73,6 +73,10 @@ export default class Toolbar {
       this.currentMode = newMode;
       this.updateTools();
 
+      if (this.defaultToolContainer) {
+        this.defaultToolContainer.classList.toggle('hidden', newMode === 'paint');
+      }
+
       if (this.operationToolContainer) {
         this.operationToolContainer.classList.toggle('hidden', newMode === 'edit' || newMode === 'paint');
       }
@@ -114,6 +118,7 @@ export default class Toolbar {
   }
 
   setupToolbarButtons() {
+    this.defaultToolContainer = document.querySelector('.default-tools');
     this.operationToolContainer = document.querySelector('.operation-tools');
     this.meshToolContainer = document.querySelector('.mesh-tools');
 

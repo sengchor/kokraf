@@ -222,7 +222,8 @@ export class KeyHandler {
       }
     }
 
-    if (this.currentMode = 'paint') {
+    /* ---------- Texture Paint ---------- */
+    if (this.currentMode === 'paint') {
       if (event.key === 'Tab') {
         event.preventDefault();
         if (document.activeElement && document.activeElement.blur) {
