@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { ProjectionPainter } from './ProjectionPainter.js';
 import { AddObjectCommand } from '../commands/AddObjectCommand.js';
+import { GPUDepthReader } from '../utils/GPUDepthReader.js';
 
 export class TexturePainter {
   constructor(editor) {
@@ -28,6 +29,12 @@ export class TexturePainter {
     this._raycaster = new THREE.Raycaster();
     this._domElement = editor.renderer.renderer.domElement;
 
+    this.depthReader = new GPUDepthReader(
+      editor.renderer.renderer, 
+      window.innerWidth, 
+      window.innerHeight
+    );
+
     this._onPointerDown = this._onPointerDown.bind(this);
     this._onPointerMove = this._onPointerMove.bind(this);
     this._onPointerUp = this._onPointerUp.bind(this);
@@ -44,14 +51,14 @@ export class TexturePainter {
     this.object = object;
     this.isActive = false;
 
-    await this._ensureUVs(object);
+    const bakeMesh = await this._ensureUVs(object);
 
     this._initCanvas();
 
     if (!this.projectionPainter) {
       this.projectionPainter = new ProjectionPainter();
     }
-    this.projectionPainter.attach(object, this.canvas);
+    this.projectionPainter.attach(object, this.canvas, bakeMesh);
 
     this._applyToMaterial();
     this._bindEvents();
@@ -80,6 +87,13 @@ export class TexturePainter {
 
     this.editor.vertexEditor.setObject(object);
     this.editor.vertexEditor.updateGeometry();
+
+    const bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
+    const tempBakeMesh = new THREE.Mesh(bakeGeometry);
+    tempBakeMesh.matrixWorld.copy(object.matrixWorld);
+
+    this.bakeMesh = tempBakeMesh;
+    return tempBakeMesh;
   }
 
   _initCanvas() {
@@ -162,6 +176,11 @@ export class TexturePainter {
     this.isPainting = true;
     this._domElement.setPointerCapture(event.pointerId);
 
+    const camera = this.editor.cameraManager.camera;
+    const scene = this.editor.sceneManager.mainScene;
+
+    this.depthReader.updateDepthBuffer(scene, camera);
+
     const hit = this._getHit(event);
     this.lastHit = hit;
     if (hit) this._paintAt(hit, null);
@@ -213,6 +232,7 @@ export class TexturePainter {
       hardness: this.hardness,
       viewDir,
       facingTest: true,
+      depthReader: this.depthReader,
     });
 
     this.texture.needsUpdate = true;

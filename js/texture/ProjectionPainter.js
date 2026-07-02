@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import earcut from 'earcut';
-import { computePlaneNormal, projectTo2D } from '../geometry/TriangulationUtils.js';
 
 export class ProjectionPainter {
   constructor() {
@@ -12,14 +10,13 @@ export class ProjectionPainter {
     this._ndcTmp = new THREE.Vector3();
   }
 
-  attach(object, canvas) {
-    const meshData = object.userData.meshData;
-    const meshChanged = this.meshData !== meshData;
+  attach(object, canvas, bakeMesh) {
+    const meshChanged = this.bakeMesh !== bakeMesh;
     const canvasChanged = this.canvas !== canvas;
     const objectChanged = this.object !== object;
 
     this.object = object;
-    this.meshData = meshData;
+    this.bakeMesh = bakeMesh;
 
     if (canvasChanged) {
       this.canvas = canvas;
@@ -34,41 +31,61 @@ export class ProjectionPainter {
 
   _buildTriangleCache() {
     this.triangles = [];
+    if (!this.bakeMesh) return;
 
-    this.object.updateMatrixWorld();
-    const matrixWorld = this.object.matrixWorld;
+    const mesh = this.bakeMesh;
+    mesh.matrixWorld.copy(this.object.matrixWorld);
+    const matrixWorld = mesh.matrixWorld;
     const normalMatrix = new THREE.Matrix3().getNormalMatrix(matrixWorld);
 
-    for (const face of this.meshData.faces.values()) {
-      const vIds = face.vertexIds;
-      const verts = vIds.map(id => this.meshData.vertices.get(id));
-      const faceUVs = this.meshData.uvs.get(face.id);
-      if (!faceUVs) continue;
+    const geom = mesh.geometry;
+    const posAttr = geom.getAttribute('position');
+    const uvAttr = geom.getAttribute('uv');
+    const index = geom.getIndex();
 
-      // triangulation only needs local-space topology, transform doesn't affect winding logic
-      const localNormal = computePlaneNormal(verts);
-      const flat2D = projectTo2D(verts, localNormal);
-      const localTris = earcut(flat2D);
-      const worldNormal = localNormal.clone().applyMatrix3(normalMatrix).normalize();
+    if (!posAttr || !uvAttr) {
+      this._buildSpatialHash();
+      return;
+    }
 
-      for (let i = 0; i < localTris.length; i += 3) {
-        const [ia, ib, ic] = [localTris[i], localTris[i + 1], localTris[i + 2]];
-        const p0 = new THREE.Vector3().copy(verts[ia].position).applyMatrix4(matrixWorld);
-        const p1 = new THREE.Vector3().copy(verts[ib].position).applyMatrix4(matrixWorld);
-        const p2 = new THREE.Vector3().copy(verts[ic].position).applyMatrix4(matrixWorld);
-        const uv0 = faceUVs[ia], uv1 = faceUVs[ib], uv2 = faceUVs[ic];
+    const idx = i => (index ? index.getX(i) : i);
+    const triCount = (index ? index.count : posAttr.count) / 3;
 
-        const center = new THREE.Vector3().add(p0).add(p1).add(p2).multiplyScalar(1 / 3);
-        const radius = Math.max(center.distanceTo(p0), center.distanceTo(p1), center.distanceTo(p2));
+    const localA = new THREE.Vector3();
+    const localB = new THREE.Vector3();
+    const localC = new THREE.Vector3();
 
-        this.triangles.push({ p0, p1, p2, uv0, uv1, uv2, center, radius, normal: worldNormal });
-      }
+    for (let t = 0; t < triCount; t++) {
+      const ia = idx(t * 3);
+      const ib = idx(t * 3 + 1);
+      const ic = idx(t * 3 + 2);
+
+      localA.fromBufferAttribute(posAttr, ia);
+      localB.fromBufferAttribute(posAttr, ib);
+      localC.fromBufferAttribute(posAttr, ic);
+
+      const p0 = localA.clone().applyMatrix4(matrixWorld);
+      const p1 = localB.clone().applyMatrix4(matrixWorld);
+      const p2 = localC.clone().applyMatrix4(matrixWorld);
+
+      const uv0 = { u: uvAttr.getX(ia), v: uvAttr.getY(ia) };
+      const uv1 = { u: uvAttr.getX(ib), v: uvAttr.getY(ib) };
+      const uv2 = { u: uvAttr.getX(ic), v: uvAttr.getY(ic) };
+
+      const localNormal = new THREE.Triangle(localA, localB, localC).getNormal(new THREE.Vector3());
+      const worldNormal = localNormal.applyMatrix3(normalMatrix).normalize();
+
+      const center = new THREE.Vector3().add(p0).add(p1).add(p2).multiplyScalar(1 / 3);
+      const radius = Math.max(center.distanceTo(p0), center.distanceTo(p1), center.distanceTo(p2));
+
+      this.triangles.push({ p0, p1, p2, uv0, uv1, uv2, center, radius, normal: worldNormal });
     }
 
     this._buildSpatialHash();
   }
 
-  rebuild() {
+  rebuild(bakeMesh) {
+    if (bakeMesh) this.bakeMesh = bakeMesh;
     this._buildTriangleCache();
   }
 
@@ -123,6 +140,7 @@ export class ProjectionPainter {
     hardness,
     viewDir,
     facingTest = true,
+    depthReader,
   }) {
     const sweep = prevWorldCenter ? prevWorldCenter.distanceTo(worldCenter) : 0;
     const candidates = this._queryCandidates(worldCenter, (worldQueryRadius + sweep) * 1.5);
@@ -161,6 +179,10 @@ export class ProjectionPainter {
 
           camLocal.copy(worldPos).applyMatrix4(camera.matrixWorldInverse);
           if (camLocal.z > 0) continue;
+
+          if (depthReader && !depthReader.isPointVisible(worldPos, camera)) {
+            continue;
+          }
 
           this._projectToScreen(worldPos, camera, rect, screenWorld);
 
