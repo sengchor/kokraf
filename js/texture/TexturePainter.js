@@ -35,12 +35,34 @@ export class TexturePainter {
       window.innerHeight
     );
 
+    this.brushCursor = document.createElement('div');
+
+    Object.assign(this.brushCursor.style, {
+      position: 'absolute',
+      border: '1px solid white',
+      borderRadius: '50%',
+      pointerEvents: 'none',
+      boxSizing: 'border-box',
+      transform: 'translate(-50%, -50%)',
+      display: 'none',
+      zIndex: 1000,
+    });
+
+    this._domElement.parentElement.appendChild(this.brushCursor);
+
     this._onPointerDown = this._onPointerDown.bind(this);
     this._onPointerMove = this._onPointerMove.bind(this);
     this._onPointerUp = this._onPointerUp.bind(this);
+
+    this._onPointerEnter = this._onPointerEnter.bind(this);
+    this._onPointerLeave = this._onPointerLeave.bind(this);
   }
 
   async attach(object) {
+    this._domElement.style.cursor = 'none';
+    this.brushCursor.style.display = 'block';
+    this.setSize(this.size);
+
     if (this.texture && this.object !== object) {
       this.texture.dispose();
       this.texture = null;
@@ -76,6 +98,18 @@ export class TexturePainter {
     this.isPainting = false;
     this.lastHit = null;
     this.object = null;
+
+    this._domElement.style.cursor = '';
+    this.brushCursor.style.display = 'none';
+  }
+
+  _updateBrushCursor(event) {
+    const rect = this._domElement.getBoundingClientRect();
+
+    this.brushCursor.style.left = `${event.clientX - rect.left}px`;
+    this.brushCursor.style.top = `${event.clientY - rect.top}px`;
+    this.brushCursor.style.width = `${this.size * 2}px`;
+    this.brushCursor.style.height = `${this.size * 2}px`;
   }
 
   async _ensureUVs(object) {
@@ -136,12 +170,18 @@ export class TexturePainter {
     this._domElement.addEventListener('pointerdown', this._onPointerDown);
     this._domElement.addEventListener('pointermove', this._onPointerMove);
     this._domElement.addEventListener('pointerup', this._onPointerUp);
+
+    this._domElement.addEventListener('pointerenter', this._onPointerEnter);
+    this._domElement.addEventListener('pointerleave', this._onPointerLeave);
   }
 
   _unbindEvents() {
     this._domElement.removeEventListener('pointerdown', this._onPointerDown);
     this._domElement.removeEventListener('pointermove', this._onPointerMove);
     this._domElement.removeEventListener('pointerup', this._onPointerUp);
+
+    this._domElement.removeEventListener('pointerenter', this._onPointerEnter);
+    this._domElement.removeEventListener('pointerleave', this._onPointerLeave);
   }
 
   _getHit(event) {
@@ -187,6 +227,8 @@ export class TexturePainter {
   }
 
   _onPointerMove(event) {
+    this._updateBrushCursor(event);
+
     if (!this.isPainting) return;
     event.stopPropagation();
     
@@ -213,33 +255,54 @@ export class TexturePainter {
     this._domElement.releasePointerCapture(event.pointerId);
   }
 
+  _onPointerEnter() {
+    if (!this.isActive) return;
+
+    this._domElement.style.cursor = 'none';
+    this.brushCursor.style.display = 'block';
+  }
+
+  _onPointerLeave() {
+    this._domElement.style.cursor = '';
+    this.brushCursor.style.display = 'none';
+  }
+
   _paintAt(hit, prevHit) {
     const camera = this.editor.cameraManager.camera;
     const viewDir = camera.getWorldDirection(new THREE.Vector3());
     const worldQueryRadius = this._worldQueryRadius(hit.point, camera, hit.rect);
 
-    this.projectionPainter.paintDab({
-      camera,
-      rect: hit.rect,
-      screenPos: hit.screen,
-      prevScreenPos: prevHit?.screen ?? null,
-      worldCenter: hit.point,
-      prevWorldCenter: prevHit?.point ?? null,
-      worldQueryRadius,
-      radius: this.size,
-      color: this.color,
-      opacity: this.opacity,
-      hardness: this.hardness,
-      viewDir,
-      facingTest: true,
-      depthReader: this.depthReader,
-    });
+    const paintContext = {
+      stroke: {
+        current: hit,
+        previous: prevHit,
+      },
+      brush: {
+        radius: this.size,
+        color: this.color,
+        opacity: this.opacity,
+        hardness: this.hardness,
+      },
+      projection: {
+        camera,
+        viewDir,
+        depthReader: this.depthReader,
+        worldQueryRadius,
+      },
+    };
+
+    this.projectionPainter.paintDab(paintContext);
 
     this.texture.needsUpdate = true;
   }
 
   setColor(hex) { this.color = hex; }
-  setSize(px) { this.size = Math.max(1, px); }
+  setSize(px) { 
+    this.size = Math.max(1, px);
+
+    this.brushCursor.style.width = `${this.size * 2}px`;
+    this.brushCursor.style.height = `${this.size * 2}px`;
+  }
   setOpacity(v) { this.opacity = Math.max(0, Math.min(1, v)); }
   setHardness(v) { this.hardness = Math.max(0, Math.min(1, v)); }
 

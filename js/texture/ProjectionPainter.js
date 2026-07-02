@@ -140,38 +140,46 @@ export class ProjectionPainter {
     return result;
   }
 
-  /**
-   * @param {THREE.Camera} camera
-   * @param {{width:number,height:number}} rect - DOM element rect (pixel space the stroke is measured in)
-   * @param {{x:number,y:number}} screenPos - cursor position in rect-local pixels
-   * @param {{x:number,y:number}|null} prevScreenPos
-   * @param {THREE.Vector3} worldCenter - current hit point, used only for broad-phase culling
-   * @param {THREE.Vector3|null} prevWorldCenter
-   * @param {number} worldQueryRadius - rough world-space radius for the spatial-hash query
-   * @param {number} radius - brush radius in SCREEN PIXELS (this is the real brush size now)
-   */
-  paintDab({
-    camera,
-    rect,
-    screenPos,
-    prevScreenPos = null,
-    worldCenter,
-    prevWorldCenter = null,
-    worldQueryRadius,
-    radius,
-    color,
-    opacity,
-    hardness,
-    viewDir,
-    facingTest = true,
-    depthReader,
-  }) {
-    const sweep = prevWorldCenter ? prevWorldCenter.distanceTo(worldCenter) : 0;
-    const candidates = this._queryCandidates(worldCenter, (worldQueryRadius + sweep) * 1.5);
+  _getPaintParams(context) {
+    const {
+      stroke: { current, previous },
+      brush: { radius, color, opacity, hardness },
+      projection: {
+        camera,
+        viewDir,
+        depthReader,
+        worldQueryRadius,
+      },
+    } = context;
+
+    return {
+      camera,
+      viewDir,
+      depthReader,
+      worldQueryRadius,
+
+      radius,
+      color,
+      opacity,
+      hardness,
+
+      rect: current.rect,
+      screenPos: current.screen,
+      prevScreenPos: previous?.screen ?? null,
+      worldCenter: current.point,
+      prevWorldCenter: previous?.point ?? null,
+    };
+  }
+
+  paintDab(context) {
+    const p = this._getPaintParams(context);
+
+    const sweep = p.prevWorldCenter ? p.prevWorldCenter.distanceTo(p.worldCenter) : 0;
+    const candidates = this._queryCandidates(p.worldCenter, (p.worldQueryRadius + sweep) * 1.5);
 
     const { width, height } = this.canvas;
     const data = this.imageData.data;
-    const [cr, cg, cb] = this._hexToRGB(color);
+    const [cr, cg, cb] = this._hexToRGB(p.color);
     const bary = new THREE.Vector3();
     const worldPos = new THREE.Vector3();
     const camLocal = new THREE.Vector3();
@@ -179,7 +187,7 @@ export class ProjectionPainter {
     let touched = false;
 
     for (const tri of candidates) {
-      if (facingTest && viewDir && tri.normal.dot(viewDir) > -0.05) continue;
+      if (p.viewDir && tri.normal.dot(p.viewDir) > -0.05) continue;
 
       const minU = Math.min(tri.uv0.u, tri.uv1.u, tri.uv2.u);
       const maxU = Math.max(tri.uv0.u, tri.uv1.u, tri.uv2.u);
@@ -201,21 +209,21 @@ export class ProjectionPainter {
             .addScaledVector(tri.p1, bary.y)
             .addScaledVector(tri.p2, bary.z);
 
-          camLocal.copy(worldPos).applyMatrix4(camera.matrixWorldInverse);
+          camLocal.copy(worldPos).applyMatrix4(p.camera.matrixWorldInverse);
           if (camLocal.z > 0) continue;
 
-          this._projectToScreen(worldPos, camera, rect, screenWorld);
+          this._projectToScreen(worldPos, p.camera, p.rect, screenWorld);
 
-          const d = prevScreenPos
-            ? this._distancePointToSegment2D(screenWorld, prevScreenPos, screenPos)
-            : this._dist2D(screenWorld, screenPos);
-          if (d > radius) continue;
+          const d = p.prevScreenPos
+            ? this._distancePointToSegment2D(screenWorld, p.prevScreenPos, p.screenPos)
+            : this._dist2D(screenWorld, p.screenPos);
+          if (d > p.radius) continue;
 
-          if (depthReader && !depthReader.isPointVisible(worldPos, camera)) {
+          if (p.depthReader && !p.depthReader.isPointVisible(worldPos, p.camera)) {
             continue;
           }
 
-          const a = this._falloff(d / radius, hardness) * opacity;
+          const a = this._falloff(d / p.radius, p.hardness) * p.opacity;
           if (a <= 0) continue;
 
           const idx = (py * width + px) * 4;
