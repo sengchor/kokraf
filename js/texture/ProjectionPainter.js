@@ -92,10 +92,26 @@ export class ProjectionPainter {
   _buildSpatialHash(cellSize = 0.5) {
     this.cellSize = cellSize;
     this.grid = new Map();
+    
     for (const tri of this.triangles) {
-      const key = this._cellKey(tri.center);
-      if (!this.grid.has(key)) this.grid.set(key, []);
-      this.grid.get(key).push(tri);
+      // Calculate the bounding box of the triangle's sphere in grid space
+      const minX = Math.floor((tri.center.x - tri.radius) / cellSize);
+      const maxX = Math.floor((tri.center.x + tri.radius) / cellSize);
+      const minY = Math.floor((tri.center.y - tri.radius) / cellSize);
+      const maxY = Math.floor((tri.center.y + tri.radius) / cellSize);
+      const minZ = Math.floor((tri.center.z - tri.radius) / cellSize);
+      const maxZ = Math.floor((tri.center.z + tri.radius) / cellSize);
+
+      // Register the triangle in every cell its volume touches
+      for (let x = minX; x <= maxX; x++) {
+        for (let y = minY; y <= maxY; y++) {
+          for (let z = minZ; z <= maxZ; z++) {
+            const key = `${x},${y},${z}`;
+            if (!this.grid.has(key)) this.grid.set(key, []);
+            this.grid.get(key).push(tri);
+          }
+        }
+      }
     }
   }
 
@@ -104,15 +120,23 @@ export class ProjectionPainter {
   }
 
   _queryCandidates(center, radius) {
-    const result = [];
+    const result = new Set();
     const r = Math.ceil(radius / this.cellSize) + 1;
     const [cx, cy, cz] = [center.x, center.y, center.z].map(c => Math.floor(c / this.cellSize));
-    for (let x = -r; x <= r; x++)
-      for (let y = -r; y <= r; y++)
+    
+    for (let x = -r; x <= r; x++) {
+      for (let y = -r; y <= r; y++) {
         for (let z = -r; z <= r; z++) {
           const bucket = this.grid.get(`${cx + x},${cy + y},${cz + z}`);
-          if (bucket) result.push(...bucket);
+          if (bucket) {
+            for (const tri of bucket) {
+              result.add(tri);
+            }
+          }
         }
+      }
+    }
+    
     return result;
   }
 
@@ -180,16 +204,16 @@ export class ProjectionPainter {
           camLocal.copy(worldPos).applyMatrix4(camera.matrixWorldInverse);
           if (camLocal.z > 0) continue;
 
-          if (depthReader && !depthReader.isPointVisible(worldPos, camera)) {
-            continue;
-          }
-
           this._projectToScreen(worldPos, camera, rect, screenWorld);
 
           const d = prevScreenPos
             ? this._distancePointToSegment2D(screenWorld, prevScreenPos, screenPos)
             : this._dist2D(screenWorld, screenPos);
           if (d > radius) continue;
+
+          if (depthReader && !depthReader.isPointVisible(worldPos, camera)) {
+            continue;
+          }
 
           const a = this._falloff(d / radius, hardness) * opacity;
           if (a <= 0) continue;
