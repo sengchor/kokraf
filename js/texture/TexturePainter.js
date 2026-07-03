@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { ProjectionPainter } from './ProjectionPainter.js';
 import { AddObjectCommand } from '../commands/AddObjectCommand.js';
+import { PaintStrokeCommand } from '../commands/PaintStrokeCommand.js';
 import { GPUDepthReader } from '../utils/GPUDepthReader.js';
 
 export class TexturePainter {
@@ -25,6 +26,9 @@ export class TexturePainter {
     this.texture = null;
     this.projectionPainter = null;
     this._resolution = 1024;
+
+    this._strokeBefore = null;
+    this._strokeTouched = false;
 
     this._raycaster = new THREE.Raycaster();
     this._domElement = editor.renderer.renderer.domElement;
@@ -143,7 +147,7 @@ export class TexturePainter {
     this.canvas = document.createElement('canvas');
     this.canvas.width = res;
     this.canvas.height = res;
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
 
     if (existingImage) {
       this.ctx.drawImage(existingImage, 0, 0, res, res);
@@ -221,6 +225,9 @@ export class TexturePainter {
 
     this.depthReader.updateDepthBuffer(scene, camera);
 
+    this._strokeBefore = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    this._strokeTouched = false;
+
     const hit = this._getHit(event);
     this.lastHit = hit;
     if (hit) this._paintAt(hit, null);
@@ -253,6 +260,14 @@ export class TexturePainter {
     this.isPainting = false;
     this.lastHit = null;
     this._domElement.releasePointerCapture(event.pointerId);
+
+    if (this._strokeTouched && this._strokeBefore) {
+      const _strokeAfter = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      this.editor.execute(new PaintStrokeCommand(this.editor, this.object, this._strokeBefore, _strokeAfter));
+    }
+
+    this._strokeBefore = null;
+    this._strokeTouched = false;
   }
 
   _onPointerEnter() {
@@ -291,7 +306,8 @@ export class TexturePainter {
       },
     };
 
-    this.projectionPainter.paintDab(paintContext);
+    const touched = this.projectionPainter.paintDab(paintContext);
+    this._strokeTouched = this._strokeTouched || touched;
 
     this.texture.needsUpdate = true;
   }
@@ -320,7 +336,7 @@ export class TexturePainter {
 
     if (!hasLight) {
       const light = this.editor.objectFactory.createLight('Hemisphere');
-      this.editor.execute(new AddObjectCommand(this.editor, light));
+      this.editor.sceneManager.addObject(light);
     }
   }
 
