@@ -154,24 +154,51 @@
 
   <!-- Middle Controls -->
   <div class="middle-controls-container" id="middle-controls-container">
-    <div class="tooltip-wrapper" data-tooltip="Transform Orientation">
-      <select class="transform-orientation-select" id="transform-orientation">
-        <option value="global" selected>GLOBAL</option>
-        <option value="local">LOCAL</option>
-      </select>
+    <div class="transform-controls" id="transform-controls">
+      <div class="tooltip-wrapper" data-tooltip="Transform Orientation">
+        <select class="transform-orientation-select" id="transform-orientation">
+          <option value="global" selected>GLOBAL</option>
+          <option value="local">LOCAL</option>
+        </select>
+      </div>
+
+      <button class="snap-button" id="snap-button" data-tooltip="Snap">
+        <img class="snap-off" src="assets/icons/snap.svg" alt="Snap Off"/>
+        <img class="snap-on" src="assets/icons/snapping.svg" alt="Snap On"/>
+      </button>
+
+      <div class="tooltip-wrapper" data-tooltip="Snapping To">
+        <select class="snapping-to-select" id="snapping-to">
+          <option value="vertex" selected>VERTEX</option>
+          <option value="edge">EDGE</option>
+          <option value="face">FACE</option>
+        </select>
+      </div>
     </div>
 
-    <button class="snap-button" id="snap-button" data-tooltip="Snap">
-      <img class="snap-off" src="assets/icons/snap.svg" alt="Snap Off"/>
-      <img class="snap-on" src="assets/icons/snapping.svg" alt="Snap On"/>
-    </button>
+    <!-- Brush Settings (Texture Paint) -->
+    <div class="brush-settings" id="brush-settings">
+      <div class="tooltip-wrapper" data-tooltip="Brush Color">
+        <input type="color" class="brush-color-input" id="brush-color" value="#ffffff" />
+      </div>
 
-    <div class="tooltip-wrapper" data-tooltip="Snapping To">
-      <select class="snapping-to-select" id="snapping-to">
-        <option value="vertex" selected>VERTEX</option>
-        <option value="edge">EDGE</option>
-        <option value="face">FACE</option>
-      </select>
+      <div class="tooltip-wrapper brush-slider-wrapper" data-tooltip="Brush Size">
+        <span class="brush-slider-label">SIZE</span>
+        <input type="range" class="brush-slider" id="brush-size" min="1" max="200" step="1" value="20" />
+        <span class="brush-slider-value" id="brush-size-value">20</span>
+      </div>
+
+      <div class="tooltip-wrapper brush-slider-wrapper" data-tooltip="Brush Opacity">
+        <span class="brush-slider-label">OPACITY</span>
+        <input type="range" class="brush-slider" id="brush-opacity" min="0" max="100" step="1" value="100" />
+        <span class="brush-slider-value" id="brush-opacity-value">100</span>
+      </div>
+
+      <div class="tooltip-wrapper brush-slider-wrapper" data-tooltip="Brush Hardness">
+        <span class="brush-slider-label">HARDNESS</span>
+        <input type="range" class="brush-slider" id="brush-hardness" min="0" max="100" step="1" value="80" />
+        <span class="brush-slider-value" id="brush-hardness-value">80</span>
+      </div>
     </div>
   </div>
 

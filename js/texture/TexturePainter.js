@@ -60,6 +60,8 @@ export class TexturePainter {
 
     this._onPointerEnter = this._onPointerEnter.bind(this);
     this._onPointerLeave = this._onPointerLeave.bind(this);
+
+    this._initBrushControls();
   }
 
   async attach(object) {
@@ -158,6 +160,39 @@ export class TexturePainter {
 
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
+  }
+
+  _initBrushControls() {
+    const brushColor = document.getElementById('brush-color');
+    const brushSize = document.getElementById('brush-size');
+    const brushOpacity = document.getElementById('brush-opacity');
+    const brushHardness = document.getElementById('brush-hardness');
+
+    const sizeValue = document.getElementById('brush-size-value');
+    const opacityValue = document.getElementById('brush-opacity-value');
+    const hardnessValue = document.getElementById('brush-hardness-value');
+
+    brushColor.addEventListener('input', (e) => {
+      this.setColor(e.target.value);
+    });
+
+    brushSize.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      this.setSize(value);
+      sizeValue.textContent = value;
+    });
+
+    brushOpacity.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      this.setOpacity(value / 100);
+      opacityValue.textContent = value;
+    });
+
+    brushHardness.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      this.setHardness(value / 100);
+      hardnessValue.textContent = value;
+    });
   }
 
   _applyToMaterial() {

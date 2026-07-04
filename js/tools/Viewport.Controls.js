@@ -46,7 +46,8 @@ export default class ViewportControls {
     this.meshMenu = document.getElementById('mesh-menu');
     this.selectMenu = document.getElementById('select-menu');
     this.leftControls = document.getElementById('left-controls-container');
-    this.middleControls = document.getElementById('middle-controls-container');
+    this.transformControls = document.getElementById('transform-controls');
+    this.brushSettings = document.getElementById('brush-settings');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -184,9 +185,14 @@ export default class ViewportControls {
         this.selectMenu.classList.remove('active');
       }
 
-      if (this.middleControls) {
-        this.middleControls.classList.toggle('hidden', newMode === 'paint');
-        this.middleControls.classList.remove('active');
+      if (this.transformControls) {
+        this.transformControls.classList.toggle('hidden', newMode === 'paint');
+        this.transformControls.classList.remove('active');
+      }
+
+      if (this.brushSettings) {
+        this.brushSettings.classList.toggle('hidden', newMode !== 'paint');
+        this.brushSettings.classList.remove('active');
       }
     });
 
