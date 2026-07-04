@@ -438,15 +438,17 @@
 
 .brush-slider-wrapper input[type="range"] {
   width: 80px;
+  height: 10px;
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
+  cursor: pointer;
 }
 
 .brush-slider-wrapper input[type="range"]::-webkit-slider-runnable-track {
-  height: 2px;
-  background: #999;
-  border-radius: 999px;
+  height: 10px;
+  background:
+    linear-gradient(#999, #999) center / 100% 2px no-repeat;
 }
 
 .brush-slider-wrapper input[type="range"]::-webkit-slider-thumb {
@@ -456,6 +458,6 @@
   border-radius: 50%;
   background: #fff;
   border: 1px solid #666;
-  margin-top: -4px;
+  margin-top: 0px;
   cursor: pointer;
 }

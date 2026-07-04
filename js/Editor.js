@@ -287,6 +287,10 @@ export default class Editor {
     await this.viewportControls.ready;
     this.viewportControls.fromJSON(json.viewportControls);
     this.controlsManager.fromJSON(json.controlsManager);
+
+    if (json.brush) {
+      this.viewportControls.texturePainter?.fromJSON(json.brush);
+    }
     
     if (this.config.get('history')) {
       this.history.fromJSON(json.history);
@@ -311,6 +315,7 @@ export default class Editor {
       camera: this.cameraManager.viewportCamera.toJSON(),
       viewportControls: this.viewportControls.toJSON(),
       controlsManager: this.controlsManager.toJSON(),
+      brush: this.viewportControls.texturePainter?.toJSON(),
     };
 
     if (this.config.get('history')) {

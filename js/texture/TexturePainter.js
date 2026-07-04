@@ -163,36 +163,67 @@ export class TexturePainter {
   }
 
   _initBrushControls() {
-    const brushColor = document.getElementById('brush-color');
-    const brushSize = document.getElementById('brush-size');
-    const brushOpacity = document.getElementById('brush-opacity');
-    const brushHardness = document.getElementById('brush-hardness');
+    this._brushEls = {
+      color: document.getElementById('brush-color'),
+      size: document.getElementById('brush-size'),
+      opacity: document.getElementById('brush-opacity'),
+      hardness: document.getElementById('brush-hardness'),
+      sizeValue: document.getElementById('brush-size-value'),
+      opacityValue: document.getElementById('brush-opacity-value'),
+      hardnessValue: document.getElementById('brush-hardness-value'),
+    }
 
-    const sizeValue = document.getElementById('brush-size-value');
-    const opacityValue = document.getElementById('brush-opacity-value');
-    const hardnessValue = document.getElementById('brush-hardness-value');
+    const { color, size, opacity, hardness, sizeValue, opacityValue, hardnessValue } = this._brushEls;
 
-    brushColor.addEventListener('input', (e) => {
+    color.addEventListener('input', (e) => {
       this.setColor(e.target.value);
     });
 
-    brushSize.addEventListener('input', (e) => {
+    size.addEventListener('input', (e) => {
       const value = Number(e.target.value);
       this.setSize(value);
       sizeValue.textContent = value;
     });
 
-    brushOpacity.addEventListener('input', (e) => {
+    opacity.addEventListener('input', (e) => {
       const value = Number(e.target.value);
       this.setOpacity(value / 100);
       opacityValue.textContent = value;
     });
 
-    brushHardness.addEventListener('input', (e) => {
+    hardness.addEventListener('input', (e) => {
       const value = Number(e.target.value);
       this.setHardness(value / 100);
       hardnessValue.textContent = value;
     });
+
+    this._syncBrushControlsUI();
+  }
+
+  _syncBrushControlsUI() {
+    const { color, size, opacity, hardness, sizeValue, opacityValue, hardnessValue } = this._brushEls;
+
+    color.value = this.color;
+
+    size.value = this.size;
+    sizeValue.textContent = this.size;
+
+    const opacityPct = Math.round(this.opacity * 100);
+    opacity.value = opacityPct;
+    opacityValue.textContent = opacityPct;
+
+    const hardnessPct = Math.round(this.hardness * 100);
+    hardness.value = hardnessPct;
+    hardnessValue.textContent = hardnessPct;
+  }
+
+  resetBrush() {
+    this.color = '#ffffff';
+    this.size = 20;
+    this.opacity = 1.0;
+    this.hardness = 0.8;
+
+    this._syncBrushControlsUI();
   }
 
   _applyToMaterial() {
@@ -400,5 +431,25 @@ export class TexturePainter {
     }
     
     return null;
+  }
+
+  toJSON() {
+    return {
+      color: this.color,
+      size: this.size,
+      opacity: this.opacity,
+      hardness: this.hardness,
+    };
+  }
+
+  fromJSON(json) {
+    if (!json) return;
+
+    if (json.color !== undefined) this.setColor(json.color);
+    if (json.size !== undefined) this.setSize(json.size);
+    if (json.opacity !== undefined) this.setOpacity(json.opacity);
+    if (json.hardness !== undefined) this.setHardness(json.hardness);
+
+    this._syncBrushControlsUI();
   }
 }
