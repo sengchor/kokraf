@@ -461,3 +461,29 @@
   margin-top: 0px;
   cursor: pointer;
 }
+
+.brush-color-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.brush-color-wrapper.is-disabled {
+  opacity: 0.5;
+}
+
+.brush-color-wrapper.is-disabled::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 2.5px,
+    rgba(0, 0, 0, 0.4) 3px 6px
+  );
+  pointer-events: none;
+}
+
+.brush-color-wrapper.is-disabled .brush-color-input {
+  pointer-events: none;
+  cursor: not-allowed;
+}

@@ -143,26 +143,15 @@ export class ProjectionPainter {
   _getPaintParams(context) {
     const {
       stroke: { current, previous },
-      brush: { radius, color, opacity, hardness },
-      projection: {
-        camera,
-        viewDir,
-        depthReader,
-        worldQueryRadius,
-      },
+      brush: { radius, opacity, hardness },
+      tool,
+      projection: { camera, viewDir, depthReader, worldQueryRadius },
     } = context;
 
     return {
-      camera,
-      viewDir,
-      depthReader,
-      worldQueryRadius,
-
-      radius,
-      color,
-      opacity,
-      hardness,
-
+      camera, viewDir, depthReader, worldQueryRadius,
+      radius, opacity, hardness,
+      tool,
       rect: current.rect,
       screenPos: current.screen,
       prevScreenPos: previous?.screen ?? null,
@@ -173,13 +162,14 @@ export class ProjectionPainter {
 
   paintDab(context) {
     const p = this._getPaintParams(context);
+    context.tool.onDabStart?.(context);
 
     const sweep = p.prevWorldCenter ? p.prevWorldCenter.distanceTo(p.worldCenter) : 0;
     const candidates = this._queryCandidates(p.worldCenter, (p.worldQueryRadius + sweep) * 1.5);
 
     const { width, height } = this.canvas;
     const data = this.imageData.data;
-    const [cr, cg, cb] = this._hexToRGB(p.color);
+
     const bary = new THREE.Vector3();
     const worldPos = new THREE.Vector3();
     const camLocal = new THREE.Vector3();
@@ -219,18 +209,13 @@ export class ProjectionPainter {
             : this._dist2D(screenWorld, p.screenPos);
           if (d > p.radius) continue;
 
-          if (p.depthReader && !p.depthReader.isPointVisible(worldPos, p.camera)) {
-            continue;
-          }
+          if (p.depthReader && !p.depthReader.isPointVisible(worldPos, p.camera)) continue;
 
           const a = this._falloff(d / p.radius, p.hardness) * p.opacity;
           if (a <= 0) continue;
 
           const idx = (py * width + px) * 4;
-          data[idx]     = data[idx]     * (1 - a) + cr * a;
-          data[idx + 1] = data[idx + 1] * (1 - a) + cg * a;
-          data[idx + 2] = data[idx + 2] * (1 - a) + cb * a;
-          data[idx + 3] = 255;
+          p.tool.applyTexel(data, idx, a, { px, py, width, height });
           touched = true;
         }
       }
@@ -283,9 +268,5 @@ export class ProjectionPainter {
     if (t <= hardness) return 1;
     const s = (t - hardness) / (1 - hardness);
     return 1 - s * s * (3 - 2 * s);
-  }
-
-  _hexToRGB(hex) {
-    return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
   }
 }

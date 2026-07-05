@@ -4,6 +4,8 @@ import { ProjectionPainter } from './ProjectionPainter.js';
 import { AddObjectCommand } from '../commands/AddObjectCommand.js';
 import { PaintStrokeCommand } from '../commands/PaintStrokeCommand.js';
 import { GPUDepthReader } from '../utils/GPUDepthReader.js';
+import { PaintTool } from './PaintTool.js';
+import { EraseTool } from './EraseTool.js';
 
 export class TexturePainter {
   constructor(editor) {
@@ -15,14 +17,18 @@ export class TexturePainter {
     this.isPainting = false;
     this.lastHit = null;
 
+    this.tools = {
+      paint: new PaintTool(),
+      erase: new EraseTool(() => this.baseImageData),
+    };
+    this.tool = this.tools.paint;
+
     // Brush
     this.color = '#ffffff';
     this.size = 20;
     this.opacity = 1.0;
     this.hardness = 0.8;
 
-    this.canvas = null;
-    this.ctx = null;
     this.texture = null;
     this.projectionPainter = null;
     this._resolution = 1024;
@@ -72,7 +78,8 @@ export class TexturePainter {
     if (this.texture && this.object !== object) {
       this.texture.dispose();
       this.texture = null;
-      this.canvas = null;
+      this.paintCanvas = null;
+      this.baseCanvas = null;
       this.projectionPainter = null;
     }
 
@@ -86,7 +93,7 @@ export class TexturePainter {
     if (!this.projectionPainter) {
       this.projectionPainter = new ProjectionPainter();
     }
-    this.projectionPainter.attach(object, this.canvas, bakeMesh);
+    this.projectionPainter.attach(object, this.paintCanvas, bakeMesh);
 
     this._applyToMaterial();
     this._bindEvents();
@@ -107,6 +114,12 @@ export class TexturePainter {
 
     this._domElement.style.cursor = '';
     this.brushCursor.style.display = 'none';
+  }
+
+  setTool(name) {
+    if (!this.tools[name]) return;
+    this.tool = this.tools[name];
+    this._syncBrushControlsUI();
   }
 
   _updateBrushCursor(event) {
@@ -146,20 +159,36 @@ export class TexturePainter {
       Math.min(Math.max(existingImage.width, existingImage.height), 2048) : this._resolution;
     this._resolution = res;
 
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = res;
-    this.canvas.height = res;
-    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+    this.restoreBaseSnapshot();
+    this._initPaintCanvas(existingImage);
+
+    this.texture = new THREE.CanvasTexture(this.paintCanvas);
+    this.texture.colorSpace = THREE.SRGBColorSpace;
+  }
+
+  restoreBaseSnapshot() {
+    this.baseCanvas = document.createElement('canvas');
+    this.baseCanvas.width = this._resolution;
+    this.baseCanvas.height = this._resolution;
+    this.baseCtx = this.baseCanvas.getContext('2d', { willReadFrequently: true });
+
+    this.baseCtx.fillStyle = '#808080';
+    this.baseCtx.fillRect(0, 0, this._resolution, this._resolution);
+
+    this.baseImageData = this.baseCtx.getImageData(0, 0, this._resolution, this._resolution);
+  }
+
+  _initPaintCanvas(existingImage) {
+    this.paintCanvas = document.createElement('canvas');
+    this.paintCanvas.width = this._resolution;
+    this.paintCanvas.height = this._resolution;
+    this.paintCtx = this.paintCanvas.getContext('2d', { willReadFrequently: true });
+
+    this.paintCtx.drawImage(this.baseCanvas, 0, 0);
 
     if (existingImage) {
-      this.ctx.drawImage(existingImage, 0, 0, res, res);
-    } else {
-      this.ctx.fillStyle = '#808080';
-      this.ctx.fillRect(0, 0, res, res);
+      this.paintCtx.drawImage(existingImage, 0, 0, this._resolution, this._resolution);
     }
-
-    this.texture = new THREE.CanvasTexture(this.canvas);
-    this.texture.colorSpace = THREE.SRGBColorSpace;
   }
 
   _initBrushControls() {
@@ -203,6 +232,9 @@ export class TexturePainter {
   _syncBrushControlsUI() {
     const { color, size, opacity, hardness, sizeValue, opacityValue, hardnessValue } = this._brushEls;
 
+    const usesColor = this.tool.usesColor !== false;
+    color.disabled = !usesColor;
+    color.parentElement?.classList.toggle('is-disabled', !usesColor);
     color.value = this.color;
 
     size.value = this.size;
@@ -288,10 +320,9 @@ export class TexturePainter {
 
     const camera = this.editor.cameraManager.camera;
     const scene = this.editor.sceneManager.mainScene;
-
     this.depthReader.updateDepthBuffer(scene, camera);
 
-    this._strokeBefore = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    this._strokeBefore = this.paintCtx.getImageData(0, 0, this.paintCanvas.width, this.paintCanvas.height);
     this._strokeTouched = false;
 
     const hit = this._getHit(event);
@@ -328,7 +359,7 @@ export class TexturePainter {
     this._domElement.releasePointerCapture(event.pointerId);
 
     if (this._strokeTouched && this._strokeBefore) {
-      const _strokeAfter = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      const _strokeAfter = this.paintCtx.getImageData(0, 0, this.paintCanvas.width, this.paintCanvas.height);
       this.editor.execute(new PaintStrokeCommand(this.editor, this.object, this._strokeBefore, _strokeAfter));
     }
 
@@ -364,6 +395,7 @@ export class TexturePainter {
         opacity: this.opacity,
         hardness: this.hardness,
       },
+      tool: this.tool,
       projection: {
         camera,
         viewDir,
@@ -375,7 +407,9 @@ export class TexturePainter {
     const touched = this.projectionPainter.paintDab(paintContext);
     this._strokeTouched = this._strokeTouched || touched;
 
-    this.texture.needsUpdate = true;
+    if (touched) {
+      this.texture.needsUpdate = true;
+    }
   }
 
   setColor(hex) { this.color = hex; }
@@ -389,7 +423,7 @@ export class TexturePainter {
   setHardness(v) { this.hardness = Math.max(0, Math.min(1, v)); }
 
   toBlob(type = 'image/png') {
-    return new Promise(resolve => this.canvas.toBlob(resolve, type));
+    return new Promise(resolve => this.paintCanvas.toBlob(resolve, type));
   }
 
   _ensureDefaultLight() {
