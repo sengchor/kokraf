@@ -84,7 +84,7 @@ export class KeyHandler {
     } else if (matchesShortcut(event, this.shortcuts['select'])) {
       this.editor.toolbar.setActiveTool('select');
       handled = true;
-    } else if (matchesShortcut(event, this.shortcuts['translate'])) {
+    } else if (matchesShortcut(event, this.shortcuts['translate']) && this.currentMode !== 'paint') {
       const now = performance.now();
       const isDoubleTap = this.isDoubleTap(this.shortcuts['translate'], now);
       
@@ -103,13 +103,13 @@ export class KeyHandler {
       this.lastKeyTime = now;
 
       handled = true;
-    } else if (matchesShortcut(event, this.shortcuts['rotate'])) {
+    } else if (matchesShortcut(event, this.shortcuts['rotate']) && this.currentMode !== 'paint') {
       this.editor.toolbar.setActiveTool('rotate');
       this.currentMode === 'object'
         ? this.signals.objectTransformStart.dispatch('rotate')
         : this.signals.editTransformStart.dispatch('rotate');
       handled = true;
-    } else if (matchesShortcut(event, this.shortcuts['scale'])) {
+    } else if (matchesShortcut(event, this.shortcuts['scale']) && this.currentMode !== 'paint') {
       this.editor.toolbar.setActiveTool('scale');
       this.currentMode === 'object'
         ? this.signals.objectTransformStart.dispatch('scale')
