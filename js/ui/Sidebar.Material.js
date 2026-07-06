@@ -6,6 +6,8 @@ export class SidebarMaterial {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
+    this.viewportControls = editor.viewportControls;
+
     this.lastSelectedObject = null;
     this.materialSettingList = document.getElementById('material-properties-content');
 
@@ -16,40 +18,59 @@ export class SidebarMaterial {
     }
     this.options = null;
 
+    this.currentMode = this.viewportControls.currentMode;
+    if (this.currentMode === 'paint') {
+      this.selectObject(this.viewportControls.texturePainter?.object);
+    }
+
     this.setupListeners();
   }
 
   setupListeners() {
     this.signals.objectSelected.add(selectedObjects => {
-      const inputs = Array.from(document.querySelectorAll('.properties-content .number-input, .properties-content .text-input, .properties-content .color-input'));
-      inputs.forEach(input => {
-        if (document.activeElement === input) {
-          input.blur();
-        }
-      });
+      if (this.currentMode !== 'object') return;
 
       const count = selectedObjects.length;
       const object = (count === 1) ? selectedObjects[0] : null;
-      this.lastSelectedObject = object;
-
-      if (count !== 1) {
-        this.materialSettingList.innerHTML = '';
-        return;
-      }
-
-      this.materialSettingList.innerHTML = '';
-      this.options = this.getOptionsFor(object);
-      this.fields = {};
-      this.options.forEach(option => {
-        const element = this.generateSettingOptionHTML(option);
-        if (element) this.materialSettingList.appendChild(element);
-      });
-
-      this.initUI();
-      this.setupSettingInput();
-
-      this.updateFields(object);
+      this.selectObject(object);
     });
+
+    this.signals.setPaintObjectPanel.add(object => {
+      this.selectObject(object || null);
+    });
+
+    this.signals.modeChanged.add(mode => {
+      this.currentMode = mode;
+    });
+  }
+
+  selectObject(object) {
+    const inputs = Array.from(document.querySelectorAll('.properties-content .number-input, .properties-content .text-input, .properties-content .color-input'));
+    inputs.forEach(input => {
+      if (document.activeElement === input) {
+        input.blur();
+      }
+    });
+
+    this.lastSelectedObject = object;
+
+    if (!object) {
+      this.materialSettingList.innerHTML = '';
+      return;
+    }
+
+    this.materialSettingList.innerHTML = '';
+    this.options = this.getOptionsFor(object);
+    this.fields = {};
+    this.options.forEach(option => {
+      const element = this.generateSettingOptionHTML(option);
+      if (element) this.materialSettingList.appendChild(element);
+    });
+
+    this.initUI();
+    this.setupSettingInput();
+
+    this.updateFields(object);
 
     this.signals.objectChanged.add(() => this.updateFields(this.lastSelectedObject));
   }

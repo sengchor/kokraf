@@ -129,6 +129,8 @@ export default class Editor {
       toolSelectObject: new Signal(),
 
       setPaintTool: new Signal(),
+      setEditObjectPanel: new Signal(),
+      setPaintObjectPanel: new Signal(),
     }
 
     this.helpers = {};

@@ -12,6 +12,7 @@ export class SidebarObject {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
+    this.viewportControls = editor.viewportControls;
     this.lastSelectedObject = null;
 
     this.isEditingRotation = false;
@@ -34,6 +35,11 @@ export class SidebarObject {
     }
     this.options = null;
 
+    this.currentMode = this.viewportControls.currentMode;
+    if (this.currentMode === 'edit') {
+      this.selectObject(editor.editSelection.editedObject);
+    }
+
     this.setupListeners();
   }
 
@@ -42,41 +48,54 @@ export class SidebarObject {
     this.objectSettingList.style.display = this.lastSelectedObject ? 'block' : 'none';
 
     this.signals.objectSelected.add(selectedObjects => {
-      const inputs = Array.from(document.querySelectorAll('.properties-content .number-input, .properties-content .text-input, .properties-content .color-input'));
-      inputs.forEach(input => {
-        if (document.activeElement === input) {
-          input.blur();
-        }
-      });
+      if (this.currentMode !== 'object') return;
 
       const count = selectedObjects.length;
       const object = (count === 1) ? selectedObjects[0] : null;
-      this.lastSelectedObject = object;
-
-      if (count !== 1) {
-        this.emptyMessage.style.display = 'block';
-        this.objectSettingList.style.display = 'none';
-        this.objectSettingList.innerHTML = '';
-        return;
-      }
-
-      this.emptyMessage.style.display = 'none';
-      this.objectSettingList.style.display = 'block';
-      this.objectSettingList.innerHTML = '';
-
-      this.options = this.getOptionsFor(object);
-      this.fields = {};
-      this.options.forEach(option => {
-        const element = this.generateSettingOptionHTML(option);
-        if (element) this.objectSettingList.appendChild(element);
-      });
-
-      this.initUI();
-      this.setupSettingInput();
-
-      this.updateFields(object);
+      this.selectObject(object);
     });
 
+    this.signals.setEditObjectPanel.add(object => {
+      this.selectObject(object || null);
+    });
+
+    this.signals.modeChanged.add(mode => {
+      this.currentMode = mode;
+    });
+  }
+
+  selectObject(object) {
+    const inputs = Array.from(document.querySelectorAll('.properties-content .number-input, .properties-content .text-input, .properties-content .color-input'));
+    inputs.forEach(input => {
+      if (document.activeElement === input) {
+        input.blur();
+      }
+    });
+
+    this.lastSelectedObject = object;
+
+    if (!object) {
+      this.emptyMessage.style.display = 'block';
+      this.objectSettingList.style.display = 'none';
+      this.objectSettingList.innerHTML = '';
+      return;
+    }
+
+    this.emptyMessage.style.display = 'none';
+    this.objectSettingList.style.display = 'block';
+    this.objectSettingList.innerHTML = '';
+
+    this.options = this.getOptionsFor(object);
+    this.fields = {};
+    this.options.forEach(option => {
+      const element = this.generateSettingOptionHTML(option);
+      if (element) this.objectSettingList.appendChild(element);
+    });
+
+    this.initUI();
+    this.setupSettingInput();
+
+    this.updateFields(object);
     this.signals.objectChanged.add(() => this.updateFields(this.lastSelectedObject));
   }
 
@@ -523,7 +542,7 @@ export class SidebarObject {
     }.bind(this));
   }
 
-  bindVectorInputs(inputs, getNewValue, getOldValue, CommandClass) {
+  bindVectorInputs(inputs, getNewValue, getOldValue, CommandClass, onApplied) {
     inputs.forEach(input => {
       let originalValue;
 
@@ -541,6 +560,7 @@ export class SidebarObject {
         if (!oldValue.equals(newValue)) {
           this.editor.execute(new CommandClass(this.editor, object, newValue, oldValue));
           this.signals.objectChanged.dispatch();
+          if (onApplied) onApplied(object);
         }
       });
 
@@ -583,7 +603,11 @@ export class SidebarObject {
               parseFloat(f.positionX.value) || 0
             ),
             object => object.position.clone(),
-            SetPositionCommand
+            SetPositionCommand,
+            () => {
+              this.editor.vertexEditor.updateGeometryAndHelpers();
+              this.editor.selection.deselect();
+            }
           );
           break;
 
@@ -603,7 +627,11 @@ export class SidebarObject {
             },
 
             object => object.quaternion.clone(),
-            SetRotationCommand
+            SetRotationCommand,
+            () => {
+              this.editor.vertexEditor.updateGeometryAndHelpers();
+              this.editor.selection.deselect();
+            }
           );
 
           [f.rotationX, f.rotationY, f.rotationZ].forEach(input => {
@@ -626,7 +654,11 @@ export class SidebarObject {
               parseFloat(f.scaleX.value) || 1
             ),
             object => object.scale.clone(),
-            SetScaleCommand
+            SetScaleCommand,
+            () => {
+              this.editor.vertexEditor.updateGeometryAndHelpers();
+              this.editor.selection.deselect();
+            }
           );
           break;
 

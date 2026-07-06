@@ -5,10 +5,15 @@ export default class SidebarProperties {
   constructor(editor) {
     this.signals = editor.signals;
     this.uiLoader = editor.uiLoader;
+    this.viewportControls = editor.viewportControls;
     this.activeTabIndex = 0;
     this.tabs = [];
     this.panels = [];
+    this.currentMode = 'object';
+    this.isMeshSelected = false;
     this.ready = this.load(editor);
+
+    this.currentMode = this.viewportControls.currentMode;
   }
 
   async load(editor) {
@@ -16,6 +21,10 @@ export default class SidebarProperties {
 
     this.tabs = document.querySelectorAll('.details-panel .tab');
     this.panels = document.querySelectorAll('.properties-content');
+    this.objectTab = document.querySelector('.tab[data-tab="object"]');
+    this.materialTab = document.querySelector('.tab[data-tab="material"]');
+    this.objectTabIndex = Array.from(this.tabs).findIndex(t => t.dataset.tab === 'object');
+    this.materialTabIndex = Array.from(this.tabs).findIndex(t => t.dataset.tab === 'material');
 
     this.tabs.forEach((tab, index) => {
       tab.addEventListener('click', () => {
@@ -28,10 +37,29 @@ export default class SidebarProperties {
     new SidebarMaterial(editor);
 
     this.showActiveTab();
-    this.updateTabVisibility([]);
+    this.applyTabState();
 
     this.signals.objectSelected.add(selectedObjects => {
-      this.updateTabVisibility(selectedObjects);
+      if (this.currentMode !== 'object') return;
+
+      const object = selectedObjects.length === 1 ? selectedObjects[0] : null;
+      this.isMeshSelected = !!(object && object.isMesh);
+      this.applyTabState();
+    });
+
+    this.signals.modeChanged.add(mode => {
+      this.currentMode = mode;
+      this.applyTabState();
+    });
+
+    this.signals.setEditObjectPanel.add(object => {
+      this.isMeshSelected = !!(object && object.isMesh);
+      this.applyTabState();
+    });
+
+    this.signals.setPaintObjectPanel.add(object => {
+      this.isMeshSelected = !!(object && object.isMesh);
+      this.applyTabState();
     });
   }
 
@@ -45,20 +73,35 @@ export default class SidebarProperties {
     }
   }
 
-  updateTabVisibility(selectedObjects) {
-    const count = selectedObjects.length;
-    const object = count === 1 ? selectedObjects[0] : null;
+  applyTabState() {
+    if (this.currentMode === 'paint') {
+      if (this.objectTab) this.objectTab.style.display = 'none';
+      if (this.materialTab) this.materialTab.style.display = 'inline-block';
 
-    this.objectTab = document.querySelector('.tab[data-tab="object"]');
-    this.materialTab = document.querySelector('.tab[data-tab="material"]');
+      if (this.materialTabIndex !== -1) this.activeTabIndex = this.materialTabIndex;
 
-    const isMesh = !!(object && object.isMesh);
-
-    if (this.materialTab) this.materialTab.style.display = isMesh ? 'inline-block' : 'none';
-
-    if (!object || (!isMesh && this.activeTabIndex === 1)) {
-      this.activeTabIndex = 0;
       this.showActiveTab();
+      return;
     }
+
+    if (this.currentMode === 'edit') {
+      if (this.objectTab) this.objectTab.style.display = 'inline-block';
+      if (this.materialTab) this.materialTab.style.display = 'none';
+
+      if (this.objectTabIndex !== -1) this.activeTabIndex = this.objectTabIndex;
+
+      this.showActiveTab();
+      return;
+    }
+
+    // object mode
+    if (this.objectTab) this.objectTab.style.display = 'inline-block';
+    if (this.materialTab) this.materialTab.style.display = this.isMeshSelected ? 'inline-block' : 'none';
+
+    if (!this.isMeshSelected && this.activeTabIndex === this.materialTabIndex) {
+      this.activeTabIndex = this.objectTabIndex !== -1 ? this.objectTabIndex : 0;
+    }
+
+    this.showActiveTab();
   }
 }

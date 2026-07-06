@@ -256,52 +256,51 @@ export default class ViewportControls {
     this.panelResizer.onWindowResize();
   }
 
-switchMode(newMode) {
-  const previousMode = this.currentMode;
+  switchMode(newMode) {
+    const previousMode = this.currentMode;
 
-  let object = null;
+    let object = null;
 
-  if (previousMode === 'object') {
-    const selected = this.selection.selectedObjects;
+    if (previousMode === 'object') {
+      const selected = this.selection.selectedObjects;
 
-    if (newMode === 'edit') {
-      if (selected.length !== 1) {
-        alert('Please select one mesh to enter Edit Mode.');
-        this.interactionDropdown.value = previousMode;
-        return;
+      if (newMode === 'edit') {
+        if (selected.length !== 1) {
+          alert('Please select one mesh to enter Edit Mode.');
+          this.interactionDropdown.value = previousMode;
+          return;
+        }
+
+        object = selected[0];
+      } else if (newMode === 'paint') {
+        if (selected.length !== 1) {
+          alert('Please select one mesh to enter Texture Paint.');
+          this.interactionDropdown.value = previousMode;
+          return;
+        }
+
+        object = selected[0];
+      } else {
+        object = this.editSelection.editedObject;
       }
-
-      object = selected[0];
-    } else if (newMode === 'paint') {
-      if (selected.length !== 1) {
-        alert('Please select one mesh to enter Texture Paint.');
-        this.interactionDropdown.value = previousMode;
-        return;
-      }
-
-      object = selected[0];
     } else {
       object = this.editSelection.editedObject;
     }
-  } else {
-    object = this.editSelection.editedObject;
+
+    if (newMode === 'edit' && (!object?.isMesh || object.userData?.isImageRef)) {
+      alert('No mesh selected. Please select a mesh object.');
+      this.interactionDropdown.value = previousMode;
+      return;
+    }
+
+    if (newMode === 'paint' && (!object?.isMesh || object.userData?.isImageRef)) {
+      alert('No mesh selected. Please select a mesh object.');
+      this.interactionDropdown.value = previousMode;
+      return;
+    }
+
+    this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
   }
-
-
-  if (newMode === 'edit' && (!object?.isMesh || object.userData?.isImageRef)) {
-    alert('No mesh selected. Please select a mesh object.');
-    this.interactionDropdown.value = previousMode;
-    return;
-  }
-
-  if (newMode === 'paint' && (!object?.isMesh || object.userData?.isImageRef)) {
-    alert('No mesh selected. Please select a mesh object.');
-    this.interactionDropdown.value = previousMode;
-    return;
-  }
-
-  this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
-}
 
   enterObjectMode() {
     this.selection.enable = true;
@@ -342,6 +341,8 @@ switchMode(newMode) {
     this.transformOrientation = this.transformOrientationSelect.value;
     this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
     this.signals.objectSelected.dispatch([selectedObject]);
+
+    this.signals.setEditObjectPanel.dispatch(selectedObject);
   }
 
   enterPaintMode(selectedObject) {
@@ -371,6 +372,8 @@ switchMode(newMode) {
     this.transformOrientation = this.transformOrientationSelect.value;
     this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
     this.signals.objectSelected.dispatch([selectedObject]);
+
+    this.signals.setPaintObjectPanel.dispatch(selectedObject);
   }
 
   updateXRayButtonState(shadingMode) {
