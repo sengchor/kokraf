@@ -23,10 +23,12 @@ export default class Toolbar {
     this.viewportControls = editor.viewportControls;
     this.activeToolObjectMode = 'select';
     this.activeToolEditMode = 'select';
+    this.activeToolPaintMode = 'paint';
     this.currentMode = 'object';
     this.isTransformDragging = false;
     this.previousToolObjectMode = 'select';
     this.previousToolEditMode = 'select';
+    this.previousToolPaintMode = 'paint';
 
     this.objectMoveTool   = new ObjectTransformTool(this.editor, 'translate');
     this.objectRotateTool = new ObjectTransformTool(this.editor, 'rotate');
@@ -70,6 +72,10 @@ export default class Toolbar {
     if (this.meshToolContainer) {
       this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object' || this.currentMode === 'paint');
     }
+
+    if (this.paintToolContainer) {
+      this.paintToolContainer.classList.toggle('hidden', this.currentMode == 'object' || this.currentMode === 'edit');
+    }
   }
 
   setupListeners() {
@@ -87,6 +93,10 @@ export default class Toolbar {
 
       if (this.meshToolContainer) {
         this.meshToolContainer.classList.toggle('hidden', newMode === 'object' || newMode === 'paint');
+      }
+
+      if (this.paintToolContainer) {
+        this.paintToolContainer.classList.toggle('hidden', this.currentMode == 'object' || this.currentMode === 'edit')
       }
     });
 
@@ -125,6 +135,7 @@ export default class Toolbar {
     this.defaultToolContainer = document.querySelector('.default-tools');
     this.operationToolContainer = document.querySelector('.operation-tools');
     this.meshToolContainer = document.querySelector('.mesh-tools');
+    this.paintToolContainer = document.querySelector('.paint-tools');
 
     this.buttons.forEach(button => {
       button.addEventListener('click', () => {
@@ -133,17 +144,19 @@ export default class Toolbar {
 
         if (this.currentMode === 'object') {
           this.previousToolObjectMode = toolName;
-        } else {
+        } else if (this.currentMode === 'edit') {
           this.previousToolEditMode = toolName;
+        } else if (this.currentMode === 'paint') {
+          this.previousToolPaintMode = toolName;
         }
       });
     });
   }
 
   getActiveTool() {
-    return this.currentMode === 'object' 
-      ? this.activeToolObjectMode 
-      : this.activeToolEditMode;
+    if (this.currentMode === 'object') return this.activeToolObjectMode;
+    if (this.currentMode === 'edit') return this.activeToolEditMode;
+    if (this.currentMode === 'paint') return this.activeToolPaintMode;
   }
 
   setActiveTool(toolName) {
@@ -152,8 +165,10 @@ export default class Toolbar {
 
     if (this.currentMode === 'object') {
       this.activeToolObjectMode = toolName;
-    } else {
+    } else if (this.currentMode === 'edit') {
       this.activeToolEditMode = toolName;
+    } else if (this.currentMode === 'paint') {
+      this.activeToolPaintMode = toolName;
     }
     this.updateTools();
   }
@@ -169,9 +184,13 @@ export default class Toolbar {
       if (this.previousToolObjectMode) {
         this.activeToolObjectMode = this.previousToolObjectMode;
       }
-    } else {
+    } else if (this.currentMode === 'edit') {
       if (this.previousToolEditMode) {
         this.activeToolEditMode = this.previousToolEditMode;
+      }
+    } else if (this.currentMode === 'paint') {
+      if (this.previousToolPaintMode) {
+        this.activeToolPaintMode = this.previousToolPaintMode;
       }
     }
 
@@ -185,7 +204,7 @@ export default class Toolbar {
     if (this.currentMode === 'object') {
       this.selection.updatePivotHandle();
       attachObject = this.selection.pivotHandle;
-    } else {
+    } else if (this.currentMode === 'edit' || this.currentMode === 'paint') {
       this.editSelection.updateVertexHandle();
       attachObject = this.editSelection.vertexHandle;
     }
@@ -256,6 +275,9 @@ export default class Toolbar {
       case 'union' : this.unionTool.enable(); break;
       case 'difference' : this.differenceTool.enable(); break;
       case 'intersect' : this.intersectTool.enable(); break;
+
+      case 'paint':  this.signals.setPaintTool.dispatch('paint'); break;
+      case 'erase': this.signals.setPaintTool.dispatch('erase'); break;
     }
   }
 }

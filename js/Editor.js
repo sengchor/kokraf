@@ -127,6 +127,8 @@ export default class Editor {
       refreshEditHelpers: new Signal(),
       shortcutsChanged: new Signal(),
       toolSelectObject: new Signal(),
+
+      setPaintTool: new Signal(),
     }
 
     this.helpers = {};

@@ -68,6 +68,7 @@ export class TexturePainter {
     this._onPointerLeave = this._onPointerLeave.bind(this);
 
     this._initBrushControls();
+    this.setupListeners();
   }
 
   async attach(object) {
@@ -114,6 +115,12 @@ export class TexturePainter {
 
     this._domElement.style.cursor = '';
     this.brushCursor.style.display = 'none';
+  }
+
+  setupListeners() {
+    this.signals.setPaintTool.add((name) => {
+      this.setTool(name);
+    });
   }
 
   setTool(name) {
@@ -172,7 +179,7 @@ export class TexturePainter {
     this.baseCanvas.height = this._resolution;
     this.baseCtx = this.baseCanvas.getContext('2d', { willReadFrequently: true });
 
-    this.baseCtx.fillStyle = '#808080';
+    this.baseCtx.fillStyle = '#dcdcdc';
     this.baseCtx.fillRect(0, 0, this._resolution, this._resolution);
 
     this.baseImageData = this.baseCtx.getImageData(0, 0, this._resolution, this._resolution);

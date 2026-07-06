@@ -85,13 +85,15 @@
 
 .default-tools,
 .mesh-tools,
-.operation-tools {
+.operation-tools,
+.paint-tools {
   display: flex;
   flex-direction: column;
 }
 
 .default-tools.hidden,
 .mesh-tools.hidden,
-.operation-tools.hidden {
+.operation-tools.hidden,
+.paint-tools.hidden {
   display: none;
 }
