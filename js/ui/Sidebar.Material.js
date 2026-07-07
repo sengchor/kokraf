@@ -12,11 +12,18 @@ export class SidebarMaterial {
     this.materialSettingList = document.getElementById('material-properties-content');
 
     this.optionsPerType = {
-      'MeshStandardMaterial': ['type', 'uuid', 'color', 'metalness', 'roughness', 'flatShading'],
+      'MeshStandardMaterial': ['type', 'uuid', 'color', 'metalness', 'roughness', 'normal'],
       'ImageRefMaterial': ['type', 'uuid', 'side', 'opacity', 'depthTest', 'depthWrite'],
       'Default': ['type', 'uuid']
     }
     this.options = null;
+
+    this.channelPairs = {
+      map: 'color',
+      metalnessMap: 'metalness',
+      roughnessMap: 'roughness',
+      normalMap: null,
+    };
 
     this.currentMode = this.viewportControls.currentMode;
     if (this.currentMode === 'paint') {
@@ -93,15 +100,41 @@ export class SidebarMaterial {
       color: document.getElementById('material-color'),
       metalness: document.getElementById('material-metalness'),
       roughness: document.getElementById('material-roughness'),
-      flatShading: document.getElementById('material-flatShading'),
       opacity: document.getElementById('material-opacity'),
       side: document.getElementById('material-side'),
       depthTest: document.getElementById('material-depthTest'),
       depthWrite: document.getElementById('material-depthWrite'),
-    }
+    };
+
+    ['map', 'metalnessMap', 'roughnessMap', 'normalMap'].forEach(key => {
+      const companion = this.channelPairs[key];
+      this.fields[key] = {
+        slot: document.getElementById(`material-${key}-slot`),
+        preview: document.getElementById(`material-${key}-preview`),
+        name: document.getElementById(`material-${key}-name`),
+        placeholder: document.getElementById(`material-${key}-placeholder`),
+        clear: document.getElementById(`material-${key}-clear`),
+        file: document.getElementById(`material-${key}-file`),
+        valueContainer: companion ? document.getElementById(`material-${companion}-value`) : null,
+      };
+    });
   }
 
   generateSettingOptionHTML(option) {
+    switch (option) {
+      case 'color':
+        return this.createChannelRow('color', 'Base Color', 'map',
+          `<input class="color-input" id="material-color" type="color" />`);
+      case 'metalness':
+        return this.createChannelRow('metalness', 'Metalness', 'metalnessMap',
+          `<input class="number-input" id="material-metalness" type="number" min="0" max="1" step="0.01" value="0" onclick="this.select()" onkeydown="handleEnter(event, this)" />`);
+      case 'roughness':
+        return this.createChannelRow('roughness', 'Roughness', 'roughnessMap',
+          `<input class="number-input" id="material-roughness" type="number" min="0" max="1" step="0.01" value="0" onclick="this.select()" onkeydown="handleEnter(event, this)" />`);
+      case 'normal':
+        return this.createChannelRow('normal', 'Normal', 'normalMap', null);
+    }
+
     const li = document.createElement('li');
     li.className = 'setting-option';
 
@@ -118,34 +151,6 @@ export class SidebarMaterial {
           <span class="label">UUID</span>
           <input class="text-input uuid-input" id="material-uuid" type="text" maxlength="40"
           style="padding: 2px; background-color: transparent;" readonly />
-        `;
-        break;
-      }
-      case 'color': {
-        li.innerHTML = `
-          <span class="label">Color</span>
-          <input class="color-input" id="material-color" type="color" />
-        `;
-        break;
-      }
-      case 'metalness': {
-        li.innerHTML = `
-          <span class="label">Metalness</span>
-          <input class="number-input" id="material-metalness" type="number" min="0" max="1" step="0.01" value="0" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        `;
-        break;
-      }
-      case 'roughness': {
-        li.innerHTML = `
-          <span class="label">Roughness</span>
-          <input class="number-input" id="material-roughness" type="number" min="0" max="1" step="0.01" value="0" onclick="this.select()" onkeydown="handleEnter(event, this)" />
-        `;
-        break;
-      }
-      case 'flatShading': {
-        li.innerHTML = `
-          <span class="label">Flat Shading</span>
-          <input type="checkbox" id="material-flatShading" checked/>
         `;
         break;
       }
@@ -186,6 +191,28 @@ export class SidebarMaterial {
     return li;
   }
 
+  createChannelRow(key, label, mapKey, valueInputHTML) {
+    const wrapper = document.createElement('li');
+    wrapper.className = 'setting-option channel-option';
+    wrapper.innerHTML = `
+      <div class="channel-top">
+        <span class="label">${label}</span>
+        ${valueInputHTML ? `
+        <div class="channel-value" id="material-${key}-value">
+          ${valueInputHTML}
+        </div>` : ''}
+      </div>
+      <div class="texture-slot" id="material-${mapKey}-slot">
+        <div class="texture-preview" id="material-${mapKey}-preview"></div>
+        <span class="texture-placeholder" id="material-${mapKey}-placeholder">Click to add texture</span>
+        <span class="texture-name" id="material-${mapKey}-name"></span>
+        <button type="button" class="texture-clear" id="material-${mapKey}-clear" title="Remove texture">×</button>
+      </div>
+      <input type="file" accept="image/*" id="material-${mapKey}-file" style="display:none" />
+    `;
+    return wrapper;
+  }
+
   updateFields(object) {
     if (!object || !object.material) return;
 
@@ -200,7 +227,6 @@ export class SidebarMaterial {
             f.type.textContent = 'ImageRefMaterial';
             break;
           }
-
           f.type.textContent = material.type || 'Unknown';
           break;
         case 'uuid':
@@ -208,18 +234,21 @@ export class SidebarMaterial {
           break;
         case 'color':
           f.color.value = `#${material.color.getHexString()}`;
+          this.updateTextureField('map', material.map);
           break;
         case 'metalness':
           f.metalness.value = fix(material.metalness, 2);
+          this.updateTextureField('metalnessMap', material.metalnessMap);
           break;
         case 'roughness':
           f.roughness.value = fix(material.roughness, 2);
+          this.updateTextureField('roughnessMap', material.roughnessMap);
           break;
-        case 'flatShading':
-          f.flatShading.checked = !!material.flatShading;
+        case 'normal':
+          this.updateTextureField('normalMap', material.normalMap);
           break;
         case 'opacity':
-          f.opacity.value = fix (material.opacity, 2);
+          f.opacity.value = fix(material.opacity, 2);
           break;
         case 'side':
           f.side.value = material.side;
@@ -232,6 +261,37 @@ export class SidebarMaterial {
           break;
       }
     }
+  }
+
+  updateTextureField(key, texture) {
+    const field = this.fields[key];
+    if (!field) return;
+
+    const hasTexture = !!texture;
+    field.slot.classList.toggle('has-texture', hasTexture);
+
+    if (field.valueContainer) {
+      field.valueContainer.style.display = hasTexture ? 'none' : '';
+    }
+
+    if (!hasTexture) {
+      field.preview.style.backgroundImage = '';
+      field.name.textContent = '';
+      return;
+    }
+
+    field.name.textContent = texture.name || texture.image?.name || 'Texture';
+
+    const src = this.getTexturePreviewSrc(texture);
+    field.preview.style.backgroundImage = src ? `url(${src})` : '';
+  }
+
+  getTexturePreviewSrc(texture) {
+    const image = texture.image;
+    if (!image) return null;
+    if (image instanceof HTMLCanvasElement) return image.toDataURL();
+    if (image.src) return image.src;
+    return null;
   }
 
   bindInput(input, getValue, apply) {
@@ -265,6 +325,7 @@ export class SidebarMaterial {
               this.editor.execute(new SetMaterialColorCommand(this.editor, object, 'color', newHex));
             }
           });
+          this.bindTextureSlot('map');
           break;
 
         case 'metalness':
@@ -273,6 +334,7 @@ export class SidebarMaterial {
               this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'metalness', value));
             }
           });
+          this.bindTextureSlot('metalnessMap');
           break;
 
         case 'roughness':
@@ -281,10 +343,11 @@ export class SidebarMaterial {
               this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'roughness', value));
             }
           });
+          this.bindTextureSlot('roughnessMap');
           break;
 
-        case 'flatShading':
-          this.bindCheckbox(f.flatShading, 'flatShading');
+        case 'normal':
+          this.bindTextureSlot('normalMap');
           break;
 
         case 'opacity':
@@ -321,5 +384,78 @@ export class SidebarMaterial {
     const clamped = Math.min(Math.max(value, min), max);
     input.value = clamped;
     return clamped;
+  }
+
+  bindTextureSlot(key) {
+    const field = this.fields[key];
+    if (!field) return;
+
+    const isColorMap = key === 'map';
+    const companion = this.channelPairs[key];
+
+    if (field.btn) {
+      field.btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        field.file.click();
+      });
+    }
+
+    field.slot.addEventListener('click', (e) => {
+      if (e.target === field.clear) return;
+      field.file.click();
+    });
+
+    field.file.addEventListener('change', () => {
+      const object = this.lastSelectedObject;
+      const file = field.file.files[0];
+      if (!object || !file) return;
+
+      const oldTexture = object.material[key];
+      if (oldTexture?.image instanceof HTMLImageElement) {
+        URL.revokeObjectURL(oldTexture.image.src);
+      }
+      oldTexture?.dispose();
+
+      const url = URL.createObjectURL(file);
+      new THREE.TextureLoader().load(url, (texture) => {
+        texture.name = file.name;
+        texture.colorSpace = isColorMap ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        texture.needsUpdate = true;
+
+        object.material[key] = texture;
+        if (companion) this.resetChannelValue(object.material, companion);
+        object.material.needsUpdate = true;
+
+        this.updateTextureField(key, texture);
+        this.signals.objectChanged.dispatch(object);
+      });
+
+      field.file.value = '';
+    });
+
+    field.clear.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const object = this.lastSelectedObject;
+      if (!object || !object.material[key]) return;
+
+      object.material[key] = null;
+      object.material.needsUpdate = true;
+      this.updateTextureField(key, null);
+      this.signals.objectChanged.dispatch(object);
+    });
+  }
+
+  resetChannelValue(material, companion) {
+    switch (companion) {
+      case 'color':
+        material.color.setHex(0xffffff);
+        break;
+      case 'metalness':
+        material.metalness = 1;
+        break;
+      case 'roughness':
+        material.roughness = 1;
+        break;
+    }
   }
 }
