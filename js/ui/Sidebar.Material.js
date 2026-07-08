@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SetMaterialValueCommand } from '../commands/SetMaterialValueCommand.js';
 import { SetMaterialColorCommand } from '../commands/SetMaterialColorCommand.js';
+import { SetMaterialMapCommand } from '../commands/SetMaterialMapCommand.js';
 
 export class SidebarMaterial {
   constructor(editor) {
@@ -401,6 +402,7 @@ export class SidebarMaterial {
     }
 
     field.slot.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (e.target === field.clear) return;
       field.file.click();
     });
@@ -411,25 +413,26 @@ export class SidebarMaterial {
       if (!object || !file) return;
 
       const oldTexture = object.material[key];
-      if (oldTexture?.image instanceof HTMLImageElement) {
-        URL.revokeObjectURL(oldTexture.image.src);
-      }
       oldTexture?.dispose();
 
-      const url = URL.createObjectURL(file);
-      new THREE.TextureLoader().load(url, (texture) => {
-        texture.name = file.name;
-        texture.colorSpace = isColorMap ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-        texture.needsUpdate = true;
+      const reader = new FileReader();
+      reader.addEventListener('load', (event) => {
+        const base64Url = event.target.result;
 
-        object.material[key] = texture;
-        if (companion) this.resetChannelValue(object.material, companion);
-        object.material.needsUpdate = true;
+        new THREE.TextureLoader().load(base64Url, (texture) => {
+          texture.name = file.name;
+          texture.colorSpace = isColorMap ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+          texture.needsUpdate = true;
 
-        this.updateTextureField(key, texture);
-        this.signals.objectChanged.dispatch(object);
+          const scalarReset = companion ? 
+            { key: companion, newValue: this.neutralValueFor(companion) } : null;
+          
+          this.editor.execute(new SetMaterialMapCommand(this.editor, object, key, texture, scalarReset));
+          this.updateTextureField(key, texture);
+        });
       });
 
+      reader.readAsDataURL(file);
       field.file.value = '';
     });
 
@@ -438,24 +441,17 @@ export class SidebarMaterial {
       const object = this.lastSelectedObject;
       if (!object || !object.material[key]) return;
 
-      object.material[key] = null;
-      object.material.needsUpdate = true;
+      this.editor.execute(new SetMaterialMapCommand(this.editor, object, key, null, null));
       this.updateTextureField(key, null);
-      this.signals.objectChanged.dispatch(object);
     });
   }
 
-  resetChannelValue(material, companion) {
-    switch (companion) {
-      case 'color':
-        material.color.setHex(0xffffff);
-        break;
-      case 'metalness':
-        material.metalness = 1;
-        break;
-      case 'roughness':
-        material.roughness = 1;
-        break;
+  neutralValueFor(scalarKey) {
+    switch (scalarKey) {
+      case 'color': return new THREE.Color(0xffffff);
+      case 'metalness': return 1;
+      case 'roughness': return 1;
+      default: return null;
     }
   }
 }

@@ -88,8 +88,9 @@ export default class Selection {
 
   onMouseUp(event) {
     if (!this.enable || event.button !== 0) return;
-    this.keyHandler.endInteraction('select');
+    if (!this.mouseDownPos) return;
 
+    this.keyHandler.endInteraction('select');
     this.selectionBox.finishSelection();
 
     if (this.dragging) {  
@@ -97,6 +98,7 @@ export default class Selection {
       if (objects === null || objects.length === 0) {
         if (!this.multiSelectEnabled) {
           this.deselect();
+          this.mouseDownPos = null;
           return;
         }
       }
@@ -107,6 +109,7 @@ export default class Selection {
       if (object === null) {
         if (!this.multiSelectEnabled) {
           this.deselect();
+          this.mouseDownPos = null;
           return;
         }
       }
