@@ -188,28 +188,16 @@ export class GenerateTexturePanel {
     this._showLoading('Unwrapping UVs');
     const bakeTargets = [];
     for (const object of meshes) {
-      let uvOutput;
+      let ensured;
       try {
-        uvOutput = await AutoUVUnwrap.unwrap(object.userData.meshData);
+        ensured = await this._ensureUVs(object);
       } catch (e) {
         this._hideLoading();
         alert(`UV unwrap failed for "${object.name}".`);
         return;
       }
 
-      if (!uvOutput || !uvOutput.positions || uvOutput.positions.length === 0 || uvOutput.indices.length === 0) {
-        this._hideLoading();
-        alert(`Invalid UV output for "${object.name}".`);
-        return;
-      }
-      
-      this.vertexEditor.setObject(object);
-      this.vertexEditor.updateGeometryAndHelpers();
-
-      const bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
-      const tempBakeMesh = new THREE.Mesh(bakeGeometry);
-      tempBakeMesh.matrixWorld.copy(object.matrixWorld);
-      bakeTargets.push({ object, bakeGeometry, tempBakeMesh });
+      bakeTargets.push({ object, ...ensured });
     }
 
     // Single capture pass
@@ -238,11 +226,11 @@ export class GenerateTexturePanel {
       this.ensureDefaultLight();
 
       await this._nextStep('Baking to meshes');
-      for (const { object, bakeGeometry, tempBakeMesh } of bakeTargets) {
+      for (const { object, bakeGeometry, tempBakeMesh, reused } of bakeTargets) {
         const renderTarget = await TextureBaker.bake(
           this.renderer.renderer, tempBakeMesh, generatedBlob, views, resolution * 2
         );
-        bakeGeometry.dispose();
+        if (reused) bakeGeometry.dispose();
 
         const rawBlob  = await TextureBaker.toBlob(this.renderer.renderer, renderTarget);
         const patchedBlob = await TexturePatchFill.fill(rawBlob, {
@@ -263,7 +251,9 @@ export class GenerateTexturePanel {
       await this._nextStep();
     } catch (err) {
       console.log(err);
-      bakeTargets.forEach(({ bakeGeometry }) => bakeGeometry.dispose());
+      bakeTargets.forEach(({ bakeGeometry, reused }) => {
+        if (!reused) bakeGeometry.dispose();
+      });
       this._hideLoading();
       alert(getCreditsErrorMessage(err.reason)?? err.message);
     }
@@ -281,6 +271,34 @@ export class GenerateTexturePanel {
       const light = this.objectFactory.createLight('Hemisphere');
       this.editor.execute(new AddObjectCommand(this.editor, light));
     }
+  }
+
+  async _ensureUVs(object) {
+    const meshData = object.userData.meshData;
+
+    let bakeGeometry;
+    let reused = false;
+
+    if (AutoUVUnwrap.hasUVs(meshData)) {
+      bakeGeometry = object.geometry;
+      reused = true;
+    } else {
+      const uvOutput = await AutoUVUnwrap.unwrap(meshData);
+
+      if (!uvOutput?.positions?.length || !uvOutput.indices.length) {
+        throw new Error(`UV unwrap failed for "${object.name}".`);
+      }
+
+      bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
+    }
+
+    this.vertexEditor.setObject(object);
+    this.vertexEditor.updateGeometryAndHelpers();
+
+    const tempBakeMesh = new THREE.Mesh(bakeGeometry);
+    tempBakeMesh.matrixWorld.copy(object.matrixWorld);
+
+    return { bakeGeometry, tempBakeMesh, reused };
   }
 
   _showLoading(message) {

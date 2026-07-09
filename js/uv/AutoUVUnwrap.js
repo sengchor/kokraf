@@ -184,4 +184,19 @@ export class AutoUVUnwrap {
     if (object.material.dispose) object.material.dispose();
     object.material = gridMaterial;
   }
+
+  static hasUVs(meshData) {
+    if (meshData.faces.size === 0 || meshData.uvs.size === 0) return false;
+
+    for (const face of meshData.faces.values()) {
+      const faceUVs = meshData.uvs.get(face.id);
+      if (!faceUVs || faceUVs.length !== face.vertexIds.length) return false;
+
+      for (const uv of faceUVs) {
+        if (!uv || !Number.isFinite(uv.u) || !Number.isFinite(uv.v)) return false;
+      }
+    }
+
+    return true;
+  }
 }

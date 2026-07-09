@@ -139,16 +139,25 @@ export class TexturePainter {
   }
 
   async _ensureUVs(object) {
-    const uvOutput = await AutoUVUnwrap.unwrap(object.userData.meshData);
+    const meshData = object.userData.meshData;
 
-    if (!uvOutput?.positions?.length || !uvOutput.indices.length) {
-      throw new Error(`UV unwrap failed for "${object.name}".`);
+    let bakeGeometry;
+
+    if (AutoUVUnwrap.hasUVs(meshData)){
+      bakeGeometry = object.geometry;
+    } else {
+      const uvOutput = await AutoUVUnwrap.unwrap(meshData);
+
+      if (!uvOutput?.positions?.length || !uvOutput.indices.length) {
+        throw new Error(`UV unwrap failed for "${object.name}".`);
+      }
+
+      bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
     }
 
     this.editor.vertexEditor.setObject(object);
     this.editor.vertexEditor.updateGeometry();
 
-    const bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
     const tempBakeMesh = new THREE.Mesh(bakeGeometry);
     tempBakeMesh.matrixWorld.copy(object.matrixWorld);
 

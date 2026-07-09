@@ -11,6 +11,7 @@ import { ApplyLocationCommand } from '../commands/ApplyLocationCommand.js';
 import { ApplyRotationCommand } from '../commands/ApplyRotationCommand.js';
 import { ApplyScaleCommand } from '../commands/ApplyScaleCommand.js';
 import { SetVisibilityCommand } from '../commands/SetVisibilityCommand.js';
+import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -129,6 +130,11 @@ export class ObjectActions {
 
     if (action === 'unhide-all') {
       this.unhideAllObjects();
+      return;
+    }
+
+    if (action === 'auto-uv-unwrap') {
+      this.autoUVUnwrap();
       return;
     }
 
@@ -351,5 +357,25 @@ export class ObjectActions {
     );
 
     this.editor.selection.deselect();
+  }
+
+  async autoUVUnwrap() {
+    const objects = this.selection.selectedObjects
+      .filter(object => object?.isMesh && !object.userData?.isImageRef);
+
+    if (objects && objects.length !== 1) {
+      alert('Please select one object to UV unwrap.');
+      return;
+    }
+    const object = objects[0];
+
+    const uvOutput = await AutoUVUnwrap.unwrap(object.userData.meshData);
+
+    if (!uvOutput?.positions?.length || !uvOutput.indices.length) {
+      throw new Error(`UV unwrap failed for "${object.name}".`);
+    }
+
+    this.editor.vertexEditor.setObject(object);
+    this.editor.vertexEditor.updateGeometry();
   }
 }
