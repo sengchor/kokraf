@@ -48,6 +48,7 @@ export default class ViewportControls {
     this.leftControls = document.getElementById('left-controls-container');
     this.transformControls = document.getElementById('transform-controls');
     this.brushSettings = document.getElementById('brush-settings');
+    this.paintTargetDropdown = document.getElementById('paint-map-select');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -193,6 +194,11 @@ export default class ViewportControls {
       if (this.brushSettings) {
         this.brushSettings.classList.toggle('hidden', newMode !== 'paint');
         this.brushSettings.classList.remove('active');
+      }
+
+      if (this.paintTargetDropdown) {
+        this.paintTargetDropdown.classList.toggle('hidden', newMode !== 'paint');
+        this.paintTargetDropdown.classList.remove('active');
       }
     });
 

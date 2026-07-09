@@ -41,6 +41,11 @@
   padding: 1px;
 }
 
+.paint-map-select {
+  padding: 1px;
+  margin-left: 10px;
+}
+
 .right-controls-container {
   display: flex;
   flex-direction: row;
