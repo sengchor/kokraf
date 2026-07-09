@@ -6,6 +6,7 @@ export default class OBJLoader {
     const lines = objText.split('\n');
 
     const globalPositions = [];
+    const globalUVs = [];
 
     const objects = [];
     let current = null;
@@ -26,7 +27,6 @@ export default class OBJLoader {
         case 'o':
         case 'g': {
           const name = parts.slice(1).join(' ');
-          // Skip anonymous/default groups Maya emits before vertex blocks
           if (name === '' || name === 'default') break;
           pushCurrent();
           current = makeCurrent(name);
@@ -45,12 +45,27 @@ export default class OBJLoader {
           break;
         }
 
+        case 'vt': {
+          const u = parseFloat(parts[1]);
+          const v = parseFloat(parts[2]);
+          globalUVs.push(
+            isFinite(u) && isFinite(v) ? { u, v } : null
+          );
+          break;
+        }
+
         case 'f': {
           if (!current) current = makeCurrent('unnamed');
-          const indices = parts.slice(1).map(
-            token => parseInt(token.split('/')[0], 10) - 1
-          );
-          current.faces.push(indices);
+          // Each corner is "v", "v/vt", "v//vn", or "v/vt/vn"
+          const corners = parts.slice(1).map(token => {
+            const segs = token.split('/');
+            const vIdx = parseInt(segs[0], 10) - 1;
+            const vtIdx = (segs.length >= 2 && segs[1] !== '')
+              ? parseInt(segs[1], 10) - 1
+              : null;
+            return { vIdx, vtIdx };
+          });
+          current.faces.push(corners);
           break;
         }
       }
@@ -59,21 +74,35 @@ export default class OBJLoader {
 
     return objects.map(({ name, faces }) => {
       const meshData = new MeshData();
-
       const vertexCache = new Map();
 
       const getVertex = (globalIdx) => {
         if (vertexCache.has(globalIdx)) return vertexCache.get(globalIdx);
         const pos = globalPositions[globalIdx];
         if (!pos) return null;
-        const id = meshData.addVertex(pos.clone());
-        vertexCache.set(globalIdx, id);
-        return id;
+        const v = meshData.addVertex(pos.clone());
+        vertexCache.set(globalIdx, v);
+        return v;
       };
 
-      for (const face of faces) {
-        const verts = face.map(getVertex).filter(v => v !== null && v !== undefined);
-        if (verts.length >= 3) meshData.addFace(verts);
+      for (const corners of faces) {
+        const resolved = corners
+          .map(c => ({ vertex: getVertex(c.vIdx), vtIdx: c.vtIdx }))
+          .filter(c => c.vertex !== null && c.vertex !== undefined);
+
+        if (resolved.length < 3) continue;
+
+        const verts = resolved.map(c => c.vertex);
+        const face = meshData.addFace(verts);
+
+        const hasUVs = resolved.every(c => c.vtIdx !== null && globalUVs[c.vtIdx]);
+        if (hasUVs) {
+          const faceUVs = resolved.map(c => {
+            const uv = globalUVs[c.vtIdx];
+            return { u: uv.u, v: uv.v }; // flip below if needed: 1 - uv.v
+          });
+          meshData.uvs.set(face.id, faceUVs);
+        }
       }
 
       return { name, meshData };

@@ -29,11 +29,13 @@ export default class GLBLoader {
     gltf.scene.traverse((child) => {
       if (!child.isMesh || !child.geometry) return;
 
-      const current = { name: child.name || '', positions: [], faces: [] };
+      const current = { name: child.name || '', positions: [], faces: [], uvs: [] };
 
       const geometry = child.geometry.clone();
       const srcGeo = geometry.index ? geometry : geometry.toNonIndexed();
+      
       const positionAttr = srcGeo.attributes.position;
+      const uvAttr = srcGeo.attributes.uv;
       const indexAttr    = srcGeo.index;
       if (!positionAttr) return;
 
@@ -60,15 +62,31 @@ export default class GLBLoader {
       // Build faces using deduplicated indices
       if (indexAttr) {
         for (let i = 0; i < indexAttr.count; i += 3) {
-          current.faces.push([
-            rawToDedup[indexAttr.getX(i)],
-            rawToDedup[indexAttr.getX(i + 1)],
-            rawToDedup[indexAttr.getX(i + 2)],
-          ]);
+          const idx0 = indexAttr.getX(i);
+          const idx1 = indexAttr.getX(i + 1);
+          const idx2 = indexAttr.getX(i + 2);
+
+          current.faces.push([rawToDedup[idx0], rawToDedup[idx1], rawToDedup[idx2]]);
+
+          if (uvAttr) {
+            current.uvs.push([
+              { u: uvAttr.getX(idx0), v: 1.0 - uvAttr.getY(idx0) },
+              { u: uvAttr.getX(idx1), v: 1.0 - uvAttr.getY(idx1) },
+              { u: uvAttr.getX(idx2), v: 1.0 - uvAttr.getY(idx2) }
+            ]);
+          }
         }
       } else {
         for (let i = 0; i < positionAttr.count; i += 3) {
           current.faces.push([rawToDedup[i], rawToDedup[i + 1], rawToDedup[i + 2]]);
+
+          if (uvAttr) {
+            current.uvs.push([
+              { u: uvAttr.getX(i), v: 1.0 - uvAttr.getY(i) },
+              { u: uvAttr.getX(i + 1), v: 1.0 - uvAttr.getY(i + 1) },
+              { u: uvAttr.getX(i + 2), v: 1.0 - uvAttr.getY(i + 2) }
+            ]);
+          }
         }
       }
 
@@ -76,13 +94,25 @@ export default class GLBLoader {
     });
 
     return objects.map((obj) => {
-      const { positions, faces, name } = obj;
+      const { positions, faces, uvs, name } = obj;
       const meshData = new MeshData();
       const verts = positions.map(p => p ? meshData.addVertex(new THREE.Vector3(...p)) : null);
-      for (const face of faces) {
-        const vertexArray = face.map(i => verts[i]).filter(v => v !== null && v !== undefined);
-        if (vertexArray.length >= 3) meshData.addFace(vertexArray);
+      
+      for (let i = 0; i < faces.length; i++) {
+        const faceIndices = faces[i];
+        const vertexArray = faceIndices.map(idx => verts[idx]).filter(v => v !== null && v !== undefined);
+
+        if (vertexArray.length >= 3) {
+          const addedFace = meshData.addFace(vertexArray);
+
+          if (uvs.length > 0 && addedFace) {
+            meshData.uvs.set(addedFace.id, uvs[i]);
+          }
+        }
       }
+
+      const expectedTris = obj.faces.length;
+
       return { name, meshData };
     });
   }
