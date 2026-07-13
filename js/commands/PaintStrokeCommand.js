@@ -3,17 +3,27 @@ import * as THREE from 'three';
 export class PaintStrokeCommand {
   static type = 'PaintStrokeCommand';
 
+  static MAP_LABELS = {
+    map: 'Base Color',
+    metalnessMap: 'Metalness',
+    roughnessMap: 'Roughness',
+    normalMap: 'Normal',
+  };
+
   /**
-   * @param {Editor} editor 
-   * @param {THREE.Object3D} object 
+   * @param {Editor} editor
+   * @param {THREE.Object3D} object
+   * @param {string} paintMap
    * @param {ImageData} beforeImageData
    * @param {ImageData} afterImageData
    * @constructor
    */
-  constructor(editor, object, beforeImageData, afterImageData) {
+  constructor(editor, object, paintMap, beforeImageData, afterImageData) {
     this.editor = editor;
-    this.name = 'Paint Stroke';
     this.objectUuid = object ? object.uuid : null;
+
+    this.paintMap = paintMap || 'map';
+    this.name = `Paint Stroke (${PaintStrokeCommand.MAP_LABELS[this.paintMap] ?? this.paintMap})`;
 
     this.before = beforeImageData || null;
     this.after = afterImageData || null;
@@ -27,16 +37,32 @@ export class PaintStrokeCommand {
     this._apply(this.before);
   }
 
+  _getMaterial(object) {
+    if (!object) return null;
+
+    const painter = this.editor.viewportControls?.texturePainter;
+    if (painter?.isActive && painter.object === object && painter.originalMaterial) {
+      return painter.originalMaterial;
+    }
+
+    return object.material;
+  }
+
   _apply(imageData) {
     if (!imageData) return;
 
     const object = this.editor.objectByUuid(this.objectUuid);
-    const texture = object?.material?.map;
-    if (!texture) return;
+    const painter = this.editor.viewportControls?.texturePainter;
 
-    const canvas = texture.image;
+    if (painter?.isActive && painter.object === object) {
+      painter.setPaintMap(this.paintMap);
+    }
 
-    if (imageData.width !== canvas.width || imageData.height !== canvas.height) {
+    const material = this._getMaterial(object);
+    const texture = material?.[this.paintMap];
+    const canvas = texture?.image;
+
+    if (!canvas || imageData.width !== canvas.width || imageData.height !== canvas.height) {
       return;
     }
 
@@ -44,7 +70,6 @@ export class PaintStrokeCommand {
     ctx.putImageData(imageData, 0, 0);
     texture.needsUpdate = true;
 
-    const painter = this.editor.viewportControls.texturePainter;
     if (painter?.object === object && painter.projectionPainter?.canvas === canvas) {
       painter.projectionPainter.imageData = new ImageData(
         new Uint8ClampedArray(imageData.data),
@@ -60,15 +85,16 @@ export class PaintStrokeCommand {
     return {
       type: PaintStrokeCommand.type,
       objectUuid: this.objectUuid,
+      paintMap: this.paintMap,
       beforeImage: PaintStrokeCommand._imageDataToDataURL(this.before),
       afterImage: PaintStrokeCommand._imageDataToDataURL(this.after),
-    }
+    };
   }
 
   static fromJSON(editor, json) {
     if (!json || json.type !== PaintStrokeCommand.type) return null;
 
-    const command = new PaintStrokeCommand(editor, null, null, null);
+    const command = new PaintStrokeCommand(editor, null, json.paintMap, null, null);
     command.objectUuid = json.objectUuid;
 
     PaintStrokeCommand._dataURLToImageData(json.beforeImage).then(d => { command.before = d; });

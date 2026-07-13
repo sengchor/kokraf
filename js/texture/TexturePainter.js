@@ -22,6 +22,10 @@ export class TexturePainter {
       erase: new EraseTool(() => this.baseImageData),
     };
     this.tool = this.tools.paint;
+    
+    this.paintMap = 'map';
+    this.originalMaterial = null;
+    this.previewMaterial = null;
 
     // Brush
     this.color = '#ffffff';
@@ -68,6 +72,7 @@ export class TexturePainter {
     this._onPointerLeave = this._onPointerLeave.bind(this);
 
     this._initBrushControls();
+    this._initPaintMapControl();
     this.setupListeners();
   }
 
@@ -76,27 +81,31 @@ export class TexturePainter {
     this.brushCursor.style.display = 'block';
     this.setSize(this.size);
 
-    if (this.texture && this.object !== object) {
-      this.texture.dispose();
-      this.texture = null;
-      this.paintCanvas = null;
-      this.baseCanvas = null;
+    if (this.object !== object) {
+      this._disposeAllMaps();
       this.projectionPainter = null;
     }
 
     this.object = object;
     this.isActive = false;
 
+    this.originalMaterial = object.material || new THREE.MeshStandardMaterial();
+    this.previewMaterial = new THREE.MeshStandardMaterial({
+      metalness: 0.5,
+      roughness: 0.2,
+    });
+
     const bakeMesh = await this._ensureUVs(object);
 
-    this._initCanvas();
+    this._maps = {};
+    this._switchPaintMap(this.paintMap);
 
     if (!this.projectionPainter) {
       this.projectionPainter = new ProjectionPainter();
     }
     this.projectionPainter.attach(object, this.paintCanvas, bakeMesh);
 
-    this._applyToMaterial();
+    this._showPreviewMaterial();
     this._bindEvents();
     this.isActive = true;
 
@@ -108,10 +117,24 @@ export class TexturePainter {
   detach() {
     if (!this.isActive && !this.isPainting) return;
     this._unbindEvents();
+
     this.isActive = false;
     this.isPainting = false;
     this.lastHit = null;
+
+    if (this.object && this.originalMaterial) {
+      this.object.material = this.originalMaterial;
+    }
+
+    this._disposeAllMaps();
+    if (this.previewMaterial) {
+      this.previewMaterial.dispose();
+      this.previewMaterial = null;
+    }
+
     this.object = null;
+    this.originalMaterial = null;
+    this.previewMaterial = null;
 
     this._domElement.style.cursor = '';
     this.brushCursor.style.display = 'none';
@@ -127,6 +150,130 @@ export class TexturePainter {
     if (!this.tools[name]) return;
     this.tool = this.tools[name];
     this._syncBrushControlsUI();
+  }
+
+  _createMapEntry(mapKey) {
+    const existingMap = this.originalMaterial?.[mapKey];
+    const existingImage = existingMap?.image;
+
+    const resolution = existingImage
+      ? Math.min(Math.max(existingImage.width, existingImage.height), 2048)
+      : this._resolution;
+
+    const baseCanvas = document.createElement('canvas');
+    baseCanvas.width = baseCanvas.height = resolution;
+    const baseCtx = baseCanvas.getContext('2d', { willReadFrequently: true });
+    baseCtx.fillStyle = this._defaultFillColor(mapKey);
+    baseCtx.fillRect(0, 0, resolution, resolution);
+    const baseImageData = baseCtx.getImageData(0, 0, resolution, resolution);
+
+    const paintCanvas = document.createElement('canvas');
+    paintCanvas.width = paintCanvas.height = resolution;
+    const paintCtx = paintCanvas.getContext('2d', { willReadFrequently: true });
+    paintCtx.drawImage(baseCanvas, 0, 0);
+    if (existingImage) paintCtx.drawImage(existingImage, 0, 0, resolution, resolution);
+
+    const texture = new THREE.CanvasTexture(paintCanvas);
+    texture.colorSpace = mapKey === 'map' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+
+    return { resolution, baseCanvas, baseCtx, baseImageData, paintCanvas, paintCtx, texture };
+  }
+
+  _defaultFillColor(mapKey) {
+    switch (mapKey) {
+      case 'map': return '#dcdcdc';
+      case 'metalnessMap': return '#000000';
+      case 'roughnessMap': return '#808080';
+      case 'normalMap': return '#8080ff';
+      default: return '#dcdcdc';
+    }
+  }
+
+  _switchPaintMap(mapKey) {
+    if (!this.object) return;
+
+    let entry = this._maps[mapKey];
+    if (!entry) {
+      entry = this._createMapEntry(mapKey);
+      this._maps[mapKey] = entry;
+    }
+
+    this.baseCanvas = entry.baseCanvas;
+    this.baseCtx = entry.baseCtx;
+    this.baseImageData = entry.baseImageData;
+    this.paintCanvas = entry.paintCanvas;
+    this.paintCtx = entry.paintCtx;
+    this.texture = entry.texture;
+    this._resolution = entry.resolution;
+
+    if (this.originalMaterial) {
+      this.originalMaterial[mapKey] = entry.texture;
+      this.originalMaterial.needsUpdate = true;
+    }
+
+    this._showPreviewMaterial();
+
+    this.projectionPainter?.setPaintCanvas(this.paintCanvas);
+  }
+
+  _showPreviewMaterial() {
+    if (!this.object || !this.texture) return;
+
+    this.previewMaterial.map = this.texture;
+    this.previewMaterial.side = this.originalMaterial?.side ?? THREE.FrontSide;
+    this.previewMaterial.needsUpdate = true;
+
+    this.object.material = this.previewMaterial;
+  }
+
+  getMapKey(type) {
+    const mapTypes = {
+      baseColor: 'map',
+      metalness: 'metalnessMap',
+      roughness: 'roughnessMap',
+      normal: 'normalMap',
+    };
+
+    return mapTypes[type] ?? 'map';
+  }
+
+  getPaintType(mapKey) {
+    const mapTypes = {
+      map: 'baseColor',
+      metalnessMap: 'metalness',
+      roughnessMap: 'roughness',
+      normalMap: 'normal',
+    };
+
+    return mapTypes[mapKey] ?? 'baseColor';
+  }
+
+  setPaintMap(mapKey) {
+    if (mapKey === this.paintMap && this.texture) return;
+
+    this.paintMap = mapKey;
+
+    const type = this.getPaintType(mapKey);
+
+    const select = document.getElementById('paint-map-select');
+    if (select && select.value !== type) {
+      select.value = type;
+    }
+
+    this._switchPaintMap(mapKey);
+  }
+
+  _restoreOriginalMaterial() {
+    if (!this.isActive || !this.object || !this.originalMaterial) return false;
+
+    this.object.material = this.originalMaterial;
+    return true;
+  }
+
+  _restorePreviewMaterial() {
+    if (!this.isActive || !this.object || !this.previewMaterial) return;
+
+    this.object.material = this.previewMaterial;
   }
 
   _updateBrushCursor(event) {
@@ -163,23 +310,6 @@ export class TexturePainter {
 
     this.bakeMesh = tempBakeMesh;
     return tempBakeMesh;
-  }
-
-  _initCanvas() {
-    if (this.texture && this.object.material?.map === this.texture) return;
-
-    const existingMap = this.object.material?.map;
-    const existingImage = existingMap?.image;
-
-    const res = existingImage ?
-      Math.min(Math.max(existingImage.width, existingImage.height), 2048) : this._resolution;
-    this._resolution = res;
-
-    this.restoreBaseSnapshot();
-    this._initPaintCanvas(existingImage);
-
-    this.texture = new THREE.CanvasTexture(this.paintCanvas);
-    this.texture.colorSpace = THREE.SRGBColorSpace;
   }
 
   restoreBaseSnapshot() {
@@ -245,6 +375,16 @@ export class TexturePainter {
     this._syncBrushControlsUI();
   }
 
+  _initPaintMapControl() {
+    const select = document.getElementById('paint-map-select');
+    select?.addEventListener('change', (e) => {
+      const type = e.target.value;
+      const key = this.getMapKey(type);
+      
+      this.setPaintMap(key);
+     });
+  }
+
   _syncBrushControlsUI() {
     const { color, size, opacity, hardness, sizeValue, opacityValue, hardnessValue } = this._brushEls;
 
@@ -272,16 +412,6 @@ export class TexturePainter {
     this.hardness = 0.8;
 
     this._syncBrushControlsUI();
-  }
-
-  _applyToMaterial() {
-    const mat = this.object.material;
-    if (!mat) {
-      this.object.material = new THREE.MeshStandardMaterial({ map: this.texture });
-    } else {
-      mat.map = this.texture;
-      mat.needsUpdate = true;
-    }
   }
 
   _bindEvents() {
@@ -376,7 +506,7 @@ export class TexturePainter {
 
     if (this._strokeTouched && this._strokeBefore) {
       const _strokeAfter = this.paintCtx.getImageData(0, 0, this.paintCanvas.width, this.paintCanvas.height);
-      this.editor.execute(new PaintStrokeCommand(this.editor, this.object, this._strokeBefore, _strokeAfter));
+      this.editor.execute(new PaintStrokeCommand(this.editor, this.object, this.paintMap, this._strokeBefore, _strokeAfter));
     }
 
     this._strokeBefore = null;
@@ -481,6 +611,24 @@ export class TexturePainter {
     }
     
     return null;
+  }
+
+  _disposeAllMaps() {
+    if (this._maps) {
+      for (const key in this._maps) {
+        if (this._maps[key]?.texture) {
+          this._maps[key].texture.dispose();
+        }
+      }
+      this._maps = {};
+    }
+    
+    this.texture = null;
+    this.paintCanvas = null;
+    this.baseCanvas = null;
+    this.baseCtx = null;
+    this.paintCtx = null;
+    this.baseImageData = null;
   }
 
   toJSON() {

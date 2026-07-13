@@ -18,15 +18,19 @@ export class ProjectionPainter {
     this.object = object;
     this.bakeMesh = bakeMesh;
 
-    if (canvasChanged) {
-      this.canvas = canvas;
-      this.ctx = canvas.getContext('2d', { willReadFrequently: true });
-      this.imageData = this.ctx.getImageData(0, 0, canvas.width, canvas.height);
-    }
+    this.setPaintCanvas(canvas);
 
     if (meshChanged || objectChanged) {
       this._buildTriangleCache();
     }
+  }
+
+  setPaintCanvas(canvas) {
+    if (this.canvas === canvas) return;
+
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { willReadFrequently: true });
+    this.imageData = this.ctx.getImageData(0, 0, canvas.width, canvas.height);
   }
 
   _buildTriangleCache() {

@@ -20,10 +20,10 @@ export class SidebarMaterial {
     this.options = null;
 
     this.channelPairs = {
-      map: 'color',
+      map: 'baseColor',
       metalnessMap: 'metalness',
       roughnessMap: 'roughness',
-      normalMap: null,
+      normalMap: 'normal',
     };
 
     this.currentMode = this.viewportControls.currentMode;
@@ -85,9 +85,11 @@ export class SidebarMaterial {
 
   getOptionsFor(object) {
     if (!object) return [];
-    if (!object.material) return [];
 
-    let type = object.material.type;
+    const material = this._getMaterial(object);
+    if (!material) return [];
+
+    let type = material.type;
     if (object.userData.isImageRef) { 
       type = 'ImageRefMaterial'; 
     }
@@ -215,9 +217,11 @@ export class SidebarMaterial {
   }
 
   updateFields(object) {
-    if (!object || !object.material) return;
+    if (!object) return;
 
-    const material = object.material;
+    const material = this._getMaterial(object);
+    if (!material) return;
+
     const f = this.fields;
     const fix = (v, d = 3) => Number(v).toFixed(d);
 
@@ -320,7 +324,8 @@ export class SidebarMaterial {
       switch (option) {
         case 'color':
           this.bindInput(f.color, () => new THREE.Color(f.color.value), (object, value) => {
-            const currentHex = object.material.color.getHex();
+            const material = this._getMaterial(object);
+            const currentHex = material.color.getHex();
             const newHex = value.getHex();
             if (currentHex !== newHex) {
               this.editor.execute(new SetMaterialColorCommand(this.editor, object, 'color', newHex));
@@ -331,7 +336,8 @@ export class SidebarMaterial {
 
         case 'metalness':
           this.bindInput(f.metalness, () => this.clampInput(f.metalness), (object, value) => {
-            if (object.material.metalness !== value) {
+            const material = this._getMaterial(object);
+            if (material.metalness !== value) {
               this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'metalness', value));
             }
           });
@@ -340,7 +346,8 @@ export class SidebarMaterial {
 
         case 'roughness':
           this.bindInput(f.roughness, () => this.clampInput(f.roughness), (object, value) => {
-            if (object.material.roughness !== value) {
+            const material = this._getMaterial(object);
+            if (material.roughness !== value) {
               this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'roughness', value));
             }
           });
@@ -353,7 +360,8 @@ export class SidebarMaterial {
 
         case 'opacity':
           this.bindInput(f.opacity, () => this.clampInput(f.opacity), (object, value) => {
-            if (object.material.opacity !== value) {
+            const material = this._getMaterial(object);
+            if (material.opacity !== value) {
               this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'opacity', value));
             }
           });
@@ -361,7 +369,8 @@ export class SidebarMaterial {
 
         case 'side':
           this.bindInput(f.side, () => parseFloat(f.side.value), (object, value) => {
-            if (object.material.side !== value) {
+            const material = this._getMaterial(object);
+            if (material.side !== value) {
               this.editor.execute(new SetMaterialValueCommand(this.editor, object, 'side', value));
             }
           });
@@ -412,7 +421,8 @@ export class SidebarMaterial {
       const file = field.file.files[0];
       if (!object || !file) return;
 
-      const oldTexture = object.material[key];
+      const material = this._getMaterial(object);
+      const oldTexture = material[key];
       oldTexture?.dispose();
 
       const reader = new FileReader();
@@ -439,7 +449,8 @@ export class SidebarMaterial {
     field.clear.addEventListener('click', (e) => {
       e.stopPropagation();
       const object = this.lastSelectedObject;
-      if (!object || !object.material[key]) return;
+      const material = this._getMaterial(object);
+      if (!object || !material[key]) return;
 
       this.editor.execute(new SetMaterialMapCommand(this.editor, object, key, null, null));
       this.updateTextureField(key, null);
@@ -453,5 +464,16 @@ export class SidebarMaterial {
       case 'roughness': return 1;
       default: return null;
     }
+  }
+
+  _getMaterial(object) {
+    if (!object) return null;
+    
+    const painter = this.editor.viewportControls?.texturePainter;
+    if (painter?.isActive && painter.object === object && painter.originalMaterial) {
+      return painter.originalMaterial;
+    }
+    
+    return object.material ?? null;
   }
 }

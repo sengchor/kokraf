@@ -17,7 +17,8 @@ export class SetMaterialMapCommand {
     this.attributeName = attributeName;
     this.objectUuid = object ? object.uuid : null;
 
-    const material = object?.material;
+    const material = this._getMaterial(object);
+    
     this.oldTexture = material?.[attributeName] ?? null;
     this.newTexture = newTexture;
 
@@ -26,6 +27,17 @@ export class SetMaterialMapCommand {
     this.oldScalarValue = (this.scalarKey && material)
       ? this.captureScalar(material, this.scalarKey)
       : null;
+  }
+  
+  _getMaterial(object) {
+    if (!object) return null;
+    
+    const painter = this.editor.viewportControls?.texturePainter;
+    if (painter?.isActive && painter.object === object && painter.originalMaterial) {
+      return painter.originalMaterial;
+    }
+    
+    return object.material;
   }
 
   captureScalar(material, key) {
@@ -43,9 +55,10 @@ export class SetMaterialMapCommand {
 
   execute() {
     const object = this.editor.objectByUuid(this.objectUuid);
-    if (!object || !object.material) return;
+    const material = this._getMaterial(object);
+    
+    if (!material) return;
 
-    const material = object.material;
     material[this.attributeName] = this.newTexture;
     
     if (this.scalarKey !== null) {
@@ -58,9 +71,10 @@ export class SetMaterialMapCommand {
 
   undo() {
     const object = this.editor.objectByUuid(this.objectUuid);
-    if (!object || !object.material) return;
+    const material = this._getMaterial(object);
+    
+    if (!material) return;
 
-    const material = object.material;
     material[this.attributeName] = this.oldTexture;
     
     if (this.scalarKey !== null && this.oldScalarValue !== null) {
@@ -78,7 +92,8 @@ export class SetMaterialMapCommand {
         uuid: texture.uuid,
         name: texture.name,
         colorSpace: texture.colorSpace,
-        src: texture.image ? texture.image.src : null
+        src: texture.image ? texture.image.src : null,
+        attributeName: this.attributeName,
       };
     };
 
@@ -130,6 +145,8 @@ export class SetMaterialMapCommand {
     command.newScalarValue = (isColor && json.newScalarValue != null)
       ? new THREE.Color(json.newScalarValue)
       : json.newScalarValue;
+
+    command.attributeName = json.attributeName;
 
     return command;
   }
