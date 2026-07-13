@@ -8,14 +8,16 @@ export class SwitchModeCommand {
    * @param {THREE.Object3D} object
    * @param {string} newMode
    * @param {string} previousMode
+   * @param {string} paintMap
    * @constructor
    */
-  constructor(editor, object = null, newMode = null, previousMode = null) {
+  constructor(editor, object = null, newMode = null, previousMode = null, paintMap = null) {
     this.editor = editor;
     this.name = 'Switch Mode';
     this.objectUuid = object ? object.uuid : null;
     this.newMode = newMode;
     this.previousMode = previousMode;
+    this.paintMap = paintMap;
   }
 
   execute() {
@@ -40,7 +42,7 @@ export class SwitchModeCommand {
       this.editor.signals.modeChanged.dispatch('edit');
     } else if (mode === 'paint') {
       this.editor.selection.select(object);
-      viewportControls.enterPaintMode(object);
+      viewportControls.enterPaintMode(object, this.paintMap || 'map');
       this.editor.signals.modeChanged.dispatch('paint');
     }
   }
@@ -50,7 +52,8 @@ export class SwitchModeCommand {
       type: SwitchModeCommand.type,
       objectUuid: this.objectUuid,
       newMode: this.newMode,
-      previousMode: this.previousMode
+      previousMode: this.previousMode,
+      paintMap: this.paintMap,
     };
   }
 
@@ -62,6 +65,7 @@ export class SwitchModeCommand {
     command.objectUuid = json.objectUuid;
     command.previousMode = json.previousMode;
     command.newMode = json.newMode;
+    command.paintMap = json.paintMap || 'map';
 
     return command;
   }

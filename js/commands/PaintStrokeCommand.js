@@ -23,7 +23,8 @@ export class PaintStrokeCommand {
     this.objectUuid = object ? object.uuid : null;
 
     this.paintMap = paintMap || 'map';
-    this.name = `Paint Stroke (${PaintStrokeCommand.MAP_LABELS[this.paintMap] ?? this.paintMap})`;
+    const label = PaintStrokeCommand.MAP_LABELS[this.paintMap] ?? this.paintMap;
+    this.name = `Paint Stroke (${label})`;
 
     this.before = beforeImageData || null;
     this.after = afterImageData || null;
@@ -40,9 +41,9 @@ export class PaintStrokeCommand {
   _getMaterial(object) {
     if (!object) return null;
 
-    const painter = this.editor.viewportControls?.texturePainter;
-    if (painter?.isActive && painter.object === object && painter.originalMaterial) {
-      return painter.originalMaterial;
+    const texturePainter = this.editor.viewportControls?.texturePainter;
+    if (texturePainter?.isActive && texturePainter.object === object && texturePainter.originalMaterial) {
+      return texturePainter.originalMaterial;
     }
 
     return object.material;
@@ -52,11 +53,7 @@ export class PaintStrokeCommand {
     if (!imageData) return;
 
     const object = this.editor.objectByUuid(this.objectUuid);
-    const painter = this.editor.viewportControls?.texturePainter;
-
-    if (painter?.isActive && painter.object === object) {
-      painter.setPaintMap(this.paintMap);
-    }
+    const texturePainter = this.editor.viewportControls?.texturePainter;
 
     const material = this._getMaterial(object);
     const texture = material?.[this.paintMap];
@@ -70,8 +67,8 @@ export class PaintStrokeCommand {
     ctx.putImageData(imageData, 0, 0);
     texture.needsUpdate = true;
 
-    if (painter?.object === object && painter.projectionPainter?.canvas === canvas) {
-      painter.projectionPainter.imageData = new ImageData(
+    if (texturePainter?.object === object && texturePainter.projectionPainter?.canvas === canvas) {
+      texturePainter.projectionPainter.imageData = new ImageData(
         new Uint8ClampedArray(imageData.data),
         imageData.width,
         imageData.height

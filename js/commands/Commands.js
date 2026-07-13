@@ -44,6 +44,7 @@ import { SetUserDataValueCommand } from './SetUserDataValueCommand.js';
 import { SetVisibilityCommand } from './SetVisibilityCommand.js';
 import { PaintStrokeCommand } from './PaintStrokeCommand.js';
 import { SetMaterialMapCommand } from './SetMaterialMapCommand.js';
+import { SwitchPaintMapCommand } from './SwitchPaintMapCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -92,4 +93,5 @@ export const commands = new Map([
   [SetVisibilityCommand.type, SetVisibilityCommand],
   [PaintStrokeCommand.type, PaintStrokeCommand],
   [SetMaterialMapCommand.type, SetMaterialMapCommand],
+  [SwitchPaintMapCommand.type, SwitchPaintMapCommand],
 ]);

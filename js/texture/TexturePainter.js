@@ -3,6 +3,7 @@ import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { ProjectionPainter } from './ProjectionPainter.js';
 import { AddObjectCommand } from '../commands/AddObjectCommand.js';
 import { PaintStrokeCommand } from '../commands/PaintStrokeCommand.js';
+import { SwitchPaintMapCommand } from '../commands/SwitchPaintMapCommand.js';
 import { GPUDepthReader } from '../utils/GPUDepthReader.js';
 import { PaintTool } from './PaintTool.js';
 import { EraseTool } from './EraseTool.js';
@@ -380,8 +381,10 @@ export class TexturePainter {
     select?.addEventListener('change', (e) => {
       const type = e.target.value;
       const key = this.getMapKey(type);
+
+      if (key === this.paintMap) return;
       
-      this.setPaintMap(key);
+      this.editor.execute(new SwitchPaintMapCommand(this.editor, this.object, key, this.paintMap));
      });
   }
 

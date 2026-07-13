@@ -264,6 +264,7 @@ export default class ViewportControls {
 
   switchMode(newMode) {
     const previousMode = this.currentMode;
+    const paintMap = this.texturePainter?.paintMap || null;
 
     let object = null;
 
@@ -305,7 +306,7 @@ export default class ViewportControls {
       return;
     }
 
-    this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode));
+    this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode, paintMap));
   }
 
   enterObjectMode() {
@@ -351,7 +352,7 @@ export default class ViewportControls {
     this.signals.setEditObjectPanel.dispatch(selectedObject);
   }
 
-  enterPaintMode(selectedObject) {
+  enterPaintMode(selectedObject, paintMap = 'map') {
     this.selection.enable = false;
     this.editSelection.enable = false;
 
@@ -368,7 +369,11 @@ export default class ViewportControls {
       this.texturePainter = new TexturePainter(this.editor);
     }
 
-    this.texturePainter.attach(selectedObject).catch(err => {
+    this.texturePainter.attach(selectedObject).then(() => {
+      if (paintMap && paintMap !== this.texturePainter.paintMap) {
+        this.texturePainter.setPaintMap(paintMap);
+      }
+    }).catch(err => {
       alert(err.message);
       this.interactionDropdown.value = 'object';
       this.enterObjectMode();

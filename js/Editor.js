@@ -307,8 +307,8 @@ export default class Editor {
       this.sceneManager.mainScene
     );
 
-    const painter = this.viewportControls?.texturePainter;
-    const restored = painter?._restoreOriginalMaterial();
+    const texturePainter = this.viewportControls?.texturePainter;
+    const restored = texturePainter?._restoreOriginalMaterial();
 
     const json = {
       metadata: {
@@ -330,7 +330,7 @@ export default class Editor {
     }
 
     if (restored) {
-      painter._restorePreviewMaterial();
+      texturePainter._restorePreviewMaterial();
     }
 
     return json;
