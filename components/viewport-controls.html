@@ -188,10 +188,16 @@
 
     <!-- Brush Settings (Texture Paint) -->
     <div class="brush-settings" id="brush-settings">
-      <div class="tooltip-wrapper" data-tooltip="Brush Color">
+      <div class="tooltip-wrapper" data-tooltip="Brush Color" id="brush-color-control">
         <div class="brush-color-wrapper">
           <input type="color" class="brush-color-input" id="brush-color" value="#ffffff" />
         </div>
+      </div>
+
+      <div class="tooltip-wrapper brush-slider-wrapper" data-tooltip="Brush Value" id="brush-value-control">
+        <span class="brush-slider-label">VALUE</span>
+        <input type="range" class="brush-slider" id="brush-value" min="0" max="1" step="0.01" value="1" />
+        <span class="brush-slider-value" id="brush-value-value">1.00</span>
       </div>
 
       <div class="tooltip-wrapper brush-slider-wrapper" data-tooltip="Brush Size">
@@ -202,14 +208,14 @@
 
       <div class="tooltip-wrapper brush-slider-wrapper" data-tooltip="Brush Opacity">
         <span class="brush-slider-label">OPACITY</span>
-        <input type="range" class="brush-slider" id="brush-opacity" min="0" max="100" step="1" value="100" />
-        <span class="brush-slider-value" id="brush-opacity-value">100</span>
+        <input type="range" class="brush-slider" id="brush-opacity" min="0" max="1" step="0.01" value="1" />
+        <span class="brush-slider-value" id="brush-opacity-value">1.00</span>
       </div>
 
       <div class="tooltip-wrapper brush-slider-wrapper" data-tooltip="Brush Hardness">
         <span class="brush-slider-label">HARDNESS</span>
-        <input type="range" class="brush-slider" id="brush-hardness" min="0" max="100" step="1" value="80" />
-        <span class="brush-slider-value" id="brush-hardness-value">80</span>
+        <input type="range" class="brush-slider" id="brush-hardness" min="0" max="1" step="0.01" value="0.8" />
+        <span class="brush-slider-value" id="brush-hardness-value">0.80</span>
       </div>
     </div>
   </div>

@@ -8,6 +8,13 @@ import { GPUDepthReader } from '../utils/GPUDepthReader.js';
 import { PaintTool } from './PaintTool.js';
 import { EraseTool } from './EraseTool.js';
 
+const COLOR_TYPE_BY_MAP = {
+  map: 'rgb',
+  metalnessMap: 'grayscale',
+  roughnessMap: 'grayscale',
+  normalMap: 'rgb',
+};
+
 export class TexturePainter {
   constructor(editor) {
     this.editor = editor;
@@ -213,8 +220,9 @@ export class TexturePainter {
     }
 
     this._showPreviewMaterial();
-
     this.projectionPainter?.setPaintCanvas(this.paintCanvas);
+
+    this._syncBrushControlsUI();
   }
 
   _showPreviewMaterial() {
@@ -341,18 +349,28 @@ export class TexturePainter {
   _initBrushControls() {
     this._brushEls = {
       color: document.getElementById('brush-color'),
+      colorControl: document.getElementById('brush-color-control'),
+      value: document.getElementById('brush-value'),
+      valueControl: document.getElementById('brush-value-control'),
+      valueDisplay: document.getElementById('brush-value-value'),
       size: document.getElementById('brush-size'),
       opacity: document.getElementById('brush-opacity'),
       hardness: document.getElementById('brush-hardness'),
       sizeValue: document.getElementById('brush-size-value'),
       opacityValue: document.getElementById('brush-opacity-value'),
       hardnessValue: document.getElementById('brush-hardness-value'),
-    }
+    };
 
-    const { color, size, opacity, hardness, sizeValue, opacityValue, hardnessValue } = this._brushEls;
+    const { color, value, valueDisplay, size, opacity, hardness, sizeValue, opacityValue, hardnessValue } = this._brushEls;
 
     color.addEventListener('input', (e) => {
       this.setColor(e.target.value);
+    });
+
+    value.addEventListener('input', (e) => {
+      const frac = Number(e.target.value);
+      this.setColor(this._grayHexFromFraction(frac));
+      valueDisplay.textContent = frac.toFixed(2);
     });
 
     size.addEventListener('input', (e) => {
@@ -363,14 +381,14 @@ export class TexturePainter {
 
     opacity.addEventListener('input', (e) => {
       const value = Number(e.target.value);
-      this.setOpacity(value / 100);
-      opacityValue.textContent = value;
+      this.setOpacity(value);
+      opacityValue.textContent = value.toFixed(2);
     });
 
     hardness.addEventListener('input', (e) => {
       const value = Number(e.target.value);
-      this.setHardness(value / 100);
-      hardnessValue.textContent = value;
+      this.setHardness(value);
+      hardnessValue.textContent = value.toFixed(2);
     });
 
     this._syncBrushControlsUI();
@@ -389,23 +407,37 @@ export class TexturePainter {
   }
 
   _syncBrushControlsUI() {
-    const { color, size, opacity, hardness, sizeValue, opacityValue, hardnessValue } = this._brushEls;
+    const {
+      color, value, valueDisplay, colorControl, valueControl,
+      size, opacity, hardness, sizeValue, opacityValue, hardnessValue,
+    } = this._brushEls;
 
     const usesColor = this.tool.usesColor !== false;
-    color.disabled = !usesColor;
-    color.parentElement?.classList.toggle('is-disabled', !usesColor);
-    color.value = this.color;
+    const isGrayscale = this._getColorType(this.paintMap) === 'grayscale';
+
+    colorControl.classList.toggle('hidden', isGrayscale);
+    valueControl.classList.toggle('hidden', !isGrayscale);
+
+    if (isGrayscale) {
+      value.disabled = !usesColor;
+      valueControl.classList.toggle('is-disabled', !usesColor);
+      const frac = this._grayFractionFromHex(this.color);
+      value.value = frac;
+      valueDisplay.textContent = frac.toFixed(2);
+    } else {
+      color.disabled = !usesColor;
+      color.parentElement?.classList.toggle('is-disabled', !usesColor);
+      color.value = this.color;
+    }
 
     size.value = this.size;
     sizeValue.textContent = this.size;
 
-    const opacityPct = Math.round(this.opacity * 100);
-    opacity.value = opacityPct;
-    opacityValue.textContent = opacityPct;
+    opacity.value = this.opacity;
+    opacityValue.textContent = this.opacity.toFixed(2);
 
-    const hardnessPct = Math.round(this.hardness * 100);
-    hardness.value = hardnessPct;
-    hardnessValue.textContent = hardnessPct;
+    hardness.value = this.hardness;
+    hardnessValue.textContent = this.hardness.toFixed(2);
   }
 
   resetBrush() {
@@ -632,6 +664,24 @@ export class TexturePainter {
     this.baseCtx = null;
     this.paintCtx = null;
     this.baseImageData = null;
+  }
+
+  _getColorType(mapKey) {
+    return COLOR_TYPE_BY_MAP[mapKey] ?? 'rgb';
+  }
+
+  _grayHexFromFraction(frac) {
+    const v = Math.round(frac * 255);
+    const hex = v.toString(16).padStart(2, '0');
+    return `#${hex}${hex}${hex}`;
+  }
+
+  _grayFractionFromHex(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) || 0;
+    const g = parseInt(hex.slice(3, 5), 16) || 0;
+    const b = parseInt(hex.slice(5, 7), 16) || 0;
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    return luminance / 255;
   }
 
   toJSON() {
