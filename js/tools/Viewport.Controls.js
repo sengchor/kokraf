@@ -17,9 +17,11 @@ export default class ViewportControls {
     this.editHelpers = editor.editHelpers;
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
+
     this.currentMode = 'object';
     this.transformOrientation = 'global';
-
+    this.savedPaintMap = 'map';
+    
     this.ready = this.load();
   }
 
@@ -221,6 +223,13 @@ export default class ViewportControls {
       this.editSelection.setSubSelectionMode('vertex');
       this.signals.subSelectionModeChanged.dispatch('vertex');
 
+      this.savedPaintMap = 'map';
+      if (this.texturePainter) {
+        this.texturePainter.setPaintMap('map');
+      }
+
+      this.signals.shadingModeChanged.dispatch('solid');
+
       this.enterObjectMode();
       this.signals.modeChanged.dispatch('object');
     });
@@ -264,7 +273,7 @@ export default class ViewportControls {
 
   switchMode(newMode) {
     const previousMode = this.currentMode;
-    const paintMap = this.texturePainter?.paintMap || null;
+    const paintMap = this.texturePainter?.paintMap || this.savedPaintMap;
 
     let object = null;
 
@@ -414,7 +423,8 @@ export default class ViewportControls {
     return {
       mode: this.interactionDropdown?.value || 'object',
       editedObjectUuid: this.editSelection.editedObject?.uuid || null,
-      subSelectionMode: this.editSelection.subSelectionMode || 'vertex'
+      subSelectionMode: this.editSelection.subSelectionMode || 'vertex',
+      paintMap: this.texturePainter?.paintMap || 'map',
     };
   }
 
@@ -428,6 +438,7 @@ export default class ViewportControls {
     const mode = json.mode;
     const uuid = json.editedObjectUuid;
     const subMode = json.subSelectionMode || 'vertex';
+    this.savedPaintMap = json.paintMap || 'map';
 
     this.editSelection.setSubSelectionMode(subMode);
     this.signals.subSelectionModeChanged.dispatch(subMode);
@@ -448,7 +459,7 @@ export default class ViewportControls {
 
       if (object && object.isMesh) {
         this.selection.select(object);
-        this.enterPaintMode(object);
+        this.enterPaintMode(object, this.savedPaintMap);
         this.signals.modeChanged.dispatch('paint');
       } else {
         this.enterObjectMode();
