@@ -11,6 +11,7 @@ export class SidebarProject {
     this.shadowsCheckbox = document.getElementById('shadows');
     this.shadowTypeSelect = document.getElementById('shadows-options');
     this.tonemappingSelect = document.getElementById('tonemapping-options');
+    this.hdriCheckbox = document.getElementById('hdri');
 
     this.shadingSelect = document.getElementById('shading-options');
     this.samplesSetting = document.getElementById('samples-setting');
@@ -42,6 +43,7 @@ export class SidebarProject {
     this.shadowsCheckbox.checked = this.config.get('shadows');
     this.shadowTypeSelect.value = this.config.get('shadowType');
     this.tonemappingSelect.value = this.config.get('tonemapping');
+    this.hdriCheckbox.checked = this.config.get('hdri');
 
     const reloadRequired = (configKey, parse) => async (e) => {
       const newVal = parse ? parse(e.target.value) : e.target.checked;
@@ -60,6 +62,7 @@ export class SidebarProject {
     this.shadowsCheckbox.addEventListener('change', reloadRequired('shadows'));
     this.shadowTypeSelect.addEventListener('change', reloadRequired('shadowType', parseInt));
     this.tonemappingSelect.addEventListener('change', reloadRequired('tonemapping', parseInt));
+    this.hdriCheckbox.addEventListener('change', reloadRequired('hdri'));
   }
 
   initImageRenderUI() {

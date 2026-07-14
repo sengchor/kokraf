@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { Outline } from './Outline.js';
 
 export default class Renderer {
@@ -13,6 +14,10 @@ export default class Renderer {
     this.renderer.autoClear = false;
 
     this.outline = new Outline(this.renderer);
+
+    this._hdriEnvironment = null;
+    this._hdriLoading = false;
+    this._pmremGenerator = null;
 
     this.setupListeners();
   }
@@ -49,6 +54,10 @@ export default class Renderer {
     return this.renderer.domElement;
   }
 
+  get environment() {
+    return this._hdriEnvironment;
+  }
+
   setSize(width, height) {
     this.renderer.setSize(width, height);
     this.outline.setSize(width * window.devicePixelRatio, height * window.devicePixelRatio);
@@ -64,6 +73,45 @@ export default class Renderer {
 
   renderWithOutline(scene, camera) {
     this.outline.render(scene, camera);
+  }
+
+  loadHDRI(url) {
+    if (!this.config.get('hdri')) return;
+    if (this._hdriEnvironment || this._hdriLoading) return;
+ 
+    this._hdriLoading = true;
+ 
+    if (!this._pmremGenerator) {
+      this._pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+      this._pmremGenerator.compileEquirectangularShader();
+    }
+ 
+    const hdriUrl = url || this.config.get('hdriPath') || 'assets/textures/hdri/evening_road_01_puresky_1k.hdr';
+ 
+    new RGBELoader().load(
+      hdriUrl,
+      (hdrTexture) => {
+        const envMap = this._pmremGenerator.fromEquirectangular(hdrTexture).texture;
+        hdrTexture.dispose();
+ 
+        this._hdriEnvironment = envMap;
+        this._hdriLoading = false;
+ 
+        this.signals.hdriEnvironmentLoaded.dispatch(envMap);
+      },
+      undefined,
+      (err) => {
+        console.error('Failed to load HDRI environment:', err);
+        this._hdriLoading = false;
+      }
+    );
+  }
+ 
+  disposeHDRI() {
+    this._hdriEnvironment?.dispose();
+    this._hdriEnvironment = null;
+    this._pmremGenerator?.dispose();
+    this._pmremGenerator = null;
   }
 
   dispose() {

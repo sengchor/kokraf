@@ -131,6 +131,8 @@ export default class Editor {
       setPaintTool: new Signal(),
       setEditObjectPanel: new Signal(),
       setPaintObjectPanel: new Signal(),
+      
+      hdriEnvironmentLoaded: new Signal(),
     }
 
     this.helpers = {};

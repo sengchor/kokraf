@@ -9,6 +9,7 @@ export default class Config {
       shadows: true,
       shadowType: 1, // PCF
       tonemapping: 0, // NoToneMapping
+      hdri: true,
       shortcuts: {
         select: 'w',
         translate: 'g',

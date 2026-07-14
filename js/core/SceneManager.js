@@ -11,6 +11,7 @@ export default class SceneManager {
     this.cameraManager = editor.cameraManager;
     this.helpers = editor.helpers;
     this.objectFactory = editor.objectFactory;
+    this.config = editor.config;
     this.gridHelper = new GridHelper();
     this.history = editor.history;
 
@@ -314,6 +315,12 @@ export default class SceneManager {
       this.xrayMode = value;
       this.updateShadingMode(this.shadingMode, this.xrayMode);
     });
+
+    this.signals.hdriEnvironmentLoaded.add((envMap) => {
+      if (this.shadingMode === 'material') {
+        this.mainScene.environment = envMap;
+      }
+    });
   }
 
   updateShadingMode(shadingMode, xrayMode) {
@@ -321,6 +328,14 @@ export default class SceneManager {
 
     switch (shadingMode) {
       case 'material':
+        if (!this.config.get('hdri')) {
+          this.mainScene.environment = null;
+        } else if (this.editor.renderer?.environment) {
+          this.mainScene.environment = this.editor.renderer.environment;
+        } else {
+          this.mainScene.environment = null;
+          this.editor.renderer?.loadHDRI();
+        }
         material = null;
         break;
       case 'solid': {
