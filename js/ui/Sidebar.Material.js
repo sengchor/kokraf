@@ -20,7 +20,7 @@ export class SidebarMaterial {
     this.options = null;
 
     this.channelPairs = {
-      map: 'baseColor',
+      map: 'color',
       metalnessMap: 'metalness',
       roughnessMap: 'roughness',
       normalMap: 'normal',
