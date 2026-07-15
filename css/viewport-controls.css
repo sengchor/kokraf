@@ -405,6 +405,7 @@
   gap: 10px;
   height: 20px;
   padding: 0 8px;
+  margin-left: 22.5px;
   background-color: #ffffff;
 }
 
@@ -491,4 +492,29 @@
 .brush-color-wrapper.is-disabled .brush-color-input {
   pointer-events: none;
   cursor: not-allowed;
+}
+
+/* Responsive Brush Settings */
+.brush-settings.compact-mode {
+  gap: 6px;
+}
+
+.brush-settings.compact-mode .brush-slider-label {
+  display: none;
+}
+
+.brush-settings.compact-mode input[type="range"] {
+  width: 50px;
+}
+
+.brush-settings.micro-mode {
+  gap: 4px;
+}
+
+.brush-settings.micro-mode input[type="range"] {
+  width: 35px;
+}
+
+.brush-settings.micro-mode .brush-slider-value {
+  display: none;
 }

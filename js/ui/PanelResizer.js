@@ -111,6 +111,8 @@ export default class PanelResizer {
 
     const controlsWidth = rightControls.clientWidth + leftControls.clientWidth;
     rightControls.style.marginLeft = `${width - controlsWidth - 15}px`;
+
+    this.adjustBrushSettingsWidth(width);
   }
 
   adjustOutlinerHeight() {
@@ -123,6 +125,23 @@ export default class PanelResizer {
 
       outlinerList.style.maxHeight = `${maxHeight}px`;
       outlinerList.style.overflowY = 'auto';
+    }
+  }
+
+  adjustBrushSettingsWidth(availableWidth) {
+    const brushSettings = document.getElementById('brush-settings');
+    if (!brushSettings) return;
+
+    if (availableWidth < 1070) {
+      brushSettings.classList.add('compact-mode');
+    } else {
+      brushSettings.classList.remove('compact-mode');
+    }
+
+    if (availableWidth < 850) {
+      brushSettings.classList.add('micro-mode');
+    } else {
+      brushSettings.classList.remove('micro-mode');
     }
   }
 }
