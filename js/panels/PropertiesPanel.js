@@ -31,6 +31,7 @@ export class PropertiesPanel {
   setupListener() {
     document.addEventListener('pointerdown', (e) => {
       if (!this.isNewCreation) return;
+      if (e.button === 1) return;
 
       if (this.container.contains(e.target)) return;
 
