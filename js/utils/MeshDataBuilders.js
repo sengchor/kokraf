@@ -1,17 +1,26 @@
 import { MeshData } from '../core/MeshData.js';
 
 export class MeshDataBuilders {
-  static createCubeMeshData() {
+  static createCubeMeshData(params = {}) {
     const meshData = new MeshData();
-    const v0 = meshData.addVertex({ x: -0.5, y: -0.5, z: -0.5 });
-    const v1 = meshData.addVertex({ x:  0.5, y: -0.5, z: -0.5 });
-    const v2 = meshData.addVertex({ x:  0.5, y:  0.5, z: -0.5 });
-    const v3 = meshData.addVertex({ x: -0.5, y:  0.5, z: -0.5 });
 
-    const v4 = meshData.addVertex({ x: -0.5, y: -0.5, z:  0.5 });
-    const v5 = meshData.addVertex({ x:  0.5, y: -0.5, z:  0.5 });
-    const v6 = meshData.addVertex({ x:  0.5, y:  0.5, z:  0.5 });
-    const v7 = meshData.addVertex({ x: -0.5, y:  0.5, z:  0.5 });
+    const width = params.width ?? 1;
+    const height = params.height ?? 1;
+    const depth = params.depth ?? 1;
+
+    const hw = width / 2;
+    const hh = height / 2;
+    const hd = depth / 2;
+
+    const v0 = meshData.addVertex({ x: -hw, y: -hh, z: -hd });
+    const v1 = meshData.addVertex({ x:  hw, y: -hh, z: -hd });
+    const v2 = meshData.addVertex({ x:  hw, y:  hh, z: -hd });
+    const v3 = meshData.addVertex({ x: -hw, y:  hh, z: -hd });
+
+    const v4 = meshData.addVertex({ x: -hw, y: -hh, z:  hd });
+    const v5 = meshData.addVertex({ x:  hw, y: -hh, z:  hd });
+    const v6 = meshData.addVertex({ x:  hw, y:  hh, z:  hd });
+    const v7 = meshData.addVertex({ x: -hw, y:  hh, z:  hd });
 
     meshData.addFace([v3, v2, v1, v0]);
     meshData.addFace([v4, v5, v6, v7]);
@@ -22,10 +31,10 @@ export class MeshDataBuilders {
     return meshData;
   }
 
-  static createCircleMeshData() {
+  static createCircleMeshData(params = {}) {
     const meshData = new MeshData();
-    const segments = 32;
-    const radius = 0.5;
+    const segments = params.segments ?? 32;
+    const radius = params.radius ?? 0.5;
 
     const vertices = [];
 
@@ -41,24 +50,31 @@ export class MeshDataBuilders {
     return meshData;
   }
 
-  static createPlaneMeshData() {
+  static createPlaneMeshData(params = {}) {
     const meshData = new MeshData();
-    const v0 = meshData.addVertex({ x: -0.5, y: 0, z: -0.5 });
-    const v1 = meshData.addVertex({ x:  0.5, y: 0, z: -0.5 });
-    const v2 = meshData.addVertex({ x:  0.5, y: 0, z:  0.5 });
-    const v3 = meshData.addVertex({ x: -0.5, y: 0, z:  0.5 });
+
+    const width = params.width ?? 1;
+    const height = params.height ?? 1;
+
+    const hw = width / 2;
+    const hh = height / 2;
+
+    const v0 = meshData.addVertex({ x: -hw, y: 0, z: -hh });
+    const v1 = meshData.addVertex({ x:  hw, y: 0, z: -hh });
+    const v2 = meshData.addVertex({ x:  hw, y: 0, z:  hh });
+    const v3 = meshData.addVertex({ x: -hw, y: 0, z:  hh });
 
     meshData.addFace([v3, v2, v1, v0]);
     return meshData;
   }
 
-  static createSphereMeshData() {
+  static createSphereMeshData(params = {}) {
     const meshData = new MeshData();
     const vertices = [];
 
-    const radius = 0.5;
-    const widthSegments = 16;
-    const heightSegments = 12;
+    const radius = params.radius ?? 0.5;
+    const widthSegments = params.widthSegments ?? 16;
+    const heightSegments = params.heightSegments ?? 12;
 
     // --- Top pole ---
     const topVertex = meshData.addVertex({ x: 0, y: radius, z: 0 });
@@ -114,12 +130,12 @@ export class MeshDataBuilders {
     return meshData;
   }
 
-  static createCylinderMeshData() {
+  static createCylinderMeshData(params = {}) {
     const meshData = new MeshData();
 
-    const radius = 0.5;
-    const height = 1.0;
-    const radialSegments = 16;
+    const radius = params.radius ?? 0.5;
+    const height = params.height ?? 1.0;
+    const radialSegments = params.radialSegments ?? 16;
 
     const halfHeight = height * 0.5;
     const bottomRing = [];
@@ -158,12 +174,12 @@ export class MeshDataBuilders {
     return meshData;
   }
 
-  static createConeMeshData() {
+  static createConeMeshData(params = {}) {
     const meshData = new MeshData();
 
-    const radius = 0.5;
-    const height = 1.0;
-    const radialSegments = 16;
+    const radius = params.radius ?? 0.5;
+    const height = params.height ?? 1.0;
+    const radialSegments = params.radialSegments ?? 16;
     const halfHeight = height * 0.5;
 
     const bottomRing = [];
@@ -191,13 +207,13 @@ export class MeshDataBuilders {
     return meshData;
   }
 
-  static createTorusMeshData() {
+  static createTorusMeshData(params = {}) {
     const meshData = new MeshData();
 
-    const radius = 0.5;
-    const tubeRadius = 0.2;
-    const radialSegments = 24;
-    const tubularSegments = 12;
+    const radius = params.radius ?? 0.5;
+    const tubeRadius = params.tube ?? 0.2;
+    const radialSegments = params.radialSegments ?? 24;
+    const tubularSegments = params.tubularSegments ?? 12;
 
     // --- Create vertices as a 2D grid ---
     const vertices = Array(radialSegments)

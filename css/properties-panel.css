@@ -1,0 +1,69 @@
+#properties-panel-container {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 10;
+
+  width: 250px;
+  background-color: #ffffff;
+  border: 1px solid #e6e8eb;
+  border-radius: 2px;
+  padding: 12px;
+  color: #666;
+  font-family: sans-serif;
+  font-size: 14px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+#properties-panel-container:empty {
+  display: none;
+}
+
+#properties-panel-container h3 {
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #444;
+  border-bottom: 1px solid #e6e8eb;
+}
+
+#properties-panel-container {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+#properties-panel-container .property-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+#properties-panel-container label {
+  color: #444;
+  font-size: 14px;
+  min-width: 165px;
+}
+
+#properties-panel-container input[type="number"] {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  color: #1587f9;
+  background-color: #ffffff;
+  border: 1.5px solid #ddd;
+  border-radius: 2px;
+  padding: 2px 6px;
+  width: 70px;
+  transition: background-color 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+#properties-panel-container input[type="number"]:hover {
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+#properties-panel-container input[type="number"]:focus {
+  border-color: #1587f9;
+  outline: none;
+}

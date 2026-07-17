@@ -1,10 +1,14 @@
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
+import { PropertiesPanel } from "../panels/PropertiesPanel.js";
 
 export class MenubarAdd {
   constructor(editor) {
     this.editor = editor;
     this.sceneManager = editor.sceneManager;
     this.objectFactory = editor.objectFactory;
+
+    const propertiesPanelContainer = document.getElementById('properties-panel-container');
+    this.propertiesPanel = new PropertiesPanel(editor, propertiesPanelContainer);
     this.init();
   }
 
@@ -22,6 +26,9 @@ export class MenubarAdd {
         const geometryType = event.target.getAttribute('data-geometry');
         const geometry = this.objectFactory.createGeometry(geometryType);
         this.editor.execute(new AddObjectCommand(this.editor, geometry));
+        
+        const params = this.objectFactory.getDefaultParams(geometryType);
+        this.propertiesPanel.setSelected(geometry, geometryType, params);
       });
     });
 

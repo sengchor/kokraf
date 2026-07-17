@@ -2,12 +2,27 @@ import * as THREE from 'three';
 import { MeshDataBuilders } from './MeshDataBuilders.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 
+const DEFAULT_PARAMS = {
+  Plane: { width: 1, height: 1 },
+  Cube: { width: 1, height: 1, depth: 1 },
+  Circle: { radius: 0.5, segments: 32 },
+  Sphere: { radius: 0.5, widthSegments: 16, heightSegments: 12 },
+  Cylinder: { radius: 0.5, height: 1, radialSegments: 16 },
+  Cone: { radius: 0.5, height: 1, radialSegments: 16 },
+  Torus: { radius: 0.5, tube: 0.2, radialSegments: 24, tubularSegments: 12 },
+};
+
 export class ObjectFactory {
   constructor(editor) {
     this.editor = editor;
   }
 
+  getDefaultParams(type) {
+    return { ...(DEFAULT_PARAMS[type] || {}) };
+  }
+
   createGeometry(type) {
+    const defaultParams = this.getDefaultParams(type);
     let meshData;
 
     switch (type) {
