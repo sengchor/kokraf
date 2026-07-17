@@ -25,7 +25,9 @@ export class MenubarAdd {
       item.addEventListener('click', (event) => {
         const geometryType = event.target.getAttribute('data-geometry');
         const geometry = this.objectFactory.createGeometry(geometryType);
-        this.editor.execute(new AddObjectCommand(this.editor, geometry));
+        
+        this.editor.sceneManager.addObject(geometry);
+        this.editor.selection.select(geometry);
         
         const params = this.objectFactory.getDefaultParams(geometryType);
         this.propertiesPanel.setSelected(geometry, geometryType, params);

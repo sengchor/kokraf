@@ -1,5 +1,6 @@
 import { MeshDataBuilders } from '../utils/MeshDataBuilders.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+import { AddObjectCommand } from '../commands/AddObjectCommand.js';
 
 const PARAM_LABELS = {
   width: 'Width',
@@ -23,23 +24,56 @@ export class PropertiesPanel {
     this.selectedObject = null;
     this.selectedType = null;
     this.params = null;
+
+    this.setupListener();
+  }
+
+  setupListener() {
+    document.addEventListener('pointerdown', (e) => {
+      if (!this.isNewCreation) return;
+
+      if (this.container.contains(e.target)) return;
+
+      this.clear();
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+      if (!this.isNewCreation) return;
+
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      this.clear();
+    }, true);
   }
 
   setSelected(object, geometryType, params) {
     this.selectedObject = object;
     this.selectedType = geometryType;
     this.params = { ...params };
+    this.isNewCreation = true;
+
     this.render();
   }
 
   clear() {
+    if (this.isNewCreation && this.selectedObject) {
+      this.editor.sceneManager.removeObject(this.selectedObject);
+      this.editor.selection.deselect();
+
+      this.editor.execute(new AddObjectCommand(this.editor, this.selectedObject));
+    }
+
     this.selectedObject = null;
     this.selectedType = null;
     this.params = null;
-    this.render();
+    this.isNewCreation = false;
+
+    this.container.style.display = 'none';
+    this.container.innerHTML = '';
   }
 
   render() {
+    this.container.style.display = 'block';
     this.container.innerHTML = '';
 
     if (!this.selectedObject || !this.selectedType || !this.params) {
