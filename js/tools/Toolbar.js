@@ -278,6 +278,7 @@ export default class Toolbar {
 
       case 'paint':  this.signals.setPaintTool.dispatch('paint'); break;
       case 'erase': this.signals.setPaintTool.dispatch('erase'); break;
+      case 'fill': this.signals.setPaintTool.dispatch('fill'); break;
     }
   }
 }

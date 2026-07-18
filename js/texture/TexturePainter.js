@@ -7,6 +7,7 @@ import { SwitchPaintMapCommand } from '../commands/SwitchPaintMapCommand.js';
 import { GPUDepthReader } from '../utils/GPUDepthReader.js';
 import { PaintTool } from './PaintTool.js';
 import { EraseTool } from './EraseTool.js';
+import { FillTool } from './FillTool.js';
 
 const COLOR_TYPE_BY_MAP = {
   map: 'rgb',
@@ -28,6 +29,7 @@ export class TexturePainter {
     this.tools = {
       paint: new PaintTool(),
       erase: new EraseTool(() => this.baseImageData),
+      fill: new FillTool(),
     };
     this.tool = this.tools.paint;
     
@@ -62,6 +64,8 @@ export class TexturePainter {
     Object.assign(this.brushCursor.style, {
       position: 'absolute',
       border: '1px solid white',
+      outline: '1px solid black',
+      outlineOffset: '-2px',
       borderRadius: '50%',
       pointerEvents: 'none',
       boxSizing: 'border-box',
@@ -156,7 +160,19 @@ export class TexturePainter {
 
   setTool(name) {
     if (!this.tools[name]) return;
+
     this.tool = this.tools[name];
+
+    const isFill = this.tool.continuous === false;
+
+    if (isFill) {
+      this._domElement.style.cursor = 'crosshair';
+      this.brushCursor.style.display = 'none';
+    } else {
+      this._domElement.style.cursor = 'none';
+      this.brushCursor.style.display = 'block';
+    }
+
     this._syncBrushControlsUI();
   }
 
@@ -496,6 +512,12 @@ export class TexturePainter {
   _onPointerDown(event) {
     if (event.button !== 0 || !this.isActive) return;
     event.stopPropagation();
+
+    if (this.tool.continuous === false) {
+      this._runFill(event);
+      return;
+    }
+
     this.isPainting = true;
     this._domElement.setPointerCapture(event.pointerId);
 
@@ -551,8 +573,13 @@ export class TexturePainter {
   _onPointerEnter() {
     if (!this.isActive) return;
 
-    this._domElement.style.cursor = 'none';
-    this.brushCursor.style.display = 'block';
+    if (this.tool.continuous === false) {
+      this._domElement.style.cursor = 'crosshair';
+      this.brushCursor.style.display = 'none';
+    } else {
+      this._domElement.style.cursor = 'none';
+      this.brushCursor.style.display = 'block';
+    }
   }
 
   _onPointerLeave() {
@@ -605,6 +632,30 @@ export class TexturePainter {
 
   toBlob(type = 'image/png') {
     return new Promise(resolve => this.paintCanvas.toBlob(resolve, type));
+  }
+
+  _runFill(event) {
+    const hit = this._getHit(event);
+    if (!hit) return;
+
+    const coord = this.projectionPainter.hitToCanvasCoord(hit.point);
+    if (!coord) return;
+
+    const { width, height } = this.paintCanvas;
+    const before = this.paintCtx.getImageData(0, 0, width, height);
+    const working = new ImageData(new Uint8ClampedArray(before.data), width, height);
+
+    const rgb = this.tool._hexToRGB(this.color);
+    const rgba = [...rgb, Math.round(this.opacity * 255)];
+    const tolerance = this.hardness;
+
+    const touched = this.tool.fill(working, coord, rgba, tolerance);
+    if (!touched) return;
+
+    this.paintCtx.putImageData(working, 0, 0);
+    this.texture.needsUpdate = true;
+
+    this.editor.execute(new PaintStrokeCommand(this.editor, this.object, this.paintMap, before, working));
   }
 
   _ensureDefaultLight() {

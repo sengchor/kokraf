@@ -80,7 +80,8 @@
 .toolbar-button[data-tool="knife"] img,
 .toolbar-button[data-tool="inset"] img,
 .toolbar-button[data-tool="paint"] img,
-.toolbar-button[data-tool="erase"] img {
+.toolbar-button[data-tool="erase"] img,
+.toolbar-button[data-tool="fill"] img {
   width: 20px;
   height: 20px;
 }

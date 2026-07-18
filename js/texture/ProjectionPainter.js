@@ -273,4 +273,82 @@ export class ProjectionPainter {
     const s = (t - hardness) / (1 - hardness);
     return 1 - s * s * (3 - 2 * s);
   }
+
+  hitToCanvasCoord(worldPoint) {
+    if (!this.triangles?.length) return null;
+
+    const bary = new THREE.Vector3();
+    let best = null;
+    let bestDist = Infinity;
+
+    for (const tri of this._queryCandidates(worldPoint, 0.01)) {
+      if (!this._barycentric3D(worldPoint, tri, bary)) continue;
+      if (bary.x < -1e-3 || bary.y < -1e-3 || bary.z < -1e-3) continue;
+
+      const dist = Math.abs(this._pointToPlaneDistance(worldPoint, tri));
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { tri, bary: bary.clone() };
+      }
+    }
+
+    if (!best) {
+      for (const tri of this._queryCandidates(worldPoint, 0.2)) {
+        if (!this._barycentric3D(worldPoint, tri, bary, true)) continue;
+        const dist = Math.abs(this._pointToPlaneDistance(worldPoint, tri));
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = { tri, bary: bary.clone() };
+        }
+      }
+    }
+
+    if (!best) return null;
+
+    const { tri, bary: b } = best;
+    const u = tri.uv0.u * b.x + tri.uv1.u * b.y + tri.uv2.u * b.z;
+    const v = tri.uv0.v * b.x + tri.uv1.v * b.y + tri.uv2.v * b.z;
+
+    const { width, height } = this.canvas;
+    return {
+      x: THREE.MathUtils.clamp(Math.floor(u * width), 0, width - 1),
+      y: THREE.MathUtils.clamp(Math.floor((1 - v) * height), 0, height - 1),
+    };
+  }
+
+  _pointToPlaneDistance(point, tri) {
+    const ab = new THREE.Vector3().subVectors(tri.p1, tri.p0);
+    const ac = new THREE.Vector3().subVectors(tri.p2, tri.p0);
+    const n = new THREE.Vector3().crossVectors(ab, ac).normalize();
+    return new THREE.Vector3().subVectors(point, tri.p0).dot(n);
+  }
+
+  _barycentric3D(point, tri, out, clamp = false) {
+    const v0 = new THREE.Vector3().subVectors(tri.p1, tri.p0);
+    const v1 = new THREE.Vector3().subVectors(tri.p2, tri.p0);
+    const v2 = new THREE.Vector3().subVectors(point, tri.p0);
+
+    const d00 = v0.dot(v0), d01 = v0.dot(v1), d11 = v1.dot(v1);
+    const d20 = v2.dot(v0), d21 = v2.dot(v1);
+    const denom = d00 * d11 - d01 * d01;
+    if (Math.abs(denom) < 1e-12) return false;
+
+    const b = (d11 * d20 - d01 * d21) / denom;
+    const c = (d00 * d21 - d01 * d20) / denom;
+    const a = 1 - b - c;
+
+    if (!clamp) {
+      out.set(a, b, c);
+      return true;
+    }
+
+    out.set(
+      THREE.MathUtils.clamp(a, 0, 1),
+      THREE.MathUtils.clamp(b, 0, 1),
+      THREE.MathUtils.clamp(c, 0, 1)
+    );
+    const sum = out.x + out.y + out.z;
+    out.divideScalar(sum || 1);
+    return true;
+  }
 }
