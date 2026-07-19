@@ -163,8 +163,8 @@ export class TexturePainter {
 
     this.tool = this.tools[name];
 
-    const isFill = this.tool.continuous === false;
-
+    const isFill = name === 'fill';
+    
     if (isFill) {
       this._domElement.style.cursor = 'crosshair';
       this.brushCursor.style.display = 'none';
@@ -639,7 +639,7 @@ export class TexturePainter {
     if (!hit) return;
 
     const coord = this.projectionPainter.hitToCanvasCoord(hit.point);
-    if (!coord) return;
+    if (!coord || coord.islandId === undefined) return;
 
     const { width, height } = this.paintCanvas;
     const before = this.paintCtx.getImageData(0, 0, width, height);
@@ -647,9 +647,11 @@ export class TexturePainter {
 
     const rgb = this.tool._hexToRGB(this.color);
     const rgba = [...rgb, Math.round(this.opacity * 255)];
-    const tolerance = this.hardness;
+    const tolerance = this.hardness * 0.3;
 
-    const touched = this.tool.fill(working, coord, rgba, tolerance);
+    const islandMaskData = this.projectionPainter.generateIslandMask(coord.islandId, width, height);
+
+    const touched = this.tool.fill(working, coord, rgba, islandMaskData, tolerance);
     if (!touched) return;
 
     this.paintCtx.putImageData(working, 0, 0);

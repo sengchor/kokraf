@@ -3,10 +3,12 @@ export class FillTool {
 
   get continuous() { return false; }
 
-  fill(imageData, seed, rgba, tolerance = 0.1) {
+  fill(imageData, seed, rgba, islandMaskData = null, tolerance = 0.1) {
     const { width, height, data } = imageData;
     const startIdx = (seed.y * width + seed.x) * 4;
     if (seed.x < 0 || seed.x >= width || seed.y < 0 || seed.y >= height) return false;
+
+    if (islandMaskData && islandMaskData[startIdx] === 0) return false;
 
     const seedColor = [data[startIdx], data[startIdx + 1], data[startIdx + 2], data[startIdx + 3]];
     if (this._colorDistance(seedColor, rgba) < 1 && rgba[3] === seedColor[3]) return false;
@@ -26,6 +28,9 @@ export class FillTool {
       visited[pos] = 1;
 
       const idx = pos * 4;
+
+      if (islandMaskData && islandMaskData[idx] === 0) continue;
+
       const current = [data[idx], data[idx + 1], data[idx + 2], data[idx + 3]];
       if (this._colorDistance(current, seedColor) > maxDist) continue;
 

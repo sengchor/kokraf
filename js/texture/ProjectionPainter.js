@@ -82,10 +82,11 @@ export class ProjectionPainter {
       const center = new THREE.Vector3().add(p0).add(p1).add(p2).multiplyScalar(1 / 3);
       const radius = Math.max(center.distanceTo(p0), center.distanceTo(p1), center.distanceTo(p2));
 
-      this.triangles.push({ p0, p1, p2, uv0, uv1, uv2, center, radius, normal: worldNormal });
+      this.triangles.push({ p0, p1, p2, uv0, uv1, uv2, center, radius, normal: worldNormal, ia, ib, ic });
     }
 
     this._buildSpatialHash();
+    this._buildIslands();
   }
 
   rebuild(bakeMesh) {
@@ -313,6 +314,7 @@ export class ProjectionPainter {
     return {
       x: THREE.MathUtils.clamp(Math.floor(u * width), 0, width - 1),
       y: THREE.MathUtils.clamp(Math.floor((1 - v) * height), 0, height - 1),
+      islandId: tri.islandId
     };
   }
 
@@ -350,5 +352,62 @@ export class ProjectionPainter {
     const sum = out.x + out.y + out.z;
     out.divideScalar(sum || 1);
     return true;
+  }
+
+  _buildIslands() {
+    const parent = {};
+    
+    const find = (i) => {
+      if (parent[i] === undefined) parent[i] = i;
+      if (parent[i] !== i) parent[i] = find(parent[i]);
+      return parent[i];
+    };
+    
+    const union = (i, j) => {
+      const rootI = find(i);
+      const rootJ = find(j);
+      if (rootI !== rootJ) parent[rootI] = rootJ;
+    };
+
+    // Connect triangles that share vertices
+    for (const tri of this.triangles) {
+      union(tri.ia, tri.ib);
+      union(tri.ib, tri.ic);
+    }
+
+    // Assign a universal islandId to each triangle
+    for (const tri of this.triangles) {
+      tri.islandId = find(tri.ia);
+    }
+  }
+
+  generateIslandMask(islandId, width, height) {
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = width;
+    maskCanvas.height = height;
+    const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
+
+    maskCtx.fillStyle = '#000000';
+    maskCtx.fillRect(0, 0, width, height);
+
+    if (!this.triangles) return maskCtx.getImageData(0, 0, width, height).data;
+
+    maskCtx.fillStyle = '#ffffff';
+    maskCtx.strokeStyle = '#ffffff';
+    maskCtx.lineWidth = 1; 
+
+    for (const tri of this.triangles) {
+      if (tri.islandId !== islandId) continue; 
+
+      maskCtx.beginPath();
+      maskCtx.moveTo(tri.uv0.u * width, (1 - tri.uv0.v) * height);
+      maskCtx.lineTo(tri.uv1.u * width, (1 - tri.uv1.v) * height);
+      maskCtx.lineTo(tri.uv2.u * width, (1 - tri.uv2.v) * height);
+      maskCtx.closePath();
+      maskCtx.fill();
+      maskCtx.stroke(); 
+    }
+
+    return maskCtx.getImageData(0, 0, width, height).data;
   }
 }
