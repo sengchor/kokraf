@@ -131,6 +131,11 @@ body.resizing-outliner .outliner-resizer {
   z-index: 9;
 }
 
+.right-panel-resizer,
+.outliner-resizer {
+  touch-action: none;
+}
+
 .panel-tabs {
   font-size: 0;
   background-color: #ffffff;

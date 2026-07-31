@@ -1,3 +1,7 @@
+const MOBILE_BREAKPOINT = 1024;
+const DESKTOP_PANEL_WIDTH = 325;
+const MOBILE_PANEL_WIDTH = 250;
+
 export default class PanelResizer {
   constructor(editor) {
     this.signals = editor.signals;
@@ -40,10 +44,16 @@ export default class PanelResizer {
 
     document.addEventListener('mousemove', (e) => {
       if (!this.isRightPanelResizing) return;
+      e.preventDefault();
+
+      const minWidth =
+        window.innerWidth <= MOBILE_BREAKPOINT
+          ? MOBILE_PANEL_WIDTH
+          : DESKTOP_PANEL_WIDTH;
 
       const newWidth = window.innerWidth - e.clientX;
 
-      if (newWidth >= 325 && newWidth <= window.innerWidth - 2.5) {
+      if (newWidth >= minWidth && newWidth <= window.innerWidth - 2.5) {
         rightPanel.style.width = `${newWidth}px`;
         resizer.style.right = `${newWidth}px`;
 
@@ -94,6 +104,10 @@ export default class PanelResizer {
   }
 
   onWindowResize() {
+    if (!this.isRightPanelResizing) {
+      this.updateRightPanelWidth();
+    }
+
     const rightPanel  = document.getElementById('right-panel-container');
     const width = window.innerWidth - rightPanel.offsetWidth;
     const height = window.innerHeight + 30;
@@ -105,12 +119,10 @@ export default class PanelResizer {
     this.viewportViewHelper.updatePosition(this.renderer.domElement);
     this.adjustOutlinerHeight();
 
-    const leftControls = document.getElementById('left-controls-container');
-    const rightControls = document.getElementById('right-controls-container');
-    if (!leftControls || !rightControls) return;
-
-    const controlsWidth = rightControls.clientWidth + leftControls.clientWidth;
-    rightControls.style.marginLeft = `${width - controlsWidth - 15}px`;
+    const viewportControls = document.querySelector('.viewport-controls');
+    if (viewportControls) {
+      viewportControls.style.width = `${Math.max(width - 10, 0)}px`;
+    }
 
     this.adjustBrushSettingsWidth(width);
   }
@@ -143,5 +155,18 @@ export default class PanelResizer {
     } else {
       brushSettings.classList.remove('micro-mode');
     }
+  }
+
+  updateRightPanelWidth() {
+    const rightPanel = document.getElementById('right-panel-container');
+    const resizer = document.getElementById('right-panel-resizer');
+
+    if (!rightPanel || !resizer) return;
+
+    const panelWidth = window.innerWidth <= MOBILE_BREAKPOINT
+      ? MOBILE_PANEL_WIDTH : DESKTOP_PANEL_WIDTH;
+
+    rightPanel.style.width = `${panelWidth}px`;
+    resizer.style.right = `${panelWidth}px`;
   }
 }
