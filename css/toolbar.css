@@ -5,6 +5,22 @@
   top: 70px;
   left: 10px;
   z-index: 9;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+
+.toolbar::-webkit-scrollbar {
+  width: 6px;
+}
+.toolbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.toolbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
 }
 
 .toolbar-button img {
@@ -73,6 +89,7 @@
 .toolbar-spacer {
   height: 8px;
   width: 100%;
+  flex-shrink: 0;
 }
 
 .toolbar-button[data-tool="extrude"] img,
@@ -92,6 +109,7 @@
 .paint-tools {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .default-tools.hidden,
@@ -99,4 +117,24 @@
 .operation-tools.hidden,
 .paint-tools.hidden {
   display: none;
+}
+
+.floating-tooltip {
+  font-family: sans-serif;
+  position: fixed;
+  font-size: 14px;
+  background: #ffffff;
+  color: #222;
+  padding: 4px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+  z-index: 1000;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.floating-tooltip.visible {
+  opacity: 1;
 }

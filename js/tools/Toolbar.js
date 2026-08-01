@@ -137,6 +137,10 @@ export default class Toolbar {
     this.meshToolContainer = document.querySelector('.mesh-tools');
     this.paintToolContainer = document.querySelector('.paint-tools');
 
+    this.tooltipEl = document.createElement('div');
+    this.tooltipEl.className = 'floating-tooltip';
+    document.body.appendChild(this.tooltipEl);
+
     this.buttons.forEach(button => {
       button.addEventListener('click', () => {
         const toolName = button.getAttribute('data-tool');
@@ -150,7 +154,12 @@ export default class Toolbar {
           this.previousToolPaintMode = toolName;
         }
       });
+
+      button.addEventListener('mouseenter', () => this.showTooltip(button));
+      button.addEventListener('mouseleave', () => this.hideTooltip());
     });
+
+    document.querySelector('.toolbar')?.addEventListener('scroll', () => this.hideTooltip());
   }
 
   getActiveTool() {
@@ -280,5 +289,24 @@ export default class Toolbar {
       case 'erase': this.signals.setPaintTool.dispatch('erase'); break;
       case 'fill': this.signals.setPaintTool.dispatch('fill'); break;
     }
+  }
+
+  showTooltip(button) {
+    const label = button.getAttribute('data-tooltip');
+    const shortcut = button.getAttribute('data-shortcut');
+    this.tooltipEl.textContent = shortcut ? `${label} (${shortcut})` : label;
+
+    const rect = button.getBoundingClientRect();
+    const top = rect.top + rect.height / 2;
+    const left = rect.right + 8;
+
+    this.tooltipEl.style.top = `${top}px`;
+    this.tooltipEl.style.left = `${left}px`;
+    this.tooltipEl.style.transform = 'translateY(-50%)';
+    this.tooltipEl.classList.add('visible');
+  }
+
+  hideTooltip() {
+    this.tooltipEl.classList.remove('visible');
   }
 }

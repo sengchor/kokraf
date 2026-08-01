@@ -140,17 +140,8 @@ export default class ViewportControls {
       this.leftControlsResizeObserver.observe(this.leftControls);
     }
 
-    if (this.objectMenu) {
-      this.initMenu(this.objectMenu, this.objectActions);
-    }
-
-    if (this.meshMenu) {
-      this.initMenu(this.meshMenu, this.editActions);
-    }
-
-    if (this.selectMenu) {
-      this.initMenu(this.selectMenu, this.editActions);
-    }
+    this.setupFloatingMenus();
+    this.setupFloatingTooltips();
   }
 
   setupListeners() {
@@ -404,19 +395,138 @@ export default class ViewportControls {
     }
   }
 
-  initMenu(menu, actions) {
-    menu.addEventListener('click', (e) => {
-      const item = e.target.closest('[data-action]');
-      if (!item) return;
+  setupFloatingTooltips() {
+    this.tooltipEl = document.createElement('div');
+    this.tooltipEl.className = 'floating-tooltip';
+    document.body.appendChild(this.tooltipEl);
 
-      e.stopPropagation();
-      actions.handleAction(item.dataset.action);
+    const container = document.querySelector('.viewport-controls');
+    if (!container) return;
 
-      menu.classList.remove('active');
-      menu.classList.add('menu-closing');
+    container.addEventListener('mouseover', (e) => {
+      const target = e.target.closest('[data-tooltip]');
+      if (!target) return;
 
-      requestAnimationFrame(() => menu.classList.remove('menu-closing'));
+      if (target.classList.contains('menu-item') && target.classList.contains('active')) {
+        return;
+      }
+
+      if (target.querySelector('select:focus')) return;
+
+      this.showTooltip(target);
     });
+
+    container.addEventListener('mouseout', (e) => {
+      const target = e.target.closest('[data-tooltip]');
+      if (!target) return;
+      if (target.contains(e.relatedTarget)) return;
+      this.hideTooltip();
+    });
+
+    container.addEventListener('scroll', () => this.hideTooltip());
+
+    container.addEventListener('focusin', (e) => {
+      if (e.target.tagName === 'SELECT') this.hideTooltip();
+    });
+  }
+
+  showTooltip(target) {
+    if (this.menuOverlay.style.display === 'block') return;
+    this.tooltipEl.textContent = target.getAttribute('data-tooltip');
+
+    const rect = target.getBoundingClientRect();
+    const top = rect.bottom + 8;
+    const left = rect.left + rect.width / 2;
+
+    this.tooltipEl.style.top = `${top}px`;
+    this.tooltipEl.style.left = `${left}px`;
+    this.tooltipEl.style.transform = 'translateX(-50%)';
+    this.tooltipEl.classList.add('visible');
+  }
+
+  hideTooltip() {
+    this.tooltipEl.classList.remove('visible');
+  }
+
+  setupFloatingMenus() {
+    this.menuOverlay = document.createElement('div');
+    this.menuOverlay.className = 'floating-menu-overlay';
+    document.body.appendChild(this.menuOverlay);
+
+    const menuActionsMap = new Map([
+      [this.objectMenu, this.objectActions],
+      [this.meshMenu, this.editActions],
+      [this.selectMenu, this.editActions],
+    ]);
+
+    document.querySelectorAll('.menu-item').forEach(menuItem => {
+      menuItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.hideTooltip();
+
+        const rect = menuItem.getBoundingClientRect();
+        this.menuOverlay.style.left = `${rect.left}px`;
+        this.menuOverlay.style.top = `${rect.bottom}px`;
+        this.menuOverlay.style.display = 'block';
+
+        this.menuOverlay._trigger = menuItem;
+        this.menuOverlay._actions = menuActionsMap.get(menuItem);
+
+        this.menuOverlay.replaceChildren();
+
+        const submenu = menuItem.querySelector('.submenu');
+        if (submenu) {
+          const clone = submenu.cloneNode(true);
+          clone.style.display = 'block';
+          this.menuOverlay.appendChild(clone);
+        }
+      });
+
+      // Hide when clicking outside
+      document.addEventListener('click', (e) => {
+        if (
+          !this.menuOverlay.contains(e.target) &&
+          !e.target.closest('.menu-item')
+        ) {
+          this.menuOverlay.style.display = 'none';
+        }
+      });
+
+      // Close menu when hovering outside
+      let closeTimeout = null;
+
+      document.addEventListener('mousemove', (e) => {
+        if (this.menuOverlay.style.display !== 'block') return;
+
+        const trigger = this.menuOverlay._trigger;
+        const insideOverlay = this.menuOverlay.contains(e.target);
+        const insideTrigger = trigger && trigger.contains(e.target);
+
+        if (insideOverlay || insideTrigger) {
+          clearTimeout(closeTimeout);
+          return;
+        }
+
+        clearTimeout(closeTimeout);
+        closeTimeout = setTimeout(() => {
+          this.menuOverlay.style.display = 'none';
+        }, 300);
+      });
+    });
+
+  this.menuOverlay.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-action]');
+    if (!item) return;
+
+    e.stopPropagation();
+
+    const actions = this.menuOverlay._actions;
+    if (actions) {
+      actions.handleAction(item.dataset.action);
+    }
+
+    this.menuOverlay.style.display = 'none';
+  });
   }
 
   toJSON() {

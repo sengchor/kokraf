@@ -29,7 +29,7 @@
   color: #111;
 }
 
-.submenu {
+.menu-bar .submenu {
   position: absolute;
   top: 30px;
   left: 0;
@@ -51,7 +51,7 @@
   visibility: visible;
 }
 
-.submenu li {
+.menu-bar .submenu li {
   padding: 0px 10px;
   cursor: pointer;
   white-space: nowrap;
@@ -66,12 +66,14 @@
   gap: 4px;
 }
 
-.submenu li:hover {
+.menu-bar .submenu li:hover,
+.viewport-controls .submenu li:hover,
+.floating-menu-overlay .submenu li:hover {
   background-color: #1587f9;
   color: white;
 }
 
-.submenu .divider {
+.menu-bar .submenu .divider {
   height: 1px;
   margin: 4px 0;
   background-color: #ccc;
@@ -83,7 +85,7 @@
   justify-content: space-between;
 }
 
-.submenu.right {
+.menu-bar .submenu.right {
   position: absolute;
   top: -6px;
   left: 100%;
@@ -119,12 +121,15 @@
   margin-left: auto;
   font-size: 10.5px;
   color: #666;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
-.submenu li:hover > .shortcut {
+.menu-bar .submenu li:hover > .shortcut,
+.viewport-controls .submenu li:hover > .shortcut,
+.floating-menu-overlay .submenu li:hover > .shortcut {
   border-color: rgba(255, 255, 255, 0.7);
   color: rgba(255, 255, 255, 0.9);
+  margin-left: auto;
 }
 
 .tick {

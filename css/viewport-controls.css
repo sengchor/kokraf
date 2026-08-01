@@ -6,6 +6,14 @@
   left: 5px;
   z-index: 15;
   justify-content: space-between;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.viewport-controls::-webkit-scrollbar {
+  display: none;
 }
 
 .left-controls-container {
@@ -208,19 +216,11 @@
   opacity: 0.3;
 }
 
-.tooltip-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.tooltip-wrapper::after,
 .viewport-controls button::after,
 .viewport-controls .menu-item::after {
   font-family: sans-serif;
   font-size: 13px;
 
-  content: attr(data-tooltip);
   position: absolute;
   top: 100%;
   left: 50%;
@@ -239,14 +239,9 @@
   z-index: 10;
 }
 
-.tooltip-wrapper:hover::after,
 .viewport-controls button:hover::after,
 .viewport-controls .menu-item:hover::after {
   opacity: 1;
-}
-
-.tooltip-wrapper:has(select:focus)::after {
-  opacity: 0;
 }
 
 .viewport-controls .menu-item.active::after {
@@ -280,41 +275,60 @@
   visibility: visible;
 }
 
-.viewport-controls .submenu {
+.viewport-controls .submenu,
+.floating-menu-overlay .submenu {
   position: absolute;
   top: 100%;
   left: 0;
   margin-top: 1px;
   padding: 0px;
+  background: #ffffff;
+  color: #222;
+  font-family: sans-serif;
+  font-size: 14px;
+  min-width: 180px;
+  list-style: none;
 }
 
-.viewport-controls .submenu li {
+.viewport-controls .submenu li,
+.floating-menu-overlay .submenu li {
   line-height: 30px;
-  padding: 0 8px;
+  padding: 0px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  color: #222;
   gap: 6px;
 }
 
-.viewport-controls .submenu .divider {
+.viewport-controls .submenu .divider,
+.floating-menu-overlay .submenu .divider {
   height: 1px;
   margin: 4px 0;
   background-color: #ccc;
   pointer-events: none;
 }
 
-.viewport-controls .submenu-item {
+.viewport-controls .submenu-item,
+.floating-menu-overlay .submenu-item {
   position: relative;
 }
 
-.viewport-controls .submenu.right {
+.viewport-controls .submenu.right,
+.floating-menu-overlay .submenu.right {
   position: absolute;
   top: -6px;
   left: 100%;
   min-width: 160px;
+  background-color: #ffffff;
+  color: #222;
   visibility: hidden;
+  list-style: none;
 }
 
-.viewport-controls .submenu-item:hover > .submenu.right {
-  visibility: visible;
+.floating-menu-overlay > .submenu {
+  position: static;
 }
 
 .top-controls-row {
@@ -511,4 +525,33 @@
 
 .brush-settings.micro-mode .brush-slider-value {
   display: none;
+}
+
+.floating-tooltip {
+  position: fixed;
+  font-family: sans-serif;
+  font-size: 14px;
+  background: #ffffff;
+  color: #222;
+  padding: 4px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+  z-index: 1000;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.floating-tooltip.visible {
+  opacity: 1;
+}
+
+.floating-menu-overlay {
+  position: absolute;
+  min-height: 180px;
+  border-radius: 8px;
+
+  display: none;
+  z-index: 1000;
 }
