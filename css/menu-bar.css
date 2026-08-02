@@ -101,6 +101,10 @@
   visibility: visible;
 }
 
+.menu-item:not(.active) .submenu.right {
+  visibility: hidden !important;
+}
+
 .menu-closing .submenu,
 .menu-closing .submenu.right {
   visibility: hidden !important;

@@ -193,6 +193,18 @@ body.resizing-outliner .outliner-resizer {
   max-width: 125px;
 }
 
+.setting-option {
+  display: flex;
+  align-items: center;
+}
+
+.setting-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
 select {
   padding: 1px 30px 1px 1px;
   font-size: 14px;
@@ -294,6 +306,7 @@ select:focus {
 .shortcuts-scroll {
   max-height: 245px;
   overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid #ccc;
   margin: 0px 0px 5px 0px;
 }

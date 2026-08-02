@@ -88,6 +88,10 @@
   text-align: center;
 }
 
+#object-empty-message {
+  margin-bottom: 200px;
+}
+
 .setting-option .color-input {
   width: 3em;
   height: 1.5em;

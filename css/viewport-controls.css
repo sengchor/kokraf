@@ -55,6 +55,7 @@
 }
 
 .right-controls-container {
+  position: relative;
   align-items: center;
   gap: 4px;
   margin-left: 5px;
@@ -290,6 +291,10 @@
   list-style: none;
 }
 
+.viewport-controls .submenu {
+  visibility: hidden;
+}
+
 .viewport-controls .submenu li,
 .floating-menu-overlay .submenu li {
   line-height: 30px;
@@ -339,7 +344,7 @@
 }
 
 .tool-input-display {
-  position: absolute;
+  position: fixed;
   right: 0;
   font-family: sans-serif;
   white-space: pre;
@@ -349,7 +354,7 @@
   border: 1.5px solid rgba(46, 132, 170, 0.8);
   padding: 6px 18px;
   border-radius: 0px;
-  margin-top: 60px;
+  margin-top: 30px;
   min-width: 165px;
   text-align: center;
   user-select: none;

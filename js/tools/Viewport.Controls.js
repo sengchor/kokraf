@@ -514,19 +514,19 @@ export default class ViewportControls {
       });
     });
 
-  this.menuOverlay.addEventListener('click', (e) => {
-    const item = e.target.closest('[data-action]');
-    if (!item) return;
+    this.menuOverlay.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-action]');
+      if (!item) return;
 
-    e.stopPropagation();
+      e.stopPropagation();
 
-    const actions = this.menuOverlay._actions;
-    if (actions) {
-      actions.handleAction(item.dataset.action);
-    }
+      const actions = this.menuOverlay._actions;
+      if (actions) {
+        actions.handleAction(item.dataset.action);
+      }
 
-    this.menuOverlay.style.display = 'none';
-  });
+      this.menuOverlay.style.display = 'none';
+    });
   }
 
   toJSON() {

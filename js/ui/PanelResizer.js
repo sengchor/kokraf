@@ -125,6 +125,7 @@ export default class PanelResizer {
     }
 
     this.adjustBrushSettingsWidth(width);
+    this.adjustToolInputDisplayPosition(rightPanel.offsetWidth);
   }
 
   adjustOutlinerHeight() {
@@ -168,5 +169,12 @@ export default class PanelResizer {
 
     rightPanel.style.width = `${panelWidth}px`;
     resizer.style.right = `${panelWidth}px`;
+  }
+
+  adjustToolInputDisplayPosition(rightPanelWidth) {
+    const toolInputDisplay = document.getElementById('tool-input-display');
+    if (!toolInputDisplay) return;
+
+    toolInputDisplay.style.right = `${rightPanelWidth + 10}px`;
   }
 }

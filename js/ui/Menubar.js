@@ -143,9 +143,17 @@ export default class Menubar {
     });
 
     document.addEventListener('click', e => {
-      if (e.target.closest('.submenu li')) {
-        closeAllMenus();
+      const li = e.target.closest('.submenu li');
+      if (!li) return;
+
+      const isTrigger = li.classList.contains('submenu-item');
+      const clickedRightSubmenu = e.target.closest('.submenu.right');
+
+      if (isTrigger && !clickedRightSubmenu) {
+        return;
       }
+
+      closeAllMenus();
     });
 
     // Close menu when hovering outside
