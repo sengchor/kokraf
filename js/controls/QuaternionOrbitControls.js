@@ -127,6 +127,22 @@ export class QuaternionOrbitControls {
 			if (this.camera.isDefault && this.camera.isOrthographicCamera) {
 				this.signals.switchCameraView.dispatch('PERSPECTIVE');
 			}
+		} else if (event.touches.length === 2) {
+			if (this._state === 'orbit') {
+				this.keyHandler.endInteraction('orbit');
+				this._state = null;
+			}
+			
+			if (!this.keyHandler.startInteraction('pan')) return;
+			this._state = 'pan-zoom';
+
+			const dx = event.touches[0].clientX - event.touches[1].clientX;
+			const dy = event.touches[0].clientY - event.touches[1].clientY;
+			this._touchZoomDistance = Math.sqrt(dx * dx + dy * dy);
+
+			const cx = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+      const cy = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+      this.movePrev.copy(this._getMouseOnCircle(cx, cy));
 		}
 	}
 
@@ -142,7 +158,29 @@ export class QuaternionOrbitControls {
 				this._rotateCamera(moveDelta.x, moveDelta.y);
 			}
 			this.movePrev.copy(this.moveCurr);
-		} 
+		} else if (this._state === 'pan-zoom' && event.touches.length === 2) {
+			// Handle Zoom
+			const dx = event.touches[0].clientX - event.touches[1].clientX;
+			const dy = event.touches[0].clientY - event.touches[1].clientY;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			const zoomDelta = this._touchZoomDistance - distance;
+			if (zoomDelta !== 0) {
+				this._zoom(zoomDelta, 0.002);
+			}
+			this._touchZoomDistance = distance;
+
+			// Handle Pan
+			const cx = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+			const cy = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+			this.moveCurr.copy(this._getMouseOnCircle(cx, cy));
+
+			const moveDelta = new Vector2().subVectors(this.moveCurr, this.movePrev);
+			if (moveDelta.lengthSq() > 0) {
+				this._panCamera(moveDelta.x, moveDelta.y);
+			}
+			this.movePrev.copy(this.moveCurr);
+		}
 	}
 
 	_onTouchEnd(event) {

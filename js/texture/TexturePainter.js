@@ -49,6 +49,8 @@ export class TexturePainter {
 
     this._strokeBefore = null;
     this._strokeTouched = false;
+    this._activeTouchPointers = new Set();
+    this._pendingTouchId = null;
 
     this._raycaster = new THREE.Raycaster();
     this._domElement = editor.renderer.renderer.domElement;
@@ -133,6 +135,7 @@ export class TexturePainter {
     this.isActive = false;
     this.isPainting = false;
     this.lastHit = null;
+    this._activeTouchPointers.clear();
 
     if (this.object && this.originalMaterial) {
       this.object.material = this.originalMaterial;
@@ -469,6 +472,7 @@ export class TexturePainter {
     this._domElement.addEventListener('pointerdown', this._onPointerDown);
     this._domElement.addEventListener('pointermove', this._onPointerMove);
     this._domElement.addEventListener('pointerup', this._onPointerUp);
+    this._domElement.addEventListener('pointercancel', this._onPointerUp);
 
     this._domElement.addEventListener('pointerenter', this._onPointerEnter);
     this._domElement.addEventListener('pointerleave', this._onPointerLeave);
@@ -478,6 +482,7 @@ export class TexturePainter {
     this._domElement.removeEventListener('pointerdown', this._onPointerDown);
     this._domElement.removeEventListener('pointermove', this._onPointerMove);
     this._domElement.removeEventListener('pointerup', this._onPointerUp);
+    this._domElement.removeEventListener('pointercancel', this._onPointerUp);
 
     this._domElement.removeEventListener('pointerenter', this._onPointerEnter);
     this._domElement.removeEventListener('pointerleave', this._onPointerLeave);
@@ -515,42 +520,42 @@ export class TexturePainter {
 
     const isTouch = event.pointerType === 'touch';
 
-    if (this.tool.continuous === false) {
-      const hit = this._getHit(event);
-      if (!hit) return;
-      event.stopPropagation();
-      this._runFill(event);
+    if (isTouch) {
+      this._activeTouchPointers.add(event.pointerId);
+      this._updateBrushCursor(event);
+
+      let hit = this._getHit(event);
+      if (hit) {
+        this.signals.transformDragStarted.dispatch('paint');
+      } else {
+        this._setCursorVisible(false);
+      }
+
+      // Second finger arrived
+      if (this._activeTouchPointers.size >= 2) {
+        this._cancelTouchPaint();
+        return;
+      }
+
+      this._pendingTouchId = event.pointerId;
+
+      setTimeout(() => {
+        if (this._pendingTouchId === event.pointerId && this._activeTouchPointers.size === 1) {
+          this._startPainting(event, true);
+        }
+      }, 10);
+      
       return;
     }
 
-    const hit = this._getHit(event);
-    if (!hit) {
-      if (isTouch) { 
-        this._setCursorVisible(false);
-        return;
-      }
-    }
-
-    event.stopPropagation();
-    this.signals.transformDragStarted.dispatch('paint');
-    this._setCursorVisible(true);
-
-    this.isPainting = true;
-    this._domElement.setPointerCapture(event.pointerId);
-
-    const camera = this.editor.cameraManager.camera;
-    const scene = this.editor.sceneManager.mainScene;
-    this.depthReader.updateDepthBuffer(scene, camera);
-
-    this._strokeBefore = this.paintCtx.getImageData(0, 0, this.paintCanvas.width, this.paintCanvas.height);
-    this._strokeTouched = false;
-
-    this.lastHit = hit;
-    if (hit) this._paintAt(hit, null);
-    this._updateBrushCursor(event);
+    this._startPainting(event, false);
   }
 
   _onPointerMove(event) {
+    if (event.pointerType === 'touch' && this._activeTouchPointers.size >= 2) {
+      return;
+    }
+
     this._updateBrushCursor(event);
 
     if (!this.isPainting) return;
@@ -573,6 +578,16 @@ export class TexturePainter {
   }
 
   _onPointerUp(event) {
+    if (event.pointerType === 'touch') {
+      this._activeTouchPointers.delete(event.pointerId);
+
+      // Force the paint to start if a quick tap ends before the delay
+      if (this._pendingTouchId === event.pointerId) {
+        this._startPainting(event, true);
+        this._pendingTouchId = null;
+      }
+    }
+
     if (event.pointerType === 'touch' && this.isActive && this.tool.continuous !== false) {
       this._setCursorVisible(true);
     }
@@ -608,6 +623,53 @@ export class TexturePainter {
   _onPointerLeave() {
     this._domElement.style.cursor = '';
     this.brushCursor.style.display = 'none';
+  }
+
+  _cancelTouchPaint() {
+    this.isPainting = false;
+    this.lastHit = null;
+    this._strokeBefore = null;
+    this._strokeTouched = false;
+    this._pendingTouchId = null;
+    this.signals.transformDragEnded.dispatch('paint');
+
+    this._setCursorVisible(false);
+  }
+
+  _startPainting(event, isTouch) {
+    event.stopPropagation();
+
+    // Handle non-continuous tools (like Fill)
+    if (this.tool.continuous === false) {
+      const hit = this._getHit(event);
+      if (!hit) return;
+      this._runFill(event);
+      return;
+    }
+
+    const hit = this._getHit(event);
+    if (!hit) {
+      if (isTouch) { 
+        this._setCursorVisible(false);
+        return;
+      }
+    }
+
+    this.signals.transformDragStarted.dispatch('paint');
+    this._setCursorVisible(true);
+
+    this.isPainting = true;
+    this._domElement.setPointerCapture(event.pointerId);
+
+    const camera = this.editor.cameraManager.camera;
+    const scene = this.editor.sceneManager.mainScene;
+    this.depthReader.updateDepthBuffer(scene, camera);
+
+    this._strokeBefore = this.paintCtx.getImageData(0, 0, this.paintCanvas.width, this.paintCanvas.height);
+    this._strokeTouched = false;
+
+    this.lastHit = hit;
+    if (hit) this._paintAt(hit, null);
   }
 
   _paintAt(hit, prevHit) {
