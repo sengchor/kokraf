@@ -26,6 +26,9 @@ export class KnifeTool {
     this.edgeIntersections = [];
     this.newVertices = [];
 
+    this.isDragging = false;
+    this.dragStart = new THREE.Vector2();
+
     this._rafPending = false;
     this._pendingMoveEvent = null;
 
@@ -76,55 +79,22 @@ export class KnifeTool {
     });
   }
 
-  onPointerDown(event) {
-    if (event.button === 1) {
-      this.middleButton = true;
-      this.previewLine.visible = false;
-      return;
-    }
-
-    if (event.button !== 0 || !this.active) return;
-
-    const editedObject = this.editSelection.editedObject;
-    this.vertexEditor.setObject(editedObject);
-    const objectMatrix = editedObject.matrixWorld;
-    const meshData = editedObject.userData.meshData;
-
-    const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(event, this.renderer, this.camera, 0.05);
-
-    let cutPointData;
-    if (nearestVertexId !== null) {
-      const v = meshData.getVertex(nearestVertexId);
-      cutPointData = {
-        position: new THREE.Vector3(v.position.x, v.position.y, v.position.z).applyMatrix4(objectMatrix),
-        snapVertexId: nearestVertexId
-      };
-    } else {
-      const intersect = this.getMouseIntersect(event);
-      if (!intersect) return;
-
-      cutPointData = {
-        position: intersect.point.clone(),
-        snapVertexId: null
-      };
-    }
-
-    if (this.cutPoints.length === 0) {
-      this.cutPoints.push(cutPointData);
-      return;
-    }
-    this.cutPoints.push(cutPointData);
-
+  executeCut() {
     const aCut = this.cutPoints[0];
     const bCut = this.cutPoints[1];
+    
+    const editedObject = this.editSelection.editedObject;
+    const meshData = editedObject.userData.meshData;
 
     this.computeNewVertices(aCut, bCut, meshData);
+
     // Don't apply cut when selecting on the existing polyline
     if (this.matchesExistingPolyline(meshData)) {
       this.updatePreview(aCut.position, bCut.position);
       this.cancelCut();
       return;
     }
+    
     this.updatePreview(aCut.position, bCut.position);
     
     const seedEdgeIds = this.edgeIntersections.filter(e => e !== null).map(e => e.id);
@@ -171,6 +141,53 @@ export class KnifeTool {
       this.editSelection.clearSelection();
     }
     this.cancelCut();
+  }
+
+  onPointerDown(event) {
+    if (event.button === 1) {
+      this.middleButton = true;
+      this.previewLine.visible = false;
+      return;
+    }
+
+    if (event.button !== 0 || !this.active) return;
+
+    this.dragStart.set(event.clientX, event.clientY);
+    this.isDragging = true;
+
+    this.signals.transformDragStarted.dispatch('edit');
+
+    const editedObject = this.editSelection.editedObject;
+    this.vertexEditor.setObject(editedObject);
+    const objectMatrix = editedObject.matrixWorld;
+    const meshData = editedObject.userData.meshData;
+
+    const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(event, this.renderer, this.camera, 0.05);
+
+    let cutPointData;
+    if (nearestVertexId !== null) {
+      const v = meshData.getVertex(nearestVertexId);
+      cutPointData = {
+        position: new THREE.Vector3(v.position.x, v.position.y, v.position.z).applyMatrix4(objectMatrix),
+        snapVertexId: nearestVertexId
+      };
+    } else {
+      const intersect = this.getMouseIntersect(event);
+      if (!intersect) return;
+
+      cutPointData = {
+        position: intersect.point.clone(),
+        snapVertexId: null
+      };
+    }
+
+    if (this.cutPoints.length === 0) {
+      this.cutPoints.push(cutPointData);
+      return;
+    }
+
+    this.cutPoints.push(cutPointData);
+    this.executeCut();
   }
 
   onPointerMove(event) {
@@ -245,12 +262,55 @@ export class KnifeTool {
       this.edgePicker.dirty = true;
     }
     this.middleButton = false;
-    
-    if (!this.active || (this.cutPoints.length !== 0)) return;
 
-    requestAnimationFrame(() => {
-      this.signals.onToolEnded.dispatch();
-    });
+    if (!this.active) return;
+
+    try {
+      if (this.isDragging && this.cutPoints.length === 1) {
+        const dx = event.clientX - this.dragStart.x;
+        const dy = event.clientY - this.dragStart.y;
+        const dragDistSq = dx * dx + dy * dy;
+
+        if (dragDistSq > 16) {
+          const editedObject = this.editSelection.editedObject;
+          const meshData = editedObject.userData.meshData;
+          const objectMatrix = editedObject.matrixWorld;
+
+          const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(event, this.renderer, this.camera, 0.05);
+
+          let bCut;
+          if (nearestVertexId !== null) {
+            const v = meshData.getVertex(nearestVertexId);
+            bCut = {
+              position: new THREE.Vector3(v.position.x, v.position.y, v.position.z).applyMatrix4(objectMatrix),
+              snapVertexId: nearestVertexId
+            };
+          } else {
+            const intersect = this.getMouseIntersect(event);
+            if (intersect) {
+              bCut = {
+                position: intersect.point.clone(),
+                snapVertexId: null
+              };
+            }
+          }
+
+          if (bCut) {
+            this.cutPoints.push(bCut);
+            this.executeCut();
+          }
+        }
+      }
+    } finally {
+      this.isDragging = false;
+
+      if (this.cutPoints.length !== 0) return;
+
+      requestAnimationFrame(() => {
+        this.signals.onToolEnded.dispatch();
+        this.signals.transformDragEnded.dispatch('edit');
+      });
+    }
   }
 
   onKeyDown(event) {
@@ -259,6 +319,7 @@ export class KnifeTool {
     if (event.key === 'Escape') {
       this.cancelCut();
       this.signals.onToolEnded.dispatch();
+      this.signals.transformDragEnded.dispatch('edit');
     }
   }
 

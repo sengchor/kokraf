@@ -56,7 +56,7 @@ export class MenubarFile {
   createScene(type) {
     this.selection.deselect();
 
-    const projectId = crypto.randomUUID();
+    const projectId = this.generateUUID();
     this.editor.currentProjectId = projectId;
     this.editor.currentProjectName = null;
     history.replaceState(null, '', `/`);
@@ -183,5 +183,15 @@ export class MenubarFile {
       return;
     }
     exporter.exportTextures(objects);
+  }
+
+  generateUUID() {
+    if (crypto?.randomUUID) return crypto.randomUUID();
+    // fallback for non-secure contexts
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
 }

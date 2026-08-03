@@ -31,6 +31,12 @@ export class QuaternionOrbitControls {
 		this._lastTrackpadTime = 0;
 		this._gestureLockTimeout = 150;
 
+		this._transformDragging = false;
+		this._onTransformDragStarted = () => { this._transformDragging = true; };
+		this._onTransformDragEnded = () => { this._transformDragging = false; };
+		this.signals.transformDragStarted.add(this._onTransformDragStarted);
+		this.signals.transformDragEnded.add(this._onTransformDragEnded);
+
 		this._bindEvents();
 	}
 
@@ -38,13 +44,27 @@ export class QuaternionOrbitControls {
 		this._onMouseDownBound = this._onMouseDown.bind(this);
     this._onMouseWheelBound = this._onMouseWheel.bind(this);
 
+		this._onTouchStartBound = this._onTouchStart.bind(this);
+		this._onTouchMoveBound = this._onTouchMove.bind(this);
+		this._onTouchEndBound = this._onTouchEnd.bind(this);
+
 		this.domElement.addEventListener('mousedown', this._onMouseDownBound);
 		this.domElement.addEventListener('wheel', this._onMouseWheelBound);
+
+		this.domElement.addEventListener('touchstart', this._onTouchStartBound, { passive: false });
+		this.domElement.addEventListener('touchmove', this._onTouchMoveBound, { passive: false });
+		this.domElement.addEventListener('touchend', this._onTouchEndBound);
+		this.domElement.addEventListener('touchcancel', this._onTouchEndBound);
 	}
 
 	dispose() {
     this.domElement.removeEventListener('mousedown', this._onMouseDownBound);
     this.domElement.removeEventListener('wheel', this._onMouseWheelBound);
+
+		this.domElement.removeEventListener('touchstart', this._onTouchStartBound);
+    this.domElement.removeEventListener('touchmove', this._onTouchMoveBound);
+    this.domElement.removeEventListener('touchend', this._onTouchEndBound);
+    this.domElement.removeEventListener('touchcancel', this._onTouchEndBound);
 	}
 
 	_getMouseOnCircle(x, y) {
@@ -56,7 +76,7 @@ export class QuaternionOrbitControls {
 	}
 
 	_onMouseDown(event) {
-		if (!this.enabled || event.button !== 1) return;
+		if (!this.enabled || this._transformDragging || event.button !== 1) return;
 		if (!this.keyHandler.startInteraction('orbit')) return;
 
 		const type = event.shiftKey ? 'pan' : 'orbit';
@@ -96,8 +116,56 @@ export class QuaternionOrbitControls {
 		window.addEventListener('mouseup', onMouseUp);
 	}
 
-	_onMouseWheel(event) {
+	_onTouchStart(event) {
+		if (!this.enabled || this._transformDragging) return;
+
+		if (event.touches.length === 1) {
+			if (!this.keyHandler.startInteraction('orbit')) return;
+			this._state = 'orbit';
+			this.movePrev.copy(this._getMouseOnCircle(event.touches[0].clientX, event.touches[0].clientY));
+
+			if (this.camera.isDefault && this.camera.isOrthographicCamera) {
+				this.signals.switchCameraView.dispatch('PERSPECTIVE');
+			}
+		}
+	}
+
+	_onTouchMove(event) {
+		if (!this.enabled || !this._state) return;
+		event.preventDefault();
+
+		if (this._state === 'orbit' && event.touches.length === 1) {
+			this.moveCurr.copy(this._getMouseOnCircle(event.touches[0].clientX, event.touches[0].clientY));
+			const moveDelta = new Vector2().subVectors(this.moveCurr, this.movePrev);
+
+			if (moveDelta.lengthSq() > 0) {
+				this._rotateCamera(moveDelta.x, moveDelta.y);
+			}
+			this.movePrev.copy(this.moveCurr);
+		} 
+	}
+
+	_onTouchEnd(event) {
 		if (!this.enabled) return;
+
+		if (this._state === 'orbit') {
+			this.keyHandler.endInteraction('orbit');
+		} else if (this._state === 'pan-zoom') {
+			this.keyHandler.endInteraction('pan');
+		}
+
+		this._state = null;
+
+		// If the user lifts one finger but leaves another on the screen, transition back to orbiting smoothly
+		if (event.touches.length === 1) {
+			this._state = 'orbit';
+      this.movePrev.copy(this._getMouseOnCircle(event.touches[0].clientX, event.touches[0].clientY));
+      this.keyHandler.startInteraction('orbit');
+		}
+	}
+
+	_onMouseWheel(event) {
+		if (!this.enabled || this._transformDragging) return;
 		if (this.keyHandler.activeInteraction) return;
 
 		if (event.defaultPrevented) return;

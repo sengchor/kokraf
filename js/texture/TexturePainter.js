@@ -513,10 +513,27 @@ export class TexturePainter {
     if (event.button !== 0 || !this.isActive) return;
     event.stopPropagation();
 
+    const isTouch = event.pointerType === 'touch';
+
     if (this.tool.continuous === false) {
+      const hit = this._getHit(event);
+      if (!hit) return;
+      event.stopPropagation();
       this._runFill(event);
       return;
     }
+
+    const hit = this._getHit(event);
+    if (!hit) {
+      if (isTouch) { 
+        this._setCursorVisible(false);
+        return;
+      }
+    }
+
+    event.stopPropagation();
+    this.signals.transformDragStarted.dispatch('paint');
+    this._setCursorVisible(true);
 
     this.isPainting = true;
     this._domElement.setPointerCapture(event.pointerId);
@@ -528,9 +545,9 @@ export class TexturePainter {
     this._strokeBefore = this.paintCtx.getImageData(0, 0, this.paintCanvas.width, this.paintCanvas.height);
     this._strokeTouched = false;
 
-    const hit = this._getHit(event);
     this.lastHit = hit;
     if (hit) this._paintAt(hit, null);
+    this._updateBrushCursor(event);
   }
 
   _onPointerMove(event) {
@@ -556,18 +573,24 @@ export class TexturePainter {
   }
 
   _onPointerUp(event) {
-    if (!this.isPainting) return;
-    this.isPainting = false;
-    this.lastHit = null;
-    this._domElement.releasePointerCapture(event.pointerId);
-
-    if (this._strokeTouched && this._strokeBefore) {
-      const _strokeAfter = this.paintCtx.getImageData(0, 0, this.paintCanvas.width, this.paintCanvas.height);
-      this.editor.execute(new PaintStrokeCommand(this.editor, this.object, this.paintMap, this._strokeBefore, _strokeAfter));
+    if (event.pointerType === 'touch' && this.isActive && this.tool.continuous !== false) {
+      this._setCursorVisible(true);
     }
 
-    this._strokeBefore = null;
-    this._strokeTouched = false;
+    try {
+      this.isPainting = false;
+      this.lastHit = null;
+      this._domElement.releasePointerCapture(event.pointerId);
+
+      if (this._strokeTouched && this._strokeBefore) {
+        const _strokeAfter = this.paintCtx.getImageData(0, 0, this.paintCanvas.width, this.paintCanvas.height);
+        this.editor.execute(new PaintStrokeCommand(this.editor, this.object, this.paintMap, this._strokeBefore, _strokeAfter));
+      }
+    } finally {
+      this._strokeBefore = null;
+      this._strokeTouched = false;
+      this.signals.transformDragEnded.dispatch('paint');
+    }
   }
 
   _onPointerEnter() {
@@ -735,6 +758,15 @@ export class TexturePainter {
     const b = parseInt(hex.slice(5, 7), 16) || 0;
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
     return luminance / 255;
+  }
+
+  _setCursorVisible(visible) {
+    if (!this.isActive) return;
+    if (this.tool.continuous === false) {
+      this.brushCursor.style.display = 'none';
+      return;
+    }
+    this.brushCursor.style.display = visible ? 'block' : 'none';
   }
 
   toJSON() {
