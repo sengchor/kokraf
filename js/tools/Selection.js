@@ -74,7 +74,7 @@ export default class Selection {
 
   onMouseDown(event) {
     if (!this.enable || event.button !== 0) return;
-    if (Date.now() - this.lastTouchEndTime < 500) return;
+    if (Date.now() - this.lastTouchEndTime < 600) return;
     if (!this.keyHandler.startInteraction('select')) return;
 
     this.dragging = false;
