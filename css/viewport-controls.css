@@ -347,7 +347,6 @@
   position: fixed;
   right: 0;
   font-family: sans-serif;
-  white-space: pre;
   font-size: 13px;
   color: #ffffff;
   background: rgba(48, 48, 48, 0.3);
@@ -355,15 +354,66 @@
   padding: 6px 18px;
   border-radius: 0px;
   margin-top: 30px;
-  min-width: 165px;
+  min-width: 200px;
   text-align: center;
   user-select: none;
   pointer-events: none;
   display: none;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .tool-input-display.active {
-  display: block;
+  display: flex;
+}
+
+.tool-input-display__text {
+  white-space: pre;
+}
+
+.tool-input-display__buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.tool-input-btn {
+  flex: 1;
+  min-width: 64px;
+  min-height: 20px;
+  padding: 4px 0px;
+  font-family: sans-serif;
+  font-size: 13px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(46, 132, 170, 0.8);
+  border-radius: 2px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease;
+}
+
+.tool-input-btn:hover,
+.tool-input-btn:active {
+  background: rgba(46, 132, 170, 0.4);
+}
+
+.tool-input-btn--confirm {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.tool-input-btn--confirm:hover,
+.tool-input-btn--confirm:active {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.tool-input-btn--cancel {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.tool-input-btn--cancel:hover,
+.tool-input-btn--cancel:active {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .viewport-controls .feature-button {

@@ -76,16 +76,33 @@ export class IntersectTool {
 
   onKeyDown(event) {
     if (event.key === 'Escape') {
-      this.cancelIntersectSession();
-
-      this._state = 'idle';
-      this._firstObject = null;
-      this._secondObject = null;
+      this.handleCancel();
       return;
     }
 
     if (event.key === 'Enter' && this._state === 'confirm') {
-      this.executeIntersect();
+      this.handleConfirm();
+    }
+  }
+
+  handleCancel() {
+    this.cancelIntersectSession();
+    this._state = 'idle';
+    this._firstObject = null;
+    this._secondObject = null;
+  }
+
+  handleConfirm() {
+    if (this._state !== 'confirm') return;
+    this.executeIntersect();
+  }
+
+  disable() {
+    if (this._state !== 'idle') {
+      this.handleCancel();
+
+      this.renderer.domElement.removeEventListener('mousedown', this._onPointerDown);
+      window.removeEventListener('keydown', this._onKeyDown);
     }
   }
 
@@ -130,9 +147,15 @@ export class IntersectTool {
 
       this._secondObject = object;
       this.selection.highlightObject(object);
-      
-      this._state= 'confirm';
-      this.signals.onToolUpdated.dispatch('Press Enter to intersect, Escape to cancel');
+
+      this._state = 'confirm';
+      this.signals.onToolUpdated.dispatch({
+        text: 'Press Enter to intersect, Escape to cancel',
+        buttons: [
+          { label: 'Escape', variant: 'cancel', onClick: () => this.handleCancel() },
+          { label: 'Enter', variant: 'confirm', onClick: () => this.handleConfirm() },
+        ],
+      });
       this.signals.objectSelected.dispatch([this._firstObject, this._secondObject]);
 
       this.selection.tool = false;
