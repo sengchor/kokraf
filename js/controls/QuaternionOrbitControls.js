@@ -118,6 +118,7 @@ export class QuaternionOrbitControls {
 
 	_onTouchStart(event) {
 		if (!this.enabled || this._transformDragging) return;
+		if (this.keyHandler.activeInteraction === 'box-select') return;
 
 		if (event.touches.length === 1) {
 			if (!this.keyHandler.startInteraction('orbit')) return;
@@ -148,6 +149,11 @@ export class QuaternionOrbitControls {
 
 	_onTouchMove(event) {
 		if (!this.enabled || !this._state) return;
+
+		if (this.keyHandler.activeInteraction === 'box-select') {
+			this._state = null;
+			return;
+		}
 		event.preventDefault();
 
 		if (this._state === 'orbit' && event.touches.length === 1) {

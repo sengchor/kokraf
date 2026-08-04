@@ -26,6 +26,13 @@ export default class Selection {
     this.pivotHandle.visible = false;
     this.sceneManager.sceneEditorHelpers.add(this.pivotHandle);
 
+    this.holdDelay = 500;
+    this.holdMoveThreshold = 25;
+    this.touchHoldTimer = null;
+    this.touchHoldActive = false;
+    this.touchStartClient = null;
+    this.lastTouchEndTime = 0;
+
     this.setupListeners();
   }
 
@@ -58,10 +65,16 @@ export default class Selection {
     dom.addEventListener("mousedown", this.onMouseDown.bind(this));
     dom.addEventListener("mousemove", this.onMouseMove.bind(this));
     dom.addEventListener("mouseup", this.onMouseUp.bind(this));
+
+    dom.addEventListener("touchstart", this.onTouchStart.bind(this), { passive: false });
+    dom.addEventListener("touchmove", this.onTouchMove.bind(this), { passive: false });
+    dom.addEventListener("touchend", this.onTouchEnd.bind(this));
+    dom.addEventListener("touchcancel", this.onTouchCancel.bind(this));
   }
 
   onMouseDown(event) {
     if (!this.enable || event.button !== 0) return;
+    if (Date.now() - this.lastTouchEndTime < 500) return;
     if (!this.keyHandler.startInteraction('select')) return;
 
     this.dragging = false;
@@ -117,6 +130,139 @@ export default class Selection {
       this.select(object);
     }
 
+    this.dragging = false;
+    this.mouseDownPos = null;
+  }
+
+  // Touch handlers
+  onTouchStart(event) {
+    if (!this.enable) return;
+
+    if (event.touches.length !== 1) {
+      this.cancelTouchHold();
+      return;
+    }
+
+    const touch = event.touches[0];
+    this.touchStartClient = { x: touch.clientX, y: touch.clientY };
+    this.touchHoldActive = false;
+    this.dragging = false;
+
+
+    clearTimeout(this.touchHoldTimer);
+    this.touchHoldTimer = setTimeout(() => {
+      this.activateTouchHold();
+    }, this.holdDelay);
+  }
+
+  activateTouchHold() {
+    if (!this.enable || !this.touchStartClient) return;
+
+    const current = this.keyHandler.activeInteraction;
+    if (current && current !== 'box-select') {
+      this.keyHandler.endInteraction(current);
+    }
+    this.keyHandler.startInteraction('box-select');
+
+    this.touchHoldActive = true;
+    this.mouseDownPos = { x: this.touchStartClient.x, y: this.touchStartClient.y };
+  }
+
+  onTouchMove(event) {
+    if (!this.enable || !this.touchStartClient) return;
+
+    if (event.touches.length !== 1) {
+      this.cancelTouchHold();
+      return;
+    }
+
+    const touch = event.touches[0];
+    const dx = touch.clientX - this.touchStartClient.x;
+    const dy = touch.clientY - this.touchStartClient.y;
+
+    if (!this.touchHoldActive) {
+      if (Math.hypot(dx, dy) > this.holdMoveThreshold) {
+        this.cancelTouchHold();
+      }
+      return;
+    }
+
+    event.preventDefault();
+
+    const dragThreshold = 5;
+    if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
+      this.dragging = true;
+      this.selectionBox.startSelection(this.mouseDownPos.x, this.mouseDownPos.y);
+    }
+
+    if (this.dragging) {
+      this.selectionBox.updateSelection(touch.clientX, touch.clientY);
+    }
+  }
+
+  onTouchEnd(event) {
+    this.lastTouchEndTime = Date.now();
+
+    clearTimeout(this.touchHoldTimer);
+    this.touchHoldTimer = null;
+
+    if (!this.touchStartClient) return;
+
+    if (this.touchHoldActive) {
+      this.keyHandler.endInteraction('box-select');
+      this.selectionBox.finishSelection();
+    }
+
+    const touch = event.changedTouches[0];
+
+    if (this.dragging) {
+      const objects = this.getBoxSelectedObjects();
+
+      if (objects === null || objects.length === 0) {
+        if (!this.multiSelectEnabled) {
+          this.deselect();
+          this.resetTouchState();
+          return;
+        }
+      }
+
+      this.select(objects, true);
+    } else {
+      const object = touch ? this.getSingleSelectedObject({ clientX: touch.clientX, clientY: touch.clientY }) : null;
+      if (object === null) {
+        if (!this.multiSelectEnabled) {
+          this.deselect();
+          this.resetTouchState();
+          return;
+        }
+      }
+
+      this.select(object);
+    }
+
+    this.resetTouchState();
+  }
+
+  onTouchCancel() {
+    this.lastTouchEndTime = Date.now();
+    this.cancelTouchHold();
+  }
+
+  cancelTouchHold() {
+    clearTimeout(this.touchHoldTimer);
+    this.touchHoldTimer = null;
+
+    if (this.touchHoldActive) {
+      this.keyHandler.endInteraction('box-select');
+      this.selectionBox.finishSelection();
+    }
+
+    this.resetTouchState();
+  }
+
+  resetTouchState() {
+    this.touchHoldActive = false;
+    this.touchStartClient = null;
     this.dragging = false;
     this.mouseDownPos = null;
   }
