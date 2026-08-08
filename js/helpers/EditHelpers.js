@@ -96,12 +96,15 @@ export default class EditHelpers {
     const edgeIdToBufferIndex = new Map();
     const edgeIdList = [];
 
+    const v1 = new THREE.Vector3();
+    const v2 = new THREE.Vector3();
+
     let i = 0;
     for (let edge of meshData.edges.values()) {
-      const v1 = meshData.getVertex(edge.v1Id);
-      const v2 = meshData.getVertex(edge.v2Id);
+      v1.copy(meshData.getVertex(edge.v1Id).position).applyMatrix4(matrixWorld);
+      v2.copy(meshData.getVertex(edge.v2Id).position).applyMatrix4(matrixWorld);
 
-      allPositions.push(v1.position.x, v1.position.y, v1.position.z, v2.position.x, v2.position.y, v2.position.z);
+      allPositions.push(v1.x, v1.y, v1.z, v2.x, v2.y, v2.z);
       edgeIdToBufferIndex.set(edge.id, i);
       edgeIdList.push(edge.id);
       i++;
@@ -137,7 +140,7 @@ export default class EditHelpers {
     fatLine.userData.edgeIdList = edgeIdList;
     fatLine.name = '__EdgeLinesVisual';
     
-    fatLine.matrixAutoUpdate = false;
+    fatLine.matrixAutoUpdate = true;
     fatLine.matrix.copy(matrixWorld);
     this.sceneManager.sceneHelpers.add(fatLine);
 
@@ -157,7 +160,7 @@ export default class EditHelpers {
     thinLine.userData.visualLine = fatLine;
     thinLine.name = '__EdgeLines';
 
-    thinLine.matrixAutoUpdate = false;
+    thinLine.matrixAutoUpdate = true;
     thinLine.matrix.copy(matrixWorld);
     this.sceneManager.sceneHelpers.add(thinLine);
   }
@@ -179,6 +182,7 @@ export default class EditHelpers {
 
   addFacePolygons(selectedObject) {
     const meshData = selectedObject.userData.meshData;
+    const matrixWorld = selectedObject.matrixWorld;
     const positions = [];
     const colors = [];
     const indices = [];
@@ -188,8 +192,19 @@ export default class EditHelpers {
     let vertexOffset = 0;
     let triangleOffset = 0;
 
+    const v = new THREE.Vector3();
+
     for (let face of meshData.faces.values()) {
-      let verts = face.vertexIds.map(id => meshData.getVertex(id));
+      const verts = face.vertexIds.map(id => {
+        const vertex = meshData.getVertex(id);
+        const position = v.copy(vertex.position).applyMatrix4(matrixWorld);
+
+        return {
+          ...vertex,
+          position: { x: position.x, y: position.y, z: position.z }
+        };
+      });
+      
       let triangulated = null;
       let triCount = 0;
 
@@ -283,10 +298,9 @@ export default class EditHelpers {
     faceMesh.userData.isEditorOnly = true;
     faceMesh.name = '__FacePolygons';
 
-    this.sceneManager.sceneHelpers.add(faceMesh);
-
-    faceMesh.matrixAutoUpdate = false;
+    faceMesh.matrixAutoUpdate = true;
     faceMesh.matrix.copy(selectedObject.matrixWorld);
+    this.sceneManager.sceneHelpers.add(faceMesh);
   }
 
   removeFacePolygons() {
@@ -327,8 +341,12 @@ export default class EditHelpers {
   }
 
   updateHelpersAfterMeshEdit(affectedVertices, affectedEdges, affectedFaces, meshData, matrixWorld) {
-    // Update affected vertices
     const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
+    const thinLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLines');
+    const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
+    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
+
+    // Update affected vertices
     if (vertexPoints) {
       const posAttr = vertexPoints.geometry.getAttribute('position');
       const vertexIdToBufferIndex = vertexPoints.userData.vertexIdToBufferIndex;
@@ -342,13 +360,13 @@ export default class EditHelpers {
     }
 
     // Update affected edges
-    const thinLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLines');
-    const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
-
     if (thinLine && fatLine) {
       const { edgeIdToBufferIndex } = thinLine.userData;
       const thinPosAttr = thinLine.geometry.getAttribute('position');
       const fatPosArray = fatLine.geometry.attributes.instanceStart.data.array;
+
+      const v1 = new THREE.Vector3();
+      const v2 = new THREE.Vector3();
 
       for (let edgeId of affectedEdges) {
         const edge = meshData.edges.get(edgeId);
@@ -357,15 +375,15 @@ export default class EditHelpers {
         const bufferIndex = edgeIdToBufferIndex.get(edgeId);
         if (bufferIndex === undefined) continue;
 
-        const v1 = meshData.getVertex(edge.v1Id);
-        const v2 = meshData.getVertex(edge.v2Id);
+        v1.copy(meshData.getVertex(edge.v1Id).position).applyMatrix4(matrixWorld);
+        v2.copy(meshData.getVertex(edge.v2Id).position).applyMatrix4(matrixWorld);
 
-        thinPosAttr.setXYZ(bufferIndex * 2, v1.position.x, v1.position.y, v1.position.z);
-        thinPosAttr.setXYZ(bufferIndex * 2 + 1, v2.position.x, v2.position.y, v2.position.z);
+        thinPosAttr.setXYZ(bufferIndex * 2, v1.x, v1.y, v1.z);
+        thinPosAttr.setXYZ(bufferIndex * 2 + 1, v2.x, v2.y, v2.z);
 
         const offset = bufferIndex * 6;
-        fatPosArray[offset]     = v1.position.x; fatPosArray[offset + 1] = v1.position.y; fatPosArray[offset + 2] = v1.position.z;
-        fatPosArray[offset + 3] = v2.position.x; fatPosArray[offset + 4] = v2.position.y; fatPosArray[offset + 5] = v2.position.z;
+        fatPosArray[offset]     = v1.x; fatPosArray[offset + 1] = v1.y; fatPosArray[offset + 2] = v1.z;
+        fatPosArray[offset + 3] = v2.x; fatPosArray[offset + 4] = v2.y; fatPosArray[offset + 5] = v2.z;
       }
 
       thinPosAttr.needsUpdate = true;
@@ -373,10 +391,11 @@ export default class EditHelpers {
     }
 
     // Update affected faces
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
     if (faceMesh) {
       const facePosAttr = faceMesh.geometry.getAttribute('position');
       const faceIdToRange = faceMesh.userData.faceIdToRange;
+
+      const v = new THREE.Vector3();
 
       for (let faceId of affectedFaces) {
         const fr = faceIdToRange.get(faceId);
@@ -384,8 +403,8 @@ export default class EditHelpers {
 
         const { start, vertexIds } = fr;
         for (let i = 0; i < vertexIds.length; i++) {
-          const v = meshData.getVertex(vertexIds[i]);
-          facePosAttr.setXYZ(start + i, v.position.x, v.position.y, v.position.z);
+          v.copy(meshData.getVertex(vertexIds[i]).position).applyMatrix4(matrixWorld);
+          facePosAttr.setXYZ(start + i, v.x, v.y, v.z);
         }
       }
 

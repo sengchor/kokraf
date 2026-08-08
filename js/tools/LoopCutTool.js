@@ -484,6 +484,7 @@ export class LoopCutTool {
 
   showPreview(meshData, loopEdges) {
     this.clearPreview();
+    const matrixWorld = this.editedObject.matrixWorld;
 
     for (let c = 0; c < this.cutCount; c++) {
       const t = (c + 1) / (this.cutCount + 1);
@@ -504,6 +505,7 @@ export class LoopCutTool {
         }
 
         const p = new THREE.Vector3().lerpVectors(v1.position, v2.position, t);
+        p.applyMatrix4(matrixWorld);
         points.push(p.x, p.y, p.z);
 
         lastVertex = v1;
@@ -525,11 +527,6 @@ export class LoopCutTool {
       line.computeLineDistances();
 
       line.matrix.copy(this.editedObject.matrixWorld);
-      line.matrix.decompose(
-        line.position,
-        line.quaternion,
-        line.scale
-      );
 
       this.scene.add(line);
       this.previewLines.push(line);
