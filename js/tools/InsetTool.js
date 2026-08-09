@@ -365,92 +365,62 @@ export class InsetTool {
       for (const [originalVertexId, newVertexId] of mappedVertexIds) {
         if (!this.boundaryVertexIdsSet.has(newVertexId)) continue;
 
-        let insetDir = new THREE.Vector3();
-
         const vertex = meshData.getVertex(originalVertexId);
         const basePosition = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
 
         const faceIds = this.getConnectedFaces(meshData, originalVertexId, groupFaceIdsSet);
 
         const neighbors = this.getConnectedVertices(originalVertexId, this.boundaryEdges);
-        const selectedNeighbors = this.getConnectedVertices(originalVertexId, selectedEdges);
-        const unselectedNeighbors = selectedNeighbors.filter(vId => !neighbors.includes(vId));
-
-        let toCenter = new THREE.Vector3();
-        const insideNeighbors = selectedNeighbors.filter(vId => !neighbors.includes(vId));
-        if (insideNeighbors.length > 0) {
-          const center = this.computeAverageMidpoint(meshData, originalVertexId, insideNeighbors);
-          center.applyMatrix4(this.editedObject.matrixWorld);
-          toCenter = new THREE.Vector3().subVectors(center, basePosition).normalize();
-        } else {
-          const center = this.computeFacesCenter(meshData, faceIds);
-          center.applyMatrix4(this.editedObject.matrixWorld);
-          toCenter = new THREE.Vector3().subVectors(center, basePosition).normalize();
-        }
-
         if (neighbors.length !== 2) continue;
 
-        const prev = meshData.getVertex(neighbors[0]);
-        const next = meshData.getVertex(neighbors[1]);
+        let prevId = null;
+        let nextId = null;
+
+        for (const neighborId of neighbors) {
+          const edge = meshData.getEdge(originalVertexId, neighborId);
+          const sharedFaceId = [...edge.faceIds].find(fid => groupFaceIdsSet.has(fid));
+          const face = meshData.faces.get(sharedFaceId);
+
+          const vIndex = face.vertexIds.indexOf(originalVertexId);
+          const nIndex = face.vertexIds.indexOf(neighborId);
+          const len = face.vertexIds.length;
+
+          if ((nIndex + 1) % len === vIndex) {
+            prevId = neighborId;
+          }
+          else if ((vIndex + 1) % len === nIndex) {
+            nextId = neighborId;
+          }
+        }
+
+        if (prevId === null || nextId === null) {
+          prevId = neighbors[0];
+          nextId = neighbors[1];
+        }
+
+        const prev = meshData.getVertex(prevId);
+        const next = meshData.getVertex(nextId);
 
         const e1 = new THREE.Vector3().subVectors(vertex.position, prev.position).normalize();
         const e2 = new THREE.Vector3().subVectors(next.position, vertex.position).normalize();
 
-        const edge1 = meshData.getEdge(vertex.id, prev.id);
-        const edge2 = meshData.getEdge(next.id, vertex.id);
-
-        const sharedFaceIds = [...edge1.faceIds].filter(fid =>
-          (edge2.faceIds.has(fid) && !groupFaceIdsSet.has(fid))
-        );
-
-        const sharedFaceNormal = computeFacesAverageNormal(meshData, sharedFaceIds);
         const faceNormal = computeFacesAverageNormal(meshData, faceIds);
-
-        const crossDirection = new THREE.Vector3().crossVectors(e1, e2).normalize();
 
         const n1 = new THREE.Vector3().crossVectors(faceNormal, e1).normalize();
         const n2 = new THREE.Vector3().crossVectors(faceNormal, e2).normalize();
 
-        let bisector = new THREE.Vector3().addVectors(n1, n2).normalize();
+        let insetDir = new THREE.Vector3().addVectors(n1, n2);
 
-        if (bisector.lengthSq() < 1e-6) {
-          bisector.copy(n1);
+        if (insetDir.lengthSq() < 1e-6) {
+          insetDir.copy(n1);
         } else {
-          bisector.normalize();
+          insetDir.normalize();
         }
 
-        insetDir.copy(bisector);
+        let dot = insetDir.dot(n1);
+        dot = Math.max(dot, 0.1); 
+        const miterScale = 1.0 / dot;
 
-        // choose a more stable inset direction
-        const dotNormal = insetDir.dot(faceNormal);
-        const dotCross = insetDir.dot(crossDirection);
-
-        if (selectedNeighbors.length > 2 && (Math.abs(dotNormal) > 1e-4 || Math.abs(dotCross) > 1e-4)) {
-          
-          if (unselectedNeighbors.length > 0) {
-            const slideDir = new THREE.Vector3();
-            for (const vId of unselectedNeighbors) {
-              const anchorVertex = meshData.getVertex(vId);
-              const direction = new THREE.Vector3().subVectors(anchorVertex.position, vertex.position).normalize();
-              slideDir.add(direction);
-            }
-            slideDir.divideScalar(unselectedNeighbors.length);
-            slideDir.normalize();
-            
-            const projectionDot = slideDir.dot(bisector);
-            if (Math.abs(projectionDot) > 0.01) {
-              insetDir.copy(slideDir);
-            }
-          } else if (sharedFaceIds.length > 0 && Math.abs(sharedFaceNormal.clone().dot(faceNormal)) < 0.9) {
-            insetDir.copy(sharedFaceNormal);
-          }
-        }
-
-        if (insetDir.dot(toCenter) < 0) {
-          insetDir.negate();
-        }
-
-        const miterScale = (this.calculateScaleFactor(insetDir, e1) + this.calculateScaleFactor(insetDir, e2)) * 0.5;
         insetDir.transformDirection(this.editedObject.matrixWorld).normalize();
 
         this.insetMoveData.set(newVertexId, {
@@ -461,6 +431,8 @@ export class InsetTool {
         });
       }
 
+      const inverseWorldMatrix = this.editedObject.matrixWorld.clone().invert();
+
       // Bridge boundary edges
       for (const edge of this.boundaryEdges) {
         const nv1Id = mappedVertexIds.get(edge.v1Id);
@@ -468,8 +440,12 @@ export class InsetTool {
 
         const sideFaceVertexIds = [edge.v1Id, edge.v2Id, nv2Id, nv1Id];
 
-        const dir1 = this.insetMoveData.get(nv1Id).direction;
-        const dir2 = this.insetMoveData.get(nv2Id).direction;
+        const worldDir1 = this.insetMoveData.get(nv1Id).direction;
+        const worldDir2 = this.insetMoveData.get(nv2Id).direction;
+        
+        const dir1 = worldDir1.clone().transformDirection(inverseWorldMatrix).normalize();
+        const dir2 = worldDir2.clone().transformDirection(inverseWorldMatrix).normalize();
+
         const normal = new THREE.Vector3().crossVectors(dir1, dir2).normalize();
 
         if (normal.lengthSq() < 1e-8) {
