@@ -102,7 +102,7 @@ export class VertexTopologyUtils {
       center.add(new THREE.Vector3(v.position.x, v.position.y, v.position.z));
     }
     center.divideScalar(vertices.length);
-    target.position = { x: center.x, y: center.y, z: center.z };
+    target.position.copy(center);
 
     // Collect Affected Faces
     const affectedFaceIds = new Set();
@@ -121,6 +121,7 @@ export class VertexTopologyUtils {
 
         // Case A: Edge is between merged vertices → remove it
         if (allMergeIds.has(neighborId)) {
+          this.meshData.edgeKeyMap.delete(this.meshData._getEdgeKey(edge.v1Id, edge.v2Id));
           this.meshData.edges.delete(edge.id);
           const neighbor = this.meshData.getVertex(neighborId);
           if (neighbor) neighbor.edgeIds.delete(edge.id);
@@ -135,11 +136,20 @@ export class VertexTopologyUtils {
           const neighbor = this.meshData.getVertex(neighborId);
           if (neighbor) neighbor.edgeIds.delete(edge.id);
           
+          this.meshData.edgeKeyMap.delete(this.meshData._getEdgeKey(edge.v1Id, edge.v2Id));
           this.meshData.edges.delete(edge.id);
         } else {
+          const oldKey = this.meshData._getEdgeKey(edge.v1Id, edge.v2Id);
+
           // Unique edge → reconnect it to target
           if (edge.v1Id === v.id) edge.v1Id = target.id;
           else edge.v2Id = target.id;
+
+          this.meshData.edgeKeyMap.delete(oldKey);
+          this.meshData.edgeKeyMap.set(
+            this.meshData._getEdgeKey(edge.v1Id, edge.v2Id),
+            edge
+          );
 
           target.edgeIds.add(edge.id);
         }
@@ -178,8 +188,10 @@ export class VertexTopologyUtils {
       }
 
       // Apply updated vertices
+      this.meshData.faceKeyMap.delete(this.meshData._getFaceKey(face.vertexIds));
       face.vertexIds = uniqueIds;
       face.edgeIds.clear();
+      this.meshData.faceKeyMap.set(this.meshData._getFaceKey(uniqueIds), face);
 
       // Rebuild face-edge links
       for (let i = 0; i < uniqueIds.length; i++) {
