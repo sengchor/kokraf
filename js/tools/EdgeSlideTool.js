@@ -377,12 +377,11 @@ export class EdgeSlideTool {
   }
 
   buildVertexSlideData(meshData, vertexId) {
+    const matrix = this.editedObject.matrixWorld;
     const vertex = meshData.getVertex(vertexId);
+    const origin = vertex.position.clone().applyMatrix4(matrix);
 
-    const data = { 
-      origin: new THREE.Vector3().copy(vertex.position), 
-      sides: [] 
-    };
+    const data = { origin, sides: [] };
 
     for (const edgeId of vertex.edgeIds) {
       const edge = meshData.edges.get(edgeId);
@@ -392,8 +391,8 @@ export class EdgeSlideTool {
       const other = meshData.getVertex(otherId);
       if (!other) continue;
 
-      const dir =  new THREE.Vector3().subVectors(other.position, vertex.position);
-
+      const otherWorld = other.position.clone().applyMatrix4(matrix);
+      const dir = new THREE.Vector3().subVectors(otherWorld, origin);
       if (dir.lengthSq() < 1e-8) continue;
 
       data.sides.push({
@@ -408,6 +407,9 @@ export class EdgeSlideTool {
   }
 
   buildEdgeSlideData(meshData, orderedVertices, orderedEdges, isClosed, selectedEdgeSet) {
+    const matrix = this.editedObject.matrixWorld;
+    const toWorld = (p) => (new THREE.Vector3().copy(p)).applyMatrix4(matrix);
+
     let prevFaceA = null;
     let prevFaceB = null;
 
@@ -459,7 +461,8 @@ export class EdgeSlideTool {
 
       const candidates = this.getCandidateEdges(meshData, vertex, selectedEdgeSet);
 
-      const data = { origin: new THREE.Vector3().copy(vertex.position) };
+      const vertexWorld = toWorld(vertex.position);
+      const data = { origin: vertexWorld };
 
       const prevId = isClosed 
         ? orderedVertices[(i - 1 + orderedVertices.length) % orderedVertices.length] : orderedVertices[i - 1];
@@ -493,7 +496,7 @@ export class EdgeSlideTool {
 
       if (edgeA) {
         const other = meshData.getVertex(edgeA.v1Id === vId ? edgeA.v2Id : edgeA.v1Id);
-        const dir = new THREE.Vector3().subVectors(other.position, vertex.position);
+        const dir = new THREE.Vector3().subVectors(toWorld(other.position), vertexWorld);
 
         if (dir.lengthSq() > 1e-8) {
           data.sideA = {
@@ -506,7 +509,7 @@ export class EdgeSlideTool {
         const prev = meshData.getVertex(prevId);
         const next = meshData.getVertex(nextId);
 
-        const bis = this.computeBisector(prev.position, vertex.position, next.position);
+        const bis = this.computeBisector(toWorld(prev.position), vertexWorld, toWorld(next.position));
 
         data.sideA = {
           direction: bis.clone(),
@@ -520,7 +523,7 @@ export class EdgeSlideTool {
 
       if (edgeB) {
         const other = meshData.getVertex(edgeB.v1Id === vId ? edgeB.v2Id : edgeB.v1Id);
-        const dir = new THREE.Vector3().subVectors(other.position, vertex.position);
+        const dir = new THREE.Vector3().subVectors(toWorld(other.position), vertexWorld);
 
         if (dir.lengthSq() > 1e-8) {
           data.sideB = {
@@ -533,7 +536,7 @@ export class EdgeSlideTool {
         const prev = meshData.getVertex(prevId);
         const next = meshData.getVertex(nextId);
 
-        const bis = this.computeBisector(prev.position, vertex.position, next.position);
+        const bis = this.computeBisector(toWorld(prev.position), vertexWorld, toWorld(next.position));
 
         data.sideB = {
           direction: bis.clone(),
@@ -570,8 +573,8 @@ export class EdgeSlideTool {
     const snapTarget = this.snapManager.snapEditPosition(this.event, this.selectedVertexIds, this.editedObject);
 
     if (snapTarget && !this.toolNumericInput.active) {
-      const worldOrigin = referenceVertexData.origin.clone().applyMatrix4(this.editedObject.matrixWorld);
-      const worldDir = referenceVertexData[activeSide].normalized.clone().transformDirection(this.editedObject.matrixWorld);
+      const worldOrigin = referenceVertexData.origin;
+      const worldDir = referenceVertexData[activeSide].normalized;
 
       const toSnap = snapTarget.clone().sub(worldOrigin);
       const projected = toSnap.dot(worldDir);
@@ -619,7 +622,7 @@ export class EdgeSlideTool {
     const newPos = new THREE.Vector3()
       .copy(bestSide.direction)
       .multiplyScalar(this.slideFactor)
-      .add(data.origin).applyMatrix4(this.editedObject.matrixWorld);
+      .add(data.origin);
 
     this.vertexEditor.transform.setVertexPositions([vertexId], [newPos]);
 
@@ -642,15 +645,15 @@ export class EdgeSlideTool {
         const activeRail = data[activeSide]; 
 
         if (!activeRail) {
-           vertexIds.push(vertexId);
-           newPositions.push(data.origin.clone().applyMatrix4(this.editedObject.matrixWorld));
-           continue;
+          vertexIds.push(vertexId);
+          newPositions.push(data.origin.clone());
+          continue;
         }
 
         const newPos = new THREE.Vector3()
           .copy(activeRail.direction)
           .multiplyScalar(this.slideFactor)
-          .add(data.origin).applyMatrix4(this.editedObject.matrixWorld);
+          .add(data.origin);
 
         vertexIds.push(vertexId);
         newPositions.push(newPos.clone());
@@ -848,35 +851,25 @@ export class EdgeSlideTool {
   }
 
   pickBestEdge(meshData, vertex, candidates) {
+    if (!candidates?.length) return null;
+
     let best = null;
     let bestScore = -Infinity;
-    let targetDir = null;
-
-    if (candidates.length > 2) {
-      targetDir = new THREE.Vector3();
-      for (const edge of candidates) {
-
-        const otherId = edge.v1Id === vertex.id ? edge.v2Id : edge.v1Id;
-        const other = meshData.getVertex(otherId);
-        const dir = new THREE.Vector3().subVectors(other.position, vertex.position).normalize();
-
-        targetDir.add(dir);
-      }
-      targetDir.normalize();
-    }
 
     for (const edge of candidates) {
-
       const otherId = edge.v1Id === vertex.id ? edge.v2Id : edge.v1Id;
       const other = meshData.getVertex(otherId);
+      if (!other) continue;
 
-      const dir = new THREE.Vector3().subVectors(other.position, vertex.position).normalize();
+      const dir = new THREE.Vector3()
+        .subVectors(other.position, vertex.position);
 
-      let score = 1;
+      const length = dir.length();
+      if (length < 1e-8) continue;
 
-      if (targetDir) {
-        score = dir.dot(targetDir); 
-      }
+      dir.normalize();
+
+      let score = 0;
 
       if (score > bestScore) {
         bestScore = score;
@@ -993,11 +986,8 @@ export class EdgeSlideTool {
 
     const matrix = this.editedObject.matrixWorld;
 
-    const origin = vertexData.origin.clone().applyMatrix4(matrix);
-    const dir = rail.normalized.clone().transformDirection(matrix);
-    const end = origin.clone().add(
-      dir.multiplyScalar(rail.length)
-    );
+    const origin = vertexData.origin.clone();
+    const end = origin.clone().add(rail.normalized.clone().multiplyScalar(rail.length));
 
     this.updateLine(this.slideLine, origin, end);
 
@@ -1037,7 +1027,7 @@ export class EdgeSlideTool {
     const world = new THREE.Vector3();
 
     for (const [vId, data] of this.slideData) {
-      world.copy(data.origin).applyMatrix4(this.editedObject.matrixWorld);
+      world.copy(data.origin);
 
       const screen = this.projectToScreen(
         world,
