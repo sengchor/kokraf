@@ -102,7 +102,7 @@ export class VertexTopologyUtils {
       center.add(new THREE.Vector3(v.position.x, v.position.y, v.position.z));
     }
     center.divideScalar(vertices.length);
-    target.position.copy(center);
+    target.position = { x: center.x, y: center.y, z: center.z };
 
     // Collect Affected Faces
     const affectedFaceIds = new Set();

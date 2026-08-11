@@ -197,7 +197,7 @@ export class MeshRendererAdapter {
     renderBuffer.bufferIndexToVertexId.delete(slot);
   }
 
-  static addFace(meshData, renderBuffer, geometry, faceId) {
+static addFace(meshData, renderBuffer, geometry, faceId) {
     const { normalMode: mode = 'auto', normalAngle: angle = 60 } = renderBuffer;
     const face = meshData.faces.get(faceId);
     const verts = face.vertexIds.map(id => meshData.vertices.get(id));
@@ -230,11 +230,41 @@ export class MeshRendererAdapter {
     renderBuffer.faceIdToBufferIndices.set(faceId, faceBufferIndices);
 
     const normal = computePlaneNormal(verts);
-    const flat = projectTo2D(verts, normal);
-    const tris = earcut(flat);
-    if (tris.length === 0) {
+    
+    // Check for duplicate positions
+    let hasDuplicatePositions = false;
+    for (let i = 0; i < verts.length; i++) {
+      for (let j = i + 1; j < verts.length; j++) {
+        const p1 = verts[i].position;
+        const p2 = verts[j].position;
+        if (
+          Math.abs(p1.x - p2.x) < 1e-6 &&
+          Math.abs(p1.y - p2.y) < 1e-6 &&
+          Math.abs(p1.z - p2.z) < 1e-6
+        ) {
+          hasDuplicatePositions = true;
+          break;
+        }
+      }
+      if (hasDuplicatePositions) break;
+    }
+
+    let tris = [];
+    if (hasDuplicatePositions) {
+      // Fallback to fan triangulation immediately if duplicate positions exist
       for (let i = 1; i < verts.length - 1; i++) {
         tris.push(0, i, i + 1);
+      }
+    } else {
+      // Use earcut if all positions are unique
+      const flat = projectTo2D(verts, normal);
+      tris = earcut(flat);
+      
+      // Earcut fallback
+      if (tris.length === 0) {
+        for (let i = 1; i < verts.length - 1; i++) {
+          tris.push(0, i, i + 1);
+        }
       }
     }
 

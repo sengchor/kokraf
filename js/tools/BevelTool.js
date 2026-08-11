@@ -1304,12 +1304,7 @@ export class BevelTool {
       const orderedVertexIds = this.buildOrderedVertexLoop(meshData, newVertexIds);
       if (orderedVertexIds.length < 3) continue;
 
-      const referenceNormal = calculateVertexNormal(meshData, vertexId);
-      const virtualNormal = this.calculateVirtualNormalFromDirections(orderedVertexIds);
-
-      if (virtualNormal.dot(referenceNormal) < 0) {
-        orderedVertexIds.reverse();
-      }
+      this.alignLoopWindingWithTopology(meshData, orderedVertexIds);
 
       const vertex = meshData.getVertex(vertexId);
       const targetPosition = new THREE.Vector3().copy(vertex.position);
@@ -1342,19 +1337,6 @@ export class BevelTool {
     }
 
     return newFaceIds;
-  }
-
-  calculateVirtualNormalFromDirections(orderedVertexIds) {
-    const moveData0 = this.bevelMoveData.get(orderedVertexIds[0]);
-    const moveData1 = this.bevelMoveData.get(orderedVertexIds[1]);
-    const moveData2 = this.bevelMoveData.get(orderedVertexIds[2]);
-
-    if (!moveData0 || !moveData1 || !moveData2) return new THREE.Vector3(0, 1, 0);
-
-    const v1 = new THREE.Vector3().subVectors(moveData1.direction, moveData0.direction);
-    const v2 = new THREE.Vector3().subVectors(moveData2.direction, moveData0.direction);
-    
-    return new THREE.Vector3().crossVectors(v1, v2).normalize();
   }
 
   linkVertexNeighbors(a, b) {
@@ -2024,5 +2006,40 @@ export class BevelTool {
       vertexIds.add(edge.v2Id);
     }
     return Array.from(vertexIds);
+  }
+
+  alignLoopWindingWithTopology(meshData, orderedVertexIds) {
+    for (let i = 0; i < orderedVertexIds.length; i++) {
+      const vAId = orderedVertexIds[i];
+      const vBId = orderedVertexIds[(i + 1) % orderedVertexIds.length];
+
+      const vertexA = meshData.getVertex(vAId);
+      const vertexB = meshData.getVertex(vBId);
+      if (!vertexA || !vertexB) continue;
+
+      let sharedFaceId = null;
+      for (const faceId of vertexA.faceIds) {
+        if (vertexB.faceIds.has(faceId)) {
+          sharedFaceId = faceId;
+          break;
+        }
+      }
+
+      if (!sharedFaceId) continue;
+
+      const sharedFace = meshData.faces.get(sharedFaceId);
+      if (!sharedFace) continue;
+
+      const vIds = sharedFace.vertexIds;
+      const idxA = vIds.indexOf(vAId);
+      const idxB = vIds.indexOf(vBId);
+      if (idxA === -1 || idxB === -1) continue;
+
+      const isForward = (idxA + 1) % vIds.length === idxB;
+      if (isForward) {
+        orderedVertexIds.reverse();
+      }
+      return;
+    }
   }
 }
