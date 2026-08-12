@@ -75,6 +75,8 @@ export default class EditHelpers {
     this.sceneManager.sceneHelpers.add(vertexPoints);
     vertexPoints.matrixAutoUpdate = false;
     vertexPoints.matrix.copy(selectedObject.matrixWorld);
+
+    return vertexPoints;
   }
 
   removeVertexPoints() {
@@ -323,17 +325,11 @@ export default class EditHelpers {
     this.removeEdgeLines();
     this.removeFacePolygons();
 
-    if (mode === 'vertex') {
-      this.addVertexPoints(editedObject);
-      this.addEdgeLines(editedObject);
-      this.addFacePolygons(editedObject);
-    } else if (mode === 'edge') {
-      this.addEdgeLines(editedObject);
-      this.addFacePolygons(editedObject);
-    } else if (mode === 'face') {
-      this.addEdgeLines(editedObject);
-      this.addFacePolygons(editedObject);
-    }
+    const vertexPoints = this.addVertexPoints(editedObject);
+    vertexPoints.visible = mode === 'vertex';
+
+    this.addEdgeLines(editedObject);
+    this.addFacePolygons(editedObject);
 
     this.applyVertexHighlight(allSelectedIds.selectedVertexIds);
     this.applyEdgeHighlight(allSelectedIds.selectedEdgeIds);
