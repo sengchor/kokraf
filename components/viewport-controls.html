@@ -126,8 +126,15 @@
           <span class="shortcut" data-shortcut-key="createFace">F</span>
         </li>
         <li class="divider"></li>
-        <li data-action="merge-selection">Merge
+        <li class="submenu-item">
+          Merge
           <span class="shortcut" data-shortcut-key="merge">M</span>
+          <span class="arrow">&#9656;</span>
+          <ul class="submenu right">
+            <li data-action="merge-at-center">At Center</li>
+            <li data-action="merge-at-first">At First</li>
+            <li data-action="merge-at-last">At Last</li>
+          </ul>
         </li>
         <li data-action="split-selection">Split
           <span class="shortcut" data-shortcut-key="split">Y</span>

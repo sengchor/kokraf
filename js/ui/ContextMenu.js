@@ -1,3 +1,5 @@
+import { matchesShortcut } from '../utils/FormatLabel.js';
+
 export default class ContextMenu {
   constructor( editor ) {
     this.editor = editor;
@@ -83,6 +85,8 @@ export default class ContextMenu {
           this.editActions.handleAction(action);
         } else if (mode === 'apply') {
           this.objectActions.handleAction(action);
+        } else if (mode === 'merge') {
+          this.editActions.handleAction(action);
         }
 
         if (this.closeTimeout) {
@@ -123,6 +127,9 @@ export default class ContextMenu {
       } else if (e.shiftKey && e.key.toLowerCase() === 'a') {
         this.menuTrigger = 'add';
         this.show(this.lastMouse.x, this.lastMouse.y);
+      } else if (matchesShortcut(e, this.editor.keyHandler.shortcuts['merge'])) {
+        this.menuTrigger = 'merge';
+        this.show(this.lastMouse.x, this.lastMouse.y);
       }
     })
   }
@@ -157,6 +164,11 @@ export default class ContextMenu {
 
     if (this.menuTrigger === 'delete' && this.currentMode === 'edit') {
       this.showSection('delete');
+      visible = true;
+    }
+
+    if (this.menuTrigger === 'merge' && this.currentMode === 'edit') {
+      this.showSection('merge');
       visible = true;
     }
 

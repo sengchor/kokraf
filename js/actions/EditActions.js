@@ -40,8 +40,8 @@ export class EditActions {
       return;
     }
 
-    if (action === 'merge-selection') {
-      this.signals.mergeSelection.dispatch();
+    if (action.startsWith('merge-')) {
+      this.signals.mergeSelection.dispatch(action);
       return;
     }
 
@@ -97,7 +97,7 @@ export class EditActions {
     this.signals.createElementFromVertices.add(() => this.createElementFromVertices());
     this.signals.deleteSelectedFaces.add((action) => this.deleteSelected(action));
     this.signals.separateSelection.add(() => this.separateSelection());
-    this.signals.mergeSelection.add(() => this.mergeSelection());
+    this.signals.mergeSelection.add((action) => this.mergeSelection(action));
     this.signals.splitSelection.add(() => this.splitSelection());
     this.signals.editFlipNormals.add(() => this.flipSelectedFacesNormal());
     this.signals.subdivideSelection.add(() => this.subdivideSelection());
@@ -313,12 +313,15 @@ export class EditActions {
     this.editor.execute(new SeparateSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot, newMeshData));
   }
 
-  mergeSelection() {
+  mergeSelection(action) {
     const editedObject = this.editSelection.editedObject
     const meshData = editedObject.userData.meshData;
     
     const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
     if (!selectedVertexIds || selectedVertexIds.length < 2) return;
+
+    const mode = action?.startsWith('merge-at-')
+      ? action.slice('merge-at-'.length) : 'center';
 
     this.vertexEditor.setObject(editedObject);
 
@@ -335,7 +338,7 @@ export class EditActions {
       startFaceId: meshData.nextFaceId,
     }
 
-    const targetVertexId = this.vertexEditor.topology.mergeVertices(selectedVertexIds);
+    const targetVertexId = this.vertexEditor.topology.mergeVertices(selectedVertexIds, mode);
 
     MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);

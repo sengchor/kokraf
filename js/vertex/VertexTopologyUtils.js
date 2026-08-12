@@ -82,7 +82,7 @@ export class VertexTopologyUtils {
     return { quadVertexIds, openEdgeIds };
   }
 
-  mergeVertices(vertexIds) {
+  mergeVertices(vertexIds, mode = 'center') {
     if (!Array.isArray(vertexIds) || vertexIds.length < 2) return null;
 
     const vertices = vertexIds
@@ -91,18 +91,20 @@ export class VertexTopologyUtils {
 
     if (vertices.length < 2) return null;
 
-    const target = vertices[0];
-    const removedVertices = vertices.slice(1);
+    const target = mode === 'last' ? vertices[vertices.length - 1] : vertices[0];
+
+    const removedVertices = vertices.filter((v) => v.id !== target.id);
     const removedIds = new Set(removedVertices.map((v) => v.id));
     const allMergeIds = new Set(vertices.map((v) => v.id));
 
-    // Centroid Calculation
-    const center = new THREE.Vector3();
-    for (const v of vertices) {
-      center.add(new THREE.Vector3(v.position.x, v.position.y, v.position.z));
+    if (mode === 'center') {
+      const center = new THREE.Vector3();
+      for (const v of vertices) {
+        center.add(new THREE.Vector3(v.position.x, v.position.y, v.position.z));
+      }
+      center.divideScalar(vertices.length);
+      target.position = { x: center.x, y: center.y, z: center.z };
     }
-    center.divideScalar(vertices.length);
-    target.position = { x: center.x, y: center.y, z: center.z };
 
     // Collect Affected Faces
     const affectedFaceIds = new Set();

@@ -196,9 +196,6 @@ export class KeyHandler {
         this.editor.toolbar.setActiveTool('select');
         this.signals.duplicateSelection.dispatch();
         handled = true;
-      } else if (matchesShortcut(event, this.shortcuts['merge'])) {
-        this.signals.mergeSelection.dispatch();
-        handled = true;
       } else if (matchesShortcut(event, this.shortcuts['split'])) {
         this.signals.splitSelection.dispatch();
         handled = true;

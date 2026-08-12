@@ -103,8 +103,15 @@
         <span class="shortcut" data-shortcut-key="createFace"></span>
       </li>
       <li class="divider"></li>
-      <li class="item" role="menu-item" data-action="merge-selection">Merge
-        <span class="shortcut" data-shortcut-key="merge"></span>
+      <li class="item" role="menu-item" class="submenu-item">
+        Merge
+        <span class="shortcut" data-shortcut-key="merge">M</span>
+        <span class="arrow">&#9656;</span>
+        <ul class="submenu right">
+          <li class="item" data-action="merge-at-center">At Center</li>
+          <li class="item" data-action="merge-at-first">At First</li>
+          <li class="item" data-action="merge-at-last">At Last</li>
+        </ul>
       </li>
       <li class="item" role="menu-item" data-action="split-selection">Split
         <span class="shortcut" data-shortcut-key="split"></span>
@@ -143,6 +150,14 @@
       <li class="item" role="menu-item" data-action="dissolve-vertices">Dissolve Vertices</li>
       <li class="item" role="menu-item" data-action="dissolve-edges">Dissolve Edges</li>
       <li class="item" role="menu-item" data-action="dissolve-faces">Dissolve Faces</li>
+    </div>
+
+    <div class="menu-section" data-mode="merge">
+      <li class="menu-title">Merge</li>
+      <li class="divider"></li>
+      <li class="item" role="menu-item" data-action="merge-at-center">At Center</li>
+      <li class="item" role="menu-item" data-action="merge-at-first">At First</li>
+      <li class="item" role="menu-item" data-action="merge-at-last">At Last</li>
     </div>
   </ul>
 </div>
