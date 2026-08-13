@@ -45,6 +45,7 @@ import { SetVisibilityCommand } from './SetVisibilityCommand.js';
 import { PaintStrokeCommand } from './PaintStrokeCommand.js';
 import { SetMaterialMapCommand } from './SetMaterialMapCommand.js';
 import { SwitchPaintMapCommand } from './SwitchPaintMapCommand.js';
+import { BridgeSelectionCommand } from './BridgeSelectionCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -94,4 +95,5 @@ export const commands = new Map([
   [PaintStrokeCommand.type, PaintStrokeCommand],
   [SetMaterialMapCommand.type, SetMaterialMapCommand],
   [SwitchPaintMapCommand.type, SwitchPaintMapCommand],
+  [BridgeSelectionCommand.type, BridgeSelectionCommand],
 ]);

@@ -6,6 +6,7 @@ import { VertexTopologyUtils } from "./VertexTopologyUtils.js";
 import { VertexTransform } from "./VertexTransform.js";
 import { VertexSubdivide } from "./VertexSubdivide.js";
 import { VertexSelection } from "./VertexSelection.js";
+import { VertexBridge } from "./VertexBridge.js";
 import { MeshData } from '../core/MeshData.js';
 import { MeshRenderBuffer } from '../geometry/MeshRenderBuffer.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
@@ -24,6 +25,7 @@ export class VertexEditor {
     this.delete = new VertexDelete(this);
     this.dissolve = new VertexDissolve(this);
     this.subdivide = new VertexSubdivide(this);
+    this.bridge = new VertexBridge(this);
   }
 
   get meshData() {
