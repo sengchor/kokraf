@@ -23,14 +23,14 @@ Deno.serve(async (req) => {
       .neq("plan", "pro");
 
     if (error) {
-      console.error("Reset failed:", error);
+      console.error("Reset failed:", error?.message ?? "unknown");
       return new Response(JSON.stringify({ success: false }), { status: 500 });
     }
 
     console.log("Monthly credits reset to 20 for free users");
     return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (err) {
-    console.error(err);
+    console.error(err instanceof Error ? err.message : "Internal error");
     return new Response(JSON.stringify({ success: false }), { status: 500 });
   }
 });

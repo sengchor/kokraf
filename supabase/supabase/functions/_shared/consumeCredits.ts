@@ -35,7 +35,7 @@ export async function consumeCredits(req: Request, costMap: CostMap) {
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
   if (authError || !user) {
-    console.error("Auth error:", authError);
+    console.error("Auth error:", authError instanceof Error ? authError.message : String(authError));
     return new Response(JSON.stringify({ error: "Invalid token" }), {
       status: 401,
       headers: { ...corsHeaders },

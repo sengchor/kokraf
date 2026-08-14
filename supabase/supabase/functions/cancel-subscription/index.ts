@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      console.error("Auth error:", authError);
+      console.error("Auth error:", authError instanceof Error ? authError.message : String(authError));
       return new Response("Invalid token", { status: 401 });
     }
 
