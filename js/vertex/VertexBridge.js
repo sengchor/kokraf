@@ -9,7 +9,9 @@ export class VertexBridge {
     return this.vertexEditor.meshData;
   }
 
-  bridgeEdgeLoops(vertexIds, edgeIds, faceIds) {
+  bridgeEdgeLoops(vertexIds, edgeIds, faceIds, options = {}) {
+    const { numCuts = 0, smoothness = 0 } = options;
+
     const groups = this.groupConnectedSelectedEdges(this.meshData, vertexIds, edgeIds, faceIds);
 
     const loops = [];
@@ -34,7 +36,13 @@ export class VertexBridge {
     for (let pairStart = 0; pairStart + 1 < alignedLoops.length; pairStart += 2) {
       const loopA = alignedLoops[pairStart];
       const loopB = alignedLoops[pairStart + 1];
-      newFaceVertexArrays.push(...this.createBridgeFaces(loopA, loopB));
+
+      const result = this.createBridgeFaces(loopA, loopB, numCuts, smoothness);
+
+      if (!result.success) {
+        return { success: false, newVertexIds: [], newFaceIds: [] };
+      }
+      newFaceVertexArrays.push(...result.faces);
     }
 
     const newFaceIds = [];
@@ -42,6 +50,12 @@ export class VertexBridge {
       const newFaceVertex = newFaceVertexIds.map(id => this.meshData.getVertex(id));
       const newFace = this.vertexEditor.addFace(newFaceVertex);
       newFaceIds.push(newFace.id);
+    }
+
+    for (const faceId of faceIds) {
+      const face = this.meshData.faces.get(faceId);
+      if (!face) continue;
+      this.vertexEditor.deleteFace(face);
     }
 
     return {
@@ -181,27 +195,25 @@ export class VertexBridge {
     return loops;
   }
 
-  orderLoopsConsistently(loops, referenceNormal = null) {
+  computeLoopNormal(vertexIds) {
     const meshData = this.meshData;
     const getPos = (id) => meshData.vertices.get(id).position;
+    const normal = new THREE.Vector3();
+    const n = vertexIds.length;
+    if (n < 3) return null;
 
-    const computeLoopNormal = (vertexIds) => {
-      const normal = new THREE.Vector3();
-      const n = vertexIds.length;
-      if (n < 3) return null;
+    for (let i = 0; i < n; i++) {
+      const curr = getPos(vertexIds[i]);
+      const next = getPos(vertexIds[(i + 1) % n]);
+      normal.x += (curr.y - next.y) * (curr.z + next.z);
+      normal.y += (curr.z - next.z) * (curr.x + next.x);
+      normal.z += (curr.x - next.x) * (curr.y + next.y);
+    }
+    return normal.lengthSq() > 1e-12 ? normal.normalize() : null;
+  }
 
-      for (let i = 0; i < n; i++) {
-        const curr = getPos(vertexIds[i]);
-        const next = getPos(vertexIds[(i + 1) % n]);
-        normal.x += (curr.y - next.y) * (curr.z + next.z);
-        normal.y += (curr.z - next.z) * (curr.x + next.x);
-        normal.z += (curr.x - next.x) * (curr.y + next.y);
-      }
-
-      return normal.lengthSq() > 1e-12 ? normal.normalize() : null;
-    };
-
-    const normals = loops.map(loop => computeLoopNormal(loop.vertices));
+  orderLoopsConsistently(loops, referenceNormal = null) {
+    const normals = loops.map(loop => this.computeLoopNormal(loop.vertices));
 
     const ref = referenceNormal ? referenceNormal.clone().normalize()
       : normals.find(n => n !== null);
@@ -268,7 +280,7 @@ export class VertexBridge {
     const meshData = this.meshData;
     const getPos = (id) => new THREE.Vector3().copy(meshData.vertices.get(id).position);
 
-    const n = Math.max(vertsA.length, vertsB.legnth);
+    const n = Math.max(vertsA.length, vertsB.length);
     const mapA = this.resampleOpen(vertsA.length, n);
     const sampledA = mapA.map(idx => getPos(vertsA[idx]));
 
@@ -290,15 +302,22 @@ export class VertexBridge {
     return [...arr.slice(startIndex), ...arr.slice(0, startIndex)];
   }
 
-  createBridgeFaces(loopA, loopB) {
+  createBridgeFaces(loopA, loopB, numCuts = 0, smoothness = 0) {
     if (loopA.closed !== loopB.closed) {
       console.warn('VertexBridge: cannot bridge a closed loop to an open chain');
-      return [];
+      return { success: false, faces: [], };
     }
 
-    return loopA.closed
-      ? this.bridgeClosedLoopPair(loopA.vertices, loopB.vertices)
-      : this.bridgeOpenLoopPair(loopA.vertices, loopB.vertices);
+    let faces;
+    if (numCuts <= 0) {
+      faces = loopA.closed
+        ? this.bridgeClosedLoopPair(loopA.vertices, loopB.vertices)
+        : this.bridgeOpenLoopPair(loopA.vertices, loopB.vertices);
+    } else {
+      faces = this.bridgeLoft(loopA, loopB, numCuts, smoothness);
+    }
+
+    return { success: true, faces, };
   }
 
   resampleClosed(sourceCount, targetCount) {
@@ -351,6 +370,122 @@ export class VertexBridge {
     for (let i = 0; i < n - 1; i++) {
       this.emitBridgeSegment(a[mapA[i]], a[mapA[i + 1]], b[mapB[i]], b[mapB[i + 1]], faces);
     }
+    return faces;
+  }
+
+  bridgeLoft(loopA, loopB, numCuts, smoothness) {
+    const meshData = this.meshData;
+    const closed = loopA.closed;
+    const resample = closed ? this.resampleClosed.bind(this) : this.resampleOpen.bind(this);
+
+    const n = Math.max(loopA.vertices.length, loopB.vertices.length);
+    const mapA = resample(loopA.vertices.length, n);
+    const mapB = resample(loopB.vertices.length, n);
+
+    const posA = mapA.map(i => meshData.getVertex(loopA.vertices[i]).position.clone());
+    const posB = mapB.map(i => meshData.getVertex(loopB.vertices[i]).position.clone());
+
+    const normalA = this.computeLoopNormal(loopA.vertices) || new THREE.Vector3(0, 1, 0);
+    const normalB = this.computeLoopNormal(loopB.vertices) || new THREE.Vector3(0, -1, 0);
+
+    const centerA = posA.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(n);
+    const centerB = posB.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(n);
+
+    const centerDir = centerB.clone().sub(centerA).normalize();
+    
+    const dirA = normalA.clone().normalize();
+    if (dirA.dot(centerDir) < 0) dirA.negate();
+
+    const dirB = normalB.clone().normalize();
+    if (dirB.dot(centerDir) < 0) dirB.negate();
+
+    const span = centerA.distanceTo(centerB);
+    const tangentA = dirA.clone().multiplyScalar(span);
+    const tangentB = dirB.clone().multiplyScalar(span);
+
+    const hermite = (p0, p1, m0, m1, t) => {
+      const t2 = t * t, t3 = t2 * t;
+      return new THREE.Vector3()
+        .addScaledVector(p0, 2 * t3 - 3 * t2 + 1)
+        .addScaledVector(m0, t3 - 2 * t2 + t)
+        .addScaledVector(p1, -2 * t3 + 3 * t2)
+        .addScaledVector(m1, t3 - t2);
+    };
+
+    const hermiteDerivative = (p0, p1, m0, m1, t) => {
+      const t2 = t * t;
+      return new THREE.Vector3()
+        .addScaledVector(p0, 6 * t2 - 6 * t)
+        .addScaledVector(m0, 3 * t2 - 4 * t + 1)
+        .addScaledVector(p1, -6 * t2 + 6 * t)
+        .addScaledVector(m1, 3 * t2 - 2 * t);
+    };
+
+    const up = new THREE.Vector3(0, 0, 1);
+    const quatA = new THREE.Quaternion().setFromUnitVectors(up, dirA);
+    let quatB = new THREE.Quaternion().setFromUnitVectors(up, dirB);
+    
+    const invQuatA = quatA.clone().invert();
+    let invQuatB = quatB.clone().invert();
+
+    // PHASE ALIGNMENT
+    const localA0 = posA[0].clone().sub(centerA).applyQuaternion(invQuatA);
+    const localB0 = posB[0].clone().sub(centerB).applyQuaternion(invQuatB);
+    
+    const angleA = Math.atan2(localA0.y, localA0.x);
+    const angleB = Math.atan2(localB0.y, localB0.x);
+    let angleDiff = angleA - angleB;
+
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+    const twistQuat = new THREE.Quaternion().setFromAxisAngle(up, angleDiff);
+    invQuatB.premultiply(twistQuat); 
+    quatB.multiply(twistQuat.clone().invert()); 
+
+    const rings = [mapA.map(i => loopA.vertices[i])];
+
+    for (let cut = 1; cut <= numCuts; cut++) {
+      const t = cut / (numCuts + 1);
+
+      const linearCenter = centerA.clone().lerp(centerB, t);
+      const curvedCenter = hermite(centerA, centerB, tangentA, tangentB, t);
+      const currentCenter = linearCenter.lerp(curvedCenter, smoothness);
+
+      const curvedDir = hermiteDerivative(centerA, centerB, tangentA, tangentB, t).normalize();
+      const currentDir = centerDir.clone().lerp(curvedDir, smoothness).normalize();
+
+      // ROLL-PRESERVING TANGENT ALIGNMENT
+      const blendedBaseQuat = quatA.clone().slerp(quatB, t);
+      const blendedDir = up.clone().applyQuaternion(blendedBaseQuat);
+      const alignQuat = new THREE.Quaternion().setFromUnitVectors(blendedDir, currentDir);
+      
+      const partialAlignQuat = new THREE.Quaternion().identity().slerp(alignQuat, smoothness);
+      const finalQuat = partialAlignQuat.multiply(blendedBaseQuat);
+
+      const ring = [];
+      for (let k = 0; k < n; k++) {
+        const localA = posA[k].clone().sub(centerA).applyQuaternion(invQuatA);
+        const localB = posB[k].clone().sub(centerB).applyQuaternion(invQuatB);
+
+        const localBlended = localA.lerp(localB, t);
+        localBlended.applyQuaternion(finalQuat).add(currentCenter);
+
+        ring.push(this.vertexEditor.addVertex(localBlended).id);
+      }
+      rings.push(ring);
+    }
+    rings.push(mapB.map(i => loopB.vertices[i]));
+
+    const faces = [];
+    const segments = closed ? n : n - 1;
+    for (let r = 0; r + 1 < rings.length; r++) {
+      for (let i = 0; i < segments; i++) {
+        const next = closed ? (i + 1) % n : i + 1;
+        this.emitBridgeSegment(rings[r][i], rings[r][next], rings[r + 1][i], rings[r + 1][next], faces);
+      }
+    }
+
     return faces;
   }
 }

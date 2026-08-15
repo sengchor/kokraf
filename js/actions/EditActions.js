@@ -10,6 +10,7 @@ import { FlipNormalsCommand } from '../commands/FlipNormalsCommand.js';
 import { SubdivideSelectionCommand } from '../commands/SubdivideSelectionCommand.js';
 import { BridgeSelectionCommand } from '../commands/BridgeSelectionCommand.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { OperatorPanel } from '../panels/OperatorPanel.js';
 
 export class EditActions {
   constructor(editor) {
@@ -18,6 +19,9 @@ export class EditActions {
     this.meshEditor = editor.meshEditor;
     this.vertexEditor = editor.vertexEditor;
     this.editSelection = editor.editSelection;
+
+    const operatorPanelContainer = document.getElementById('operator-panel-container');
+    this.operatorPanel = new OperatorPanel(editor, operatorPanelContainer);
 
     this.setupListeners();
   }
@@ -504,21 +508,46 @@ export class EditActions {
       startFaceId: meshData.nextFaceId,
     };
 
-    const bridgeResult = this.vertexEditor.bridge.bridgeEdgeLoops(selectedVertexIds, selectedEdgeIds, selectedFaceIds);
+    const runBridge = (params) => {
+      MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
+      this.vertexEditor.applyDelta(beforeSnapshot);
 
-    if (!bridgeResult.success) {
-      return;
-    }
+      const result = this.vertexEditor.bridge.bridgeEdgeLoops(
+        selectedVertexIds, selectedEdgeIds, selectedFaceIds, params
+      );
+      if (!result.success) return null;
 
-    MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
-    const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
-    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+      editedObject.geometry.computeBoundingBox();
+      editedObject.geometry.computeBoundingSphere();
 
-    this.editor.execute(new BridgeSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot));
-    this.signals.editSelectionRefresh.dispatch();
-    editedObject.geometry.computeBoundingBox();
-    editedObject.geometry.computeBoundingSphere();
+      this.editSelection.selectVertices(result.newVertexIds);
+      this.signals.editSelectionRefresh.dispatch();
 
-    this.editSelection.selectVertices(bridgeResult.newVertexIds);
+      return result;
+    };
+
+    if (!runBridge({ numCuts: 0, smoothness: 1 })) return;
+
+    this.operatorPanel.open({
+      title: 'Bridge Edge Loops',
+      params: { numCuts: 0, smoothness: 1 },
+      schema: [
+        { key: 'numCuts', label: 'Number of Cuts', min: 0, max: 50, step: 1 },
+        { key: 'smoothness', label: 'Smoothness', min: 0, max: 1, step: 0.05 },
+      ],
+      onUpdate: (params) => {
+        runBridge(params)
+      },
+      onCommit: () => {
+        MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
+        const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
+        const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
+        this.editor.execute(new BridgeSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot));
+      },
+      onCancel: () => {
+        MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
+        this.vertexEditor.applyDelta(beforeSnapshot);
+      },
+    });
   }
 }
