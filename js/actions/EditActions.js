@@ -526,14 +526,15 @@ export class EditActions {
       return result;
     };
 
-    if (!runBridge({ numCuts: 0, smoothness: 1 })) return;
+    if (!runBridge({ numCuts: 0, smoothness: 1, twist: 0 })) return;
 
     this.operatorPanel.open({
       title: 'Bridge Edge Loops',
-      params: { numCuts: 0, smoothness: 1 },
+      params: { numCuts: 0, smoothness: 1, twist: 0 },
       schema: [
         { key: 'numCuts', label: 'Number of Cuts', min: 0, max: 50, step: 1 },
         { key: 'smoothness', label: 'Smoothness', min: 0, max: 1, step: 0.05 },
+        { key: 'twist', label: 'Twist', min: -50, max: 50, step: 1 },
       ],
       onUpdate: (params) => {
         runBridge(params)

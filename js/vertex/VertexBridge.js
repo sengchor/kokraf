@@ -10,7 +10,7 @@ export class VertexBridge {
   }
 
   bridgeEdgeLoops(vertexIds, edgeIds, faceIds, options = {}) {
-    const { numCuts = 0, smoothness = 0 } = options;
+    const { numCuts = 0, smoothness = 1, twist = 0 } = options;
 
     const groups = this.groupConnectedSelectedEdges(this.meshData, vertexIds, edgeIds, faceIds);
 
@@ -30,14 +30,16 @@ export class VertexBridge {
     }
 
     const windedLoops = this.orderLoopsConsistently(loops);
-    const alignedLoops = this.alignLoopRotations(windedLoops);
+    const alignedLoops = this.alignLoopRotations(windedLoops, twist);
+
+    const shouldFlipNormals = this.detectNormalFlip(alignedLoops[0], faceIds);
 
     const newFaceVertexArrays = [];
     for (let pairStart = 0; pairStart + 1 < alignedLoops.length; pairStart += 2) {
       const loopA = alignedLoops[pairStart];
       const loopB = alignedLoops[pairStart + 1];
 
-      const result = this.createBridgeFaces(loopA, loopB, numCuts, smoothness);
+      const result = this.createBridgeFaces(loopA, loopB, numCuts, smoothness, shouldFlipNormals);
 
       if (!result.success) {
         return { success: false, newVertexIds: [], newFaceIds: [] };
@@ -229,7 +231,7 @@ export class VertexBridge {
     });
   }
 
-  alignLoopRotations(loops) {
+  alignLoopRotations(loops, twist = 0) {
     const aligned = loops.map(loop => ({ ...loop, vertices: [...loop.vertices] }));
 
     for (let pairStart = 0; pairStart + 1 < aligned.length; pairStart += 2) {
@@ -237,7 +239,9 @@ export class VertexBridge {
       const loopB = aligned[pairStart + 1];
 
       if (loopA.closed && loopB.closed) {
-        const shift = this.findBestClosedShift(loopA.vertices, loopB.vertices);
+        const baseShift = this.findBestClosedShift(loopA.vertices, loopB.vertices);
+        const n = loopB.vertices.length;
+        const shift = ((baseShift + twist) % n + n) % n;
         loopB.vertices = this.rotateArray(loopB.vertices, shift);
       } else {
         loopB.vertices = this.findBestOpenOrientation(loopA.vertices, loopB.vertices);
@@ -302,7 +306,7 @@ export class VertexBridge {
     return [...arr.slice(startIndex), ...arr.slice(0, startIndex)];
   }
 
-  createBridgeFaces(loopA, loopB, numCuts = 0, smoothness = 0) {
+  createBridgeFaces(loopA, loopB, numCuts = 0, smoothness = 0, flipNormals = false) {
     if (loopA.closed !== loopB.closed) {
       console.warn('VertexBridge: cannot bridge a closed loop to an open chain');
       return { success: false, faces: [], };
@@ -311,10 +315,10 @@ export class VertexBridge {
     let faces;
     if (numCuts <= 0) {
       faces = loopA.closed
-        ? this.bridgeClosedLoopPair(loopA.vertices, loopB.vertices)
-        : this.bridgeOpenLoopPair(loopA.vertices, loopB.vertices);
+        ? this.bridgeClosedLoopPair(loopA.vertices, loopB.vertices, flipNormals)
+        : this.bridgeOpenLoopPair(loopA.vertices, loopB.vertices, flipNormals);
     } else {
-      faces = this.bridgeLoft(loopA, loopB, numCuts, smoothness);
+      faces = this.bridgeLoft(loopA, loopB, numCuts, smoothness, flipNormals);
     }
 
     return { success: true, faces, };
@@ -337,18 +341,26 @@ export class VertexBridge {
     return map;
   }
 
-  emitBridgeSegment(a0, a1, b0, b1, faces) {
+  emitBridgeSegment(a0, a1, b0, b1, faces, flipNormals = false) {
     if (a0 === a1 && b0 === b1) return;
+
+    let faceVertices;
     if (a0 === a1) {
-      faces.push([a0, b1, b0]);
+      faceVertices = [a0, b1, b0];
     } else if (b0 === b1) {
-      faces.push([a0, a1, b0]);
+      faceVertices = [a0, a1, b0];
     } else {
-      faces.push([a0, a1, b1, b0]);
+      faceVertices = [a0, a1, b1, b0];
     }
+
+    if (flipNormals) {
+      faceVertices.reverse();
+    }
+
+    faces.push(faceVertices);
   }
 
-  bridgeClosedLoopPair(a, b) {
+  bridgeClosedLoopPair(a, b, flipNormals) {
     const n = Math.max(a.length, b.length);
     const mapA = this.resampleClosed(a.length, n);
     const mapB = this.resampleClosed(b.length, n);
@@ -356,24 +368,24 @@ export class VertexBridge {
     const faces = [];
     for (let i = 0; i < n; i++) {
       const next = (i + 1) % n;
-      this.emitBridgeSegment(a[mapA[i]], a[mapA[next]], b[mapB[i]], b[mapB[next]], faces);
+      this.emitBridgeSegment(a[mapA[i]], a[mapA[next]], b[mapB[i]], b[mapB[next]], faces, flipNormals);
     }
     return faces;
   }
 
-  bridgeOpenLoopPair(a, b) {
+  bridgeOpenLoopPair(a, b, flipNormals) {
     const n = Math.max(a.length, b.length);
     const mapA = this.resampleOpen(a.length, n);
     const mapB = this.resampleOpen(b.length, n);
 
     const faces = [];
     for (let i = 0; i < n - 1; i++) {
-      this.emitBridgeSegment(a[mapA[i]], a[mapA[i + 1]], b[mapB[i]], b[mapB[i + 1]], faces);
+      this.emitBridgeSegment(a[mapA[i]], a[mapA[i + 1]], b[mapB[i]], b[mapB[i + 1]], faces, flipNormals);
     }
     return faces;
   }
 
-  bridgeLoft(loopA, loopB, numCuts, smoothness) {
+  bridgeLoft(loopA, loopB, numCuts, smoothness, flipNormals) {
     const meshData = this.meshData;
     const closed = loopA.closed;
     const resample = closed ? this.resampleClosed.bind(this) : this.resampleOpen.bind(this);
@@ -482,10 +494,37 @@ export class VertexBridge {
     for (let r = 0; r + 1 < rings.length; r++) {
       for (let i = 0; i < segments; i++) {
         const next = closed ? (i + 1) % n : i + 1;
-        this.emitBridgeSegment(rings[r][i], rings[r][next], rings[r + 1][i], rings[r + 1][next], faces);
+        this.emitBridgeSegment(rings[r][i], rings[r][next], rings[r + 1][i], rings[r + 1][next], faces, flipNormals);
       }
     }
 
     return faces;
+  }
+
+  detectNormalFlip(loopA, facesToDeleteIds) {
+    if (loopA.vertices.length < 2) return false;
+
+    const v1Id = loopA.vertices[0];
+    const v2Id = loopA.vertices[1];
+    const deletedFacesSet = new Set(facesToDeleteIds || []);
+
+    for (const [faceId, face] of this.meshData.faces.entries()) {
+      if (deletedFacesSet.has(faceId)) continue; 
+
+      const verts = face.vertexIds;
+      const idx1 = verts.indexOf(v1Id);
+      if (idx1 === -1) continue;
+
+      const len = verts.length;
+      const nextIdx = (idx1 + 1) % len;
+      const prevIdx = (idx1 - 1 + len) % len;
+
+      if (verts[nextIdx] === v2Id) {
+        return true; 
+      } else if (verts[prevIdx] === v2Id) {
+        return false;
+      }
+    }
+    return false;
   }
 }
