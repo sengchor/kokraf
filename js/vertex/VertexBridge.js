@@ -214,21 +214,68 @@ export class VertexBridge {
     return normal.lengthSq() > 1e-12 ? normal.normalize() : null;
   }
 
-  orderLoopsConsistently(loops, referenceNormal = null) {
-    const normals = loops.map(loop => this.computeLoopNormal(loop.vertices));
+  orderLoopsConsistently(loops) {
+    if (loops.length !== 2) return loops;
 
-    const ref = referenceNormal ? referenceNormal.clone().normalize()
-      : normals.find(n => n !== null);
+    const meshData = this.meshData;
+    const [loopA, loopB] = loops;
 
-    if (!ref) return loops;
-
-    return loops.map((loop, i) => {
-      const normal = normals[i];
-      if (normal && normal.dot(ref) < 0) {
-        return { vertices: [...loop.vertices].reverse(), closed: loop.closed };
+    const getCentroid = (vertexIds) => {
+      const center = new THREE.Vector3();
+      for (const id of vertexIds) {
+        center.add(meshData.vertices.get(id).position);
       }
-      return loop;
-    });
+      return center.divideScalar(vertexIds.length);
+    };
+
+    const centroidA = getCentroid(loopA.vertices);
+    const centroidB = getCentroid(loopB.vertices);
+
+    let bridgeAxis = new THREE.Vector3().subVectors(centroidB, centroidA);
+    
+    if (bridgeAxis.lengthSq() < 1e-10) {
+      bridgeAxis = this.computeLoopNormal(loopA.vertices) || new THREE.Vector3(0, 1, 0);
+    }
+    bridgeAxis.normalize();
+
+    const getProjectedWinding = (vertexIds) => {
+      const tangent = new THREE.Vector3();
+      if (Math.abs(bridgeAxis.y) > 0.9) {
+        tangent.set(1, 0, 0).cross(bridgeAxis).normalize();
+      } else {
+        tangent.set(0, 1, 0).cross(bridgeAxis).normalize();
+      }
+      const bitangent = new THREE.Vector3().crossVectors(bridgeAxis, tangent);
+
+      let signedArea = 0;
+      const n = vertexIds.length;
+      
+      for (let i = 0; i < n; i++) {
+        const p1 = meshData.vertices.get(vertexIds[i]).position;
+        const p2 = meshData.vertices.get(vertexIds[(i + 1) % n]).position;
+
+        const u1 = p1.dot(tangent);
+        const v1 = p1.dot(bitangent);
+        const u2 = p2.dot(tangent);
+        const v2 = p2.dot(bitangent);
+
+        signedArea += (u1 * v2 - u2 * v1);
+      }
+      return Math.sign(signedArea);
+    };
+
+    const windingA = getProjectedWinding(loopA.vertices);
+    const windingB = getProjectedWinding(loopB.vertices);
+
+    const orderedLoops = [loopA];
+    
+    if (windingA !== 0 && windingB !== 0 && windingA !== windingB) {
+      orderedLoops.push({ vertices: [...loopB.vertices].reverse(), closed: loopB.closed });
+    } else {
+      orderedLoops.push(loopB);
+    }
+
+    return orderedLoops;
   }
 
   alignLoopRotations(loops, twist = 0) {
@@ -246,9 +293,9 @@ export class VertexBridge {
       } else {
         loopB.vertices = this.findBestOpenOrientation(loopA.vertices, loopB.vertices);
       }
-
-      return aligned;
     }
+    
+    return aligned;
   }
 
   findBestClosedShift(vertsA, vertsB) {
