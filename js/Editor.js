@@ -34,6 +34,7 @@ import { NameManager } from './utils/NameManager.js';
 import { ToolInputDisplay } from './ui/ToolInputDisplay.js';
 import { loadProject } from '/supabase/services/ProjectService.js';
 import { ShortcutLabel } from './core/ShortcutLabel.js';
+import { UVResizer } from './ui/UVResizer.js';
 
 export default class Editor {
   constructor() {
@@ -167,6 +168,7 @@ export default class Editor {
     // UI
     this.uiLoader = new UIComponentsLoader();
     this.panelResizer = new PanelResizer(this);
+    this.uvResizer = new UVResizer(this);
     this.contextMenu = new ContextMenu(this);
 
     this.clock = new THREE.Clock();

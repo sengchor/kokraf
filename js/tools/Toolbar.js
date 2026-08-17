@@ -28,6 +28,7 @@ export default class Toolbar {
     this.isTransformDragging = false;
     this.previousToolObjectMode = 'select';
     this.previousToolEditMode = 'select';
+    this.previousToolUVMode = 'select';
     this.previousToolPaintMode = 'paint';
 
     this.objectMoveTool   = new ObjectTransformTool(this.editor, 'translate');
@@ -62,19 +63,19 @@ export default class Toolbar {
     this.updateTools();
 
     if (this.defaultToolContainer) {
-      this.defaultToolContainer.classList.toggle('hidden', this.currentMode === 'paint');
+      this.defaultToolContainer.classList.toggle('hidden', this.currentMode === 'uv' || this.currentMode === 'paint');
     }
 
     if (this.operationToolContainer) {
-      this.operationToolContainer.classList.toggle('hidden', this.currentMode === 'edit' || this.currentMode === 'paint');
+      this.operationToolContainer.classList.toggle('hidden', this.currentMode === 'edit' || this.currentMode === 'uv' || this.currentMode === 'paint');
     }
     
     if (this.meshToolContainer) {
-      this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object' || this.currentMode === 'paint');
+      this.meshToolContainer.classList.toggle('hidden', this.currentMode === 'object' || this.currentMode === 'uv' || this.currentMode === 'paint');
     }
 
     if (this.paintToolContainer) {
-      this.paintToolContainer.classList.toggle('hidden', this.currentMode == 'object' || this.currentMode === 'edit');
+      this.paintToolContainer.classList.toggle('hidden', this.currentMode == 'object' || this.currentMode === 'edit' || this.currentMode === 'uv');
     }
   }
 
@@ -84,19 +85,19 @@ export default class Toolbar {
       this.updateTools();
 
       if (this.defaultToolContainer) {
-        this.defaultToolContainer.classList.toggle('hidden', newMode === 'paint');
+        this.defaultToolContainer.classList.toggle('hidden', newMode === 'uv' || newMode === 'paint');
       }
 
       if (this.operationToolContainer) {
-        this.operationToolContainer.classList.toggle('hidden', newMode === 'edit' || newMode === 'paint');
+        this.operationToolContainer.classList.toggle('hidden', newMode === 'edit' || newMode === 'uv' || newMode === 'paint');
       }
 
       if (this.meshToolContainer) {
-        this.meshToolContainer.classList.toggle('hidden', newMode === 'object' || newMode === 'paint');
+        this.meshToolContainer.classList.toggle('hidden', newMode === 'object' || newMode === 'uv' || newMode === 'paint');
       }
 
       if (this.paintToolContainer) {
-        this.paintToolContainer.classList.toggle('hidden', this.currentMode == 'object' || this.currentMode === 'edit')
+        this.paintToolContainer.classList.toggle('hidden', this.currentMode == 'object' || this.currentMode === 'edit' || this.currentMode === 'uv')
       }
     });
 
@@ -197,6 +198,10 @@ export default class Toolbar {
       if (this.previousToolEditMode) {
         this.activeToolEditMode = this.previousToolEditMode;
       }
+    } else if (this.currentMode === 'uv') {
+      if (this.previousToolUVMode) {
+        this.activeToolUVMode = this.previousToolUVMode;
+      }
     } else if (this.currentMode === 'paint') {
       if (this.previousToolPaintMode) {
         this.activeToolPaintMode = this.previousToolPaintMode;
@@ -213,7 +218,7 @@ export default class Toolbar {
     if (this.currentMode === 'object') {
       this.selection.updatePivotHandle();
       attachObject = this.selection.pivotHandle;
-    } else if (this.currentMode === 'edit' || this.currentMode === 'paint') {
+    } else if (this.currentMode === 'edit' || this.currentMode === 'uv' || this.currentMode === 'paint') {
       this.editSelection.updateVertexHandle();
       attachObject = this.editSelection.vertexHandle;
     }

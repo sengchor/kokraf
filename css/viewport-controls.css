@@ -261,7 +261,9 @@
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   border-bottom: 1px solid #e6e8eb;
+  min-width: 35px;
   z-index: 30;
   height: 18px;
   padding-top: 1px;

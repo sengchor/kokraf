@@ -114,7 +114,16 @@
       <div id="menu-container"></div>
 
       <div class="editor-container">
-        <canvas id="three-canvas"></canvas>
+        <div class="canvas-viewport-wrapper" id="canvas-viewport-wrapper">
+          <div class="viewport-3d-pane" id="viewport-3d-pane">
+            <canvas id="three-canvas"></canvas>
+          </div>
+          <div class="viewport-split-resizer hidden" id="viewport-split-resizer"></div>
+          <div class="uv-pane hidden" id="uv-pane">
+            <canvas id="uv-canvas"></canvas>
+          </div>
+        </div>
+        
         <div id="toolbar-container"></div>
         <div id="viewport-controls-container"></div> 
         <div id="properties-panel-container" class="panel-container"></div>

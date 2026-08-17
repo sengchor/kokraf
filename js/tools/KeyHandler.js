@@ -219,6 +219,18 @@ export class KeyHandler {
       }
     }
 
+    /* ---------- UV mode ---------- */
+    if (this.currentMode === 'uv') {
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        }
+        this.signals.switchMode.dispatch('edit');
+        this.previousMode = 'uv';
+      }
+    }
+
     /* ---------- Texture Paint ---------- */
     if (this.currentMode === 'paint') {
       if (event.key === 'Tab') {

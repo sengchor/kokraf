@@ -21,8 +21,8 @@ export default class PanelResizer {
       this.onWindowResize();
     });
 
-    this.signals.layoutChanged.add(() => {
-      this.onWindowResize();
+    this.signals.layoutChanged.add((updatePanel) => {
+      this.onWindowResize(updatePanel);
     });
 
     this.signals.viewportCameraChanged.add(() => {
@@ -33,6 +33,9 @@ export default class PanelResizer {
   initRightPanelResizer() {
     const resizer = document.getElementById('right-panel-resizer');
     const rightPanel = document.getElementById('right-panel-container');
+    const viewport3dPane = document.getElementById('viewport-3d-pane');
+    const uvPane = document.getElementById('uv-pane');
+    const splitResizer = document.getElementById('viewport-split-resizer');
     if (!resizer || !rightPanel) return;
 
     resizer.addEventListener('mousedown', () => {
@@ -46,19 +49,17 @@ export default class PanelResizer {
       if (!this.isRightPanelResizing) return;
       e.preventDefault();
 
-      const minWidth =
-        window.innerWidth <= MOBILE_BREAKPOINT
-          ? MOBILE_PANEL_WIDTH
-          : DESKTOP_PANEL_WIDTH;
+      const minWidth = window.innerWidth <= MOBILE_BREAKPOINT ? MOBILE_PANEL_WIDTH : DESKTOP_PANEL_WIDTH;
+      const minViewportSpace = this.getRequiredViewportSpace(viewport3dPane, uvPane, splitResizer);
+      const maxWidth = window.innerWidth - minViewportSpace;
 
-      const newWidth = window.innerWidth - e.clientX;
+      let newWidth = window.innerWidth - e.clientX;
+      newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
 
-      if (newWidth >= minWidth && newWidth <= window.innerWidth - 2.5) {
-        rightPanel.style.width = `${newWidth}px`;
-        resizer.style.right = `${newWidth}px`;
+      rightPanel.style.width = `${newWidth}px`;
+      resizer.style.right = `${newWidth}px`;
 
-        this.onWindowResize();
-      }
+      this.onWindowResize(false);
     });
 
     document.addEventListener('mouseup', () => {
@@ -103,29 +104,59 @@ export default class PanelResizer {
     });
   }
 
-  onWindowResize() {
-    if (!this.isRightPanelResizing) {
+  onWindowResize(updatePanel = true) {
+    const rightPanel = document.getElementById('right-panel-container');
+
+    if (updatePanel) {
       this.updateRightPanelWidth();
     }
 
-    const rightPanel  = document.getElementById('right-panel-container');
-    const width = window.innerWidth - rightPanel.offsetWidth;
-    const height = window.innerHeight + 30;
+    const totalWidth = window.innerWidth - rightPanel.offsetWidth;
+    const totalHeight = window.innerHeight + 30;
 
-    this.renderer.setSize(width, height);
-    this.cameraManager.updateAspect(width / height);
-    this.signals.viewportResized.dispatch(width, height);
-    
-    this.viewportViewHelper.updatePosition(this.renderer.domElement);
-    this.adjustOutlinerHeight();
-
-    const viewportControls = document.querySelector('.viewport-controls');
-    if (viewportControls) {
-      viewportControls.style.width = `${Math.max(width - 10, 0)}px`;
+    const wrapper = document.getElementById('canvas-viewport-wrapper');
+    if (wrapper) {
+      wrapper.style.width = `${totalWidth}px`;
+      wrapper.style.height = `${totalHeight}px`;
     }
 
-    this.adjustBrushSettingsWidth(width);
+    const viewport3dPane = document.getElementById('viewport-3d-pane');
+    if (viewport3dPane) {
+      const paneRect = viewport3dPane.getBoundingClientRect();
+      const width = Math.round(paneRect.width);
+      const height = Math.round(paneRect.height);
+
+      this.renderer.setSize(width, height);
+      this.cameraManager.updateAspect(width / height);
+      this.signals.viewportResized.dispatch(width, height);
+
+      this.viewportViewHelper.updatePosition(this.renderer.domElement);
+
+      const viewportControls = document.querySelector('.viewport-controls');
+      if (viewportControls) {
+        viewportControls.style.width = `${Math.max(width - 10, 0)}px`;
+      }
+
+      this.adjustBrushSettingsWidth(width);
+    }
+
+    this.adjustOutlinerHeight();
     this.adjustToolInputDisplayPosition(rightPanel.offsetWidth);
+  }
+
+  getRequiredViewportSpace(viewport3dPane, uvPane, splitResizer) {
+    const isUVSplitActive = uvPane && !uvPane.classList.contains('hidden');
+
+    const splitResizerWidth = splitResizer ? splitResizer.getBoundingClientRect().width : 4;
+    const uvPaneMinWidth = parseFloat(getComputedStyle(uvPane).minWidth) || 100;
+    const viewport3dMinWidth = parseFloat(getComputedStyle(viewport3dPane).minWidth) || 100;
+
+    const isViewport3dPinned = /^0 0 /.test(viewport3dPane.style.flex || '');
+    const viewport3dRequired = isViewport3dPinned
+      ? viewport3dPane.getBoundingClientRect().width
+      : viewport3dMinWidth;
+
+    return viewport3dRequired + splitResizerWidth + uvPaneMinWidth;
   }
 
   adjustOutlinerHeight() {

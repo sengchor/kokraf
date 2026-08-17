@@ -4,6 +4,7 @@
     <select class="mode-select" id="interaction-modes" data-tooltip="Interaction Modes">
       <option value="object" selected>OBJECT MODE</option>
       <option value="edit">EDIT MODE</option>
+      <option value="uv">UV MODE</option>
       <option value="paint">TEXTURE PAINT</option>
     </select>
 
@@ -162,6 +163,16 @@
             <li data-action="dissolve-faces">Dissolve Faces</li>
           </ul>
         </li>
+      </ul>
+    </div>
+    <div class="menu-item hidden" id="uv-menu" data-tooltip="UV Menu">UV
+      <ul class="submenu">
+        <li data-action="mark-seam">Mark Seam
+          <span class="shortcut">SHIFT+Q</span>
+        </li>
+        <li data-action="clear-seam">Clear Seam</li>
+        <li class="divider"></li>
+        <li data-action="auto-uv-unwrap">Auto UV Unwrap</li>
       </ul>
     </div>
   </div>

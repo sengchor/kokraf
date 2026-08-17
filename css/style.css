@@ -19,3 +19,34 @@ body, html {
   height: 100%;
   touch-action: none;
 }
+
+.canvas-viewport-wrapper {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.viewport-3d-pane,
+.uv-pane {
+  flex: 1 1 0;
+  min-width: 50px;
+  height: 100%;
+  position: relative;
+}
+
+.uv-pane {
+  background-color: white;
+}
+
+.viewport-split-resizer {
+  flex: 0 0 4px;
+  cursor:col-resize;
+  background-color: #08f;
+  z-index: 10;
+}
+
+.hidden {
+  display: none !important;
+}

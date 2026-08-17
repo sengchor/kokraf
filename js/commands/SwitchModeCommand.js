@@ -40,6 +40,10 @@ export class SwitchModeCommand {
       this.editor.selection.select(object);
       viewportControls.enterEditMode(object);
       this.editor.signals.modeChanged.dispatch('edit');
+    } else if (mode === 'uv') {
+      this.editor.selection.select(object);
+      viewportControls.enterUVMode(object);
+      this.editor.signals.modeChanged.dispatch('uv');
     } else if (mode === 'paint') {
       this.editor.selection.select(object);
       viewportControls.enterPaintMode(object, this.paintMap || 'map');

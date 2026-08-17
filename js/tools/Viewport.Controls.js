@@ -47,10 +47,14 @@ export default class ViewportControls {
     this.objectMenu = document.getElementById('object-menu');
     this.meshMenu = document.getElementById('mesh-menu');
     this.selectMenu = document.getElementById('select-menu');
+    this.uvMenu = document.getElementById('uv-menu');
     this.leftControls = document.getElementById('left-controls-container');
     this.transformControls = document.getElementById('transform-controls');
     this.brushSettings = document.getElementById('brush-settings');
     this.paintTargetDropdown = document.getElementById('paint-map-select');
+    this.uvPane = document.getElementById('uv-pane');
+    this.viewportSplitResizer = document.getElementById('viewport-split-resizer');
+    this.viewport3dPane = document.getElementById('viewport-3d-pane');
 
     if (this.cameraDropdown) {
       this.cameraDropdown.addEventListener('change', (e) => {
@@ -165,22 +169,27 @@ export default class ViewportControls {
       }
 
       if (this.objectMenu) {
-        this.objectMenu.classList.toggle('hidden', newMode === 'edit' || newMode === 'paint');
+        this.objectMenu.classList.toggle('hidden', newMode === 'edit' || newMode === 'uv' || newMode === 'paint');
         this.objectMenu.classList.remove('active');
       }
 
       if (this.meshMenu) {
-        this.meshMenu.classList.toggle('hidden', newMode === 'object' || newMode === 'paint');
+        this.meshMenu.classList.toggle('hidden', newMode === 'object' || newMode === 'uv' || newMode === 'paint');
         this.meshMenu.classList.remove('active');
       }
 
       if (this.selectMenu) {
-        this.selectMenu.classList.toggle('hidden', newMode === 'object' || newMode === 'paint');
+        this.selectMenu.classList.toggle('hidden', newMode === 'object' || newMode === 'uv' || newMode === 'paint');
         this.selectMenu.classList.remove('active');
       }
 
+      if (this.uvMenu) {
+        this.uvMenu.classList.toggle('hidden', newMode !== 'uv');
+        this.uvMenu.classList.remove('active');
+      }
+
       if (this.transformControls) {
-        this.transformControls.classList.toggle('hidden', newMode === 'paint');
+        this.transformControls.classList.toggle('hidden', newMode === 'uv' || newMode === 'paint');
         this.transformControls.classList.remove('active');
       }
 
@@ -193,6 +202,19 @@ export default class ViewportControls {
         this.paintTargetDropdown.classList.toggle('hidden', newMode !== 'paint');
         this.paintTargetDropdown.classList.remove('active');
       }
+
+      if (this.uvPane) {
+        this.uvPane.classList.toggle('hidden', newMode !== 'uv');
+      }
+      if (this.viewportSplitResizer) {
+        this.viewportSplitResizer.classList.toggle('hidden', newMode !== 'uv');
+      }
+
+      if (newMode !== 'uv' && this.viewport3dPane) {
+        this.viewport3dPane.style.flex = ''; 
+      }
+
+      this.signals.layoutChanged.dispatch();
     });
 
     this.signals.switchMode.add((newMode) => {
@@ -279,6 +301,14 @@ export default class ViewportControls {
         }
 
         object = selected[0];
+      } else if (newMode === 'uv') {
+        if (selected.length !== 1) {
+          alert('Please select one mesh to enter UV Mode.');
+          this.interactionDropdown.value = previousMode;
+          return;
+        }
+
+        object = selected[0];
       } else if (newMode === 'paint') {
         if (selected.length !== 1) {
           alert('Please select one mesh to enter Texture Paint.');
@@ -292,6 +322,12 @@ export default class ViewportControls {
       }
     } else {
       object = this.editSelection.editedObject;
+    }
+
+    if (newMode === 'edit' && (!object?.isMesh || object.userData?.isImageRef)) {
+      alert('No mesh selected. Please select a mesh object.');
+      this.interactionDropdown.value = previousMode;
+      return;
     }
 
     if (newMode === 'edit' && (!object?.isMesh || object.userData?.isImageRef)) {
@@ -333,6 +369,26 @@ export default class ViewportControls {
   }
 
   enterEditMode(selectedObject) {
+    this.selection.enable = false;
+    this.editSelection.enable = true;
+
+    this.editSelection.editedObject = selectedObject;
+    this.signals.editSelectionRefresh.dispatch();
+    this.editSelection.clearSelection();
+    this.selection.deselect();
+
+    if (this.texturePainter) {
+      this.texturePainter.detach();
+    }
+
+    this.transformOrientation = this.transformOrientationSelect.value;
+    this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
+    this.signals.objectSelected.dispatch([selectedObject]);
+
+    this.signals.setEditObjectPanel.dispatch(selectedObject);
+  }
+
+  enterUVMode(selectedObject) {
     this.selection.enable = false;
     this.editSelection.enable = true;
 
@@ -457,6 +513,7 @@ export default class ViewportControls {
       [this.objectMenu, this.objectActions],
       [this.meshMenu, this.editActions],
       [this.selectMenu, this.editActions],
+      [this.uvMenu, this.objectActions],
     ]);
 
     document.querySelectorAll('.menu-item').forEach(menuItem => {
@@ -560,6 +617,17 @@ export default class ViewportControls {
         this.selection.select(object);
         this.enterEditMode(object);
         this.signals.modeChanged.dispatch('edit');
+      } else {
+        this.enterObjectMode();
+        this.signals.modeChanged.dispatch('object');
+      }
+    } else if (mode === 'uv' && uuid) {
+      const object = this.editor.objectByUuid(uuid);
+
+      if (object && object.isMesh) {
+        this.selection.select(object);
+        this.enterUVMode(object);
+        this.signals.modeChanged.dispatch('uv');
       } else {
         this.enterObjectMode();
         this.signals.modeChanged.dispatch('object');
