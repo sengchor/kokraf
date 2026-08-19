@@ -59,7 +59,7 @@ export default class PanelResizer {
       rightPanel.style.width = `${newWidth}px`;
       resizer.style.right = `${newWidth}px`;
 
-      this.onWindowResize(false);
+      this.signals.layoutChanged.dispatch(false);
     });
 
     document.addEventListener('mouseup', () => {

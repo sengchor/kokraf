@@ -35,6 +35,7 @@ import { ToolInputDisplay } from './ui/ToolInputDisplay.js';
 import { loadProject } from '/supabase/services/ProjectService.js';
 import { ShortcutLabel } from './core/ShortcutLabel.js';
 import { UVResizer } from './ui/UVResizer.js';
+import { UVEditor } from './uv/UVEditor.js';
 
 export default class Editor {
   constructor() {
@@ -170,6 +171,7 @@ export default class Editor {
     this.panelResizer = new PanelResizer(this);
     this.uvResizer = new UVResizer(this);
     this.contextMenu = new ContextMenu(this);
+    this.uvEditor = new UVEditor(this);
 
     this.clock = new THREE.Clock();
 
