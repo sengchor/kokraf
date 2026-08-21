@@ -38,7 +38,7 @@ export class TexturePainter {
     this.previewMaterial = null;
 
     // Brush
-    this.color = '#ffffff';
+    this.color = '#0099ff';
     this.size = 20;
     this.opacity = 1.0;
     this.hardness = 0.8;
@@ -460,7 +460,7 @@ export class TexturePainter {
   }
 
   resetBrush() {
-    this.color = '#ffffff';
+    this.color = '#0099ff';
     this.size = 20;
     this.opacity = 1.0;
     this.hardness = 0.8;

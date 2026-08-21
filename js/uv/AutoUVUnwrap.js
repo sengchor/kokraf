@@ -1,27 +1,13 @@
 import * as THREE from 'three';
 import earcut from 'earcut';
-import XAtlas from 'xatlas-web';
+import KokrafXAtlas from '/wasm/xatlas.js';
 import { computePlaneNormal, projectTo2D } from '../geometry/TriangulationUtils.js';
 
 let _xatlasModule = null;
 
 async function getXAtlasModule() {
   if (_xatlasModule) return _xatlasModule;
-
-  const wasmUrl = new URL(
-    'https://cdn.jsdelivr.net/npm/xatlas-web@0.1.0/dist/xatlas-web.wasm',
-    import.meta.url
-  ).toString();
-
-  const instance = await XAtlas({
-    locateFile(path) {
-      return path.endsWith('.wasm') ? wasmUrl : path;
-    }
-  });
-
-  _xatlasModule = instance;
-  await _xatlasModule.ready;
-
+  _xatlasModule = await KokrafXAtlas();
   return _xatlasModule;
 }
 
@@ -29,133 +15,160 @@ export class AutoUVUnwrap {
   static async unwrap(meshData) {
     const inputMesh = this._buildInputMesh(meshData);
     const output = await this._runXAtlas(inputMesh);
-
-    this._applyUVsToMeshData(meshData, output, inputMesh.triangleFaceMap);
-
+    this._applyUVsToMeshData(meshData, output, inputMesh);
     return output;
   }
 
   static _buildInputMesh(meshData) {
+    console.log(meshData);
     const positions = [];
-    const indices = [];
-    const triangleFaceMap = [];
-
     const vertexToBufIdx = new Map();
+
     for (const [vId, vertex] of meshData.vertices) {
       vertexToBufIdx.set(vId, positions.length / 3);
       positions.push(vertex.position.x, vertex.position.y, vertex.position.z);
     }
 
+    const indices = [];
+    const faceVertexCount = [];
+    const faceOrder = [];
+    const faceSlotMaps = [];
+
+    for (const face of meshData.faces.values()) {
+      const vIds = face.vertexIds;
+      const slotMap = new Map();
+
+      vIds.forEach((vId, slot) => {
+        const bufIdx = vertexToBufIdx.get(vId);
+        indices.push(bufIdx);
+        slotMap.set(bufIdx, slot);
+      });
+
+      faceVertexCount.push(vIds.length);
+      faceOrder.push(face);
+      faceSlotMaps.push(slotMap);
+    }
+
+    const normalIndices = [];
     for (const face of meshData.faces.values()) {
       const vIds = face.vertexIds;
       const verts = vIds.map(id => meshData.vertices.get(id));
-
       const normal = computePlaneNormal(verts);
       const flat2D = projectTo2D(verts, normal);
       const localTris = earcut(flat2D);
-
       for (let i = 0; i < localTris.length; i += 3) {
-        const s0 = localTris[i], s1 = localTris[i+1], s2 = localTris[i+2];
-        indices.push(
-          vertexToBufIdx.get(vIds[s0]),
-          vertexToBufIdx.get(vIds[s1]),
-          vertexToBufIdx.get(vIds[s2]),
+        normalIndices.push(
+          vertexToBufIdx.get(vIds[localTris[i]]),
+          vertexToBufIdx.get(vIds[localTris[i + 1]]),
+          vertexToBufIdx.get(vIds[localTris[i + 2]]),
         );
-        triangleFaceMap.push({ faceId: face.id, slots: [s0, s1, s2] });
       }
     }
 
-    // Compute smooth normals
     const tmpGeo = new THREE.BufferGeometry();
     tmpGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    tmpGeo.setIndex(indices);
+    tmpGeo.setIndex(normalIndices);
     tmpGeo.computeVertexNormals();
     const normals = new Float32Array(tmpGeo.attributes.normal.array);
     tmpGeo.dispose();
- 
+
     return {
       positions: new Float32Array(positions),
       normals,
       indices: new Uint32Array(indices),
-      triangleFaceMap,
+      faceVertexCount: new Uint32Array(faceVertexCount),
+      faceOrder,
+      faceSlotMaps,
     };
   }
 
   static async _runXAtlas(inputMesh) {
     const xa = await getXAtlasModule();
-  
-    xa.createAtlas();
+    const atlas = new xa.Atlas();
 
-    const vertexCount = inputMesh.positions.length / 3;
-    const indexCount  = inputMesh.indices.length;
+    try {
+      const addResult = atlas.addMesh({
+        positions: inputMesh.positions,
+        normals: inputMesh.normals,
+        indices: inputMesh.indices,
+        faceVertexCount: inputMesh.faceVertexCount,
+      });
 
-    const meshInfo = xa.createMesh(vertexCount, indexCount, true, true);
-  
-    xa.HEAPU16.set(inputMesh.indices, meshInfo.indexOffset / Uint16Array.BYTES_PER_ELEMENT); 
-    xa.HEAPF32.set(inputMesh.positions, meshInfo.positionOffset / Float32Array.BYTES_PER_ELEMENT);
-    xa.HEAPF32.set(inputMesh.normals, meshInfo.normalOffset / Float32Array.BYTES_PER_ELEMENT);
-  
-    xa.addMesh();
-    xa.generateAtlas();
-  
-    const meshData = xa.getMeshData(meshInfo.meshId);
-    const oldPositionArray = inputMesh.positions;
-    const oldNormalArray = inputMesh.normals;
+      if (addResult !== 0) {
+        throw new Error(`xatlas addMesh failed, AddMeshError=${addResult}`);
+      }
 
-    const newPositionArray = new Float32Array(meshData.newVertexCount * 3);
-    const newNormalArray = new Float32Array(meshData.newVertexCount * 3);
-    const newUvArray = new Float32Array(xa.HEAPF32.buffer,meshData.uvOffset,meshData.newVertexCount * 2).slice();
-    const newIndexArray = new Uint32Array(xa.HEAPU32.buffer,meshData.indexOffset,meshData.newIndexCount).slice();
-    const originalIndexArray = new Uint32Array(xa.HEAPU32.buffer,meshData.originalIndexOffset,meshData.newVertexCount).slice();
+      atlas.generate({}, {});
 
-    for (let i = 0; i < meshData.newVertexCount; i++) {
-      const originalIndex = originalIndexArray[i];
-      newPositionArray[i * 3] = oldPositionArray[originalIndex * 3];
-      newPositionArray[i * 3 + 1] = oldPositionArray[originalIndex * 3 + 1];
-      newPositionArray[i * 3 + 2] = oldPositionArray[originalIndex * 3 + 2];
-      newNormalArray[i * 3] = oldNormalArray[originalIndex * 3];
-      newNormalArray[i * 3 + 1] = oldNormalArray[originalIndex * 3 + 1];
-      newNormalArray[i * 3 + 2] = oldNormalArray[originalIndex * 3 + 2];
+      const mesh = atlas.getMesh(0);
+      const atlasInfo = atlas.getAtlasInfo();
+      const width = atlasInfo.width || 1;
+      const height = atlasInfo.height || 1;
+
+      const rawUvs = mesh.uvs;
+      const uvs = new Float32Array(rawUvs.length);
+      for (let i = 0; i < mesh.vertexCount; i++) {
+        uvs[i * 2]     = rawUvs[i * 2] / width;
+        uvs[i * 2 + 1] = rawUvs[i * 2 + 1] / height;
+      }
+
+      const xref = mesh.xref;
+      const positions = new Float32Array(mesh.vertexCount * 3);
+      const normals = new Float32Array(mesh.vertexCount * 3);
+
+      for (let i = 0; i < mesh.vertexCount; i++) {
+        const orig = xref[i];
+        positions.set(inputMesh.positions.subarray(orig * 3, orig * 3 + 3), i * 3);
+        normals.set(inputMesh.normals.subarray(orig * 3, orig * 3 + 3), i * 3);
+      }
+
+      return {
+        positions,
+        normals,
+        uvs,
+        indices: mesh.indexArray,
+        originalVertices: xref,
+        chartIndex: mesh.chartIndex,
+      };
+    } finally {
+      atlas.delete();
     }
-  
-    xa.destroyAtlas();
-    _xatlasModule = null;
-  
-    return {
-      positions: newPositionArray,
-      normals: newNormalArray,
-      uvs: newUvArray,
-      indices: newIndexArray,
-      originalVertices: originalIndexArray,
-    };
   }
 
-  static _applyUVsToMeshData(meshData, output, triangleFaceMap) {
-    const { uvs, indices } = output;
- 
+  static _applyUVsToMeshData(meshData, output, inputMesh) {
+    const { uvs, indices, originalVertices: xref } = output;
+    const { faceOrder, faceSlotMaps } = inputMesh;
+
     meshData.uvs.clear();
- 
     for (const face of meshData.faces.values()) {
       meshData.uvs.set(face.id, new Array(face.vertexIds.length).fill(null));
     }
- 
-    for (let triIdx = 0; triIdx < triangleFaceMap.length; triIdx++) {
-      const { faceId, slots } = triangleFaceMap[triIdx];
-      const faceUVs = meshData.uvs.get(faceId);
-      if (!faceUVs) continue;
- 
-      for (let k = 0; k < 3; k++) {
-        const slot      = slots[k];
-        const outBufIdx = indices[triIdx * 3 + k];
- 
-        faceUVs[slot] = {
-          u: uvs[outBufIdx * 2],
-          v: uvs[outBufIdx * 2 + 1],
-        };
+
+    let indexCursor = 0;
+
+    for (let f = 0; f < faceOrder.length; f++) {
+      const face = faceOrder[f];
+      const slotMap = faceSlotMaps[f];
+      const count = face.vertexIds.length;
+      const faceUVs = meshData.uvs.get(face.id);
+
+      for (let i = 0; i < count; i++) {
+        const outVtx = indices[indexCursor + i];
+        const bufIdx = xref[outVtx];
+        const slot = slotMap.get(bufIdx);
+
+        if (slot !== undefined) {
+          faceUVs[slot] = { 
+            u: uvs[outVtx * 2], 
+            v: uvs[outVtx * 2 + 1] 
+          };
+        }
       }
+
+      indexCursor += count;
     }
- 
-    // Fill any remaining nulls
+
+    // Fallback for unmapped slots
     for (const faceUVs of meshData.uvs.values()) {
       for (let i = 0; i < faceUVs.length; i++) {
         if (faceUVs[i] === null) faceUVs[i] = { u: 0, v: 0 };
