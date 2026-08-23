@@ -16,7 +16,7 @@ export class AutoUVUnwrap {
     const inputMesh = this._buildInputMesh(meshData);
     const output = await this._runXAtlas(inputMesh);
     this._applyUVsToMeshData(meshData, output, inputMesh);
-    return output;
+    return { output, inputMesh };
   }
 
   static _buildInputMesh(meshData) {
@@ -176,14 +176,72 @@ export class AutoUVUnwrap {
     }
   }
 
-  static _buildOutputGeometry(output) {
+  static _buildOutputGeometry(output, inputMesh) {
+    const { positions, normals, uvs, indices } = output;
+    const faceVertexCount = inputMesh.faceVertexCount;
+
+    const triIndices = [];
+    const scratch = [];
+    let cursor = 0;
+
+    for (let f = 0; f < faceVertexCount.length; f++) {
+      const count = faceVertexCount[f];
+
+      if (count < 3) {
+        cursor += count;
+        continue;
+      }
+
+      const corner = indices.subarray(cursor, cursor + count);
+      cursor += count;
+
+      if (count === 3) {
+        triIndices.push(corner[0], corner[1], corner[2]);
+        continue;
+      }
+
+      scratch.length = 0;
+      for (let i = 0; i < count; i++) {
+        const o = corner[i] * 3;
+        scratch.push({
+          position: new THREE.Vector3(
+            positions[o],
+            positions[o + 1],
+            positions[o + 2]
+          )
+        });
+      }
+
+      const normal = computePlaneNormal(scratch);
+      const flat2D = projectTo2D(scratch, normal);
+      const localTris = earcut(flat2D);
+
+      if (localTris.length >= 3) {
+        for (let i = 0; i < localTris.length; i += 3) {
+          triIndices.push(
+            corner[localTris[i]],
+            corner[localTris[i + 1]],
+            corner[localTris[i + 2]]
+          );
+        }
+      } else {
+        for (let i = 1; i < count - 1; i++) {
+          triIndices.push(corner[0], corner[i], corner[i + 1]);
+        }
+      }
+    }
+
+    const vertexCount = positions.length / 3;
+    const IndexArray = vertexCount > 65535 ? Uint32Array : Uint16Array;
+
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(output.positions, 3));
-    geometry.setAttribute('normal',   new THREE.Float32BufferAttribute(output.normals,   3));
-    geometry.setAttribute('uv',       new THREE.Float32BufferAttribute(output.uvs,       2));
-    geometry.setIndex(new THREE.BufferAttribute(output.indices, 1));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('normal',   new THREE.Float32BufferAttribute(normals,   3));
+    geometry.setAttribute('uv',       new THREE.Float32BufferAttribute(uvs,       2));
+    geometry.setIndex(new THREE.BufferAttribute(new IndexArray(triIndices), 1));
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
+
     return geometry;
   }
 

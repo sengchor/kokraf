@@ -48,7 +48,7 @@ export class Loader {
 
         const material = new THREE.MeshStandardMaterial({
           color: 0xcccccc,
-          metalness: 0.5,
+          metalness: 0.2,
           roughness: 0.2,
           side: THREE.DoubleSide
         });
@@ -98,7 +98,7 @@ export class Loader {
 
       const material = new THREE.MeshStandardMaterial({
         color: 0xcccccc,
-        metalness: 0.5,
+        metalness: 0.2,
         roughness: 0.2,
         side: THREE.DoubleSide
       });

@@ -369,9 +369,9 @@ export class ObjectActions {
     }
     const object = objects[0];
 
-    const uvOutput = await AutoUVUnwrap.unwrap(object.userData.meshData);
+    const { output } = await AutoUVUnwrap.unwrap(object.userData.meshData);
 
-    if (!uvOutput?.positions?.length || !uvOutput.indices.length) {
+    if (!output?.positions?.length || !output.indices.length) {
       throw new Error(`UV unwrap failed for "${object.name}".`);
     }
 

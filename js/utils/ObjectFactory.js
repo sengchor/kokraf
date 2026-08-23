@@ -52,7 +52,7 @@ export class ObjectFactory {
 
     const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat" });
     
-    const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5, roughness: 0.2, side: THREE.DoubleSide });
+    const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.2, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -80,7 +80,7 @@ export class ObjectFactory {
         break;
 
       case 'Hemisphere':
-        light = new THREE.HemisphereLight(0xffffff, 0x444444, 7);
+        light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
         break;
 
       case 'Point':

@@ -105,7 +105,7 @@ export class TexturePainter {
 
     this.originalMaterial = object.material || new THREE.MeshStandardMaterial();
     this.previewMaterial = new THREE.MeshStandardMaterial({
-      metalness: 0.5,
+      metalness: 0.2,
       roughness: 0.2,
     });
 
@@ -321,13 +321,13 @@ export class TexturePainter {
     if (AutoUVUnwrap.hasUVs(meshData)){
       bakeGeometry = object.geometry;
     } else {
-      const uvOutput = await AutoUVUnwrap.unwrap(meshData);
+       const { output, inputMesh } = await AutoUVUnwrap.unwrap(meshData);
 
-      if (!uvOutput?.positions?.length || !uvOutput.indices.length) {
+      if (!output?.positions?.length || !output.indices.length) {
         throw new Error(`UV unwrap failed for "${object.name}".`);
       }
 
-      bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
+      bakeGeometry = AutoUVUnwrap._buildOutputGeometry(output, inputMesh);
     }
 
     this.editor.vertexEditor.setObject(object);

@@ -95,7 +95,7 @@ export class ClipboardManager {
       ? new THREE.MaterialLoader().parse(item.materialData)
       : new THREE.MeshStandardMaterial({
         color: 0xcccccc,
-        metalness: 0.5,
+        metalness: 0.2,
         roughness: 0.2,
         side: THREE.DoubleSide,
       });

@@ -283,13 +283,13 @@ export class GenerateTexturePanel {
       bakeGeometry = object.geometry;
       reused = true;
     } else {
-      const uvOutput = await AutoUVUnwrap.unwrap(meshData);
+      const { output, inputMesh } = await AutoUVUnwrap.unwrap(meshData);
 
-      if (!uvOutput?.positions?.length || !uvOutput.indices.length) {
+      if (!output?.positions?.length || !output.indices.length) {
         throw new Error(`UV unwrap failed for "${object.name}".`);
       }
 
-      bakeGeometry = AutoUVUnwrap._buildOutputGeometry(uvOutput);
+      bakeGeometry = AutoUVUnwrap._buildOutputGeometry(output, inputMesh);
     }
 
     this.vertexEditor.setObject(object);
