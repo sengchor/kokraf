@@ -106,6 +106,10 @@ export default class EditSelection {
       this.selectLoops();
     });
 
+    this.signals.uvSelectionChanged.add((uvSelection) => {
+      this.applyUVSelection(uvSelection);
+    });
+
     const dom = this.renderer.domElement;
     dom.addEventListener("mousedown", this.onMouseDown.bind(this));
     dom.addEventListener("mousemove", this.onMouseMove.bind(this));
@@ -1197,6 +1201,22 @@ export default class EditSelection {
       } else {
         this.selectFaces(Array.from(loopFaces));
       }
+    }
+  }
+
+  applyUVSelection(uvSelection) {
+    if (!this.editedObject) return;
+
+    const { vertexIds, edgeIds, faceIds } = uvSelection.toMeshSelection();
+
+    const previousMulti = this.multiSelectEnabled;
+    this.multiSelectEnabled = false;
+    try {
+      if (this.subSelectionMode === 'vertex') this.selectVertices([...vertexIds]);
+      else if (this.subSelectionMode === 'edge') this.selectEdges([...edgeIds]);
+      else this.selectFaces([...faceIds]);
+    } finally {
+      this.multiSelectEnabled = previousMulti;
     }
   }
 }

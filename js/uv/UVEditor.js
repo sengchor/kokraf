@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { UVSelection } from './UVSelection.js';
+import { UVViewportControls } from '../ui/UVViewport.Controls.js';
 
 export class UVEditor {
   constructor(editor) {
@@ -22,6 +23,9 @@ export class UVEditor {
       return;
     }
     this.ctx = this.canvas.getContext('2d');
+
+    this.uvViewportControls = new UVViewportControls(editor);
+    this.syncSelection = false;
 
     this.zoom = 1.0;
     this.pan = { x: 0, y: 0 };
@@ -52,7 +56,8 @@ export class UVEditor {
         resizerEl?.classList.remove('hidden');
 
         this.editedObject = this.editSelection.editedObject;
-        this.uvSelection.clear();
+        this.uvSelection.setMode(this.editSelection.subSelectionMode);
+        this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
         this.resetView();
         this.resizeCanvas();
         this.render();
@@ -73,6 +78,31 @@ export class UVEditor {
 
     this.signals.subSelectionModeChanged.add((newMode) => {
       this.uvSelection.setMode(newMode);
+      this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
+      this.render();
+    });
+
+    this.signals.editSelectionChanged.add((state) => {
+      if (!this.active || !this.syncSelection) return;
+      this.uvSelection.applyMeshSelection(state);
+      this.render();
+    });
+
+    this.signals.editSelectionCleared.add(() => {
+      if (!this.active) return;
+      this.uvSelection.clear();
+      this.render();
+    });
+
+    this.signals.uvSyncSelectionChanged.add((enabled) => {
+      this.syncSelection = enabled;
+      if (!this.active) return;
+
+      if (enabled) {
+        this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
+      } else {
+        this.uvSelection.clear();
+      }
       this.render();
     });
 
@@ -200,7 +230,7 @@ export class UVEditor {
     const sel = this.uvSelection;
     const topo = sel.buildTopology();
 
-     const highlight = sel.getHighlight(topo)
+     const highlight = sel.getHighlight()
 
     // Faces: highlighted when selected in edge mode.
     for (const face of meshData.faces.values()) {
@@ -295,7 +325,7 @@ export class UVEditor {
   }
 
   onMouseMove(e) {
-    if (!this.active || !this.mouseDownPos) return;
+    if (!this.active || (!this.mouseDownPos && !this.isPanning)) return;
 
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);
 
@@ -326,11 +356,16 @@ export class UVEditor {
 
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);
 
-    if (this.dragging) {
-      const { minX, minY, maxX, maxY } = this._getBoxBounds();
-      this.uvSelection.boxSelect(minX, minY, maxX, maxY, e.shiftKey);
-    } else {
-      this.uvSelection.selectAt(mouseX, mouseY, e.shiftKey);
+    if (!this.isPanning) {
+      if (this.dragging) {
+        const { minX, minY, maxX, maxY } = this._getBoxBounds();
+        this.uvSelection.boxSelect(minX, minY, maxX, maxY, e.shiftKey);
+      } else {
+        this.uvSelection.selectAt(mouseX, mouseY, e.shiftKey);
+      }
+      if (this.syncSelection) {
+        this.signals.uvSelectionChanged.dispatch(this.uvSelection);
+      }
     }
 
     this.isPanning = false;
@@ -342,7 +377,7 @@ export class UVEditor {
   }
 
   onWheel(e) {
-    if (!this.active) return;
+    if (!this.active || this.isPanning) return;
     e.preventDefault();
 
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);

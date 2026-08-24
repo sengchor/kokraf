@@ -8,13 +8,13 @@ import Toolbar from './tools/Toolbar.js';
 import Selection from './tools/Selection.js';
 import UIComponentsLoader from './ui/UIComponentsLoader.js';
 import PanelResizer from './ui/PanelResizer.js';
-import { ViewportViewHelper } from './tools/Viewport.ViewHelper.js';
+import { ViewportViewHelper } from './ui/Viewport.ViewHelper.js';
 import Menubar from './ui/Menubar.js';
 import { Signal } from './utils/Signals.js';
 import { ObjectFactory } from './utils/ObjectFactory.js';
 import { History } from './core/History.js';
 import { KeyHandler } from './tools/KeyHandler.js';
-import ViewportControls from './tools/Viewport.Controls.js';
+import ViewportControls from './ui/Viewport.Controls.js';
 import Sidebar from './ui/Sidebar.js';
 import Config from './core/Config.js';
 import { Storage } from './core/Storage.js';
@@ -136,6 +136,9 @@ export default class Editor {
       setPaintObjectPanel: new Signal(),
       
       hdriEnvironmentLoaded: new Signal(),
+
+      uvSelectionChanged: new Signal(),
+      uvSyncSelectionChanged: new Signal(),
     }
 
     this.helpers = {};

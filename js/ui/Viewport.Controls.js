@@ -3,6 +3,7 @@ import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 import { GenerateTexturePanel } from '../panels/GenerateTexturePanel.js';
 import { TexturePainter } from '../texture/TexturePainter.js';
+import { floatingTooltip } from '../ui/FloatingTooltip.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -145,7 +146,7 @@ export default class ViewportControls {
     }
 
     this.setupFloatingMenus();
-    this.setupFloatingTooltips();
+    floatingTooltip.attach(document.querySelector('.viewport-controls'));
   }
 
   setupListeners() {
@@ -451,59 +452,6 @@ export default class ViewportControls {
     }
   }
 
-  setupFloatingTooltips() {
-    this.tooltipEl = document.createElement('div');
-    this.tooltipEl.className = 'floating-tooltip';
-    document.body.appendChild(this.tooltipEl);
-
-    const container = document.querySelector('.viewport-controls');
-    if (!container) return;
-
-    container.addEventListener('mouseover', (e) => {
-      const target = e.target.closest('[data-tooltip]');
-      if (!target) return;
-
-      if (target.classList.contains('menu-item') && target.classList.contains('active')) {
-        return;
-      }
-
-      if (target.querySelector('select:focus')) return;
-
-      this.showTooltip(target);
-    });
-
-    container.addEventListener('mouseout', (e) => {
-      const target = e.target.closest('[data-tooltip]');
-      if (!target) return;
-      if (target.contains(e.relatedTarget)) return;
-      this.hideTooltip();
-    });
-
-    container.addEventListener('scroll', () => this.hideTooltip());
-
-    container.addEventListener('focusin', (e) => {
-      if (e.target.tagName === 'SELECT') this.hideTooltip();
-    });
-  }
-
-  showTooltip(target) {
-    if (this.menuOverlay.style.display === 'block') return;
-    this.tooltipEl.textContent = target.getAttribute('data-tooltip');
-
-    const rect = target.getBoundingClientRect();
-    const top = rect.bottom + 8;
-    const left = rect.left + rect.width / 2;
-
-    this.tooltipEl.style.top = `${top}px`;
-    this.tooltipEl.style.left = `${left}px`;
-    this.tooltipEl.style.transform = 'translateX(-50%)';
-    this.tooltipEl.classList.add('visible');
-  }
-
-  hideTooltip() {
-    this.tooltipEl.classList.remove('visible');
-  }
-
   setupFloatingMenus() {
     this.menuOverlay = document.createElement('div');
     this.menuOverlay.className = 'floating-menu-overlay';
@@ -519,7 +467,7 @@ export default class ViewportControls {
     document.querySelectorAll('.menu-item').forEach(menuItem => {
       menuItem.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.hideTooltip();
+        floatingTooltip.hide();
 
         const rect = menuItem.getBoundingClientRect();
         this.menuOverlay.style.left = `${rect.left}px`;
@@ -584,6 +532,8 @@ export default class ViewportControls {
 
       this.menuOverlay.style.display = 'none';
     });
+
+    floatingTooltip.addBlocker(() => this.menuOverlay.style.display === 'block');
   }
 
   toJSON() {

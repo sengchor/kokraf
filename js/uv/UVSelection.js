@@ -356,13 +356,88 @@ export class UVSelection {
       }
     }
  
+    if (this.mode === 'face') {
+      const meshData = this.getMeshData();
+      if (!meshData) return;
+      for (const face of meshData.faces.values()) {
+        const faceUVs = meshData.uvs.get(face.id);
+        if (!this.isFaceUVComplete(face, faceUVs)) continue;
+        const screenPoints = faceUVs.map(uv => this.uvToScreen(uv.u, uv.v));
+        if (screenPoints.every(inBox)) this.faces.add(face.id);
+      }
+    }
+
+    this.resolveFromMode(topo);
+  }
+
+  // Mesh <-> UV translation
+  _vertexPairKey(a, b) {
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+  }
+
+  _buildMeshEdgeLookup(meshData) {
+    const lookup = new Map();
+    for (const edge of meshData.edges.values()) {
+      lookup.set(this._vertexPairKey(edge.v1Id, edge.v2Id), edge.id);
+    }
+    return lookup;
+  }
+
+  toMeshSelection(topo = this.buildTopology()) {
+    const vertexIds = new Set();
+    const edgeIds = new Set();
+    const faceIds = new Set(this.faces);
+
+    this.meshData = this.getMeshData();
+    if (!this.meshData) return { vertexIds, edgeIds, faceIds };
+
+    for (const key of this.vertices) {
+      const point = topo.pointsByKey.get(key);
+      if (point) vertexIds.add(point.vertexId);
+    }
+
+    const edgeLookup = this._buildMeshEdgeLookup(this.meshData);
+    for (const key of this.edges) {
+      const edge = topo.edgesByKey.get(key);
+      if (!edge) continue;
+
+      const a = topo.pointsByKey.get(edge.aKey);
+      const b = topo.pointsByKey.get(edge.bKey);
+      if (!a || !b) continue;
+
+      const id = edgeLookup.get(this._vertexPairKey(a.vertexId, b.vertexId));
+      if (id !== undefined) edgeIds.add(id);
+    }
+
+    return { vertexIds, edgeIds, faceIds };
+  }
+
+  applyMeshSelection(state, topo = this.buildTopology()) {
+    this.clear();
+    
     const meshData = this.getMeshData();
-    if (!meshData) return;
-    for (const face of meshData.faces.values()) {
-      const faceUVs = meshData.uvs.get(face.id);
-      if (!this.isFaceUVComplete(face, faceUVs)) continue;
-      const screenPoints = faceUVs.map(uv => this.uvToScreen(uv.u, uv.v));
-      if (screenPoints.every(inBox)) this.faces.add(face.id);
+    if (!meshData || !state) return;
+
+    const { selectedVertexIds, selectedEdgeIds, selectedFaceIds } = state;
+
+    if (this.mode === 'vertex') {
+      for (const point of topo.points) {
+        if (selectedVertexIds.has(point.vertexId)) this.vertices.add(point.key);
+      }
+    } else if (this.mode === 'edge') {
+      const edgeLookup = this._buildMeshEdgeLookup(meshData);
+      for (const edge of topo.edges) {
+        const a = topo.pointsByKey.get(edge.aKey);
+        const b = topo.pointsByKey.get(edge.bKey);
+        if (!a || !b) continue;
+
+        const id = edgeLookup.get(this._vertexPairKey(a.vertexId, b.vertexId));
+        if (id !== undefined && selectedEdgeIds.has(id)) this.edges.add(edge.key);
+      }
+    } else {
+      for (const faceId of selectedFaceIds) {
+        if (topo.faceCornerKeys.has(faceId)) this.faces.add(faceId);
+      }
     }
 
     this.resolveFromMode(topo);

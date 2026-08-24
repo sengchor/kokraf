@@ -89,6 +89,7 @@
     <link rel="stylesheet" href="css/dropdown.css" />
     <link rel="stylesheet" href="css/generate-texture-panel.css" />
     <link rel="stylesheet" href="css/panel-container.css" />
+    <link rel="stylesheet" href="css/uv-controls.css" />
 
     <script type="importmap">
       {
@@ -116,15 +117,16 @@
         <div class="canvas-viewport-wrapper" id="canvas-viewport-wrapper">
           <div class="viewport-3d-pane" id="viewport-3d-pane">
             <canvas id="three-canvas"></canvas>
+            <div id="toolbar-container"></div>
+            <div id="viewport-controls-container"></div>
           </div>
           <div class="viewport-split-resizer hidden" id="viewport-split-resizer"></div>
           <div class="uv-pane hidden" id="uv-pane">
             <canvas id="uv-canvas"></canvas>
+            <div id="uv-controls-container"></div>
           </div>
         </div>
         
-        <div id="toolbar-container"></div>
-        <div id="viewport-controls-container"></div> 
         <div id="properties-panel-container" class="panel-container"></div>
         <div id="operator-panel-container" class="panel-container"></div>
         <div id="viewHelper"></div>
