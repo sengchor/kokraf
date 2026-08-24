@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { UVSelection } from './UVSelection.js';
 
 export class UVEditor {
   constructor(editor) {
@@ -6,6 +7,14 @@ export class UVEditor {
     this.signals = editor.signals;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
+
+    this.active = false;
+    this.editedObject = null;
+
+    this.uvSelection = new UVSelection({
+      getMeshData: () => this.getMeshData(),
+      uvToScreen: (u, v) => this.uvToScreen(u, v)
+    });
 
     this.canvas = document.getElementById('uv-canvas');
     if (!this.canvas) {
@@ -18,14 +27,6 @@ export class UVEditor {
     this.pan = { x: 0, y: 0 };
     this.isPanning = false;
     this.panStart = { x: 0, y: 0 };
-
-    this.active = false;
-    this.editedObject = null;
-
-    this.selectMode = 'vertex';
-    this.selectedVertices = new Set();
-    this.selectedEdges = new Set();
-    this.selectedFaces = new Set();
 
     this.isBoxSelecting = false;
     this.boxStart = { x: 0, y: 0 };
@@ -51,14 +52,14 @@ export class UVEditor {
         resizerEl?.classList.remove('hidden');
 
         this.editedObject = this.editSelection.editedObject;
-        this.clearSelection();
+        this.uvSelection.clear();
         this.resetView();
         this.resizeCanvas();
         this.render();
       } else {
         this.canvas.parentElement.classList.add('hidden');
         resizerEl?.classList.add('hidden');
-        this.clearSelection();
+        this.uvSelection.clear();
       }
     });
 
@@ -68,6 +69,11 @@ export class UVEditor {
         this.resizeCanvas();
         this.render();
       }
+    });
+
+    this.signals.subSelectionModeChanged.add((newMode) => {
+      this.uvSelection.setMode(newMode);
+      this.render();
     });
 
     this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
@@ -139,113 +145,7 @@ export class UVEditor {
     return this.editedObject?.userData?.meshData || null;
   }
 
-  _isFaceUVComplete(face, faceUVs) {
-    if (!faceUVs || faceUVs.length !== face.vertexIds.length) return false;
-    for (const uv of faceUVs) {
-      if (!uv || !Number.isFinite(uv.u) || !Number.isFinite(uv.v)) return false;
-    }
-    return true;
-  }
-
-  // Selection state
-
-  setSelectMode(mode) {
-    if (!['vertex', 'edge', 'face'].includes(mode) || mode === this.selectMode) return;
-    this.selectMode = mode;
-    this.render();
-  }
-
-  clearSelection() {
-    this.selectedVertices.clear();
-    this.selectedEdges.clear();
-    this.selectedFaces.clear();
-  }
-
-  getActiveSelectionSet() {
-    if (this.selectMode === 'edge') return this.selectedEdges;
-    if (this.selectMode === 'face') return this.selectedFaces;
-    return this.selectedVertices;
-  }
-
-  // UV topology
-  _buildUVTopology(epsilon = 1e-5) {
-    const meshData = this.getMeshData();
-    const empty = { points: [], pointsByKey: new Map(), cornerToPointKey: new Map(), edges: [], edgesByKey: new Map() };
-    if (!meshData) return empty;
-
-    const byVertex = new Map();
-    for (const face of meshData.faces.values()) {
-      const faceUVs = meshData.uvs.get(face.id);
-      if (!this._isFaceUVComplete(face, faceUVs)) continue;
-
-      for (let i = 0; i < faceUVs.length; i++) {
-        const vertexId = face.vertexIds[i];
-        if (!byVertex.has(vertexId)) byVertex.set(vertexId, []);
-        byVertex.get(vertexId).push({ faceId: face.id, corner: i, u: faceUVs[i].u, v: faceUVs[i].v });
-      }
-    }
-
-    const points = [];
-    const cornerToPointKey = new Map();
-
-    for (const [vertexId, corners] of byVertex) {
-      const clusters = [];
-
-      for (const c of corners) {
-        let cluster = clusters.find(
-          cl => Math.abs(cl.u - c.u) <= epsilon && Math.abs(cl.v - c.v) <= epsilon
-        );
-        if (!cluster) {
-          cluster = { u: c.u, v: c.v, corners: [] };
-          clusters.push(cluster);
-        }
-        cluster.corners.push(c);
-      }
-
-      for (const cluster of clusters) {
-        const key = `${vertexId}_${cluster.u.toFixed(5)}_${cluster.v.toFixed(5)}`;
-        points.push({ key, vertexId, u: cluster.u, v: cluster.v, corners: cluster.corners });
-        for (const c of cluster.corners) {
-          cornerToPointKey.set(`${c.faceId}_${c.corner}`, key);
-        }
-      }
-    }
-
-    const pointsByKey = new Map(points.map(p => [p.key, p]));
-
-    const edgesByKey = new Map();
-    for (const face of meshData.faces.values()) {
-      const faceUVs = meshData.uvs.get(face.id);
-      if (!this._isFaceUVComplete(face, faceUVs)) continue;
-
-      const n = face.vertexIds.length;
-      for (let i = 0; i < n; i++) {
-        const j = (i + 1) % n;
-        const keyA = cornerToPointKey.get(`${face.id}_${i}`);
-        const keyB = cornerToPointKey.get(`${face.id}_${j}`);
-        if (!keyA || !keyB) continue;
-
-        const edgeKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
-        let edge = edgesByKey.get(edgeKey);
-        if (!edge) {
-          edge = { key: edgeKey, aKey: keyA, bKey: keyB, faceIds: new Set() };
-          edgesByKey.set(edgeKey, edge);
-        }
-        edge.faceIds.add(face.id);
-      }
-    }
-
-    return { points, pointsByKey, cornerToPointKey, edges: Array.from(edgesByKey.values()), edgesByKey };
-  }
-
-  getUVPoints() {
-    return this._buildUVTopology().points;
-  }
-
-  getUVEdges() {
-    return this._buildUVTopology().edges;
-  }
-
+  // Rendering
   render() {
     if (!this.active) return;
 
@@ -297,15 +197,18 @@ export class UVEditor {
     const meshData = this.getMeshData();
     if (!meshData) return;
 
-    const topo = this._buildUVTopology();
+    const sel = this.uvSelection;
+    const topo = sel.buildTopology();
+
+     const highlight = sel.getHighlight(topo)
 
     // Faces: highlighted when selected in edge mode.
     for (const face of meshData.faces.values()) {
       const faceUVs = meshData.uvs.get(face.id);
-      if (!this._isFaceUVComplete(face, faceUVs)) continue;
+      if (!sel.isFaceUVComplete(face, faceUVs)) continue;
 
       const screenPoints = faceUVs.map(uv => this.uvToScreen(uv.u, uv.v));
-      const isSelected = this.selectMode === 'face' && this.selectedFaces.has(face.id);
+      const isSelected = highlight.faces.has(face.id);
 
       this.ctx.beginPath();
       this.ctx.moveTo(screenPoints[0].x, screenPoints[0].y);
@@ -314,7 +217,7 @@ export class UVEditor {
       }
       this.ctx.closePath();
 
-      this.ctx.fillStyle = isSelected ? 'rgba(255, 165, 0, 0.35)' : 'rgba(255, 255, 255, 0.12)';
+      this.ctx.fillStyle = isSelected ? 'rgba(255, 255, 150, 0.35)' : 'rgba(255, 255, 255, 0.15)';
       this.ctx.fill();
     }
 
@@ -326,124 +229,57 @@ export class UVEditor {
 
       const pa = this.uvToScreen(a.u, a.v);
       const pb = this.uvToScreen(b.u, b.v);
-      const isSelected = this.selectMode === 'edge' && this.selectedEdges.has(edge.key);
+      const isSelected = highlight.edges.has(edge.key);
 
       this.ctx.beginPath();
       this.ctx.moveTo(pa.x, pa.y);
       this.ctx.lineTo(pb.x, pb.y);
-      this.ctx.strokeStyle = isSelected ? '#FFD800' : 'rgba(200, 200, 200, 0.7)';
-      this.ctx.lineWidth = isSelected ? 2.5 : 1.5;
+      this.ctx.strokeStyle = isSelected ? '#ffffff' : 'rgba(200, 200, 200, 0.7)';
       this.ctx.stroke();
     }
 
     // Points: highlighted when selected in vertex mode.
-    for (const point of topo.points) {
-      const p = this.uvToScreen(point.u, point.v);
-      const isSelected = this.selectMode === 'vertex' && this.selectedVertices.has(point.key);
+    if (sel.mode === 'vertex') {
+      for (const point of topo.points) {
+        const p = this.uvToScreen(point.u, point.v);
+        const isSelected = highlight.points.has(point.key);
 
-      this.ctx.fillStyle = isSelected ? '#ffffff' : '#a1a1a1';
-      this.ctx.fillRect(p.x - 5 / 2, p.y - 5 / 2, 5, 5);
+        this.ctx.fillStyle = isSelected ? '#ffffff' : '#a1a1a1';
+        this.ctx.fillRect(p.x - 5 / 2, p.y - 5 / 2, 5, 5);
+      }
     }
   }
 
   drawSelectionBox() {
-    const x = Math.min(this.boxStart.x, this.boxEnd.x);
-    const y = Math.min(this.boxStart.y, this.boxEnd.y);
-    const w = Math.abs(this.boxEnd.x - this.boxStart.x);
-    const h = Math.abs(this.boxEnd.y - this.boxStart.y);
+    const { minX, minY, maxX, maxY } = this._getBoxBounds();
 
     this.ctx.strokeStyle = '#FFD800';
     this.ctx.fillStyle = 'rgba(255, 216, 0, 0.18)';
     this.ctx.lineWidth = 1;
-    this.ctx.strokeRect(x, y, w, h);
-    this.ctx.fillRect(x, y, w, h);
+    this.ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+    this.ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
     this.ctx.setLineDash([]);
   }
 
-  // Hit testing
-  hitTestPoint(x, y, points, radius = 8) {
-    for (const point of points) {
-      const p = this.uvToScreen(point.u, point.v);
-      const dx = x - p.x;
-      const dy = y - p.y;
-      if (dx * dx + dy * dy <= radius * radius) return point.key;
-    }
-    return null;
+  _getBoxBounds() {
+    return {
+      minX: Math.min(this.boxStart.x, this.boxEnd.x),
+      minY: Math.min(this.boxStart.y, this.boxEnd.y),
+      maxX: Math.max(this.boxStart.x, this.boxEnd.x),
+      maxY: Math.max(this.boxStart.y, this.boxEnd.y)
+    };
   }
 
-  _distanceToSegment(px, py, ax, ay, bx, by) {
-    const abx = bx - ax, aby = by - ay;
-    const apx = px - ax, apy = py - ay;
-    const abLenSq = abx * abx + aby * aby;
-    let t = abLenSq > 0 ? (apx * abx + apy * aby) / abLenSq : 0;
-    t = Math.max(0, Math.min(1, t));
-    const cx = ax + t * abx, cy = ay + t * aby;
-    const dx = px - cx, dy = py - cy;
-    return Math.sqrt(dx * dx + dy * dy);
+  // Interaction
+  _getMousePosition(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
-  hitTestEdge(x, y, edges, pointsByKey, radius = 6) {
-    let closestKey = null;
-    let closestDist = radius;
-
-    for (const edge of edges) {
-      const a = pointsByKey.get(edge.aKey);
-      const b = pointsByKey.get(edge.bKey);
-      if (!a || !b) continue;
-
-      const pa = this.uvToScreen(a.u, a.v);
-      const pb = this.uvToScreen(b.u, b.v);
-      const dist = this._distanceToSegment(x, y, pa.x, pa.y, pb.x, pb.y);
-
-      if (dist <= closestDist) {
-        closestDist = dist;
-        closestKey = edge.key;
-      }
-    }
-    return closestKey;
-  }
-
-  _pointInPolygon(x, y, screenPoints) {
-    let inside = false;
-    for (let i = 0, j = screenPoints.length - 1; i < screenPoints.length; j = i++) {
-      const xi = screenPoints[i].x, yi = screenPoints[i].y;
-      const xj = screenPoints[j].x, yj = screenPoints[j].y;
-      const intersect = ((yi > y) !== (yj > y)) &&
-        (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  }
-
-  hitTestFace(x, y) {
-    const meshData = this.getMeshData();
-    if (!meshData) return null;
-
-    for (const face of meshData.faces.values()) {
-      const faceUVs = meshData.uvs.get(face.id);
-      if (!this._isFaceUVComplete(face, faceUVs)) continue;
-
-      const screenPoints = faceUVs.map(uv => this.uvToScreen(uv.u, uv.v));
-      if (this._pointInPolygon(x, y, screenPoints)) return face.id;
-    }
-    return null;
-  }
-
-  hitTestActive(x, y) {
-    const topo = this._buildUVTopology();
-
-    if (this.selectMode === 'edge') return this.hitTestEdge(x, y, topo.edges, topo.pointsByKey);
-    if (this.selectMode === 'face') return this.hitTestFace(x, y);
-    return this.hitTestPoint(x, y, topo.points);
-  }
-
-  // Interaction & Event Handling
   onMouseDown(e) {
     if (!this.active) return;
 
-    const rect = this.canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const { x: mouseX, y: mouseY } = this._getMousePosition(e);
 
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       this.isPanning = true;
@@ -452,31 +288,16 @@ export class UVEditor {
     }
 
     if (e.button === 0) {
-      const hitKey = this.hitTestActive(mouseX, mouseY);
-      const selection = this.getActiveSelectionSet();
-
-      if (hitKey !== null) {
-        if (!e.shiftKey && !selection.has(hitKey)) {
-          selection.clear();
-        }
-        selection.add(hitKey);
-      } else {
-        if (!e.shiftKey) selection.clear();
-        this.isBoxSelecting = true;
-        this.boxStart = { x: mouseX, y: mouseY };
-        this.boxEnd = { x: mouseX, y: mouseY };
-      }
-
-      this.render();
+      this.dragging = false;
+      this.mouseDownPos = { x: e.clientX, y: e.clientY };
+      this.boxStart = { x: mouseX, y: mouseY };
     }
   }
 
   onMouseMove(e) {
-    if (!this.active) return;
+    if (!this.active || !this.mouseDownPos) return;
 
-    const rect = this.canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const { x: mouseX, y: mouseY } = this._getMousePosition(e);
 
     if (this.isPanning) {
       this.pan.x = mouseX - this.panStart.x;
@@ -485,16 +306,38 @@ export class UVEditor {
       return;
     }
 
-    if (this.isBoxSelecting) {
+    const dx = e.clientX - this.mouseDownPos.x;
+    const dy = e.clientY - this.mouseDownPos.y;
+    const dragThreshold = 5;
+
+    if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
+      this.dragging = true;
+    }
+
+    if (this.dragging) {
+      this.isBoxSelecting = true;
       this.boxEnd = { x: mouseX, y: mouseY };
-      this.updateBoxSelection();
       this.render();
     }
   }
 
-  onMouseUp() {
+  onMouseUp(e) {
+    if (!this.mouseDownPos && !this.isPanning) return;
+
+    const { x: mouseX, y: mouseY } = this._getMousePosition(e);
+
+    if (this.dragging) {
+      const { minX, minY, maxX, maxY } = this._getBoxBounds();
+      this.uvSelection.boxSelect(minX, minY, maxX, maxY, e.shiftKey);
+    } else {
+      this.uvSelection.selectAt(mouseX, mouseY, e.shiftKey);
+    }
+
     this.isPanning = false;
+    this.dragging = false;
     this.isBoxSelecting = false;
+    this.mouseDownPos = null;
+
     this.render();
   }
 
@@ -502,9 +345,7 @@ export class UVEditor {
     if (!this.active) return;
     e.preventDefault();
 
-    const rect = this.canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const { x: mouseX, y: mouseY } = this._getMousePosition(e);
 
     const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
 
@@ -513,39 +354,5 @@ export class UVEditor {
     this.zoom *= zoomFactor;
 
     this.render();
-  }
-
-  updateBoxSelection() {
-    const minX = Math.min(this.boxStart.x, this.boxEnd.x);
-    const maxX = Math.max(this.boxStart.x, this.boxEnd.x);
-    const minY = Math.min(this.boxStart.y, this.boxEnd.y);
-    const maxY = Math.max(this.boxStart.y, this.boxEnd.y);
-    const inBox = (p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
-
-    if (this.selectMode === 'vertex') {
-      const topo = this._buildUVTopology();
-      for (const point of topo.points) {
-        if (inBox(this.uvToScreen(point.u, point.v))) this.selectedVertices.add(point.key);
-      }
-    } else if (this.selectMode === 'edge') {
-      const topo = this._buildUVTopology();
-      for (const edge of topo.edges) {
-        const a = topo.pointsByKey.get(edge.aKey);
-        const b = topo.pointsByKey.get(edge.bKey);
-        if (!a || !b) continue;
-        const pa = this.uvToScreen(a.u, a.v);
-        const pb = this.uvToScreen(b.u, b.v);
-        if (inBox(pa) && inBox(pb)) this.selectedEdges.add(edge.key);
-      }
-    } else if (this.selectMode === 'face') {
-      const meshData = this.getMeshData();
-      if (!meshData) return;
-      for (const face of meshData.faces.values()) {
-        const faceUVs = meshData.uvs.get(face.id);
-        if (!this._isFaceUVComplete(face, faceUVs)) continue;
-        const screenPoints = faceUVs.map(uv => this.uvToScreen(uv.u, uv.v));
-        if (screenPoints.every(inBox)) this.selectedFaces.add(face.id);
-      }
-    }
   }
 }

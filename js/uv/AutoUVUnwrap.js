@@ -20,7 +20,6 @@ export class AutoUVUnwrap {
   }
 
   static _buildInputMesh(meshData) {
-    console.log(meshData);
     const positions = [];
     const vertexToBufIdx = new Map();
 
