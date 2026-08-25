@@ -218,4 +218,130 @@ export class VertexTopologyUtils {
 
     return target.id;
   }
+
+  mergeByDistance(vertexIds, threshold = 0.0001, mode = 'center') {
+    if (!this.meshData || !Array.isArray(vertexIds)) return [];
+
+    const vertices = vertexIds
+      .map((id) => this.meshData.getVertex(id))
+      .filter((v) => v);
+
+    if (vertices.length < 2) return vertices.map((v) => v.id);
+
+    const roots = VertexTopologyUtils.clusterByDistance(vertices, threshold);
+
+    // Group by root
+    const clusters = new Map();
+    for (const v of vertices) {
+      const root = roots.get(v.id);
+      let group = clusters.get(root);
+      if (!group) clusters.set(root, (group = []));
+      group.push(v.id);
+    }
+
+    // Merge each cluster — clusters are disjoint, so the passes don't interfere
+    const targetIds = [];
+    const mergedTargetIds = [];
+
+    for (const group of clusters.values()) {
+      if (group.length === 1) {
+        targetIds.push(group[0]);
+        continue;
+      }
+
+      const targetId = this.mergeVertices(group, mode);
+      if (targetId != null) {
+        targetIds.push(targetId);
+        mergedTargetIds.push(targetId);
+      }
+    }
+
+    if (mergedTargetIds.length) {
+      this.removeDuplicateFaces(mergedTargetIds);
+    }
+
+    return targetIds;
+  }
+
+  removeDuplicateFaces(vertexIds) {
+    const faceIds = new Set();
+
+    for (const vid of vertexIds) {
+      const v = this.meshData.getVertex(vid);
+      if (v) v.faceIds.forEach((fid) => faceIds.add(fid));
+    }
+
+    const seen = new Set();
+
+    for (const fid of faceIds) {
+      const face = this.meshData.faces.get(fid);
+      if (!face) continue;
+
+      const key = [...new Set(face.vertexIds)].sort((a, b) => a - b).join('_');
+
+      if (seen.has(key)) this.vertexEditor.deleteFace(face);
+      else seen.add(key);
+    }
+  }
+
+  static clusterByDistance(items, threshold, getPosition = (it) => it.position) {
+    const cell = Math.max(threshold, 1e-9);
+    const grid = new Map();
+
+    const cellOf = (p) => [
+      Math.floor(p.x / cell),
+      Math.floor(p.y / cell),
+      Math.floor(p.z / cell),
+    ];
+
+    for (const item of items) {
+      const [cx, cy, cz] = cellOf(getPosition(item));
+      const key = `${cx},${cy},${cz}`;
+      let bucket = grid.get(key);
+      if (!bucket) grid.set(key, (bucket = []));
+      bucket.push(item);
+    }
+
+    const parent = new Map(items.map((it) => [it.id, it.id]));
+
+    const find = (id) => {
+      while (parent.get(id) !== id) {
+        parent.set(id, parent.get(parent.get(id)));
+        id = parent.get(id);
+      }
+      return id;
+    };
+
+    const t2 = threshold * threshold;
+
+    for (const item of items) {
+      const p = getPosition(item);
+      const [cx, cy, cz] = cellOf(p);
+
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            const bucket = grid.get(`${cx + dx},${cy + dy},${cz + dz}`);
+            if (!bucket) continue;
+
+            for (const other of bucket) {
+              if (other.id <= item.id) continue;
+
+              const q = getPosition(other);
+              const ax = p.x - q.x, ay = p.y - q.y, az = p.z - q.z;
+
+              if (ax * ax + ay * ay + az * az <= t2) {
+                const a = find(item.id), b = find(other.id);
+                if (a !== b) parent.set(b, a);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const roots = new Map();
+    for (const item of items) roots.set(item.id, find(item.id));
+    return roots;
+  }
 }

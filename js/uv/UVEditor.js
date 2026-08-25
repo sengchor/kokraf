@@ -77,8 +77,11 @@ export class UVEditor {
     });
 
     this.signals.subSelectionModeChanged.add((newMode) => {
-      this.uvSelection.setMode(newMode);
-      this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
+      if (!this.uvSelection.setMode(newMode)) return;
+
+      if (this.syncSelection) {
+        this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
+      }
       this.render();
     });
 

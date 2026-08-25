@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import earcut from 'earcut';
 import KokrafXAtlas from '/wasm/xatlas.js';
 import { computePlaneNormal, projectTo2D } from '../geometry/TriangulationUtils.js';
+import { VertexTopologyUtils } from '../vertex/VertexTopologyUtils.js';
 
 let _xatlasModule = null;
 
@@ -19,13 +20,25 @@ export class AutoUVUnwrap {
     return { output, inputMesh };
   }
 
-  static _buildInputMesh(meshData) {
+  static _buildInputMesh(meshData, weldThreshold = 1e-4) {
     const positions = [];
     const vertexToBufIdx = new Map();
+    const rootToBufIdx = new Map();
+
+    const weldRoots = VertexTopologyUtils.clusterByDistance([...meshData.vertices.values()], weldThreshold);
 
     for (const [vId, vertex] of meshData.vertices) {
-      vertexToBufIdx.set(vId, positions.length / 3);
-      positions.push(vertex.position.x, vertex.position.y, vertex.position.z);
+      const root = weldRoots.get(vId);
+      let bufIdx = rootToBufIdx.get(root);
+
+      if (bufIdx === undefined) {
+        bufIdx = positions.length / 3;
+        rootToBufIdx.set(root, bufIdx);
+        const rep = meshData.vertices.get(root);
+        positions.push(rep.position.x, rep.position.y, rep.position.z);
+      }
+
+      vertexToBufIdx.set(vId, bufIdx);
     }
 
     const indices = [];
@@ -35,10 +48,13 @@ export class AutoUVUnwrap {
 
     for (const face of meshData.faces.values()) {
       const vIds = face.vertexIds;
-      const slotMap = new Map();
+      const bufIdxs = vIds.map((vId) => vertexToBufIdx.get(vId));
 
-      vIds.forEach((vId, slot) => {
-        const bufIdx = vertexToBufIdx.get(vId);
+      // Welding can collapse corners onto each other — xatlas rejects degenerates
+      if (new Set(bufIdxs).size < 3) continue;
+
+      const slotMap = new Map();
+      bufIdxs.forEach((bufIdx, slot) => {
         indices.push(bufIdx);
         slotMap.set(bufIdx, slot);
       });
@@ -49,12 +65,13 @@ export class AutoUVUnwrap {
     }
 
     const normalIndices = [];
-    for (const face of meshData.faces.values()) {
+    for (const face of faceOrder) {
       const vIds = face.vertexIds;
-      const verts = vIds.map(id => meshData.vertices.get(id));
+      const verts = vIds.map((id) => meshData.vertices.get(id));
       const normal = computePlaneNormal(verts);
       const flat2D = projectTo2D(verts, normal);
       const localTris = earcut(flat2D);
+
       for (let i = 0; i < localTris.length; i += 3) {
         normalIndices.push(
           vertexToBufIdx.get(vIds[localTris[i]]),

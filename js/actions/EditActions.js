@@ -107,7 +107,10 @@ export class EditActions {
     this.signals.createElementFromVertices.add(() => this.createElementFromVertices());
     this.signals.deleteSelectedFaces.add((action) => this.deleteSelected(action));
     this.signals.separateSelection.add(() => this.separateSelection());
-    this.signals.mergeSelection.add((action) => this.mergeSelection(action));
+    this.signals.mergeSelection.add((action) => {
+      if (action === 'merge-by-distance') this.mergeByDistance();
+      else this.mergeSelection(action);
+    });
     this.signals.splitSelection.add(() => this.splitSelection());
     this.signals.editFlipNormals.add(() => this.flipSelectedFacesNormal());
     this.signals.subdivideSelection.add(() => this.subdivideSelection());
@@ -325,14 +328,29 @@ export class EditActions {
   }
 
   mergeSelection(action) {
-    const editedObject = this.editSelection.editedObject
-    const meshData = editedObject.userData.meshData;
-    
-    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
-    if (!selectedVertexIds || selectedVertexIds.length < 2) return;
-
     const mode = action?.startsWith('merge-at-')
       ? action.slice('merge-at-'.length) : 'center';
+
+    return this.runMerge((vertexIds) => {
+      const targetId = this.vertexEditor.topology.mergeVertices(vertexIds, mode);
+      return targetId != null ? [targetId] : [];
+    });
+  }
+
+  mergeByDistance(threshold = 0.001) {
+    return this.runMerge((vertexIds) =>
+      this.vertexEditor.topology.mergeByDistance(vertexIds, threshold)
+    );
+  }
+
+  runMerge(mergeFn) {
+    const editedObject = this.editSelection.editedObject;
+    if (!editedObject) return 0;
+
+    const meshData = editedObject.userData.meshData;
+
+    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
+    if (selectedVertexIds.length < 2) return 0;
 
     this.vertexEditor.setObject(editedObject);
 
@@ -347,17 +365,24 @@ export class EditActions {
       startVertexId: meshData.nextVertexId,
       startEdgeId: meshData.nextEdgeId,
       startFaceId: meshData.nextFaceId,
-    }
+    };
 
-    const targetVertexId = this.vertexEditor.topology.mergeVertices(selectedVertexIds, mode);
+    const targetIds = mergeFn(selectedVertexIds) ?? [];
+
+    const removed = selectedVertexIds.length - targetIds.length;
+    if (removed <= 0) return 0;
 
     MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    this.editor.execute(new MergeSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot));
+    this.editor.execute(
+      new MergeSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot)
+    );
 
-    this.editSelection.selectVertices(targetVertexId);
+    this.editSelection.selectVertices(...targetIds);
+
+    return removed;
   }
 
   splitSelection() {
