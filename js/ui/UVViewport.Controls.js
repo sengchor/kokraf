@@ -5,6 +5,7 @@ export class UVViewportControls {
     this.editor = editor;
     this.signals = editor.signals;
     this.uiLoader = editor.uiLoader;
+    this.uvActions = editor.uvActions;
 
     this.container = document.getElementById('uv-controls-container');
 
@@ -15,6 +16,7 @@ export class UVViewportControls {
   async load() {
     await this.uiLoader.loadComponent('#uv-controls-container', 'components/uv-viewport-controls.html');
     this.syncButton = this.container.querySelector('#uv-sync-selection');
+
     floatingTooltip.attach(this.container.querySelector('.uv-viewport-controls'));
 
     this.setupListeners();

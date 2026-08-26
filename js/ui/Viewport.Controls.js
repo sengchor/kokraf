@@ -15,6 +15,7 @@ export default class ViewportControls {
     this.editSelection = editor.editSelection;
     this.objectActions = editor.objectActions;
     this.editActions = editor.editActions;
+    this.uvActions = editor.uvActions;
     this.editHelpers = editor.editHelpers;
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
@@ -461,7 +462,7 @@ export default class ViewportControls {
       [this.objectMenu, this.objectActions],
       [this.meshMenu, this.editActions],
       [this.selectMenu, this.editActions],
-      [this.uvMenu, this.objectActions],
+      [this.uvMenu, this.uvActions],
     ]);
 
     document.querySelectorAll('.menu-item').forEach(menuItem => {

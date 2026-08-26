@@ -22,6 +22,7 @@ import EditSelection from './tools/EditSelection.js';
 import ContextMenu from './ui/ContextMenu.js';
 import { EditActions } from './actions/EditActions.js';
 import { ObjectActions } from './actions/ObjectActions.js';
+import { UVActions } from './actions/UVActions.js';
 import EditHelpers from './helpers/EditHelpers.js';
 import { SelectionBox } from './tools/SelectionBox.js';
 import { SnapManager } from './core/SnapManager.js';
@@ -139,6 +140,7 @@ export default class Editor {
 
       uvSelectionChanged: new Signal(),
       uvSyncSelectionChanged: new Signal(),
+      uvsChanged: new Signal(),
     }
 
     this.helpers = {};
@@ -168,6 +170,7 @@ export default class Editor {
     this.objectEditor = new ObjectEditor(this);
     this.editActions = new EditActions(this);
     this.objectActions = new ObjectActions(this);
+    this.uvActions = new UVActions(this);
 
     // UI
     this.uiLoader = new UIComponentsLoader();

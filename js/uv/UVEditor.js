@@ -109,6 +109,12 @@ export class UVEditor {
       this.render();
     });
 
+    this.signals.uvsChanged.add((object) => {
+      if (!this.active) return;
+      if (object && object !== this.editSelection.editedObject) return;
+      this.refresh({ resetView: true });
+    });
+
     this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
     window.addEventListener('mousemove', this.onMouseMove.bind(this));
     window.addEventListener('mouseup', this.onMouseUp.bind(this));
@@ -158,6 +164,21 @@ export class UVEditor {
 
     this.pan.x = newWidth / 2 - centerUV.u * this.zoom;
     this.pan.y = newHeight / 2 + centerUV.v * this.zoom;
+  }
+
+  refresh({ resetView = false } = {}) {
+    if (!this.active) return;
+
+    this.editedObject = this.editSelection.editedObject;
+
+    this.uvSelection.clear();
+    this.uvSelection.setMode(this.editSelection.subSelectionMode);
+    if (this.syncSelection) {
+      this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
+    }
+
+    if (resetView) this.resetView();
+    this.render();
   }
 
   uvToScreen(u, v) {
