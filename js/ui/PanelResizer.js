@@ -4,6 +4,7 @@ const MOBILE_PANEL_WIDTH = 250;
 
 export default class PanelResizer {
   constructor(editor) {
+    this.editor = editor;
     this.signals = editor.signals;
     this.renderer = editor.renderer;
     this.cameraManager = editor.cameraManager;
@@ -12,21 +13,20 @@ export default class PanelResizer {
     this.isRightPanelResizing = false;
     this.isOutlinerResizing = false;
 
-    window.addEventListener('resize', this.onWindowResize.bind(this));
+    window.addEventListener('resize', () =>
+      this.applyLayout({ resetPanelWidth: true, uvSync: 'window' }));
     this.setupListeners();
   }
 
   setupListeners() {
-    this.signals.emptyScene.add(() => {
-      this.onWindowResize();
-    });
+    this.signals.emptyScene.add(() =>
+      this.applyLayout({ resetPanelWidth: true, uvSync: 'window' }));
 
-    this.signals.layoutChanged.add((updatePanel) => {
-      this.onWindowResize(updatePanel);
-    });
+    this.signals.viewportCameraChanged.add(() =>
+      this.applyLayout({ resetPanelWidth: true, uvSync: 'window' }));
 
-    this.signals.viewportCameraChanged.add(() => {
-      this.onWindowResize();
+    this.signals.layoutChanged.add((options) => {
+      this.applyLayout(options || {});
     });
   }
 
@@ -59,7 +59,7 @@ export default class PanelResizer {
       rightPanel.style.width = `${newWidth}px`;
       resizer.style.right = `${newWidth}px`;
 
-      this.signals.layoutChanged.dispatch(false);
+      this.signals.layoutChanged.dispatch();
     });
 
     document.addEventListener('mouseup', () => {
@@ -105,39 +105,47 @@ export default class PanelResizer {
   }
 
   onWindowResize(updatePanel = true) {
+    this.applyLayout({ resetPanelWidth: updatePanel, uvSync: 'window' });
+  }
+
+  applyLayout({ resetPanelWidth = false, uvSync = 'none' } = {}) {
+    if (window.innerWidth === 0 || window.innerHeight === 0) return;
+
     const rightPanel = document.getElementById('right-panel-container');
+    if (!rightPanel) return;
 
-    if (updatePanel) {
-      this.updateRightPanelWidth();
-    }
-
-    const totalWidth = window.innerWidth - rightPanel.offsetWidth;
-    const totalHeight = window.innerHeight + 30;
+    if (resetPanelWidth) this.updateRightPanelWidth();
 
     const wrapper = document.getElementById('canvas-viewport-wrapper');
     if (wrapper) {
-      wrapper.style.width = `${totalWidth}px`;
-      wrapper.style.height = `${totalHeight}px`;
+      wrapper.style.width = `${window.innerWidth - rightPanel.offsetWidth}px`;
+      wrapper.style.height = `${window.innerHeight + 30}px`;
+    }
+
+    const uvResizer = this.editor.uvResizer;
+    if (uvResizer) {
+      if (uvSync === 'window') uvResizer.syncToWindow();
+      else if (uvSync === 'panel') uvResizer.syncToPanel();
     }
 
     const viewport3dPane = document.getElementById('viewport-3d-pane');
     if (viewport3dPane) {
-      const paneRect = viewport3dPane.getBoundingClientRect();
-      const width = Math.round(paneRect.width);
-      const height = Math.round(paneRect.height);
+      const rect = viewport3dPane.getBoundingClientRect();
+      const width = Math.round(rect.width);
+      const height = Math.round(rect.height);
 
-      this.renderer.setSize(width, height);
-      this.cameraManager.updateAspect(width / height);
-      this.signals.viewportResized.dispatch(width, height);
+      if (width > 0 && height > 0) {
+        this.renderer.setSize(width, height);
+        this.cameraManager.updateAspect(width / height);
+        this.signals.viewportResized.dispatch(width, height);
+        this.viewportViewHelper.updatePosition(this.renderer.domElement);
 
-      this.viewportViewHelper.updatePosition(this.renderer.domElement);
-
-      const viewportControls = document.querySelector('.viewport-controls');
-      if (viewportControls) {
-        viewportControls.style.width = `${Math.max(width - 10, 0)}px`;
+        const viewportControls = document.querySelector('.viewport-controls');
+        if (viewportControls) {
+          viewportControls.style.width = `${Math.max(width - 10, 0)}px`;
+        }
+        this.adjustBrushSettingsWidth(width);
       }
-
-      this.adjustBrushSettingsWidth(width);
     }
 
     this.adjustOutlinerHeight();
@@ -145,18 +153,16 @@ export default class PanelResizer {
   }
 
   getRequiredViewportSpace(viewport3dPane, uvPane, splitResizer) {
-    const isUVSplitActive = uvPane && !uvPane.classList.contains('hidden');
+    const viewport3dMin = parseFloat(getComputedStyle(viewport3dPane).minWidth) || 100;
+    if (!uvPane || uvPane.classList.contains('hidden')) return viewport3dMin;
 
     const splitResizerWidth = splitResizer ? splitResizer.getBoundingClientRect().width : 4;
-    const uvPaneMinWidth = parseFloat(getComputedStyle(uvPane).minWidth) || 100;
-    const viewport3dMinWidth = parseFloat(getComputedStyle(viewport3dPane).minWidth) || 100;
+    const uvMin = parseFloat(getComputedStyle(uvPane).minWidth) || 100;
 
-    const isViewport3dPinned = /^0 0 /.test(viewport3dPane.style.flex || '');
-    const viewport3dRequired = isViewport3dPinned
-      ? viewport3dPane.getBoundingClientRect().width
-      : viewport3dMinWidth;
+    const pinned = /^0 0 /.test(viewport3dPane.style.flex || '');
+    const required = pinned ? viewport3dPane.getBoundingClientRect().width : viewport3dMin;
 
-    return viewport3dRequired + splitResizerWidth + uvPaneMinWidth;
+    return required + splitResizerWidth + uvMin;
   }
 
   adjustOutlinerHeight() {
