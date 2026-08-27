@@ -32,6 +32,10 @@ export class UVEditor {
     this.isPanning = false;
     this.panStart = { x: 0, y: 0 };
 
+    this._gesture = null;
+    this._lastTrackpadTime = 0;
+    this._gestureLockTimeout = 150;
+
     this.isBoxSelecting = false;
     this.boxStart = { x: 0, y: 0 };
     this.boxEnd = { x: 0, y: 0 };
@@ -402,16 +406,50 @@ export class UVEditor {
 
   onWheel(e) {
     if (!this.active || this.isPanning) return;
+    if (e.defaultPrevented) return;
+
+    let deltaX = e.deltaX;
+    let deltaY = e.deltaY;
+
+    if (e.deltaMode === 1) {
+      deltaX *= 16;
+      deltaY *= 16;
+    }
+
+    const isTrackpad = (Math.abs(deltaX) + Math.abs(deltaY)) < 100;
+
+    if (isTrackpad) {
+      e.preventDefault();
+      const now = performance.now();
+
+      if (now - this._lastTrackpadTime > this._gestureLockTimeout) {
+        this._gesture = (e.ctrlKey || e.metaKey) ? 'zoom' : 'pan';
+      }
+
+      this._lastTrackpadTime = now;
+
+      if (this._gesture === 'zoom') {
+        this._zoomAt(e, deltaY, 0.005);
+      } else {
+        this.pan.x -= deltaX;
+        this.pan.y -= deltaY;
+      }
+
+      this.render();
+      return;
+    }
+
     e.preventDefault();
+    this._zoomAt(e, deltaY, 0.001);
+    this.render();
+  }
 
+  _zoomAt(e, delta, scaleFactor) {
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);
-
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    const zoomFactor = Math.exp(-delta * scaleFactor);
 
     this.pan.x = mouseX - (mouseX - this.pan.x) * zoomFactor;
     this.pan.y = mouseY - (mouseY - this.pan.y) * zoomFactor;
     this.zoom *= zoomFactor;
-
-    this.render();
   }
 }
