@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
-import { ShadingUtils } from "../utils/ShadingUtils.js";
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import OBJLoader from './OBJLoader.js';
 import GLBLoader from './GLBLoader.js';
@@ -39,11 +38,9 @@ export class Loader {
     reader.addEventListener('load', (event) => {
       const text = event.target.result;
       const meshObjects = OBJLoader.fromOBJText(text);
-      const shadingObjects = ShadingUtils.getShadingFromOBJ(text);
 
       const reservedNames = new Set();
-      const meshes = meshObjects.map(({ name, meshData }, i) => {
-        const shading = shadingObjects[i] || 'flat';
+      const meshes = meshObjects.map(({ name, meshData, shading }) => {
         const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
 
         const material = new THREE.MeshStandardMaterial({

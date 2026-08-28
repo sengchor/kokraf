@@ -10,66 +10,6 @@ export class ShadingUtils {
     object.userData.renderBuffer = renderBuffer;
     object.userData.shading = mode;
   }
-
-  static getShadingFromOBJ(objText) {
-    const lines = objText.split('\n');
-    const shadingObjects = [];
-
-    const vertices = [];
-    const normals = [];
-
-    let current = { smoothCount: 0, flatCount: 0, hasFlag: false, faces: [] };
-
-    const finalize = () => {
-      if (current.smoothCount > 0) {
-        shadingObjects.push(
-          this.hasSharpEdges(current.faces, normals, vertices) ? 'auto' : 'smooth'
-        );
-      } else {
-        shadingObjects.push('flat');
-      }
-    };
-
-    for (const raw of lines) {
-      const line = raw.trim();
-      if (!line) continue;
-
-      const parts = line.split(/\s+/);
-
-      switch (parts[0]) {
-        case 'o':
-        case 'g':
-          if (current.hasFlag) finalize();
-          current = { smoothCount: 0, flatCount: 0, hasFlag: false, faces: [] };
-          break;
-
-        case 'v':
-          vertices.push(parts.slice(1).map(Number));
-          break;
-
-        case 'vn':
-          normals.push(parts.slice(1).map(Number));
-          break;
-
-        case 'f':
-          current.faces.push(this.parseFace(parts));
-          break;
-
-        case 's':
-          current.hasFlag = true;
-          const flag = parts[1]?.toLowerCase();
-          if (flag === 'off' || flag === '0') {
-            current.flatCount++;
-          } else {
-            current.smoothCount++;
-          }
-          break;
-      }
-    }
-
-    finalize();
-    return shadingObjects;
-  }
   
   static hasSharpEdges(faces, normals, vertices) {
     const map = new Map();

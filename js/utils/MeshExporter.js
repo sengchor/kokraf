@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 import { auth } from '/supabase/services/AuthService.js';
-import { SUPABASE_URL } from '/supabase/supabase.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
-import { computePerVertexNormals, computeFaceNormals, computeVertexNormalsWithAngle } from '../geometry/NormalCalculator.js';
 import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
+import { buildObj } from './ObjExporter.js'
 
 export class MeshExporter {
   constructor(editor) {
@@ -126,107 +125,7 @@ export class MeshExporter {
   }
 
   async exportObj(objects) {
-    let result = '';
-    const format = (n) => Number(n).toFixed(6);
-
-    let globalVertexIndex = 1;
-    let globalNormalIndex = 1;
-    let globalUVIndex = 1;
-
-    for (const object of objects) {
-      result += `\no ${object.name || object.uuid}\n`;
-
-      const meshData = object.userData.meshData;
-      const shading = object.userData.shading;
-
-      const vertexIdToObjIndex = new Map();
-      const normalIndexMap = new Map();
-      
-      object.updateWorldMatrix(true, false);
-      const normalMatrix = new THREE.Matrix3().setFromMatrix4(object.matrixWorld).invert().transpose();
-
-      // Write vertex positions
-      for (let v of meshData.vertices.values()) {
-        const pos = new THREE.Vector3(v.position.x, v.position.y, v.position.z)
-    .applyMatrix4(object.matrixWorld);
-        result += `v ${format(pos.x)} ${format(pos.y)} ${format(pos.z)}\n`;
-        vertexIdToObjIndex.set(v.id, globalVertexIndex++);
-      }
-
-      // Write UVs
-      const hasUVs = meshData.uvs && meshData.uvs.size > 0;
-      const uvKeyToObjIndex = new Map();
-      if (hasUVs) {
-        for (const [faceId, faceUVs] of meshData.uvs) {
-          for (let slot = 0; slot < faceUVs.length; slot++) {
-            const uv = faceUVs[slot];
-            result += `vt ${format(uv.u)} ${format(uv.v)}\n`;
-            uvKeyToObjIndex.set(`${faceId}_${slot}`, globalUVIndex++);
-          }
-        }
-      }
-
-      // Compute normals depending on shading mode
-      if (shading === "smooth") {
-        const vertNormals = computePerVertexNormals(meshData);
-
-        for (const [vid, n] of vertNormals) {
-          const normal = n.clone().applyMatrix3(normalMatrix).normalize();
-          result += `vn ${format(normal.x)} ${format(normal.y)} ${format(normal.z)}\n`;
-          normalIndexMap.set(vid, globalNormalIndex++);
-        }
-      } else if (shading === "flat") {
-        const faceNormals = computeFaceNormals(meshData);
-
-        for (let [fid, n] of faceNormals) {
-          const normal = n.clone().applyMatrix3(normalMatrix).normalize();
-          result += `vn ${format(normal.x)} ${format(normal.y)} ${format(normal.z)}\n`;
-          normalIndexMap.set(fid, globalNormalIndex++);
-        }
-      } else if (shading === "auto") {
-        const fvNormals = computeVertexNormalsWithAngle(meshData, 45);
-
-        for (const [key, n] of fvNormals) {
-          const normal = n.clone().applyMatrix3(normalMatrix).normalize();
-          result += `vn ${format(normal.x)} ${format(normal.y)} ${format(normal.z)}\n`;
-          normalIndexMap.set(key, globalNormalIndex++);
-        }
-      }
-
-      // Add smoothing group flag
-      if (shading === "smooth" || shading === "auto") {
-        result += "s 1\n";
-      } else if (shading === "flat") {
-        result += "s off\n";
-      } 
-
-      // Write faces
-      for (let f of meshData.faces.values()) { 
-        let faceLine = "f";
-
-        for (let slot = 0; slot < f.vertexIds.length; slot++) {
-          const vId = f.vertexIds[slot];
-          const vIdx = vertexIdToObjIndex.get(vId);
-
-          let nIdx;
-          if (shading === "smooth") nIdx = normalIndexMap.get(vId);
-          else if (shading === "flat") nIdx = normalIndexMap.get(f.id);
-          else if (shading === "auto") nIdx = normalIndexMap.get(`${f.id}_${vId}`);
-
-          const uvIdx = hasUVs ? uvKeyToObjIndex.get(`${f.id}_${slot}`) : null;
-
-          if (uvIdx != null) {
-            faceLine += ` ${vIdx}/${uvIdx}/${nIdx}`;
-          } else {
-            faceLine += ` ${vIdx}//${nIdx}`;
-          }
-        }
-
-        result += faceLine + "\n";
-      }
-    }
-
-    this.saveFile(result, `object.obj`, 'text/plain');
+    this.saveFile(buildObj(objects), `object.obj`, 'text/plain');
     console.log('Exported OBJ with multiple objects:', objects.map(o => o.name).join(', '));
   }
 

@@ -1,31 +1,49 @@
 import * as THREE from 'three';
 import { MeshData } from '../core/MeshData.js';
 
+const parseIndex = (token, count) => {
+  const i = parseInt(token, 10);
+  if (!Number.isFinite(i) || i === 0) return null;
+  return i > 0 ? i - 1 : count + i;
+};
+
 export default class OBJLoader {
   static fromOBJText(objText) {
-    const lines = objText.split('\n');
-
     const globalPositions = [];
     const globalUVs = [];
+    const globalNormals = [];
 
     const objects = [];
     let current = null;
+    let sawObject = false;
+    let smooth = false;
+
+    const makeCurrent = (name) => ({
+      name,
+      faces: [],
+      shading: smooth ? 'smooth' : 'flat',
+    });
 
     const pushCurrent = () => {
       if (current && current.faces.length > 0) objects.push(current);
+      current = null;
     };
 
-    const makeCurrent = (name) => ({ name, faces: [], });
+    const lines = objText.replace(/\\\r?\n/g, ' ').split(/\r?\n/);
 
-    for (const line of lines) {
-      const trimmed = line.trim();
+    for (const raw of lines) {
+      const trimmed = raw.trim();
       if (!trimmed || trimmed[0] === '#') continue;
 
       const parts = trimmed.split(/\s+/);
+      const keyword = parts[0];
 
-      switch (parts[0]) {
+      switch (keyword) {
         case 'o':
         case 'g': {
+          if (keyword === 'o') sawObject = true;
+          else if (sawObject) break;
+
           const name = parts.slice(1).join(' ');
           if (name === '' || name === 'default') break;
           pushCurrent();
@@ -47,32 +65,74 @@ export default class OBJLoader {
 
         case 'vt': {
           const u = parseFloat(parts[1]);
-          const v = parseFloat(parts[2]);
+          const v = parts.length >= 3 ? parseFloat(parts[2]) : 0;
           globalUVs.push(
             isFinite(u) && isFinite(v) ? { u, v } : null
           );
           break;
         }
 
+        case 'vn': {
+          const x = parseFloat(parts[1]);
+          const y = parseFloat(parts[2]);
+          const z = parseFloat(parts[3]);
+          globalNormals.push(
+            isFinite(x) && isFinite(y) && isFinite(z) ? { x, y, z } : null
+          );
+          break;
+        }
+
+        case 's': {
+          const arg = (parts[1] || '').toLowerCase();
+          smooth = !(arg === 'off' || arg === '0' || arg === '');
+          if (current) current.shading = smooth ? 'smooth' : 'flat';
+          break;
+        }
+
         case 'f': {
           if (!current) current = makeCurrent('unnamed');
-          // Each corner is "v", "v/vt", "v//vn", or "v/vt/vn"
-          const corners = parts.slice(1).map(token => {
-            const segs = token.split('/');
-            const vIdx = parseInt(segs[0], 10) - 1;
+          
+          const corners = [];
+          for (let i = 1; i < parts.length; i++) {
+            const segs = parts[i].split('/');
+            const vIdx = parseIndex(segs[0], globalPositions.length);
+            if (vIdx === null) continue;
             const vtIdx = (segs.length >= 2 && segs[1] !== '')
-              ? parseInt(segs[1], 10) - 1
-              : null;
-            return { vIdx, vtIdx };
-          });
-          current.faces.push(corners);
+              ? parseIndex(segs[1], globalUVs.length) : null;
+            const vnIdx = (segs.length >= 3 && segs[2] !== '')
+              ? parseIndex(segs[2], globalNormals.length) : null;
+            corners.push({ vIdx, vtIdx, vnIdx });
+          }
+
+          if (corners.length >= 3) current.faces.push(corners);
           break;
         }
       }
     }
     pushCurrent();
 
-    return objects.map(({ name, faces }) => {
+    return objects.map(({ name, faces, shading }) => {
+      let mode = shading;
+      if (mode === 'smooth') {
+        const perVertex = new Map();
+        let split = false;
+
+        outer:
+        for (const corners of faces) {
+          for (const c of corners) {
+            if (c.vnIdx === null || !globalNormals[c.vnIdx]) continue;
+            const prev = perVertex.get(c.vIdx);
+            if (prev === undefined) {
+              perVertex.set(c.vIdx, c.vnIdx);
+            } else if (prev !== c.vnIdx) {
+              split = true;
+              break outer;
+            }
+          }
+        }
+        if (split) mode = 'auto';
+      }
+
       const meshData = new MeshData();
       const vertexCache = new Map();
 
@@ -86,14 +146,22 @@ export default class OBJLoader {
       };
 
       for (const corners of faces) {
-        const resolved = corners
-          .map(c => ({ vertex: getVertex(c.vIdx), vtIdx: c.vtIdx }))
-          .filter(c => c.vertex !== null && c.vertex !== undefined);
+        const resolved = [];
+        const seen = new Set();
+
+        for (const c of corners) {
+          const vertex = getVertex(c.vIdx);
+          if (!vertex) continue;
+          if (seen.has(vertex.id)) continue;
+          seen.add(vertex.id);
+          resolved.push({ vertex, vtIdx: c.vtIdx });
+        }
 
         if (resolved.length < 3) continue;
 
         const verts = resolved.map(c => c.vertex);
         const face = meshData.addFace(verts);
+        if (!face) continue;
 
         const hasUVs = resolved.every(c => c.vtIdx !== null && globalUVs[c.vtIdx]);
         if (hasUVs) {
@@ -105,7 +173,7 @@ export default class OBJLoader {
         }
       }
 
-      return { name, meshData };
+      return { name, meshData, shading: mode };
     });
   }
 }
