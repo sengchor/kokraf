@@ -10,6 +10,7 @@ export default class ContextMenu {
     this.editSelection = editor.editSelection;
     this.objectActions = editor.objectActions;
     this.editActions = editor.editActions;
+    this.uvActions = editor.uvActions;
     this.menuEl = null;
     this.currentMode = 'object';
     this.closeTimeout = null;
@@ -87,6 +88,8 @@ export default class ContextMenu {
           this.objectActions.handleAction(action);
         } else if (mode === 'merge') {
           this.editActions.handleAction(action);
+        } else if (mode === 'uv') {
+          this.uvActions.handleAction(action);
         }
 
         if (this.closeTimeout) {
@@ -169,6 +172,11 @@ export default class ContextMenu {
 
     if (this.menuTrigger === 'merge' && this.currentMode === 'edit') {
       this.showSection('merge');
+      visible = true;
+    }
+
+    if (this.menuTrigger === 'mouse' && this.currentMode === 'uv') {
+      this.showSection('uv');
       visible = true;
     }
 

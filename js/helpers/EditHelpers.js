@@ -6,11 +6,17 @@ import earcut from 'earcut';
 import { computePlaneNormal, projectTo2D } from '../geometry/TriangulationUtils.js';
 import { MeshData } from '../core/MeshData.js';
 
+const EDGE_COLOR_DEFAULT = [0, 0, 0];
+const EDGE_COLOR_SELECTED = [1, 1, 1];
+const EDGE_COLOR_SEAM = [1, 0.05, 0.05];
+const EDGE_COLOR_SELECTED_SEAM = [1, 0.5, 0];
+
 export default class EditHelpers {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
     this.sceneManager = editor.sceneManager;
+    this.isUVMode = false;
 
     this.setupListeners();
   }
@@ -31,7 +37,17 @@ export default class EditHelpers {
     });
 
     this.signals.refreshEditHelpers.add((editedObject, mode, allSelectedIds) => {
+      this.editedObject = editedObject;
       this.refreshHelpers(editedObject, mode, allSelectedIds);
+    });
+
+    this.signals.seamsChanged.add(() => {
+      this.applyEdgeHighlight(this.lastSelectedEdgeIds);
+    });
+
+    this.signals.modeChanged.add((newMode) => {
+      this.isUVMode = newMode === 'uv';
+      this.applyEdgeHighlight(this.lastSelectedEdgeIds);
     });
   }
 
@@ -430,16 +446,29 @@ export default class EditHelpers {
     const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
     if (!fatLine) return;
 
+    this.lastSelectedEdgeIds = selectedEdgeIds;
+
     const { edgeIdList, edgeIdToBufferIndex } = fatLine.userData;
+    const seamIds = this.isUVMode ? this.getSeamIds(this.editedObject) : null;
+
     const colorStart = fatLine.geometry.getAttribute('instanceColorStart');
     const colorEnd   = fatLine.geometry.getAttribute('instanceColorEnd');
 
     for (let edgeId of edgeIdList) {
       const idx = edgeIdToBufferIndex.get(edgeId);
-      const selected = selectedEdgeIds.has(edgeId);
-      const r = selected ? 1 : 0, g = selected ? 1 : 0, b = selected ? 1 : 0;
-      colorStart.setXYZ(idx, r, g, b);
-      colorEnd.setXYZ(idx, r, g, b);
+      if (idx === undefined) continue;
+
+      const isSeam = seamIds?.has(edgeId);
+      const isSelected = this.lastSelectedEdgeIds.has(edgeId);
+
+      let c;
+      if (isSeam && isSelected) c = EDGE_COLOR_SELECTED_SEAM;
+      else if (isSeam) c = EDGE_COLOR_SEAM;
+      else if (isSelected) c = EDGE_COLOR_SELECTED;
+      else c = EDGE_COLOR_DEFAULT;
+
+      colorStart.setXYZ(idx, c[0], c[1], c[2]);
+      colorEnd.setXYZ(idx, c[0], c[1], c[2]);
     }
 
     colorStart.needsUpdate = true;
@@ -488,10 +517,21 @@ export default class EditHelpers {
 
     const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
     if (fatLine) {
+      const { edgeIdList, edgeIdToBufferIndex } = fatLine.userData;
+      const seamIds = this.isUVMode ? this.getSeamIds(this.editedObject) : null;
+
       const colorStart = fatLine.geometry.getAttribute('instanceColorStart');
       const colorEnd   = fatLine.geometry.getAttribute('instanceColorEnd');
-      colorStart.array.fill(0);
-      colorEnd.array.fill(0);
+
+      for (const edgeId of edgeIdList) {
+        const idx = edgeIdToBufferIndex.get(edgeId);
+        const isSeam = seamIds?.has(edgeId);
+        
+        const c = isSeam ? EDGE_COLOR_SEAM : EDGE_COLOR_DEFAULT;
+        colorStart.setXYZ(idx, c[0], c[1], c[2]);
+        colorEnd.setXYZ(idx, c[0], c[1], c[2]);
+      }
+
       colorStart.needsUpdate = true;
       colorEnd.needsUpdate = true;
     }
@@ -508,5 +548,21 @@ export default class EditHelpers {
       colors.needsUpdate = true;
       alphas.needsUpdate = true;
     }
+  }
+
+  getSeamIds(object) {
+    const seam = object?.userData?.seam;
+    if (!seam) return null;
+
+    const meshData = object?.userData?.meshData;
+    const ids = seam instanceof Set ? seam : Array.isArray(seam) ? new Set(seam) : null;
+    if (!ids || !meshData) return ids;
+
+    for (const id of ids) {
+      if (!meshData.edges.has(id)) ids.delete(id);
+    }
+
+    if (!(seam instanceof Set)) object.userData.seam = ids;
+    return ids;
   }
 }

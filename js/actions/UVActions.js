@@ -10,12 +10,39 @@ export class UVActions {
 
 
   handleAction(action) {
+    if (action === 'mark-seam') {
+      return this.setSeam(true);
+    }
+
+    if (action === 'clear-seam') {
+      return this.setSeam(false);
+    }
+
     if (action === 'auto-uv-unwrap') {
       this.autoUVUnwrap();
       return;
     }
 
     console.log('Invalid action:', action);
+  }
+
+  setSeam(value) {
+    const object = this.editSelection.editedObject;
+    if (!object) return;
+
+    const selectedEdgeIds = this.editSelection.selectedEdgeIds;
+    if (!selectedEdgeIds?.size) return;
+
+    if (!(object.userData.seam instanceof Set)) {
+      object.userData.seam = new Set(object.userData.seam ?? []);
+    }
+
+    for (const edgeId of selectedEdgeIds) {
+      if (value) object.userData.seam.add(edgeId);
+      else object.userData.seam.delete(edgeId);
+    }
+
+    this.signals.seamsChanged.dispatch();
   }
 
   async autoUVUnwrap() {
