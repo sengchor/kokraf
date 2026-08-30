@@ -1,3 +1,5 @@
+import { SeamSnapshot } from '../uv/SeamSnapshot.js';
+
 export class MeshDataCommand {
   /**
    * @param {Editor} editor
@@ -16,16 +18,20 @@ export class MeshDataCommand {
 
     this.beforeMeshData = beforeMeshData ? structuredClone(beforeMeshData) : null;
     this.afterMeshData = afterMeshData ? structuredClone(afterMeshData) : null;
+
+    this.seam = new SeamSnapshot(editor, object);
   }
 
   execute() {
     this.editor.editSelection.clearSelection();
     this.applyMeshData(this.afterMeshData);
+    this.seam.applyAfter();
   }
 
   undo() {
     this.editor.editSelection.clearSelection();
     this.applyMeshData(this.beforeMeshData);
+    this.seam.applyBefore();
   }
 
   applyMeshData(meshData) {
@@ -42,6 +48,7 @@ export class MeshDataCommand {
       objectUuid: this.objectUuid,
       beforeMeshData: this.beforeMeshData,
       afterMeshData: this.afterMeshData,
+      seam: this.seam.toJSON(),
     };
   }
 
@@ -52,6 +59,8 @@ export class MeshDataCommand {
     command.objectUuid = json.objectUuid;
     command.beforeMeshData = json.beforeMeshData;
     command.afterMeshData = json.afterMeshData;
+    command.seam = SeamSnapshot.fromJSON(editor, json);
+    command.seam.objectUuid = json.objectUuid;
     return command;
   }
 }

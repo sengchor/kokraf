@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
+import { SetSeamCommand } from '../commands/SetSeamCommand.js';
 
 export class UVActions {
   constructor(editor) {
@@ -33,16 +34,8 @@ export class UVActions {
     const selectedEdgeIds = this.editSelection.selectedEdgeIds;
     if (!selectedEdgeIds?.size) return;
 
-    if (!(object.userData.seam instanceof Set)) {
-      object.userData.seam = new Set(object.userData.seam ?? []);
-    }
-
-    for (const edgeId of selectedEdgeIds) {
-      if (value) object.userData.seam.add(edgeId);
-      else object.userData.seam.delete(edgeId);
-    }
-
-    this.signals.seamsChanged.dispatch();
+    const command = new SetSeamCommand(this.editor, object, [...selectedEdgeIds], value);
+    this.editor.execute(command);
   }
 
   async autoUVUnwrap() {

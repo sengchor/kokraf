@@ -554,15 +554,15 @@ export default class EditHelpers {
     const seam = object?.userData?.seam;
     if (!seam) return null;
 
+    const raw = seam instanceof Set ? seam : new Set(seam);
+
     const meshData = object?.userData?.meshData;
-    const ids = seam instanceof Set ? seam : Array.isArray(seam) ? new Set(seam) : null;
-    if (!ids || !meshData) return ids;
-
-    for (const id of ids) {
-      if (!meshData.edges.has(id)) ids.delete(id);
+    if (!meshData) return raw;
+    
+    const live = new Set();
+    for (const id of raw) {
+      if (meshData.edges.has(id)) live.add(id);
     }
-
-    if (!(seam instanceof Set)) object.userData.seam = ids;
-    return ids;
+    return live;
   }
 }
