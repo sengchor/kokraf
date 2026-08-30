@@ -228,7 +228,16 @@ export class KeyHandler {
         }
         this.signals.switchMode.dispatch('edit');
         this.previousMode = 'uv';
-      }
+        } else if (matchesShortcut(event, this.shortcuts['markSeam'])) {
+          this.signals.setSeam.dispatch(true);
+          handled = true;
+        } else if (matchesShortcut(event, this.shortcuts['selectAll'])) {
+          this.signals.editSelectAll.dispatch();
+          handled = true;
+        } else if (matchesShortcut(event, this.shortcuts['selectLinked'])) {
+          this.signals.mouseSelectLinked.dispatch();
+          handled = true;
+        }
     }
 
     /* ---------- Texture Paint ---------- */

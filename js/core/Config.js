@@ -37,6 +37,7 @@ export default class Config {
         separate: 'p',
         merge: 'm',
         split: 'y',
+        markSeam: 'shift+q'
       },
       history: false,
     };

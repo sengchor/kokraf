@@ -7,8 +7,13 @@ export class UVActions {
     this.editor = editor;
     this.signals = editor.signals;
     this.editSelection = editor.editSelection;
+
+    this.setupListeners();
   }
 
+  setupListeners() {
+    this.signals.setSeam.add((value) => this.setSeam(value));
+  }
 
   handleAction(action) {
     if (action === 'mark-seam') {
