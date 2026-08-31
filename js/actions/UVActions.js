@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { SetSeamCommand } from '../commands/SetSeamCommand.js';
+import { UVUnwrap } from '../uv/UVUnwrap.js';
 
 export class UVActions {
   constructor(editor) {
@@ -24,6 +25,11 @@ export class UVActions {
       return this.setSeam(false);
     }
 
+    if (action === 'uv-unwrap') {
+      this.uvUnwrap();
+      return;
+    }
+
     if (action === 'auto-uv-unwrap') {
       this.autoUVUnwrap();
       return;
@@ -41,6 +47,22 @@ export class UVActions {
 
     const command = new SetSeamCommand(this.editor, object, [...selectedEdgeIds], value);
     this.editor.execute(command);
+  }
+
+  uvUnwrap() {
+    const object = this.editSelection.editedObject;
+    if (!object) return;
+
+    const meshData = object.userData.meshData;
+    const seams = SetSeamCommand._getSeamSet(object);
+
+    const result = UVUnwrap.unwrap(meshData, seams, { margin: 0.002 });
+    if (!result) throw new Error(`UV unwrap failed for "${object.name}".`);
+
+    this.editor.vertexEditor.setObject(object);
+    this.editor.vertexEditor.updateGeometry();
+
+    this.signals.uvsChanged.dispatch(object);
   }
 
   async autoUVUnwrap() {
