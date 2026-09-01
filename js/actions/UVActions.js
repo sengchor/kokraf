@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
 import { SetSeamCommand } from '../commands/SetSeamCommand.js';
+import { SetUVsCommand } from '../commands/SetUVsCommand.js';
 import { UVUnwrap } from '../uv/UVUnwrap.js';
 
 export class UVActions {
@@ -56,27 +57,38 @@ export class UVActions {
     const meshData = object.userData.meshData;
     const seams = SetSeamCommand._getSeamSet(object);
 
+    const oldUVs = SetUVsCommand.capture(meshData.uvs);
+
     const result = UVUnwrap.unwrap(meshData, seams, { margin: 0.002 });
-    if (!result) throw new Error(`UV unwrap failed for "${object.name}".`);
+    if (!result) {
+      this._restore(meshData, oldUVs);
+      throw new Error(`UV unwrap failed for "${object.name}".`);
+    }
 
-    this.editor.vertexEditor.setObject(object);
-    this.editor.vertexEditor.updateGeometry();
-
-    this.signals.uvsChanged.dispatch(object);
+    const newUVs = SetUVsCommand.capture(meshData.uvs);
+    this.editor.execute(new SetUVsCommand(this.editor, object, newUVs, oldUVs));
   }
 
   async autoUVUnwrap() {
     const object = this.editSelection.editedObject;
+    if (!object) return;
 
-    const { output } = await AutoUVUnwrap.unwrap(object.userData.meshData);
+    const meshData = object.userData.meshData;
+    const oldUVs = SetUVsCommand.capture(meshData.uvs);
+
+    const { output } = await AutoUVUnwrap.unwrap(meshData);
 
     if (!output?.positions?.length || !output.indices.length) {
+      this._restore(meshData, oldUVs);
       throw new Error(`UV unwrap failed for "${object.name}".`);
     }
 
-    this.editor.vertexEditor.setObject(object);
-    this.editor.vertexEditor.updateGeometry();
+    const newUVs = SetUVsCommand.capture(meshData.uvs);
+    this.editor.execute(new SetUVsCommand(this.editor, object, newUVs, oldUVs));
+  }
 
-    this.signals.uvsChanged.dispatch(object);
+  _restore(meshData, uvs) {
+    meshData.uvs.clear();
+    for (const [faceId, corners] of uvs) meshData.uvs.set(faceId, corners);
   }
 }

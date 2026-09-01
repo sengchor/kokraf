@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { AddObjectCommand } from '../commands/AddObjectCommand.js';
 import { SetMaterialCommand } from '../commands/SetMaterialCommand.js';
+import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
+import { SetUVsCommand } from '../commands/SetUVsCommand.js';
 import { auth } from '/supabase/services/AuthService.js';
 import { getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 import { AutoUVUnwrap } from '../uv/AutoUVUnwrap.js';
@@ -184,15 +186,20 @@ export class GenerateTexturePanel {
     const finalPrompt = userPrompt ? `${stylePrompt} ${userPrompt}` : stylePrompt;
     const resolution = this._selectedResolution;
 
+    const multi = new SequentialMultiCommand(this.editor, 'Generate Texture');
+    const restores = [];
+
     // UV unwrap each mesh
     this._showLoading('Unwrapping UVs');
     const bakeTargets = [];
     for (const object of meshes) {
       let ensured;
       try {
-        ensured = await this._ensureUVs(object);
+        ensured = await this._ensureUVs(object, multi, restores);
       } catch (e) {
         this._hideLoading();
+        restores.forEach(fn => fn());
+        console.log(e);
         alert(`UV unwrap failed for "${object.name}".`);
         return;
       }
@@ -244,12 +251,14 @@ export class GenerateTexturePanel {
         texture.colorSpace = THREE.SRGBColorSpace;
 
         const material = new THREE.MeshStandardMaterial({ map: texture, side: THREE.FrontSide });
-        this.editor.execute(new SetMaterialCommand(this.editor, object, material));
+        multi.add(() => new SetMaterialCommand(this.editor, object, material));
       }
 
+      this.editor.execute(multi);
       this.signals.shadingModeChanged.dispatch('material');
       await this._nextStep();
     } catch (err) {
+      restores.forEach(fn => fn());
       console.log(err);
       bakeTargets.forEach(({ bakeGeometry, reused }) => {
         if (!reused) bakeGeometry.dispose();
@@ -273,7 +282,7 @@ export class GenerateTexturePanel {
     }
   }
 
-  async _ensureUVs(object) {
+  async _ensureUVs(object, multi, restores) {
     const meshData = object.userData.meshData;
 
     let bakeGeometry;
@@ -283,11 +292,20 @@ export class GenerateTexturePanel {
       bakeGeometry = object.geometry;
       reused = true;
     } else {
+      const oldUVs = SetUVsCommand.capture(meshData.uvs);
+      restores.push(() => {
+        meshData.uvs.clear();
+        for (const [faceId, corners] of oldUVs) meshData.uvs.set(faceId, corners);
+      });
+
       const { output, inputMesh } = await AutoUVUnwrap.unwrap(meshData);
 
       if (!output?.positions?.length || !output.indices.length) {
         throw new Error(`UV unwrap failed for "${object.name}".`);
       }
+
+      const newUVs = SetUVsCommand.capture(meshData.uvs);
+      multi.add(() => new SetUVsCommand(this.editor, object, newUVs, oldUVs));
 
       bakeGeometry = AutoUVUnwrap._buildOutputGeometry(output, inputMesh);
     }

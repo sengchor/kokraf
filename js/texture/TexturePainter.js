@@ -4,6 +4,7 @@ import { ProjectionPainter } from './ProjectionPainter.js';
 import { AddObjectCommand } from '../commands/AddObjectCommand.js';
 import { PaintStrokeCommand } from '../commands/PaintStrokeCommand.js';
 import { SwitchPaintMapCommand } from '../commands/SwitchPaintMapCommand.js';
+import { SetUVsCommand } from '../commands/SetUVsCommand.js';
 import { GPUDepthReader } from '../utils/GPUDepthReader.js';
 import { PaintTool } from './PaintTool.js';
 import { EraseTool } from './EraseTool.js';
@@ -321,11 +322,18 @@ export class TexturePainter {
     if (AutoUVUnwrap.hasUVs(meshData)){
       bakeGeometry = object.geometry;
     } else {
-       const { output, inputMesh } = await AutoUVUnwrap.unwrap(meshData);
+      const oldUVs = SetUVsCommand.capture(meshData.uvs);
+
+      const { output, inputMesh } = await AutoUVUnwrap.unwrap(meshData);
 
       if (!output?.positions?.length || !output.indices.length) {
+        meshData.uvs.clear();
+        for (const [faceId, corners] of oldUVs) meshData.uvs.set(faceId, corners);
         throw new Error(`UV unwrap failed for "${object.name}".`);
       }
+
+      const newUVs = SetUVsCommand.capture(meshData.uvs);
+      this.editor.execute(new SetUVsCommand(this.editor, object, newUVs, oldUVs));
 
       bakeGeometry = AutoUVUnwrap._buildOutputGeometry(output, inputMesh);
     }
