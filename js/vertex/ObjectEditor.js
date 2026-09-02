@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import { MeshData } from '../core/MeshData.js';
+import { SeamUtils } from '../utils/SeamUtils.js';
 
 export class ObjectEditor {
   constructor(editor) {
@@ -93,32 +94,10 @@ export class ObjectEditor {
     mesh.userData.meshData = mergedMeshData;
     mesh.userData.renderBuffer = renderBuffer;
     mesh.userData.shading = baseShading;
-    mesh.userData.seam = this.mergeSeams(objects, maps);
+    mesh.userData.seam = SeamUtils.mergeSeams(objects, maps);
     mesh.name = baseObject.name;
 
     return mesh;
-  }
-
-  normalizeSeam(seam) {
-    if (seam instanceof Set) return seam;
-    if (Array.isArray(seam)) return new Set(seam);
-    return new Set();
-  }
-
-  mergeSeams(objects, maps) {
-    const merged = new Set();
-
-    objects.forEach((object, i) => {
-      const edgeIdMap = maps[i]?.edgeIdMap;
-      if (!edgeIdMap) return;
-
-      for (const oldId of this.normalizeSeam(object.userData.seam)) {
-        const newId = edgeIdMap.get(oldId);
-        if (newId !== undefined) merged.add(newId);
-      }
-    });
-
-    return merged;
   }
 
   cloneObjectFromMeshData(meshData, object) {

@@ -132,33 +132,55 @@ export class MeshEditor {
     }
 
     const vertexIdMap = new Map();
+    const edgeIdMap = new Map();
+    const faceIdMap = new Map();
+    const claimedFaceIds = new Set();
 
     for (const vId of verticesToExtract) {
       const v = meshData.getVertex(vId);
-      const newId = extracted.addVertex({
+      vertexIdMap.set(vId, extracted.addVertex({
         x: v.position.x,
         y: v.position.y,
         z: v.position.z
-      });
-      vertexIdMap.set(vId, newId);
+      }));
     }
 
     for (const eId of edgesToExtract) {
       const e = meshData.edges.get(eId);
-      extracted.addEdge(
-        vertexIdMap.get(e.v1Id),
-        vertexIdMap.get(e.v2Id)
-      );
+      const v1 = vertexIdMap.get(e.v1Id);
+      const v2 = vertexIdMap.get(e.v2Id);
+      if (v1 && v2) extracted.addEdge(v1, v2);
     }
 
     for (const fId of facesToExtract) {
       const f = meshData.faces.get(fId);
-      extracted.addFace(
-        f.vertexIds.map(vId => vertexIdMap.get(vId))
-      );
+      const newVertices = f.vertexIds.map(vId => vertexIdMap.get(vId));
+      if (newVertices.some(v => !v)) continue;
+
+      const newFace = extracted.addFace(newVertices);
+      faceIdMap.set(fId, newFace.id);
+
+      const isFirstClaim = !claimedFaceIds.has(newFace.id);
+      claimedFaceIds.add(newFace.id);
+
+      const uv = meshData.uvs.get(fId);
+      if (isFirstClaim && Array.isArray(uv)) {
+        extracted.uvs.set(newFace.id, uv.map(c => ({ u: c.u, v: c.v })));
+      }
     }
 
-    return extracted;
+    for (const eId of edgesToExtract) {
+      const e = meshData.edges.get(eId);
+      const v1 = vertexIdMap.get(e.v1Id);
+      const v2 = vertexIdMap.get(e.v2Id);
+      if (!v1 || !v2) continue;
+      const newEdge = extracted.getEdge(v1.id, v2.id);
+      if (newEdge) edgeIdMap.set(eId, newEdge.id);
+    }
+
+    const map = { vertexIdMap, edgeIdMap, faceIdMap };
+
+    return { extracted, map };
   }
 
   setOriginToGeometry(meshData) {

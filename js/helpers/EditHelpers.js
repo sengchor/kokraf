@@ -5,6 +5,7 @@ import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 import earcut from 'earcut';
 import { computePlaneNormal, projectTo2D } from '../geometry/TriangulationUtils.js';
 import { MeshData } from '../core/MeshData.js';
+import { SeamUtils } from '../utils/SeamUtils.js';
 
 const EDGE_COLOR_DEFAULT = [0, 0, 0];
 const EDGE_COLOR_SELECTED = [1, 1, 1];
@@ -449,7 +450,7 @@ export default class EditHelpers {
     this.lastSelectedEdgeIds = selectedEdgeIds;
 
     const { edgeIdList, edgeIdToBufferIndex } = fatLine.userData;
-    const seamIds = this.isUVMode ? this.getSeamIds(this.editedObject) : null;
+    const seamIds = this.isUVMode ? SeamUtils.getSeamIds(this.editedObject) : null;
 
     const colorStart = fatLine.geometry.getAttribute('instanceColorStart');
     const colorEnd   = fatLine.geometry.getAttribute('instanceColorEnd');
@@ -518,7 +519,7 @@ export default class EditHelpers {
     const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
     if (fatLine) {
       const { edgeIdList, edgeIdToBufferIndex } = fatLine.userData;
-      const seamIds = this.isUVMode ? this.getSeamIds(this.editedObject) : null;
+      const seamIds = this.isUVMode ? SeamUtils.getSeamIds(this.editedObject) : null;
 
       const colorStart = fatLine.geometry.getAttribute('instanceColorStart');
       const colorEnd   = fatLine.geometry.getAttribute('instanceColorEnd');
@@ -548,21 +549,5 @@ export default class EditHelpers {
       colors.needsUpdate = true;
       alphas.needsUpdate = true;
     }
-  }
-
-  getSeamIds(object) {
-    const seam = object?.userData?.seam;
-    if (!seam) return null;
-
-    const raw = seam instanceof Set ? seam : new Set(seam);
-
-    const meshData = object?.userData?.meshData;
-    if (!meshData) return raw;
-    
-    const live = new Set();
-    for (const id of raw) {
-      if (meshData.edges.has(id)) live.add(id);
-    }
-    return live;
   }
 }

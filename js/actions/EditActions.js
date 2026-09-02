@@ -11,6 +11,8 @@ import { SubdivideSelectionCommand } from '../commands/SubdivideSelectionCommand
 import { BridgeSelectionCommand } from '../commands/BridgeSelectionCommand.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { OperatorPanel } from '../panels/OperatorPanel.js';
+import { SeamSnapshot } from '../uv/SeamSnapshot.js';
+import { SeamUtils } from '../utils/SeamUtils.js';
 
 export class EditActions {
   constructor(editor) {
@@ -309,7 +311,9 @@ export class EditActions {
       startFaceId: meshData.nextFaceId,
     }
 
-    const newMeshData = this.meshEditor.extractMeshData(meshData, mode, this.editSelection);
+    const { extracted: newMeshData, map } = this.meshEditor.extractMeshData(meshData, mode, this.editSelection);
+
+    const beforeSeam = SeamSnapshot.read(editedObject);
 
     this.vertexEditor.setObject(editedObject);
     if (mode === 'vertex') {
@@ -320,11 +324,14 @@ export class EditActions {
       this.vertexEditor.delete.deleteSelectionFaces(selectedFaceIds);
     }
 
+    const { separated: newSeam, remaining: afterSeam } = SeamUtils.splitSeams(editedObject, map.edgeIdMap, meshData);
+    const seamData = { before: beforeSeam, after: afterSeam, separated: newSeam };
+
     MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    this.editor.execute(new SeparateSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot, newMeshData));
+    this.editor.execute(new SeparateSelectionCommand(this.editor, editedObject, beforeSnapshot, afterSnapshot, newMeshData, seamData));
   }
 
   mergeSelection(action) {
