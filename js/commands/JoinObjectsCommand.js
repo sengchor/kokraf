@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SeamSnapshot } from '../uv/SeamSnapshot.js';
 
 export class JoinObjectsCommand {
   static type = 'JoinObjectsCommand';
@@ -15,6 +16,7 @@ export class JoinObjectsCommand {
 
     this.joinedObjectUuid = joinedObject ? joinedObject.uuid : null;
     this.joinedObjectJSON = joinedObject ? joinedObject.toJSON() : null;
+    this.joinedSeam = joinedObject ? SeamSnapshot.read(joinedObject) : null;
 
     // Store original objects state
     this.objectStates = objects.map(obj => ({
@@ -22,7 +24,8 @@ export class JoinObjectsCommand {
       parentUuid: obj.parent ? obj.parent.uuid : null,
       index: obj.parent ? obj.parent.children.indexOf(obj) : -1,
       json: this.serializeObjectWithoutChildren(obj),
-      childrenUuids: obj.children.map(child => child.uuid)
+      childrenUuids: obj.children.map(child => child.uuid),
+      seam: SeamSnapshot.read(obj)
     }));
   }
 
@@ -36,6 +39,9 @@ export class JoinObjectsCommand {
     if (!joined) {
       joined = new THREE.ObjectLoader().parse(this.joinedObjectJSON);
     }
+    
+    // set before the object enters the scene so helpers read a real Set
+    if (this.joinedSeam) SeamSnapshot.write(joined, this.joinedSeam);
 
     for (let i = 0; i < this.objectStates.length - 1; i++) {
       const obj = this.editor.objectByUuid(this.objectStates[i].uuid);
@@ -49,6 +55,8 @@ export class JoinObjectsCommand {
       const obj = this.editor.objectByUuid(this.objectStates[i].uuid);
       sceneManager.removeObject(obj);
     }
+
+    this.editor.signals.seamsChanged.dispatch(joined);
 
     this.editor.selection.deselect();
     this.editor.selection.select(joined);
@@ -73,6 +81,7 @@ export class JoinObjectsCommand {
       const state = this.objectStates[i];
       const obj = loader.parse(state.json);
       obj.uuid = state.uuid;
+      SeamSnapshot.write(obj, state.seam ?? []);
       restoredObjects.set(state.uuid, obj);
     }
 
@@ -108,6 +117,8 @@ export class JoinObjectsCommand {
       .map(s => this.editor.objectByUuid(s.uuid))
       .filter(Boolean);
 
+    for (const obj of objects) this.editor.signals.seamsChanged.dispatch(obj);
+
     this.editor.selection.deselect();
     this.editor.selection.select(objects);
     this.editor.toolbar.updateTools();
@@ -118,6 +129,7 @@ export class JoinObjectsCommand {
       type: JoinObjectsCommand.type,
       joinedObjectUuid: this.joinedObjectUuid,
       joinedObjectJSON: this.joinedObjectJSON,
+      joinedSeam: this.joinedSeam,
       objectStates: this.objectStates
     };
   }
@@ -129,6 +141,7 @@ export class JoinObjectsCommand {
 
     cmd.joinedObjectUuid = json.joinedObjectUuid;
     cmd.joinedObjectJSON = json.joinedObjectJSON;
+    cmd.joinedSeam = json.joinedSeam ?? null;
     cmd.objectStates = json.objectStates;
 
     return cmd;

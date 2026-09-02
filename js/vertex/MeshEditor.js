@@ -6,14 +6,18 @@ export class MeshEditor {
     this.editor = editor;
   }
 
-  mergeMeshData(meshDataList, transforms = [], inverseWorld) {
+  mergeMeshData(meshDataList, transforms = [], inverseWorld = new THREE.Matrix4()) {
     const merged = new MeshData();
+    const maps = [];
 
     for (let i = 0; i < meshDataList.length; i++) {
       const source = meshDataList[i];
       const transform = transforms[i] || new THREE.Matrix4();
 
       const vertexIdMap = new Map();
+      const edgeIdMap = new Map();
+      const faceIdMap = new Map();
+      const claimedFaceIds = new Set();
 
       for (const vertex of source.vertices.values()) {
         const pos = new THREE.Vector3(
@@ -23,20 +27,52 @@ export class MeshEditor {
         );
         pos.applyMatrix4(transform).applyMatrix4(inverseWorld);
 
-        vertexIdMap.set(
-          vertex.id,
-          merged.addVertex({ x: pos.x, y: pos.y, z: pos.z })
-        );
+        vertexIdMap.set(vertex.id, merged.addVertex(pos));
       }
 
       for (const face of source.faces.values()) {
-        merged.addFace(
-          face.vertexIds.map(id => vertexIdMap.get(id))
-        );
+        const newVertices = face.vertexIds.map(id => vertexIdMap.get(id));
+        if (newVertices.some(v => !v)) continue;
+
+        const newFace = merged.addFace(newVertices);
+        faceIdMap.set(face.id, newFace.id);
+
+        // addFace dedupes on a sorted vertex key, so two source faces on the
+        // same vertex set collapse into one. Only the first owns the UVs.
+        const isFirstClaim = !claimedFaceIds.has(newFace.id);
+        claimedFaceIds.add(newFace.id);
+
+        const uv = source.uvs.get(face.id);
+        if (isFirstClaim && Array.isArray(uv)) {
+          merged.uvs.set(newFace.id, uv.map(c => ({ u: c.u, v: c.v })));
+        }
+
+        const len = face.vertexIds.length;
+        for (let k = 0; k < len; k++) {
+          const aId = face.vertexIds[k];
+          const bId = face.vertexIds[(k + 1) % len];
+          const oldEdge = source.getEdge(aId, bId);
+          if (!oldEdge || edgeIdMap.has(oldEdge.id)) continue;
+
+          const newEdge = merged.getEdge(
+            vertexIdMap.get(aId).id,
+            vertexIdMap.get(bId).id
+          );
+          if (newEdge) edgeIdMap.set(oldEdge.id, newEdge.id);
+        }
       }
+
+      for (const edge of source.edges.values()) {
+        if (edgeIdMap.has(edge.id)) continue;
+        const v1 = vertexIdMap.get(edge.v1Id);
+        const v2 = vertexIdMap.get(edge.v2Id);
+        if (v1 && v2) edgeIdMap.set(edge.id, merged.addEdge(v1, v2).id);
+      }
+
+      maps.push({ vertexIdMap, edgeIdMap, faceIdMap });
     }
 
-    return merged;
+    return { merged, maps };
   }
 
   extractMeshData(meshData, mode, selection) {

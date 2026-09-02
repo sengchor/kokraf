@@ -69,18 +69,20 @@ export class ObjectEditor {
     for (const object of objects) {
       if (!object.isMesh || !object.userData.meshData) return null;
 
-      if (object.userData.meshData && !(object.userData.meshData instanceof MeshData)) {
+      if (!(object.userData.meshData instanceof MeshData)) {
         MeshData.rehydrateMeshData(object);
       }
 
+      object.updateMatrixWorld(true, false);
+
       meshDatas.push(object.userData.meshData);
-      transforms.push(object.matrixWorld);
+      transforms.push(object.matrixWorld.clone());
     }
 
     if (meshDatas.length === 0) return null;
 
     const inverseBaseWorld = baseObject.matrixWorld.clone().invert();
-    const mergedMeshData = this.meshEditor.mergeMeshData(meshDatas, transforms, inverseBaseWorld);
+    const { merged: mergedMeshData, maps } = this.meshEditor.mergeMeshData(meshDatas, transforms, inverseBaseWorld);
 
     const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(mergedMeshData, { mode: baseShading });
 
@@ -91,9 +93,32 @@ export class ObjectEditor {
     mesh.userData.meshData = mergedMeshData;
     mesh.userData.renderBuffer = renderBuffer;
     mesh.userData.shading = baseShading;
+    mesh.userData.seam = this.mergeSeams(objects, maps);
     mesh.name = baseObject.name;
 
     return mesh;
+  }
+
+  normalizeSeam(seam) {
+    if (seam instanceof Set) return seam;
+    if (Array.isArray(seam)) return new Set(seam);
+    return new Set();
+  }
+
+  mergeSeams(objects, maps) {
+    const merged = new Set();
+
+    objects.forEach((object, i) => {
+      const edgeIdMap = maps[i]?.edgeIdMap;
+      if (!edgeIdMap) return;
+
+      for (const oldId of this.normalizeSeam(object.userData.seam)) {
+        const newId = edgeIdMap.get(oldId);
+        if (newId !== undefined) merged.add(newId);
+      }
+    });
+
+    return merged;
   }
 
   cloneObjectFromMeshData(meshData, object) {
