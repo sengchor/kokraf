@@ -123,6 +123,22 @@ export class UVSelection {
 
   buildTopology(epsilon = 1e-5) {
     const meshData = this.getMeshData();
+
+    if (this._topo && this._topoSource === meshData) {
+      return this._topo;
+    }
+
+    this._topo = this._computeTopology(meshData, epsilon);
+    this._topoSource = meshData;
+    return this._topo;
+  }
+
+  invalidateTopology() {
+    this._topo = null;
+    this._topoSource = null;
+  }
+
+  _computeTopology(meshData, epsilon = 1e-5) {
     const empty = {
       points: [],
       pointsByKey: new Map(),

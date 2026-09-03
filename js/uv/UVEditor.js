@@ -41,6 +41,18 @@ export class UVEditor {
     this.boxEnd = { x: 0, y: 0 };
     this.initialUVState = [];
 
+    // Cached geometry paths, built in UV space and reused across pan/zoom.
+    this._paths = null;
+
+    // Cached layout metrics, so no frame reads geometry off the DOM.
+    this._width = 0;
+    this._height = 0;
+    this._dpr = window.devicePixelRatio;
+    this._canvasRect = null;
+    this._rectDirty = true;
+
+    this._renderScheduled = false;
+
     this.init();
   }
 
@@ -60,6 +72,8 @@ export class UVEditor {
         resizerEl?.classList.remove('hidden');
 
         this.editedObject = this.editSelection.editedObject;
+        this.invalidateAll();
+
         this.uvSelection.setMode(this.editSelection.subSelectionMode);
         this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
         this.resetView();
@@ -69,6 +83,7 @@ export class UVEditor {
         this.canvas.parentElement.classList.add('hidden');
         resizerEl?.classList.add('hidden');
         this.uvSelection.clear();
+        this.invalidatePaths();
       }
     });
 
@@ -77,6 +92,8 @@ export class UVEditor {
         this.resetCenterView();
         this.resizeCanvas();
         this.render();
+      } else {
+        this._rectDirty = true;
       }
     });
 
@@ -86,19 +103,22 @@ export class UVEditor {
       if (this.syncSelection) {
         this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
       }
-      this.render();
+      this.invalidatePaths();
+      this.requestRender();
     });
 
     this.signals.editSelectionChanged.add((state) => {
       if (!this.active || !this.syncSelection) return;
       this.uvSelection.applyMeshSelection(state);
-      this.render();
+      this.invalidatePaths();
+      this.requestRender();
     });
 
     this.signals.editSelectionCleared.add(() => {
       if (!this.active) return;
       this.uvSelection.clear();
-      this.render();
+      this.invalidatePaths();
+      this.requestRender();
     });
 
     this.signals.uvSyncSelectionChanged.add((enabled) => {
@@ -110,7 +130,8 @@ export class UVEditor {
       } else {
         this.uvSelection.clear();
       }
-      this.render();
+      this.invalidatePaths();
+      this.requestRender();
     });
 
     this.signals.uvsChanged.add((object) => {
@@ -123,6 +144,28 @@ export class UVEditor {
     window.addEventListener('mousemove', this.onMouseMove.bind(this));
     window.addEventListener('mouseup', this.onMouseUp.bind(this));
     this.canvas.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
+
+    // The cached canvas rect goes stale whenever the page moves under it.
+    window.addEventListener('resize', () => { this._rectDirty = true; });
+    window.addEventListener('scroll', () => { this._rectDirty = true; }, true);
+  }
+
+  invalidatePaths() {
+    this._paths = null;
+  }
+
+  invalidateAll() {
+    this.uvSelection.invalidateTopology();
+    this._paths = null;
+  }
+
+  requestRender() {
+    if (this._renderScheduled) return;
+    this._renderScheduled = true;
+    requestAnimationFrame(() => {
+      this._renderScheduled = false;
+      this.render();
+    });
   }
 
   resizeCanvas() {
@@ -130,12 +173,19 @@ export class UVEditor {
     const rect = this.canvas.parentElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
-    this.canvas.width = rect.width * window.devicePixelRatio;
-    this.canvas.height = rect.height * window.devicePixelRatio;
+    const dpr = window.devicePixelRatio;
+
+    this.canvas.width = rect.width * dpr;
+    this.canvas.height = rect.height * dpr;
     this.canvas.style.width = `${rect.width}px`;
     this.canvas.style.height = `${rect.height}px`;
 
-    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    this._width = rect.width;
+    this._height = rect.height;
+    this._dpr = dpr;
+    this._rectDirty = true;
   }
 
   resetView() {
@@ -157,8 +207,8 @@ export class UVEditor {
     const parent = this.canvas.parentElement;
     if (!parent) return;
 
-    const oldWidth = parseFloat(this.canvas.style.width) || parent.clientWidth;
-    const oldHeight = parseFloat(this.canvas.style.height) || parent.clientHeight;
+    const oldWidth = this._width || parseFloat(this.canvas.style.width) || parent.clientWidth;
+    const oldHeight = this._height || parseFloat(this.canvas.style.height) || parent.clientHeight;
 
     const newWidth = parent.clientWidth;
     const newHeight = parent.clientHeight;
@@ -174,6 +224,7 @@ export class UVEditor {
     if (!this.active) return;
 
     this.editedObject = this.editSelection.editedObject;
+    this.invalidateAll();
 
     this.uvSelection.clear();
     this.uvSelection.setMode(this.editSelection.subSelectionMode);
@@ -207,8 +258,9 @@ export class UVEditor {
   render() {
     if (!this.active) return;
 
-    const width = this.canvas.clientWidth;
-    const height = this.canvas.clientHeight;
+    const width = this._width;
+    const height = this._height;
+    if (width === 0 || height === 0) return;
 
     this.ctx.fillStyle = '#3f3f3f';
     this.ctx.fillRect(0, 0, width, height);
@@ -251,61 +303,89 @@ export class UVEditor {
     this.ctx.strokeRect(p0.x, p1.y, this.zoom, this.zoom);
   }
 
-  drawUVWireframe() {
+  _buildPaths() {
     const meshData = this.getMeshData();
-    if (!meshData) return;
-
     const sel = this.uvSelection;
+    if (!meshData) { this._paths = null; return; }
+
     const topo = sel.buildTopology();
+    const hl = sel.getHighlight();
 
-     const highlight = sel.getHighlight()
+    const faceBase = new Path2D(), faceSel = new Path2D();
+    const edgeBase = new Path2D(), edgeSel = new Path2D();
 
-    // Faces: highlighted when selected in edge mode.
     for (const face of meshData.faces.values()) {
-      const faceUVs = meshData.uvs.get(face.id);
-      if (!sel.isFaceUVComplete(face, faceUVs)) continue;
+      const uvs = meshData.uvs.get(face.id);
+      if (!sel.isFaceUVComplete(face, uvs)) continue;
 
-      const screenPoints = faceUVs.map(uv => this.uvToScreen(uv.u, uv.v));
-      const isSelected = highlight.faces.has(face.id);
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(screenPoints[0].x, screenPoints[0].y);
-      for (let i = 1; i < screenPoints.length; i++) {
-        this.ctx.lineTo(screenPoints[i].x, screenPoints[i].y);
-      }
-      this.ctx.closePath();
-
-      this.ctx.fillStyle = isSelected ? 'rgba(255, 255, 150, 0.35)' : 'rgba(255, 255, 255, 0.15)';
-      this.ctx.fill();
+      const p = hl.faces.has(face.id) ? faceSel : faceBase;
+      p.moveTo(uvs[0].u, uvs[0].v);
+      for (let i = 1; i < uvs.length; i++) p.lineTo(uvs[i].u, uvs[i].v);
+      p.closePath();
     }
 
-    // Edges: highlighted when selected in edge mode.
     for (const edge of topo.edges) {
       const a = topo.pointsByKey.get(edge.aKey);
       const b = topo.pointsByKey.get(edge.bKey);
       if (!a || !b) continue;
 
-      const pa = this.uvToScreen(a.u, a.v);
-      const pb = this.uvToScreen(b.u, b.v);
-      const isSelected = highlight.edges.has(edge.key);
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(pa.x, pa.y);
-      this.ctx.lineTo(pb.x, pb.y);
-      this.ctx.strokeStyle = isSelected ? '#ffffff' : 'rgba(200, 200, 200, 0.7)';
-      this.ctx.stroke();
+      const p = hl.edges.has(edge.key) ? edgeSel : edgeBase;
+      p.moveTo(a.u, a.v);
+      p.lineTo(b.u, b.v);
     }
 
-    // Points: highlighted when selected in vertex mode.
-    if (sel.mode === 'vertex') {
-      for (const point of topo.points) {
-        const p = this.uvToScreen(point.u, point.v);
-        const isSelected = highlight.points.has(point.key);
+    this._paths = { faceBase, faceSel, edgeBase, edgeSel, points: topo.points };
+  }
 
-        this.ctx.fillStyle = isSelected ? '#ffffff' : '#a1a1a1';
-        this.ctx.fillRect(p.x - 5 / 2, p.y - 5 / 2, 5, 5);
-      }
+  drawUVWireframe() {
+    if (!this._paths) this._buildPaths();
+    const paths = this._paths;
+    if (!paths) return;
+
+    const ctx = this.ctx;
+    const dpr = this._dpr;
+    const z = this.zoom;
+
+    ctx.save();
+    // UV space -> device pixels. V is flipped, matching uvToScreen.
+    ctx.setTransform(z * dpr, 0, 0, -z * dpr, this.pan.x * dpr, this.pan.y * dpr);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fill(paths.faceBase);
+    ctx.fillStyle = 'rgba(255, 255, 150, 0.35)';
+    ctx.fill(paths.faceSel);
+
+    ctx.lineWidth = 1 / z; // keeps strokes at 1px on screen
+    ctx.strokeStyle = 'rgba(200, 200, 200, 0.7)';
+    ctx.stroke(paths.edgeBase);
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke(paths.edgeSel);
+
+    ctx.restore();
+
+    if (this.uvSelection.mode === 'vertex') this._drawPoints(paths.points);
+  }
+
+  _drawPoints(points) {
+    const ctx = this.ctx;
+    const hl = this.uvSelection.getHighlight();
+    const px = this.pan.x, py = this.pan.y, z = this.zoom;
+    const w = this._width, h = this._height;
+    const s = 5, half = s / 2;
+
+    const base = new Path2D(), sel = new Path2D();
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      const x = px + p.u * z;
+      if (x < -s || x > w + s) continue;
+      const y = py - p.v * z;
+      if (y < -s || y > h + s) continue;
+
+      (hl.points.has(p.key) ? sel : base).rect(x - half, y - half, s, s);
     }
+
+    ctx.fillStyle = '#a1a1a1'; ctx.fill(base);
+    ctx.fillStyle = '#ffffff'; ctx.fill(sel);
   }
 
   drawSelectionBox() {
@@ -329,14 +409,24 @@ export class UVEditor {
   }
 
   // Interaction
+  _getCanvasRect() {
+    if (this._rectDirty || !this._canvasRect) {
+      this._canvasRect = this.canvas.getBoundingClientRect();
+      this._rectDirty = false;
+    }
+    return this._canvasRect;
+  }
+
   _getMousePosition(e) {
-    const rect = this.canvas.getBoundingClientRect();
+    const rect = this._getCanvasRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
   onMouseDown(e) {
     if (!this.active) return;
 
+    // Re-read once per gesture; the rect cannot move mid-drag.
+    this._rectDirty = true;
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);
 
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
@@ -360,7 +450,7 @@ export class UVEditor {
     if (this.isPanning) {
       this.pan.x = mouseX - this.panStart.x;
       this.pan.y = mouseY - this.panStart.y;
-      this.render();
+      this.requestRender();
       return;
     }
 
@@ -375,7 +465,7 @@ export class UVEditor {
     if (this.dragging) {
       this.isBoxSelecting = true;
       this.boxEnd = { x: mouseX, y: mouseY };
-      this.render();
+      this.requestRender();
     }
   }
 
@@ -391,6 +481,9 @@ export class UVEditor {
       } else {
         this.uvSelection.selectAt(mouseX, mouseY, e.shiftKey);
       }
+
+      this.invalidatePaths();
+
       if (this.syncSelection) {
         this.signals.uvSelectionChanged.dispatch(this.uvSelection);
       }
@@ -401,7 +494,7 @@ export class UVEditor {
     this.isBoxSelecting = false;
     this.mouseDownPos = null;
 
-    this.render();
+    this.requestRender();
   }
 
   onWheel(e) {
@@ -435,13 +528,13 @@ export class UVEditor {
         this.pan.y -= deltaY;
       }
 
-      this.render();
+      this.requestRender();
       return;
     }
 
     e.preventDefault();
     this._zoomAt(e, deltaY, 0.001);
-    this.render();
+    this.requestRender();
   }
 
   _zoomAt(e, delta, scaleFactor) {
