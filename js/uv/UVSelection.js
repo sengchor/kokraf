@@ -6,6 +6,7 @@ export class UVSelection {
     this.vertices = new Set();
     this.edges = new Set();
     this.faces = new Set();
+    this.version = 0;
   }
 
   getMeshData() {
@@ -37,12 +38,14 @@ export class UVSelection {
       this.vertices = vertexSet;
       this.edges = edgeSet;
     }
+    this.version++;
   }
 
   clear() {
     this.vertices.clear();
     this.edges.clear();
     this.faces.clear();
+    this.version++;
   }
 
   getActiveSet() {
@@ -348,6 +351,9 @@ export class UVSelection {
   }
  
   boxSelect(minX, minY, maxX, maxY, additive = false) {
+    const meshData = this.getMeshData();
+    if (!meshData) return;
+
     if (!additive) {
       this.getActiveSet().clear();
     }
@@ -373,8 +379,6 @@ export class UVSelection {
     }
  
     if (this.mode === 'face') {
-      const meshData = this.getMeshData();
-      if (!meshData) return;
       for (const face of meshData.faces.values()) {
         const faceUVs = meshData.uvs.get(face.id);
         if (!this.isFaceUVComplete(face, faceUVs)) continue;

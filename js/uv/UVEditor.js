@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { UVSelection } from './UVSelection.js';
 import { UVViewportControls } from '../ui/UVViewport.Controls.js';
 
+const POINT_SIZE = 5;
+const EDGE_WIDTH = 1;
+const SEL_EDGE_WIDTH = 1.6;
+
 export class UVEditor {
   constructor(editor) {
     this.editor = editor;
@@ -42,9 +46,10 @@ export class UVEditor {
     this.initialUVState = [];
 
     // Cached geometry paths, built in UV space and reused across pan/zoom.
-    this._paths = null;
+    this._base = null;
+    this._sel = null;
+    this._selVersion = undefined;
 
-    // Cached layout metrics, so no frame reads geometry off the DOM.
     this._width = 0;
     this._height = 0;
     this._dpr = window.devicePixelRatio;
@@ -83,7 +88,7 @@ export class UVEditor {
         this.canvas.parentElement.classList.add('hidden');
         resizerEl?.classList.add('hidden');
         this.uvSelection.clear();
-        this.invalidatePaths();
+        this.invalidateSelection();
       }
     });
 
@@ -103,21 +108,21 @@ export class UVEditor {
       if (this.syncSelection) {
         this.uvSelection.applyMeshSelection(this.editSelection.selectionState);
       }
-      this.invalidatePaths();
+      this.invalidateSelection();
       this.requestRender();
     });
 
     this.signals.editSelectionChanged.add((state) => {
       if (!this.active || !this.syncSelection) return;
       this.uvSelection.applyMeshSelection(state);
-      this.invalidatePaths();
+      this.invalidateSelection();
       this.requestRender();
     });
 
     this.signals.editSelectionCleared.add(() => {
       if (!this.active) return;
       this.uvSelection.clear();
-      this.invalidatePaths();
+      this.invalidateSelection();
       this.requestRender();
     });
 
@@ -130,7 +135,7 @@ export class UVEditor {
       } else {
         this.uvSelection.clear();
       }
-      this.invalidatePaths();
+      this.invalidateSelection();
       this.requestRender();
     });
 
@@ -150,13 +155,23 @@ export class UVEditor {
     window.addEventListener('scroll', () => { this._rectDirty = true; }, true);
   }
 
+  invalidateSelection() {
+    this._sel = null;
+    this._selVersion = undefined;
+  }
+
+  invalidateGeometry() {
+    this._base = null;
+    this.invalidateSelection();
+  }
+
   invalidatePaths() {
-    this._paths = null;
+    this.invalidateGeometry();
   }
 
   invalidateAll() {
     this.uvSelection.invalidateTopology();
-    this._paths = null;
+    this.invalidateGeometry();
   }
 
   requestRender() {
@@ -303,25 +318,29 @@ export class UVEditor {
     this.ctx.strokeRect(p0.x, p1.y, this.zoom, this.zoom);
   }
 
-  _buildPaths() {
+  _addPoint(path, u, v) {
+    path.moveTo(u, v);
+    path.lineTo(u + 1e-6, v);
+  }
+
+  // O(mesh). Rebuilt only when the UVs or the edited object change.
+  _buildBasePaths() {
     const meshData = this.getMeshData();
     const sel = this.uvSelection;
-    if (!meshData) { this._paths = null; return; }
+    if (!meshData) { this._base = null; return; }
 
     const topo = sel.buildTopology();
-    const hl = sel.getHighlight();
-
-    const faceBase = new Path2D(), faceSel = new Path2D();
-    const edgeBase = new Path2D(), edgeSel = new Path2D();
+    const faces = new Path2D();
+    const edges = new Path2D();
+    const points = new Path2D();
 
     for (const face of meshData.faces.values()) {
       const uvs = meshData.uvs.get(face.id);
       if (!sel.isFaceUVComplete(face, uvs)) continue;
 
-      const p = hl.faces.has(face.id) ? faceSel : faceBase;
-      p.moveTo(uvs[0].u, uvs[0].v);
-      for (let i = 1; i < uvs.length; i++) p.lineTo(uvs[i].u, uvs[i].v);
-      p.closePath();
+      faces.moveTo(uvs[0].u, uvs[0].v);
+      for (let i = 1; i < uvs.length; i++) faces.lineTo(uvs[i].u, uvs[i].v);
+      faces.closePath();
     }
 
     for (const edge of topo.edges) {
@@ -329,19 +348,79 @@ export class UVEditor {
       const b = topo.pointsByKey.get(edge.bKey);
       if (!a || !b) continue;
 
-      const p = hl.edges.has(edge.key) ? edgeSel : edgeBase;
-      p.moveTo(a.u, a.v);
-      p.lineTo(b.u, b.v);
+      edges.moveTo(a.u, a.v);
+      edges.lineTo(b.u, b.v);
     }
 
-    this._paths = { faceBase, faceSel, edgeBase, edgeSel, points: topo.points };
+    for (const point of topo.points) {
+      this._addPoint(points, point.u, point.v);
+    }
+
+    this._base = { faces, edges, points };
+  }
+
+  // O(selected). Direct lookups only, never a pass over the mesh.
+  _buildSelectionPaths() {
+    const meshData = this.getMeshData();
+    const sel = this.uvSelection;
+    if (!meshData) { this._sel = null; return; }
+
+    const topo = sel.buildTopology();
+    const hl = sel.getHighlight();
+
+    const faces = new Path2D();
+    const edges = new Path2D();
+    const points = new Path2D();
+
+    for (const faceId of hl.faces) {
+      const face = meshData.faces.get(faceId);
+      const uvs = meshData.uvs.get(faceId);
+      if (!face || !sel.isFaceUVComplete(face, uvs)) continue;
+
+      faces.moveTo(uvs[0].u, uvs[0].v);
+      for (let i = 1; i < uvs.length; i++) faces.lineTo(uvs[i].u, uvs[i].v);
+      faces.closePath();
+    }
+
+    for (const edgeKey of hl.edges) {
+      const edge = topo.edgesByKey.get(edgeKey);
+      if (!edge) continue;
+      const a = topo.pointsByKey.get(edge.aKey);
+      const b = topo.pointsByKey.get(edge.bKey);
+      if (!a || !b) continue;
+
+      edges.moveTo(a.u, a.v);
+      edges.lineTo(b.u, b.v);
+    }
+
+    for (const pointKey of hl.points) {
+      const point = topo.pointsByKey.get(pointKey);
+      if (!point) continue;
+      this._addPoint(points, point.u, point.v);
+    }
+
+    this._sel = { faces, edges, points };
+  }
+
+  _ensurePaths() {
+    if (!this._base) this._buildBasePaths();
+    if (!this._base) return false;
+
+    const version = this.uvSelection.version;
+    const stale = !this._sel || (version !== undefined && this._selVersion !== version);
+
+    if (stale) {
+      this._buildSelectionPaths();
+      this._selVersion = version;
+    }
+    return this._sel !== null;
   }
 
   drawUVWireframe() {
-    if (!this._paths) this._buildPaths();
-    const paths = this._paths;
-    if (!paths) return;
+    if (!this._ensurePaths()) return;
 
+    const base = this._base;
+    const sel = this._sel;
     const ctx = this.ctx;
     const dpr = this._dpr;
     const z = this.zoom;
@@ -350,42 +429,33 @@ export class UVEditor {
     // UV space -> device pixels. V is flipped, matching uvToScreen.
     ctx.setTransform(z * dpr, 0, 0, -z * dpr, this.pan.x * dpr, this.pan.y * dpr);
 
+    // Base mesh.
     ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.fill(paths.faceBase);
-    ctx.fillStyle = 'rgba(255, 255, 150, 0.35)';
-    ctx.fill(paths.faceSel);
+    ctx.fill(base.faces);
 
-    ctx.lineWidth = 1 / z; // keeps strokes at 1px on screen
+    ctx.lineWidth = EDGE_WIDTH / z;
     ctx.strokeStyle = 'rgba(200, 200, 200, 0.7)';
-    ctx.stroke(paths.edgeBase);
+    ctx.stroke(base.edges);
+
+    // Selection overlay. These composite over the base, so the face alpha is
+    // lower than a standalone highlight would need to be.
+    ctx.fillStyle = 'rgba(255, 255, 150, 0.28)';
+    ctx.fill(sel.faces);
+
+    ctx.lineWidth = SEL_EDGE_WIDTH / z;
     ctx.strokeStyle = '#ffffff';
-    ctx.stroke(paths.edgeSel);
+    ctx.stroke(sel.edges);
 
-    ctx.restore();
-
-    if (this.uvSelection.mode === 'vertex') this._drawPoints(paths.points);
-  }
-
-  _drawPoints(points) {
-    const ctx = this.ctx;
-    const hl = this.uvSelection.getHighlight();
-    const px = this.pan.x, py = this.pan.y, z = this.zoom;
-    const w = this._width, h = this._height;
-    const s = 5, half = s / 2;
-
-    const base = new Path2D(), sel = new Path2D();
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
-      const x = px + p.u * z;
-      if (x < -s || x > w + s) continue;
-      const y = py - p.v * z;
-      if (y < -s || y > h + s) continue;
-
-      (hl.points.has(p.key) ? sel : base).rect(x - half, y - half, s, s);
+    if (this.uvSelection.mode === 'vertex') {
+      ctx.lineCap = 'square';
+      ctx.lineWidth = POINT_SIZE / z;
+      ctx.strokeStyle = '#a1a1a1';
+      ctx.stroke(base.points);
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke(sel.points);
     }
 
-    ctx.fillStyle = '#a1a1a1'; ctx.fill(base);
-    ctx.fillStyle = '#ffffff'; ctx.fill(sel);
+    ctx.restore();
   }
 
   drawSelectionBox() {
@@ -482,7 +552,7 @@ export class UVEditor {
         this.uvSelection.selectAt(mouseX, mouseY, e.shiftKey);
       }
 
-      this.invalidatePaths();
+      this.invalidateSelection();
 
       if (this.syncSelection) {
         this.signals.uvSelectionChanged.dispatch(this.uvSelection);
