@@ -31,6 +31,11 @@ export class UVActions {
       return;
     }
 
+    if (action === 'clear-uv') {
+      this.clearUV();
+      return;
+    }
+
     if (action === 'auto-uv-unwrap') {
       this.autoUVUnwrap();
       return;
@@ -65,6 +70,19 @@ export class UVActions {
       throw new Error(`UV unwrap failed for "${object.name}".`);
     }
 
+    const newUVs = SetUVsCommand.capture(meshData.uvs);
+    this.editor.execute(new SetUVsCommand(this.editor, object, newUVs, oldUVs));
+  }
+
+  clearUV() {
+    const object = this.editSelection.editedObject;
+    if (!object) return;
+
+    const meshData = object.userData.meshData;
+    if (meshData.faces.size === 0 || meshData.uvs.size === 0) return;
+    
+    const oldUVs = SetUVsCommand.capture(meshData.uvs);
+    meshData.uvs.clear();
     const newUVs = SetUVsCommand.capture(meshData.uvs);
     this.editor.execute(new SetUVsCommand(this.editor, object, newUVs, oldUVs));
   }
