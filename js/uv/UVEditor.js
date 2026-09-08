@@ -1,6 +1,7 @@
-import * as THREE from 'three';
 import { UVSelection } from './UVSelection.js';
 import { UVViewportControls } from '../ui/UVViewport.Controls.js';
+import { UVRenderer } from './UVRenderer.js';
+import earcut from 'earcut';
 
 const POINT_SIZE = 5;
 const EDGE_WIDTH = 1;
@@ -26,7 +27,12 @@ export class UVEditor {
       console.warn('UVEditor: #uv-canvas element not found.');
       return;
     }
-    this.ctx = this.canvas.getContext('2d');
+
+    this.renderer = new UVRenderer(this.canvas);
+    if (!this.renderer.supported) {
+      console.warn('UVEditor: WebGL renderer unavailable, UV view will not draw.');
+    }
+    this._contextLost = false;
 
     this.uvViewportControls = new UVViewportControls(editor);
     this.syncSelection = false;
@@ -45,9 +51,9 @@ export class UVEditor {
     this.boxEnd = { x: 0, y: 0 };
     this.initialUVState = [];
 
-    // Cached geometry paths, built in UV space and reused across pan/zoom.
-    this._base = null;
-    this._sel = null;
+    // One copy of the mesh, built in UV space. Pan/zoom are uniforms and
+    // selection is a byte per element, so neither rebuilds a position buffer.
+    this._geom = null;
     this._selVersion = undefined;
 
     this._width = 0;
@@ -153,15 +159,28 @@ export class UVEditor {
     // The cached canvas rect goes stale whenever the page moves under it.
     window.addEventListener('resize', () => { this._rectDirty = true; });
     window.addEventListener('scroll', () => { this._rectDirty = true; }, true);
+
+    // All GPU resources die with the context, so everything is rebuilt on restore.
+    this.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this._contextLost = true;
+    }, false);
+
+    this.canvas.addEventListener('webglcontextrestored', () => {
+      this._contextLost = false;
+      if (!this.renderer.restore()) return;
+      this.invalidateGeometry();
+      this.resizeCanvas();
+      this.requestRender();
+    }, false);
   }
 
   invalidateSelection() {
-    this._sel = null;
     this._selVersion = undefined;
   }
 
   invalidateGeometry() {
-    this._base = null;
+    this._geom = null;
     this.invalidateSelection();
   }
 
@@ -184,18 +203,12 @@ export class UVEditor {
   }
 
   resizeCanvas() {
-    if (!this.canvas.parentElement) return;
+    if (!this.canvas.parentElement || !this.renderer?.supported) return;
     const rect = this.canvas.parentElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
     const dpr = window.devicePixelRatio;
-
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
-    this.canvas.style.width = `${rect.width}px`;
-    this.canvas.style.height = `${rect.height}px`;
-
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.renderer.resize(rect.width, rect.height, dpr);
 
     this._width = rect.width;
     this._height = rect.height;
@@ -271,202 +284,199 @@ export class UVEditor {
 
   // Rendering
   render() {
-    if (!this.active) return;
+    if (!this.active || this._contextLost || !this.renderer?.supported) return;
 
     const width = this._width;
     const height = this._height;
     if (width === 0 || height === 0) return;
 
-    this.ctx.fillStyle = '#3f3f3f';
-    this.ctx.fillRect(0, 0, width, height);
+    const renderer = this.renderer;
+    renderer.setTransform(this.pan.x, this.pan.y, this.zoom);
+    renderer.beginFrame();
+    renderer.drawGrid();
 
-    this.drawGrid();
-
-    if (this.getMeshData()) {
-      this.drawUVWireframe();
+    if (this.getMeshData() && this._ensureGeometry()) {
+      renderer.drawMesh({
+        edgeWidth: EDGE_WIDTH,
+        selEdgeWidth: SEL_EDGE_WIDTH,
+        pointSize: POINT_SIZE,
+        showPoints: this.uvSelection.mode === 'vertex'
+      });
     }
 
     if (this.isBoxSelecting) {
-      this.drawSelectionBox();
+      const { minX, minY, maxX, maxY } = this._getBoxBounds();
+      renderer.drawBox(minX, minY, maxX, maxY);
     }
-  }
-
-  drawGrid() {
-    this.ctx.lineWidth = 1;
-
-    const p0 = this.uvToScreen(0, 0);
-    const p1 = this.uvToScreen(1, 1);
-
-    this.ctx.fillStyle = '#343434';
-    this.ctx.fillRect(p0.x, p1.y, this.zoom, this.zoom);
-
-    this.ctx.beginPath();
-    this.ctx.strokeStyle = '#4a4a4a';
-    for (let i = 1; i < 10; i++) {
-      const stepU = this.uvToScreen(i / 10, 0).x;
-      const stepV = this.uvToScreen(0, i / 10).y;
-
-      this.ctx.moveTo(stepU, p0.y);
-      this.ctx.lineTo(stepU, p1.y);
-
-      this.ctx.moveTo(p0.x, stepV);
-      this.ctx.lineTo(p1.x, stepV);
-    }
-    this.ctx.stroke();
-
-    this.ctx.strokeStyle = '#666666';
-    this.ctx.strokeRect(p0.x, p1.y, this.zoom, this.zoom);
-  }
-
-  _addPoint(path, u, v) {
-    path.moveTo(u, v);
-    path.lineTo(u + 1e-6, v);
   }
 
   // O(mesh). Rebuilt only when the UVs or the edited object change.
-  _buildBasePaths() {
+  //
+  // Alongside the positions this records where each element lives in its buffer
+  // (face -> first triangle vertex, edge key -> instance, point key -> index) so
+  // selection changes are a direct write into the flag arrays.
+  _buildGeometry() {
     const meshData = this.getMeshData();
-    const sel = this.uvSelection;
-    if (!meshData) { this._base = null; return; }
+    if (!meshData) {
+      this._geom = null;
+      this.renderer.setGeometry(null, null);
+      return;
+    }
 
+    const sel = this.uvSelection;
     const topo = sel.buildTopology();
-    const faces = new Path2D();
-    const edges = new Path2D();
-    const points = new Path2D();
+
+    // Faces, triangulated with Earcut.
+    const kept = [];
+    let faceFloats = 0;
 
     for (const face of meshData.faces.values()) {
       const uvs = meshData.uvs.get(face.id);
-      if (!sel.isFaceUVComplete(face, uvs)) continue;
 
-      faces.moveTo(uvs[0].u, uvs[0].v);
-      for (let i = 1; i < uvs.length; i++) faces.lineTo(uvs[i].u, uvs[i].v);
-      faces.closePath();
+      if (!sel.isFaceUVComplete(face, uvs)) continue;
+      if (!uvs || uvs.length < 3) continue;
+
+      // Flatten UVs for Earcut:
+      // [u0, v0, u1, v1, u2, v2, ...]
+      const flatUVs = new Array(uvs.length * 2);
+
+      for (let i = 0; i < uvs.length; i++) {
+        flatUVs[i * 2] = uvs[i].u;
+        flatUVs[i * 2 + 1] = uvs[i].v;
+      }
+
+      const triangulated = earcut(flatUVs);
+
+      kept.push({
+        faceId: face.id,
+        flatUVs,
+        triangulated
+      });
+
+      // Each Earcut triangle contains 3 vertices × 2 floats.
+      faceFloats += triangulated.length * 2;
     }
+
+    const faces = new Float32Array(faceFloats);
+    const faceRanges = new Map();
+
+    let fo = 0;
+
+    for (const { faceId, flatUVs, triangulated } of kept) {
+      const start = fo / 2;
+      const count = triangulated.length;
+
+      faceRanges.set(faceId, {
+        start,
+        count
+      });
+
+      for (let i = 0; i < triangulated.length; i++) {
+        const index = triangulated[i];
+
+        faces[fo++] = flatUVs[index * 2];
+        faces[fo++] = flatUVs[index * 2 + 1];
+      }
+    }
+
+    // Edges, one instance each.
+    const edgeData = new Float32Array(topo.edges.length * 4);
+    const edgeSlots = new Map();
+
+    let eo = 0;
+    let edgeCount = 0;
 
     for (const edge of topo.edges) {
       const a = topo.pointsByKey.get(edge.aKey);
       const b = topo.pointsByKey.get(edge.bKey);
+
       if (!a || !b) continue;
 
-      edges.moveTo(a.u, a.v);
-      edges.lineTo(b.u, b.v);
+      edgeData[eo++] = a.u;
+      edgeData[eo++] = a.v;
+      edgeData[eo++] = b.u;
+      edgeData[eo++] = b.v;
+
+      edgeSlots.set(edge.key, edgeCount++);
     }
+
+    const edges =
+      eo === edgeData.length
+        ? edgeData
+        : edgeData.subarray(0, eo);
+
+    // Points.
+    const points = new Float32Array(topo.points.length * 2);
+    const pointSlots = new Map();
+
+    let po = 0;
 
     for (const point of topo.points) {
-      this._addPoint(points, point.u, point.v);
+      pointSlots.set(point.key, po / 2);
+
+      points[po++] = point.u;
+      points[po++] = point.v;
     }
 
-    this._base = { faces, edges, points };
+    this._geom = {
+      faces,
+      edges,
+      points,
+      faceRanges,
+      edgeSlots,
+      pointSlots,
+
+      flags: {
+        faces: new Uint8Array(faces.length / 2),
+        edges: new Uint8Array(edgeCount),
+        points: new Uint8Array(points.length / 2)
+      }
+    };
+
+    this.renderer.setGeometry(this._geom, this._geom.flags);
   }
 
-  // O(selected). Direct lookups only, never a pass over the mesh.
-  _buildSelectionPaths() {
-    const meshData = this.getMeshData();
-    const sel = this.uvSelection;
-    if (!meshData) { this._sel = null; return; }
+  // A memset plus O(selected) writes, then one byte upload per stream.
+  _updateFlags() {
+    const geom = this._geom;
+    if (!geom) return;
 
-    const topo = sel.buildTopology();
-    const hl = sel.getHighlight();
+    const hl = this.uvSelection.getHighlight();
+    const flags = geom.flags;
 
-    const faces = new Path2D();
-    const edges = new Path2D();
-    const points = new Path2D();
+    flags.faces.fill(0);
+    flags.edges.fill(0);
+    flags.points.fill(0);
 
     for (const faceId of hl.faces) {
-      const face = meshData.faces.get(faceId);
-      const uvs = meshData.uvs.get(faceId);
-      if (!face || !sel.isFaceUVComplete(face, uvs)) continue;
-
-      faces.moveTo(uvs[0].u, uvs[0].v);
-      for (let i = 1; i < uvs.length; i++) faces.lineTo(uvs[i].u, uvs[i].v);
-      faces.closePath();
+      const range = geom.faceRanges.get(faceId);
+      if (!range) continue;
+      flags.faces.fill(1, range.start, range.start + range.count);
     }
 
     for (const edgeKey of hl.edges) {
-      const edge = topo.edgesByKey.get(edgeKey);
-      if (!edge) continue;
-      const a = topo.pointsByKey.get(edge.aKey);
-      const b = topo.pointsByKey.get(edge.bKey);
-      if (!a || !b) continue;
-
-      edges.moveTo(a.u, a.v);
-      edges.lineTo(b.u, b.v);
+      const slot = geom.edgeSlots.get(edgeKey);
+      if (slot !== undefined) flags.edges[slot] = 1;
     }
 
     for (const pointKey of hl.points) {
-      const point = topo.pointsByKey.get(pointKey);
-      if (!point) continue;
-      this._addPoint(points, point.u, point.v);
+      const slot = geom.pointSlots.get(pointKey);
+      if (slot !== undefined) flags.points[slot] = 1;
     }
 
-    this._sel = { faces, edges, points };
+    this.renderer.updateFlags(flags);
   }
 
-  _ensurePaths() {
-    if (!this._base) this._buildBasePaths();
-    if (!this._base) return false;
+  _ensureGeometry() {
+    if (!this._geom) this._buildGeometry();
+    if (!this._geom) return false;
 
     const version = this.uvSelection.version;
-    const stale = !this._sel || (version !== undefined && this._selVersion !== version);
-
-    if (stale) {
-      this._buildSelectionPaths();
+    if (version === undefined || this._selVersion !== version) {
+      this._updateFlags();
       this._selVersion = version;
     }
-    return this._sel !== null;
-  }
-
-  drawUVWireframe() {
-    if (!this._ensurePaths()) return;
-
-    const base = this._base;
-    const sel = this._sel;
-    const ctx = this.ctx;
-    const dpr = this._dpr;
-    const z = this.zoom;
-
-    ctx.save();
-    // UV space -> device pixels. V is flipped, matching uvToScreen.
-    ctx.setTransform(z * dpr, 0, 0, -z * dpr, this.pan.x * dpr, this.pan.y * dpr);
-
-    // Base mesh.
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.fill(base.faces);
-
-    ctx.lineWidth = EDGE_WIDTH / z;
-    ctx.strokeStyle = 'rgba(200, 200, 200, 0.7)';
-    ctx.stroke(base.edges);
-
-    // Selection overlay. These composite over the base, so the face alpha is
-    // lower than a standalone highlight would need to be.
-    ctx.fillStyle = 'rgba(255, 255, 150, 0.28)';
-    ctx.fill(sel.faces);
-
-    ctx.lineWidth = SEL_EDGE_WIDTH / z;
-    ctx.strokeStyle = '#ffffff';
-    ctx.stroke(sel.edges);
-
-    if (this.uvSelection.mode === 'vertex') {
-      ctx.lineCap = 'square';
-      ctx.lineWidth = POINT_SIZE / z;
-      ctx.strokeStyle = '#a1a1a1';
-      ctx.stroke(base.points);
-      ctx.strokeStyle = '#ffffff';
-      ctx.stroke(sel.points);
-    }
-
-    ctx.restore();
-  }
-
-  drawSelectionBox() {
-    const { minX, minY, maxX, maxY } = this._getBoxBounds();
-
-    this.ctx.strokeStyle = '#FFD800';
-    this.ctx.fillStyle = 'rgba(255, 216, 0, 0.18)';
-    this.ctx.lineWidth = 1;
-    this.ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
-    this.ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
-    this.ctx.setLineDash([]);
+    return true;
   }
 
   _getBoxBounds() {
@@ -614,5 +624,9 @@ export class UVEditor {
     this.pan.x = mouseX - (mouseX - this.pan.x) * zoomFactor;
     this.pan.y = mouseY - (mouseY - this.pan.y) * zoomFactor;
     this.zoom *= zoomFactor;
+  }
+
+  dispose() {
+    this.renderer?.dispose();
   }
 }
