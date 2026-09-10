@@ -21,15 +21,6 @@ export class UVTransformTool {
     return this.uvSelection.vertices.size > 0;
   }
 
-  canBeginAt(screenX, screenY) {
-    const sel = this.uvSelection;
-    if (sel.getActiveSet().size === 0) return false;
-
-    const hitKey = sel.hitTestActive(screenX, screenY);
-
-    return hitKey !== null && sel.getActiveSet().has(hitKey);
-  }
-
   begin(screenX, screenY, { modal = false } = {}) {
     if (this.session) return false;
 

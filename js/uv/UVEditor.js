@@ -2,6 +2,7 @@ import { UVSelection } from './UVSelection.js';
 import { UVViewportControls } from '../ui/UVViewport.Controls.js';
 import { UVRenderer } from './UVRenderer.js';
 import { UVTransformTool } from './UVTransformTool.js';
+import { UVTransformControls } from './UVTransformControls.js';
 import earcut from 'earcut';
 
 const POINT_SIZE = 5;
@@ -40,6 +41,7 @@ export class UVEditor {
     this.syncSelection = false;
 
     this.transformTool = new UVTransformTool(this);
+    this.transformControls = new UVTransformControls(this, this.transformTool);
     this._lastMouse = { x: 0, y: 0 };
 
     this.zoom = 1.0;
@@ -174,6 +176,10 @@ export class UVEditor {
 
       if (e.key.toLowerCase() === 'g' && this.transformTool.hasSelection()) {
         e.preventDefault();
+
+        if (this.activeTool !== 'move') {
+          this.signals.uvToolChanged.dispatch('move');
+        }
         this.transformTool.begin(this._lastMouse.x, this._lastMouse.y, { modal: true });
       }
     });
@@ -340,6 +346,8 @@ export class UVEditor {
         showPoints: this.uvSelection.mode === 'vertex'
       });
     }
+
+    if (this.activeTool === 'move') this.transformControls.draw();
 
     if (this.isBoxSelecting) {
       const { minX, minY, maxX, maxY } = this._getBoxBounds();
@@ -533,6 +541,7 @@ export class UVEditor {
     if (this.transformTool.transforming) {
       if (e.button === 0) this.transformTool.commit();
       else if (e.button === 2) this.transformTool.cancel();
+      this.transformControls.onPointerUp();
       return;
     }
 
@@ -543,8 +552,8 @@ export class UVEditor {
     }
 
     if (e.button === 0) {
-      this._moveCandidate = this.activeTool === 'move' && !e.shiftKey
-        && this.transformTool.canBeginAt(mouseX, mouseY);
+      if (this.activeTool === 'move' &&
+          this.transformControls.onPointerDown(mouseX, mouseY)) return;
       
       this.dragging = false;
       this.mouseDownPos = { x: e.clientX, y: e.clientY };
@@ -563,7 +572,13 @@ export class UVEditor {
       return;
     }
 
-    if (!this.mouseDownPos && !this.isPanning) return;
+    if (!this.mouseDownPos && !this.isPanning) {
+      if (this.activeTool === 'move' &&
+          this.transformControls.onPointerMove(mouseX, mouseY)) {
+        this.requestRender();
+      }
+      return;
+    }
 
     if (this.isPanning) {
       this.pan.x = mouseX - this.panStart.x;
@@ -578,12 +593,6 @@ export class UVEditor {
 
     if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
       this.dragging = true;
-
-      if (this._moveCandidate && this.transformTool.begin(this.boxStart.x, this.boxStart.y)) {
-        this._moveCandidate = false;
-        this.transformTool.update(mouseX, mouseY);
-        return;
-      }
     }
 
     if (this.dragging) {
@@ -599,8 +608,7 @@ export class UVEditor {
     if (this.transformTool.transforming) {
       if (!this.transformTool.modal) {
         this.transformTool.commit();
-        this.mouseDownPos = null;
-        this.dragging = false;
+        this.transformControls.onPointerUp();
       }
       return;
     }

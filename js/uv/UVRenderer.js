@@ -561,27 +561,30 @@ export class UVRenderer {
     }
   }
 
-  // Screen-space box, in CSS pixels.
-  drawBox(minX, minY, maxX, maxY) {
-    if (!this.supported) return;
+  drawScreenTriangles(vertices, color) {
+    if (!this.supported || vertices.length === 0) return;
+    this._upload(this.buffers.screenTris, vertices);
+    this._drawTriangles(this.buffers.screenTris, null, vertices.length / 2, color, null, 1);
+  }
 
-    this._upload(this.buffers.screenTris, new Float32Array([
+  drawScreenLines(segements, width, color) {
+    if (!this.supported || segements.length === 0) return;
+    this._upload(this.buffers.screenSegs, segements);
+    this._drawLines(this.buffers.screenSegs, null, segements.length / 4, width, width, color, null, 1);
+  }
+
+  drawBox(minX, minY, maxX, maxY) {
+    this.drawScreenTriangles(new Float32Array([
       minX, minY, maxX, minY, minX, maxY,
       maxX, minY, maxX, maxY, minX, maxY
-    ]));
-    this._upload(this.buffers.screenSegs, new Float32Array([
+    ]), this.theme.boxFill);
+
+    this.drawScreenLines(new Float32Array([
       minX, minY, maxX, minY,
       maxX, minY, maxX, maxY,
       maxX, maxY, minX, maxY,
       minX, maxY, minX, minY
-    ]));
-
-    this._drawTriangles(this.buffers.screenTris, null, 6, this.theme.boxFill, null, 1);
-    this._drawLines(
-      this.buffers.screenSegs, null, 4,
-      1, 1,
-      this.theme.boxStroke, null, 1
-    );
+    ]), 1, this.theme.boxStroke);
   }
 
   dispose() {

@@ -1,3 +1,5 @@
+const UV_WELD_EPSILON = 1e-5;
+
 export class UVSelection {
   constructor(context) {
     this.context = context;
@@ -141,8 +143,8 @@ export class UVSelection {
     this._topoSource = null;
   }
 
-  _computeTopology(meshData, epsilon = 1e-5) {
-    const empty = {
+  _computeTopology(meshData) {
+    const topo = {
       points: [],
       pointsByKey: new Map(),
       cornerToPointKey: new Map(),
@@ -151,104 +153,71 @@ export class UVSelection {
       faceCornerKeys: new Map(),
       faceEdgeKeys: new Map()
     };
-    if (!meshData) return empty;
- 
-    const byVertex = new Map();
+    if (!meshData) return topo;
+
+    const { points, pointsByKey, cornerToPointKey, edgesByKey, faceCornerKeys, faceEdgeKeys } = topo;
+    const eps = UV_WELD_EPSILON;
+
+    // 1. Gather UV corners per mesh vertex (valid faces only).
+    const faces = [];
+    const cornersByVertex = new Map();
+
     for (const face of meshData.faces.values()) {
-      const faceUVs = meshData.uvs.get(face.id);
-      if (!this.isFaceUVComplete(face, faceUVs)) continue;
- 
-      for (let i = 0; i < faceUVs.length; i++) {
-        const vertexId = face.vertexIds[i];
-        if (!byVertex.has(vertexId)) byVertex.set(vertexId, []);
-        byVertex.get(vertexId).push({ faceId: face.id, corner: i, u: faceUVs[i].u, v: faceUVs[i].v });
-      }
+      const uvs = meshData.uvs.get(face.id);
+      if (!this.isFaceUVComplete(face, uvs)) continue;
+      faces.push(face);
+
+      face.vertexIds.forEach((vertexId, corner) => {
+        let list = cornersByVertex.get(vertexId);
+        if (!list) cornersByVertex.set(vertexId, list = []);
+        list.push({ faceId: face.id, corner, u: uvs[corner].u, v: uvs[corner].v });
+      });
     }
- 
-    const points = [];
-    const cornerToPointKey = new Map();
- 
-    for (const [vertexId, corners] of byVertex) {
+
+    // 2. Weld corners of the same vertex that share a UV position into points.
+    for (const [vertexId, corners] of cornersByVertex) {
       const clusters = [];
- 
       for (const c of corners) {
-        let cluster = clusters.find(
-          cl => Math.abs(cl.u - c.u) <= epsilon && Math.abs(cl.v - c.v) <= epsilon
-        );
-        if (!cluster) {
-          cluster = { u: c.u, v: c.v, corners: [] };
-          clusters.push(cluster);
-        }
-        cluster.corners.push(c);
+        let cl = clusters.find(k => Math.abs(k.u - c.u) <= eps && Math.abs(k.v - c.v) <= eps);
+        if (!cl) clusters.push(cl = { u: c.u, v: c.v, corners: [] });
+        cl.corners.push(c);
       }
- 
-      const cornerLess = (a, b) =>
-        a.faceId === b.faceId ? a.corner < b.corner : String(a.faceId) < String(b.faceId);
 
-      for (const cluster of clusters) {
-        let rep = cluster.corners[0];
-        for (const c of cluster.corners) if (cornerLess(c, rep)) rep = c;
-
-        const key = `${vertexId}_${rep.faceId}_${rep.corner}`;
-        points.push({ key, vertexId, u: cluster.u, v: cluster.v, corners: cluster.corners });
-
-        for (const c of cluster.corners) {
-          cornerToPointKey.set(`${c.faceId}_${c.corner}`, key);
-        }
+      for (const cl of clusters) {
+        const rep = cl.corners[0];
+        const key = `${rep.faceId}_${rep.corner}`;
+        const point = { key, vertexId, u: cl.u, v: cl.v, corners: cl.corners };
+        points.push(point);
+        pointsByKey.set(key, point);
+        for (const c of cl.corners) cornerToPointKey.set(`${c.faceId}_${c.corner}`, key);
       }
     }
- 
-    const pointsByKey = new Map(points.map(p => [p.key, p]));
- 
-    const edgesByKey = new Map();
-    const faceCornerKeys = new Map();
-    const faceEdgeKeys = new Map();
- 
-    for (const face of meshData.faces.values()) {
-      const faceUVs = meshData.uvs.get(face.id);
-      if (!this.isFaceUVComplete(face, faceUVs)) continue;
- 
+
+    // 3. Build edges and per-face key lists.
+    for (const face of faces) {
       const n = face.vertexIds.length;
-      const cornerKeys = [];
-      const edgeKeys = [];
-      let complete = true;
- 
+      const cornerKeys = new Array(n);
+      const edgeKeys = new Array(n);
+
+      for (let i = 0; i < n; i++) cornerKeys[i] = cornerToPointKey.get(`${face.id}_${i}`);
+
       for (let i = 0; i < n; i++) {
-        const j = (i + 1) % n;
-        const keyA = cornerToPointKey.get(`${face.id}_${i}`);
-        const keyB = cornerToPointKey.get(`${face.id}_${j}`);
-        if (!keyA || !keyB) {
-          complete = false;
-          continue;
-        }
- 
-        const edgeKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
-        let edge = edgesByKey.get(edgeKey);
-        if (!edge) {
-          edge = { key: edgeKey, aKey: keyA, bKey: keyB, faceIds: new Set() };
-          edgesByKey.set(edgeKey, edge);
-        }
+        const a = cornerKeys[i];
+        const b = cornerKeys[(i + 1) % n];
+        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+
+        let edge = edgesByKey.get(key);
+        if (!edge) edgesByKey.set(key, edge = { key, aKey: a, bKey: b, faceIds: new Set() });
         edge.faceIds.add(face.id);
- 
-        cornerKeys.push(keyA);
-        edgeKeys.push(edgeKey);
+        edgeKeys[i] = key;
       }
- 
-      if (complete && cornerKeys.length === n) {
-        faceCornerKeys.set(face.id, cornerKeys);
-        faceEdgeKeys.set(face.id, edgeKeys);
-      }
+
+      faceCornerKeys.set(face.id, cornerKeys);
+      faceEdgeKeys.set(face.id, edgeKeys);
     }
- 
-    return {
-      points,
-      pointsByKey,
-      cornerToPointKey,
-      edges: Array.from(edgesByKey.values()),
-      edgesByKey,
-      faceCornerKeys,
-      faceEdgeKeys
-    };
+
+    topo.edges = Array.from(edgesByKey.values());
+    return topo;
   }
 
   getHighlight() {
