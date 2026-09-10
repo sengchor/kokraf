@@ -88,3 +88,11 @@
 .uv-control-button.disabled img {
   opacity: 0.3;
 }
+
+.uv-tools {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  margin-left: 10px;
+  z-index: 9;
+}

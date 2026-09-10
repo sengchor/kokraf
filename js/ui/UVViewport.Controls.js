@@ -16,6 +16,16 @@ export class UVViewportControls {
   async load() {
     await this.uiLoader.loadComponent('#uv-controls-container', 'components/uv-viewport-controls.html');
     this.syncButton = this.container.querySelector('#uv-sync-selection');
+    this.uvTools = document.getElementById('uv-tools');
+    
+    if (this.uvTools) {
+      this.toolButtons = this.uvTools.querySelectorAll('.selection-button');
+      this.toolButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          this.signals.uvToolChanged.dispatch(button.dataset.tool);
+        });
+      });
+    }
 
     floatingTooltip.attach(this.container.querySelector('.uv-viewport-controls'));
 
@@ -25,6 +35,12 @@ export class UVViewportControls {
   setupListeners() {
     this.syncButton.addEventListener('click', () => {
       this.setSyncSelection(!this.syncSelection);
+    });
+
+    this.signals.uvToolChanged.add((tool) => {
+      this.toolButtons.forEach(b => 
+        b.classList.toggle('active', b.dataset.tool === tool)
+      );
     });
   }
 

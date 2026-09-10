@@ -143,6 +143,7 @@ export default class Editor {
       uvsChanged: new Signal(),
       seamsChanged: new Signal(),
       setSeam: new Signal(),
+      uvToolChanged: new Signal(),
     }
 
     this.helpers = {};

@@ -452,6 +452,24 @@ export class UVRenderer {
     }
   }
 
+  updatePositions({ faces, edges, points } = {}) {
+    if (!this.supported) return;
+    const gl = this.gl;
+
+    if (faces) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.faces);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, faces);
+    }
+    if (edges) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.edges);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, edges);
+    }
+    if (points) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.points);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, points);
+    }
+  }
+
   // Draw calls
   _drawTriangles(buffer, flagBuffer, vertexCount, color, selColor, space = 0) {
     if (vertexCount === 0) return;

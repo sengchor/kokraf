@@ -1,6 +1,7 @@
 import { UVSelection } from './UVSelection.js';
 import { UVViewportControls } from '../ui/UVViewport.Controls.js';
 import { UVRenderer } from './UVRenderer.js';
+import { UVTransformTool } from './UVTransformTool.js';
 import earcut from 'earcut';
 
 const POINT_SIZE = 5;
@@ -16,6 +17,7 @@ export class UVEditor {
 
     this.active = false;
     this.editedObject = null;
+    this.activeTool = 'select';
 
     this.uvSelection = new UVSelection({
       getMeshData: () => this.getMeshData(),
@@ -36,6 +38,9 @@ export class UVEditor {
 
     this.uvViewportControls = new UVViewportControls(editor);
     this.syncSelection = false;
+
+    this.transformTool = new UVTransformTool(this);
+    this._lastMouse = { x: 0, y: 0 };
 
     this.zoom = 1.0;
     this.pan = { x: 0, y: 0 };
@@ -94,6 +99,7 @@ export class UVEditor {
         this.canvas.parentElement.classList.add('hidden');
         resizerEl?.classList.add('hidden');
         this.uvSelection.clear();
+        if (this.transformTool.transforming) this.transformTool.cancel();
         this.invalidateSelection();
       }
     });
@@ -151,6 +157,27 @@ export class UVEditor {
       this.refresh({ resetView: true });
     });
 
+    this.signals.uvToolChanged.add((tool) => {
+      if (tool === this.activeTool) return;
+      this.activeTool = tool;
+      this.requestRender();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!this.active) return;
+      if (e.target.matches('input, textarea, [contenteditable]')) return;
+
+      if (this.transformTool.handleKey(e)) {
+        e.preventDefault();
+        return;
+      }
+
+      if (e.key.toLowerCase() === 'g' && this.transformTool.hasSelection()) {
+        e.preventDefault();
+        this.transformTool.begin(this._lastMouse.x, this._lastMouse.y, { modal: true });
+      }
+    });
+
     this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
     window.addEventListener('mousemove', this.onMouseMove.bind(this));
     window.addEventListener('mouseup', this.onMouseUp.bind(this));
@@ -191,6 +218,16 @@ export class UVEditor {
   invalidateAll() {
     this.uvSelection.invalidateTopology();
     this.invalidateGeometry();
+  }
+
+  getGeometry() {
+    return this._ensureGeometry() ? this._geom : null;
+  }
+
+  syncObjectUVs() {
+    const object = this.editSelection.editedObject;
+    if (!object) return;
+    this.signals.objectChanged.dispatch(object);
   }
 
   requestRender() {
@@ -326,85 +363,6 @@ export class UVEditor {
     const sel = this.uvSelection;
     const topo = sel.buildTopology();
 
-    // Faces, triangulated with Earcut.
-    const kept = [];
-    let faceFloats = 0;
-
-    for (const face of meshData.faces.values()) {
-      const uvs = meshData.uvs.get(face.id);
-
-      if (!sel.isFaceUVComplete(face, uvs)) continue;
-      if (!uvs || uvs.length < 3) continue;
-
-      // Flatten UVs for Earcut:
-      // [u0, v0, u1, v1, u2, v2, ...]
-      const flatUVs = new Array(uvs.length * 2);
-
-      for (let i = 0; i < uvs.length; i++) {
-        flatUVs[i * 2] = uvs[i].u;
-        flatUVs[i * 2 + 1] = uvs[i].v;
-      }
-
-      const triangulated = earcut(flatUVs);
-
-      kept.push({
-        faceId: face.id,
-        flatUVs,
-        triangulated
-      });
-
-      // Each Earcut triangle contains 3 vertices × 2 floats.
-      faceFloats += triangulated.length * 2;
-    }
-
-    const faces = new Float32Array(faceFloats);
-    const faceRanges = new Map();
-
-    let fo = 0;
-
-    for (const { faceId, flatUVs, triangulated } of kept) {
-      const start = fo / 2;
-      const count = triangulated.length;
-
-      faceRanges.set(faceId, {
-        start,
-        count
-      });
-
-      for (let i = 0; i < triangulated.length; i++) {
-        const index = triangulated[i];
-
-        faces[fo++] = flatUVs[index * 2];
-        faces[fo++] = flatUVs[index * 2 + 1];
-      }
-    }
-
-    // Edges, one instance each.
-    const edgeData = new Float32Array(topo.edges.length * 4);
-    const edgeSlots = new Map();
-
-    let eo = 0;
-    let edgeCount = 0;
-
-    for (const edge of topo.edges) {
-      const a = topo.pointsByKey.get(edge.aKey);
-      const b = topo.pointsByKey.get(edge.bKey);
-
-      if (!a || !b) continue;
-
-      edgeData[eo++] = a.u;
-      edgeData[eo++] = a.v;
-      edgeData[eo++] = b.u;
-      edgeData[eo++] = b.v;
-
-      edgeSlots.set(edge.key, edgeCount++);
-    }
-
-    const edges =
-      eo === edgeData.length
-        ? edgeData
-        : edgeData.subarray(0, eo);
-
     // Points.
     const points = new Float32Array(topo.points.length * 2);
     const pointSlots = new Map();
@@ -418,14 +376,77 @@ export class UVEditor {
       points[po++] = point.v;
     }
 
-    this._geom = {
-      faces,
-      edges,
-      points,
-      faceRanges,
-      edgeSlots,
-      pointSlots,
+    // Edges, one instance each.
+    const edgeData = new Float32Array(topo.edges.length * 4);
+    const edgeSlots = new Map();
 
+    let eo = 0;
+    let edgeCount = 0;
+
+    for (const edge of topo.edges) {
+      const a = topo.pointsByKey.get(edge.aKey);
+      const b = topo.pointsByKey.get(edge.bKey);
+      if (!a || !b) continue;
+
+      edgeData[eo++] = a.u;
+      edgeData[eo++] = a.v;
+      edgeData[eo++] = b.u;
+      edgeData[eo++] = b.v;
+
+      edgeSlots.set(edge.key, edgeCount++);
+    }
+
+    const edges = eo === edgeData.length
+      ? edgeData : edgeData.subarray(0, eo);
+
+    // Faces, triangulated with Earcut.
+    const kept = [];
+    let faceFloats = 0;
+
+    for (const face of meshData.faces.values()) {
+      const uvs = meshData.uvs.get(face.id);
+
+      if (!sel.isFaceUVComplete(face, uvs)) continue;
+      if (!uvs || uvs.length < 3) continue;
+      const flatUVs = new Array(uvs.length * 2);
+
+      for (let i = 0; i < uvs.length; i++) {
+        flatUVs[i * 2] = uvs[i].u;
+        flatUVs[i * 2 + 1] = uvs[i].v;
+      }
+
+      const triangulated = earcut(flatUVs);
+      kept.push({ faceId: face.id, flatUVs, triangulated });
+      faceFloats += triangulated.length * 2;
+    }
+
+    const faces = new Float32Array(faceFloats);
+    const faceVertexSlots = new Uint32Array(faceFloats / 2);
+    const faceRanges = new Map();
+
+    let fo = 0;
+
+    for (const { faceId, flatUVs, triangulated } of kept) {
+      const start = fo / 2;
+      const count = triangulated.length;
+
+      faceRanges.set(faceId, { start, count });
+
+      for (let i = 0; i < triangulated.length; i++) {
+        const corner = triangulated[i];
+        const key = topo.cornerToPointKey.get(`${faceId}_${corner}`);
+        const slot = key !== undefined ? pointSlots.get(key) : undefined;
+
+        faceVertexSlots[fo / 2] = slot !== undefined ? slot : 0xFFFFFFFF;
+
+        faces[fo++] = flatUVs[corner * 2];
+        faces[fo++] = flatUVs[corner * 2 + 1];
+      }
+    }
+
+    this._geom = {
+      faces, edges, points,
+      faceRanges, faceVertexSlots, edgeSlots, pointSlots,
       flags: {
         faces: new Uint8Array(faces.length / 2),
         edges: new Uint8Array(edgeCount),
@@ -509,6 +530,12 @@ export class UVEditor {
     this._rectDirty = true;
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);
 
+    if (this.transformTool.transforming) {
+      if (e.button === 0) this.transformTool.commit();
+      else if (e.button === 2) this.transformTool.cancel();
+      return;
+    }
+
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       this.isPanning = true;
       this.panStart = { x: mouseX - this.pan.x, y: mouseY - this.pan.y };
@@ -516,6 +543,9 @@ export class UVEditor {
     }
 
     if (e.button === 0) {
+      this._moveCandidate = this.activeTool === 'move' && !e.shiftKey
+        && this.transformTool.canBeginAt(mouseX, mouseY);
+      
       this.dragging = false;
       this.mouseDownPos = { x: e.clientX, y: e.clientY };
       this.boxStart = { x: mouseX, y: mouseY };
@@ -523,9 +553,17 @@ export class UVEditor {
   }
 
   onMouseMove(e) {
-    if (!this.active || (!this.mouseDownPos && !this.isPanning)) return;
+    if (!this.active) return;
 
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);
+    this._lastMouse = { x: mouseX, y: mouseY };
+
+    if (this.transformTool.transforming) {
+      this.transformTool.update(mouseX, mouseY);
+      return;
+    }
+
+    if (!this.mouseDownPos && !this.isPanning) return;
 
     if (this.isPanning) {
       this.pan.x = mouseX - this.panStart.x;
@@ -540,6 +578,12 @@ export class UVEditor {
 
     if (!this.dragging && Math.hypot(dx, dy) > dragThreshold) {
       this.dragging = true;
+
+      if (this._moveCandidate && this.transformTool.begin(this.boxStart.x, this.boxStart.y)) {
+        this._moveCandidate = false;
+        this.transformTool.update(mouseX, mouseY);
+        return;
+      }
     }
 
     if (this.dragging) {
@@ -550,6 +594,17 @@ export class UVEditor {
   }
 
   onMouseUp(e) {
+    this._moveCandidate = false;
+
+    if (this.transformTool.transforming) {
+      if (!this.transformTool.modal) {
+        this.transformTool.commit();
+        this.mouseDownPos = null;
+        this.dragging = false;
+      }
+      return;
+    }
+
     if (!this.mouseDownPos && !this.isPanning) return;
 
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);

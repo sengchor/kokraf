@@ -182,9 +182,16 @@ export class UVSelection {
         cluster.corners.push(c);
       }
  
+      const cornerLess = (a, b) =>
+        a.faceId === b.faceId ? a.corner < b.corner : String(a.faceId) < String(b.faceId);
+
       for (const cluster of clusters) {
-        const key = `${vertexId}_${cluster.u.toFixed(5)}_${cluster.v.toFixed(5)}`;
+        let rep = cluster.corners[0];
+        for (const c of cluster.corners) if (cornerLess(c, rep)) rep = c;
+
+        const key = `${vertexId}_${rep.faceId}_${rep.corner}`;
         points.push({ key, vertexId, u: cluster.u, v: cluster.v, corners: cluster.corners });
+
         for (const c of cluster.corners) {
           cornerToPointKey.set(`${c.faceId}_${c.corner}`, key);
         }
