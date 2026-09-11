@@ -48,6 +48,7 @@ import { SwitchPaintMapCommand } from './SwitchPaintMapCommand.js';
 import { BridgeSelectionCommand } from './BridgeSelectionCommand.js';
 import { SetSeamCommand } from './SetSeamCommand.js';
 import { SetUVsCommand } from './SetUVsCommand.js';
+import { SetUVPositionCommand } from './SetUVPositionCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -100,4 +101,5 @@ export const commands = new Map([
   [BridgeSelectionCommand.type, BridgeSelectionCommand],
   [SetSeamCommand.type, SetSeamCommand],
   [SetUVsCommand.type, SetUVsCommand],
+  [SetUVPositionCommand.type, SetUVPositionCommand],
 ]);

@@ -118,6 +118,18 @@ export class UVSelection {
     return { vertexSet, edgeSet };
   }
 
+  selectPointKeys(keys, topo = this.buildTopology()) {
+    this.vertices = new Set();
+    for (const key of keys) {
+      if (topo.pointsByKey.has(key)) this.vertices.add(key);
+    }
+
+    const { edgeSet, faceSet } = this.resolveSelectionGraphFromVertices(this.vertices, topo);
+    this.edges = edgeSet;
+    this.faces = faceSet;
+    this.version++;
+  }
+
   isFaceUVComplete(face, faceUVs) {
     if (!faceUVs || faceUVs.length !== face.vertexIds.length) return false;
     for (const uv of faceUVs) {

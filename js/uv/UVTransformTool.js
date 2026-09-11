@@ -1,3 +1,5 @@
+import { SetUVPositionCommand } from "../commands/SetUVPositionCommand.js";
+
 const NO_SLOT = 0xFFFFFFFF;
 
 export class UVTransformTool {
@@ -49,7 +51,13 @@ export class UVTransformTool {
         const uvs = meshData.uvs.get(corner.faceId);
         const uv = uvs?.[corner.corner];
         if (!uv) continue;
-        corners.push({ uv, u0: uv.u, v0: uv.v });
+        corners.push({
+          uv,
+          faceId: corner.faceId,
+          corner: corner.corner,
+          u0: uv.u,
+          v0: uv.v
+        });
       }
     }
 
@@ -106,16 +114,21 @@ export class UVTransformTool {
   commit() {
     if (!this.session) return null;
 
-    const { du, dv } = this.session;
+    const s = this.session;
+    const { du, dv } = s;
     const moved = du !== 0 || dv !== 0;
+    const object = this.uvEditor.editedObject;
+
+    if (moved && object) {
+      const targets = s.corners.map(c => ({ faceId: c.faceId, corner: c.corner }));
+      const oldUVs = s.corners.map(c => ({ u: c.u0, v: c.v0 }));
+      const newUVs = s.corners.map(c => ({ u: c.u0 + du, v: c.v0 + dv }));
+
+      this.editor.execute(new SetUVPositionCommand(this.editor, object, targets, newUVs, oldUVs));
+    }
 
     this._end();
-
-    if (!moved) return null;
-
-    this._syncObject();
-
-    return{ du, dv };
+    return moved ? { du, dv } : null;
   }
 
   cancel() {
