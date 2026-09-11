@@ -8,7 +8,7 @@ import earcut from 'earcut';
 const POINT_SIZE = 5;
 const EDGE_WIDTH = 1;
 const SEL_EDGE_WIDTH = 1.6;
-const GIZMO_BY_TOOL = { move: 'translate', rotate: 'rotate' };
+const GIZMO_BY_TOOL = { move: 'translate', rotate: 'rotate', scale: 'scale' };
 
 export class UVEditor {
   constructor(editor) {
@@ -191,6 +191,17 @@ export class UVEditor {
 
         if (this.activeTool !== 'rotate') this.signals.uvToolChanged.dispatch('rotate');
         this.transformTool.beginRotate(
+          this._lastMouse.x, this._lastMouse.y,
+          this.transformControls.getPivot(),
+          { modal: true }
+        );
+      }
+
+      if (e.key.toLowerCase() === 's' && this.transformTool.hasSelection()) {
+        e.preventDefault();
+
+        if (this.activeTool !== 'scale') this.signals.uvToolChanged.dispatch('scale');
+        this.transformTool.beginScale(
           this._lastMouse.x, this._lastMouse.y,
           this.transformControls.getPivot(),
           { modal: true }

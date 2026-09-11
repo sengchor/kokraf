@@ -4,6 +4,8 @@ const NO_SLOT = 0xFFFFFFFF;
 const TAU = Math.PI * 2;
 const ROTATE_SNAP = Math.PI / 12;
 const ROTATE_DEAD_ZONE = 4;
+const SCALE_SNAP = 0.1;
+const SCALE_MIN_REF_PX = 40;
 const EPS = 1e-9;
 
 export class UVTransformTool {
@@ -64,6 +66,32 @@ export class UVTransformTool {
       lastAngle: a,
       rawAngle: 0,
       angle: 0,
+      du: 0,
+      dv: 0
+    }, modal);
+    return true;
+  }
+
+  beginScale(screenX, screenY, pivot, { modal = false } = {}) {
+    if (this.session) return false;
+
+    const data = this._capture();
+    if (!data) return false;
+
+    const p = pivot ? { u: pivot.u, v: pivot.v } : this._boundsCenter(data.points);
+    const start = this.uvEditor.screenToUV(screenX, screenY);
+
+    this._start({
+      ...data,
+      mode: 'scale',
+      pivot: p,
+      startU: start.u,
+      startV: start.v,
+      lastX: screenX,
+      lastY: screenY,
+      snap: false,
+      su: 1,
+      sv: 1,
       du: 0,
       dv: 0
     }, modal);
@@ -140,8 +168,9 @@ export class UVTransformTool {
   update(screenX, screenY, { snap = false } = {}) {
     if (!this.session) return;
 
-    if (this.session.mode === 'rotate') this._updateRotate(screenX, screenY, snap);
-    else this._updateTranslate(screenX, screenY);
+    if (this.session.mode === 'translate') this._updateTranslate(screenX, screenY);
+    else if (this.session.mode === 'rotate') this._updateRotate(screenX, screenY, snap);
+    else if (this.session.mode === 'scale') this._updateScale(screenX, screenY, snap);
   }
 
   _updateTranslate(screenX, screenY) {
@@ -176,6 +205,41 @@ export class UVTransformTool {
     this._applyRotate(angle);
   }
 
+  _updateScale(screenX, screenY, snap) {
+    const s = this.session;
+    s.lastX = screenX;
+    s.lastY = screenY;
+    s.snap = snap;
+ 
+    const cur = this.uvEditor.screenToUV(screenX, screenY);
+    const minRef = SCALE_MIN_REF_PX / this.uvEditor.zoom;
+ 
+    const cu = cur.u - s.pivot.u;
+    const cv = cur.v - s.pivot.v;
+    const su0 = s.startU - s.pivot.u;
+    const sv0 = s.startV - s.pivot.v;
+ 
+    let f;
+    if (this.axis === 'u' || this.axis === 'v') {
+      const p0 = this.axis === 'u' ? su0 : sv0;
+      const p = this.axis === 'u' ? cu : cv;
+      const ref = p0 >= 0 ? Math.max(p0, minRef) : Math.min(p0, -minRef);
+      f = 1 + (p - p0) / ref;
+    } else {
+      const d0 = Math.hypot(su0, sv0);
+      const d = Math.hypot(cu, cv);
+      f = 1 + (d - d0) / Math.max(d0, minRef);
+      if (d0 >= minRef && cu * su0 + cv * sv0 < 0) f = -f;
+    }
+ 
+    if (snap) f = Math.round(f / SCALE_SNAP) * SCALE_SNAP;
+ 
+    this._applyScale(
+      this.axis === 'v' ? 1 : f,
+      this.axis === 'u' ? 1 : f
+    );
+  }
+
   setDelta(du, dv) {
     if (this.session?.mode !== 'translate') return;
     this._applyTranslate(du, dv);
@@ -187,15 +251,26 @@ export class UVTransformTool {
     this._applyRotate(radians);
   }
 
-  setAxis(axis) {
-    if (this.session?.mode !== 'translate') return;
+  setScale(su, sv = su) {
+    if (this.session?.mode !== 'scale') return;
+    this._applyScale(su, sv);
+  }
 
+  setAxis(axis) {
+    const s = this.session;
+    if (!s || s.mode === 'rotate') return;
+ 
     const next = axis === 'x' || axis === 'u' ? 'u'
       : axis === 'y' || axis === 'v' ? 'v' : null;
-
+ 
     this.axis = this.axis === next ? null : next;
-
-    let { du, dv } = this.session;
+ 
+    if (s.mode === 'scale') {
+      this._updateScale(s.lastX, s.lastY, s.snap);
+      return;
+    }
+ 
+    let { du, dv } = s;
     if (this.axis === 'u') dv = 0;
     if (this.axis === 'v') du = 0;
     this._applyTranslate(du, dv);
@@ -240,6 +315,25 @@ export class UVTransformTool {
     this._refresh();
   }
 
+  _applyScale(su, sv) {
+    const s = this.session;
+    s.su = su;
+    s.sv = sv;
+ 
+    const { u: pu, v: pv } = s.pivot;
+ 
+    for (const c of s.corners) {
+      c.uv.u = pu + (c.u0 - pu) * su;
+      c.uv.v = pv + (c.v0 - pv) * sv;
+    }
+    for (const p of s.points) {
+      p.point.u = pu + (p.u0 - pu) * su;
+      p.point.v = pv + (p.v0 - pv) * sv;
+    }
+ 
+    this._refresh();
+  }
+
   _refresh() {
     this._writeBuffers();
     this._syncObject();
@@ -265,9 +359,12 @@ export class UVTransformTool {
       this.editor.execute(new SetUVPositionCommand(this.editor, object, targets, newUVs, oldUVs));
     }
 
-    const result = !moved ? null
-      : s.mode === 'rotate' ? { mode: 'rotate', angle: s.angle, pivot: s.pivot }
-      : { mode: 'translate', du: s.du, dv: s.dv };
+    let result = null;
+    if (moved) {
+      if (s.mode === 'rotate') result = { mode: 'rotate', angle: s.angle, pivot: s.pivot };
+      else if (s.mode === 'scale') result = { mode: 'scale', su: s.su, sv: s.sv, pivot: s.pivot };
+      else result = { mode: 'translate', du: s.du, dv: s.dv };
+    }
 
     this._end();
     return result;
@@ -289,6 +386,8 @@ export class UVTransformTool {
     s.du = 0;
     s.dv = 0;
     s.angle = 0;
+    s.su = 1;
+    s.sv = 1;
 
     this._writeBuffers();
     this._syncObject();
@@ -310,7 +409,7 @@ export class UVTransformTool {
       return true;
     }
 
-    if (key === 'x' || key === 'y' && this.session.mode === 'translate') {
+    if ((key === 'x' || key === 'y') && this.session.mode !== 'rotate') {
       this.setAxis(key);
       return true;
     }
@@ -401,12 +500,21 @@ export class UVTransformTool {
     const s = this.session;
     if (!s) return '';
 
+    if (s.mode === 'translate') {
+      if (this.axis === 'u') return `Dx: ${s.du.toFixed(4)}`;
+      if (this.axis === 'v') return `Dy: ${s.dv.toFixed(4)}`;
+      return `Dx: ${s.du.toFixed(4)} Dy: ${s.dv.toFixed(4)}`;
+    }
+
     if (s.mode === 'rotate') {
       return `R: ${(s.angle * 180 / Math.PI).toFixed(2)}°`;
     }
 
-    if (this.axis === 'u') return `Du: ${s.du.toFixed(4)}`;
-    if (this.axis === 'v') return `Dv: ${s.dv.toFixed(4)}`;
-    return `Du: ${s.du.toFixed(4)} Dv: ${s.dv.toFixed(4)}`;
+    if (s.mode === 'scale') {
+      if (this.axis === 'u') return `Sx: ${s.su.toFixed(3)}`;
+      if (this.axis === 'v') return `Sy: ${s.sv.toFixed(3)}`;
+      if (s.su === s.sv) return `S: ${s.su.toFixed(3)}`;
+      return `Su: ${s.su.toFixed(3)} Sv: ${s.sv.toFixed(3)}`;
+    }
   }
 }
