@@ -177,7 +177,12 @@ export class ObjectTransformTool {
     const key = event.key.toLowerCase();
     if (key === 'x' || key === 'y' || key === 'z') {
       this.transformNumericInput.reset();
-      this.transformSolver.setAxisConstraintFromKey(key);
+
+      if (event.shiftKey && this.mode !== 'rotate') {
+        this.transformSolver.setPlaneConstraintFromKey(key);
+      } else {
+        this.transformSolver.setAxisConstraintFromKey(key);
+      }
 
       this.transformSolver.updateHandleFromCommandInput(this.mode, this.event);
       this.applyTransformSession();
@@ -554,6 +559,9 @@ export class ObjectTransformTool {
     else if (axis === 'X') offset.x = value;
     else if (axis === 'Y') offset.y = value;
     else if (axis === 'Z') offset.z = value;
+    else if (axis === 'YZ') offset.set(0, value, value);
+    else if (axis === 'XZ') offset.set(value, 0, value);
+    else if (axis === 'XY') offset.set(value, value, 0);
     else { return; }
 
     if (this.transformControls.space === 'local') {
@@ -610,6 +618,9 @@ export class ObjectTransformTool {
     else if (axis === 'X') scaleFactor.x = value;
     else if (axis === 'Y') scaleFactor.y = value;
     else if (axis === 'Z') scaleFactor.z = value;
+    else if (axis === 'YZ') scaleFactor.set(1, value, value);
+    else if (axis === 'XZ') scaleFactor.set(value, 1, value);
+    else if (axis === 'XY') scaleFactor.set(value, value, 1);
     else { return; }
 
     const pivotQuat = this.startPivotQuaternion;

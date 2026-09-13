@@ -8,6 +8,7 @@ export class TransformCommandSolver {
 
     this.event = null;
     this.commandAxisConstraint = null;
+    this.commandPlaneConstraint = null;
     this.customAxisConstraint = null;
 
     this.startPivotPosition = new THREE.Vector3();
@@ -41,6 +42,7 @@ export class TransformCommandSolver {
 
   clear() {
     this.commandAxisConstraint = null;
+    this.commandPlaneConstraint = null;
     this.customAxisConstraint = null;
 
     this.startPivotPosition = null;
@@ -56,13 +58,52 @@ export class TransformCommandSolver {
     const axis = this.getThreeAxisName(key);
     if (!axis) return;
 
+    this.commandPlaneConstraint = null;
     this.commandAxisConstraint = axis.toUpperCase();
     this.transformControls.axis = this.commandAxisConstraint;
 
-    // Reset start vectors so the next transform begins clean
+    this.resetSessionVectors();
+  }
+
+  setPlaneConstraintFromKey(key) {
+    const axis = this.getThreeAxisName(key);
+    if (!axis) return;
+    
+    const excluded = axis.toUpperCase();
+
+    if (this.commandPlaneConstraint === excluded) {
+      this.commandPlaneConstraint = null;
+      this.transformControls.axis = 'XYZ';
+    } else {
+      this.commandAxisConstraint = null;
+      this.customAxisConstraint = null;
+      this.commandPlaneConstraint = excluded;
+      this.transformControls.axis = this.getPlaneName(excluded);
+    }
+
+    this.resetSessionVectors();
+  }
+
+  resetSessionVectors() {
     this.startTranslateVector = null;
     this.startRotateVector = null;
     this.startScaleVector = null;
+  }
+
+  getPlaneName(excludedAxis) {
+    switch (excludedAxis) {
+      case 'X': return 'YZ';
+      case 'Y': return 'XZ';
+      case 'Z': return 'XY';
+    }
+  }
+
+  getConstraintNormal() {
+    const normal = this.getAxisVector(this.commandPlaneConstraint).clone();
+    if (this.transformControls.space === 'local') {
+      normal.applyQuaternion(this.startPivotQuaternion);
+    }
+    return normal.normalize();
   }
 
   setCustomAxisConstraint(axis) {
@@ -115,6 +156,11 @@ export class TransformCommandSolver {
       axis.normalize();
 
       newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
+    } else if (this.commandPlaneConstraint) {
+      const normal = this.getConstraintNormal();
+
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, this.startPivotPosition);
+      if (!raycaster.ray.intersectPlane(plane, newPosition)) return;
     } else if (this.customAxisConstraint) {
       const axis = this.customAxisConstraint.clone();
       
@@ -189,6 +235,14 @@ export class TransformCommandSolver {
       axis.normalize();
 
       newPosition.copy(this.closestPointOnLineToRay(this.startPivotPosition, axis, raycaster.ray));
+    } else if (this.commandPlaneConstraint) {
+      const normal = this.getConstraintNormal();
+
+      const viewDir = this.camera.getWorldDirection(new THREE.Vector3());
+      if (Math.abs(viewDir.dot(normal)) < 0.05) return;
+
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, this.startPivotPosition);
+      if (!raycaster.ray.intersectPlane(plane, newPosition)) return;
     } else if (this.customAxisConstraint) {
       const axis = this.customAxisConstraint.clone();
       
@@ -208,30 +262,48 @@ export class TransformCommandSolver {
       this.startScaleVector = rawVector.clone();
     }
 
-    const axis = this.commandAxisConstraint
-      ? this.getAxisVector(this.commandAxisConstraint).clone()
-      : this.startScaleVector.clone().normalize();
-
-    if (this.transformControls.space === 'local') {
-      axis.applyQuaternion(this.startPivotQuaternion);
-    }
-    axis.normalize();
-
-    const startProj = this.startScaleVector.dot(axis);
-    const currentProj = rawVector.dot(axis);
-
-    if (Math.abs(startProj) < 1e-6) return;
-
-    const scaleFactor = currentProj / startProj;
-
     let scaleVector;
-    if (this.commandAxisConstraint) {
-      scaleVector = new THREE.Vector3(1, 1, 1);
-      if (this.commandAxisConstraint === 'X') scaleVector.x = scaleFactor;
-      if (this.commandAxisConstraint === 'Y') scaleVector.y = scaleFactor;
-      if (this.commandAxisConstraint === 'Z') scaleVector.z = scaleFactor;
-    } else {
+
+    if (this.commandPlaneConstraint) {
+      const normal = this.getConstraintNormal();
+
+      const startLength = this.startScaleVector.clone().projectOnPlane(normal).length();
+      const currentLength = rawVector.clone().projectOnPlane(normal).length();
+
+      if (startLength < 1e-6) return;
+
+      const scaleFactor = currentLength / startLength;
+
       scaleVector = new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor);
+
+      if (this.commandPlaneConstraint === 'X') scaleVector.x = 1;
+      if (this.commandPlaneConstraint === 'Y') scaleVector.y = 1;
+      if (this.commandPlaneConstraint === 'Z') scaleVector.z = 1;
+    } else {
+      const axis = this.commandAxisConstraint
+        ? this.getAxisVector(this.commandAxisConstraint).clone()
+        : this.startScaleVector.clone().normalize();
+
+      if (this.commandAxisConstraint && this.transformControls.space === 'local') {
+        axis.applyQuaternion(this.startPivotQuaternion);
+      }
+      axis.normalize();
+
+      const startProj = this.startScaleVector.dot(axis);
+      const currentProj = rawVector.dot(axis);
+
+      if (Math.abs(startProj) < 1e-6) return;
+
+      const scaleFactor = currentProj / startProj;
+
+      if (this.commandAxisConstraint) {
+        scaleVector = new THREE.Vector3(1, 1, 1);
+        if (this.commandAxisConstraint === 'X') scaleVector.x = scaleFactor;
+        if (this.commandAxisConstraint === 'Y') scaleVector.y = scaleFactor;
+        if (this.commandAxisConstraint === 'Z') scaleVector.z = scaleFactor;
+      } else {
+        scaleVector = new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor);
+      }
     }
 
     this.handle.scale.copy(this.startPivotScale).multiply(scaleVector);
@@ -310,11 +382,12 @@ export class TransformCommandSolver {
 
   setGizmoActiveVisualState() {
     this.transformControls.dragging = true;
-    if (this.customAxisConstraint) {
-      this.transformControls.axis = this.commandAxisConstraint ?? 'Y';
-    } else {
-      this.transformControls.axis = this.commandAxisConstraint ?? 'XYZ';
-    }
+
+    const plane = this.commandPlaneConstraint
+      ? this.getPlaneName(this.commandPlaneConstraint) : null;
+
+    const fallback = this.customAxisConstraint ? 'Y' : 'XYZ';
+    this.transformControls.axis = this.commandAxisConstraint ?? plane ?? fallback;
   }
 
   clearGizmoActiveVisualState() {
