@@ -170,6 +170,24 @@ export class UVEditor {
       this.requestRender();
     });
 
+    this.signals.mouseUVSelectLinked.add(() => {
+      if (!this.active) return;
+      const { x: mouseX, y: mouseY } = this._getMousePosition(this.lastMouseEvent);
+      
+      this.uvSelection.selectAt(mouseX, mouseY, true);
+      const selectedVertices = this.uvSelection.vertices;
+
+      const linkedVertices = this.uvSelection.selectVertexLinked(selectedVertices);
+      this.uvSelection.selectPointKeys(linkedVertices);
+
+      this.invalidateSelection();
+      this.requestRender();
+
+      if (this.syncSelection) {
+        this.signals.uvSelectionChanged.dispatch(this.uvSelection);
+      }
+    });
+
     window.addEventListener('keydown', (e) => {
       if (!this.active) return;
       if (e.target.matches('input, textarea, [contenteditable]')) return;
@@ -592,6 +610,7 @@ export class UVEditor {
 
   onMouseMove(e) {
     if (!this.active) return;
+    this.lastMouseEvent = e;
 
     const { x: mouseX, y: mouseY } = this._getMousePosition(e);
     this._lastMouse = { x: mouseX, y: mouseY };

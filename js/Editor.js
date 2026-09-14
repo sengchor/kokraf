@@ -144,6 +144,7 @@ export default class Editor {
       seamsChanged: new Signal(),
       setSeam: new Signal(),
       uvToolChanged: new Signal(),
+      mouseUVSelectLinked: new Signal(),
     }
 
     this.helpers = {};

@@ -1,5 +1,3 @@
-const UV_WELD_EPSILON = 1e-5;
-
 export class UVSelection {
   constructor(context) {
     this.context = context;
@@ -168,7 +166,6 @@ export class UVSelection {
     if (!meshData) return topo;
 
     const { points, pointsByKey, cornerToPointKey, edgesByKey, faceCornerKeys, faceEdgeKeys } = topo;
-    const eps = UV_WELD_EPSILON;
 
     // 1. Gather UV corners per mesh vertex (valid faces only).
     const faces = [];
@@ -188,14 +185,16 @@ export class UVSelection {
 
     // 2. Weld corners of the same vertex that share a UV position into points.
     for (const [vertexId, corners] of cornersByVertex) {
-      const clusters = [];
+      const clusters = new Map();
+
       for (const c of corners) {
-        let cl = clusters.find(k => Math.abs(k.u - c.u) <= eps && Math.abs(k.v - c.v) <= eps);
-        if (!cl) clusters.push(cl = { u: c.u, v: c.v, corners: [] });
+        const ck = `${c.u}|${c.v}`;
+        let cl = clusters.get(ck);
+        if (!cl) clusters.set(ck, cl = { u: c.u, v: c.v, corners: [] });
         cl.corners.push(c);
       }
 
-      for (const cl of clusters) {
+      for (const cl of clusters.values()) {
         const rep = cl.corners[0];
         const key = `${rep.faceId}_${rep.corner}`;
         const point = { key, vertexId, u: cl.u, v: cl.v, corners: cl.corners };
@@ -230,6 +229,28 @@ export class UVSelection {
 
     topo.edges = Array.from(edgesByKey.values());
     return topo;
+  }
+
+  _buildPointAdjacency(topo = this.buildTopology()) {
+    if (this._adjacency && this._adjacencySource === topo) return this._adjacency;
+
+    const adjacency = new Map();
+
+    const link = (a, b) => {
+      let set = adjacency.get(a);
+      if (!set) adjacency.set(a, set = new Set());
+      set.add(b);
+    };
+
+    for (const edge of topo.edges) {
+      if (edge.aKey === undefined || edge.bKey === undefined) continue;
+      link(edge.aKey, edge.bKey);
+      link(edge.bKey, edge.aKey);
+    }
+
+    this._adjacency = adjacency;
+    this._adjacencySource = topo;
+    return adjacency;
   }
 
   getHighlight() {
@@ -376,6 +397,33 @@ export class UVSelection {
     }
 
     this.resolveFromMode(topo);
+  }
+
+  selectVertexLinked(startingVertices, topo = this.buildTopology()) {
+    const linked = new Set();
+    if (!startingVertices || startingVertices.size === 0) return linked;
+
+    const adjacency = this._buildPointAdjacency(topo);
+    const stack = [];
+
+    for (const key of startingVertices) {
+      if (!topo.pointsByKey.has(key) || linked.has(key)) continue;
+      linked.add(key);
+      stack.push(key);
+    }
+
+    while(stack.length) {
+      const neighbors = adjacency.get(stack.pop());
+      if (!neighbors) continue;
+
+      for (const n of neighbors) {
+        if (linked.has(n)) continue;
+        linked.add(n);
+        stack.push(n);
+      }
+    }
+
+    return linked;
   }
 
   // Mesh <-> UV translation

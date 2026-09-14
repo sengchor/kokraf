@@ -8,6 +8,7 @@ export class KeyHandler {
     this.shortcuts = null;
     this.currentMode = 'object';
     this.previousMode = null;
+    this.hoverEl = null;
 
     this.keysPressed = {};
     this.lastKey = null;
@@ -30,6 +31,12 @@ export class KeyHandler {
     window.addEventListener('keyup', (e) => this.onKeyUp(e));
     window.addEventListener('blur', () => {
       this.signals.multiSelectChanged.dispatch(false);
+    });
+    window.addEventListener('pointermove', (e) => {
+      this.hoverEl = e.target;
+    }, { passive: true, capture: true });
+    document.addEventListener('pointerleave', () => {
+      this.hoverEl = null;
     });
   }
 
@@ -235,8 +242,15 @@ export class KeyHandler {
           this.signals.editSelectAll.dispatch();
           handled = true;
         } else if (matchesShortcut(event, this.shortcuts['selectLinked'])) {
-          this.signals.mouseSelectLinked.dispatch();
-          handled = true;
+          const context = this.getHoverContext();
+          
+          if (context === 'uv') {
+            this.signals.mouseUVSelectLinked.dispatch();
+            handled = true;
+          } else if (context === 'viewport') {
+            this.signals.mouseSelectLinked.dispatch();
+            handled = true;
+          }
         }
     }
 
@@ -292,5 +306,13 @@ export class KeyHandler {
 
   isDoubleTap(key, now) {
     return this.lastKey === key && (now - this.lastKeyTime) < this.doubleTapThreshold;
+  }
+
+  getHoverContext() {
+    const el = this.hoverEl;
+    if (!el?.closest) return null;
+    if (el.closest('#uv-canvas')) return 'uv';
+    if (el.closest('#three-canvas')) return 'viewport';
+    return null;
   }
 }
