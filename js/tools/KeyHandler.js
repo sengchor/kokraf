@@ -168,6 +168,9 @@ export class KeyHandler {
       } else if (matchesShortcut(event, this.shortcuts['unhideAll'])) {
         this.signals.unhideAll.dispatch();
         handled = true;
+      } else if (event.key === 'o') {
+        this.signals.testCommands.dispatch();
+        handled = true;
       }
     }
 

@@ -37,6 +37,9 @@ import { loadProject } from '/supabase/services/ProjectService.js';
 import { ShortcutLabel } from './core/ShortcutLabel.js';
 import { UVResizer } from './ui/UVResizer.js';
 import { UVEditor } from './uv/UVEditor.js';
+import { CommandRegistry } from './agent/CommandRegistry.js';
+import { registerAgentCommands } from './agent/AgentCommands.js';
+import { AgentBridge } from './agent/AgentBridge.js';
 
 export default class Editor {
   constructor() {
@@ -145,6 +148,8 @@ export default class Editor {
       setSeam: new Signal(),
       uvToolChanged: new Signal(),
       mouseUVSelectLinked: new Signal(),
+
+      testCommands: new Signal(),
     }
 
     this.helpers = {};
@@ -242,6 +247,14 @@ export default class Editor {
     this.stats.dom.style.display = 'none';
 
     this.renderer.applyConfig();
+
+    this.agent = registerAgentCommands(new CommandRegistry(this));
+    window.agent = this.agent;
+
+    if (AgentBridge.shouldAutoStart()) {
+      console.log('start');
+      this.agentBridge = new AgentBridge(this, this.agent).start();
+    }
     
     this.setupListeners();
     this.animate();
@@ -250,6 +263,13 @@ export default class Editor {
   setupListeners() {
     this.signals.historyChanged.add(async () => {
       await Storage.set('scene', this.toJSON());
+    });
+
+    // Test commands directly
+    this.signals.testCommands.add(async () => {
+      console.log(await agent.execute('scene.outline'));
+      await agent.execute('transform', { target: 'Cube', position: [0, 1, 0], relative: true });
+      await agent.execute('transform', { target: 'Cube', rotation: [0, 45, 0] });
     });
   }
 
