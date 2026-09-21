@@ -1,12 +1,8 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { SetPositionCommand } from "../commands/SetPositionCommand.js";
-import { SetRotationCommand } from "../commands/SetRotationCommand.js";
-import { SetScaleCommand } from '../commands/SetScaleCommand.js';
-import { MultiCommand } from '../commands/MultiCommand.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
-import { TransformUtils } from '../utils/TransformUtils.js';
 import { TransformNumericInput } from './TransformNumericInput.js';
+import { ObjectTransformOps } from '../operations/ObjectTransformOps.js';
 
 export class ObjectTransformTool {
   constructor(editor, mode = 'translate') {
@@ -18,7 +14,6 @@ export class ObjectTransformTool {
     this.renderer = editor.renderer;
     this.controls = editor.controlsManager;
     this.selection = editor.selection;
-    this.snapManager = editor.snapManager;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
     this.viewportControls = editor.viewportControls;
 
@@ -32,6 +27,7 @@ export class ObjectTransformTool {
     this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
+    this.ops = new ObjectTransformOps(editor, this.transformControls);
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
     this.transformNumericInput = new TransformNumericInput(this);
 
@@ -43,6 +39,23 @@ export class ObjectTransformTool {
     this._onPointerMove = this.onPointerMove.bind(this);
     this._onPointerUp = this.onPointerUp.bind(this);
     this._onKeyDown = this.onKeyDown.bind(this);
+  }
+
+  // Read-only session accessors used by TransformNumericInput
+  get startPivotPosition() {
+    return this.ops.session?.pivotPosition ?? null;
+  }
+
+  get startPivotQuaternion() {
+    return this.ops.session?.pivotQuaternion ?? null;
+  }
+
+  get startPivotScale() {
+    return this.ops.session?.pivotScale ?? null;
+  }
+
+  get currentScaleFactor() {
+    return this.ops.currentScaleFactor;
   }
 
   enableFor(object) {
@@ -89,7 +102,7 @@ export class ObjectTransformTool {
 
     this.signals.objectTransformStart.add((transformMode) => {
       if (this.mode !== transformMode) return;
-      
+
       const objects = this.selection.getRootSelectedObjects();
       if (!objects || objects.length === 0 || !this.handle) return;
 
@@ -209,22 +222,10 @@ export class ObjectTransformTool {
   // Transform session
   startTransformSession() {
     const objects = this.selection.getRootSelectedObjects();
-    if (!objects?.length || !this.handle) return;
+    const session = this.ops.beginSession(objects, this.handle);
+    if (!session) return;
 
-    this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    this.startPivotQuaternion = TransformUtils.worldQuaternion(this.handle);
-    this.startPivotScale = this.handle.scale.clone();
-
-    this.startPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
-    this.startQuaternions = objects.map(obj => TransformUtils.worldQuaternion(obj));
-    this.startScales = objects.map(obj => obj.scale.clone());
-
-    this.transformSolver.beginSession(this.startPivotPosition, this.startPivotQuaternion, this.startPivotScale);
-
-    if (this.snapManager.enabled) {
-      this.oldPositions = this.snapManager.getBoundingBoxVertexPositions(objects);
-    }
-
+    this.transformSolver.beginSession(session.pivotPosition, session.pivotQuaternion, session.pivotScale);
     this.signals.onToolStarted.dispatch(this.transformNumericInput.getTransformDisplayText(this.mode));
   }
 
@@ -232,41 +233,18 @@ export class ObjectTransformTool {
     const objects = this.selection.getRootSelectedObjects();
     if (!objects?.length || !this.handle) return;
 
-    if (this.mode === 'translate') this.applyTranslation(objects, this.handle);
-    else if (this.mode === 'rotate') this.applyRotation(objects, this.handle);
-    else if (this.mode === 'scale') this.applyScale(objects, this.handle);
-
+    this.ops.apply(this.mode, objects, this.handle, this.event, this.transformNumericInput.active);
     this.signals.onToolUpdated.dispatch(this.transformNumericInput.getTransformDisplayText(this.mode));
   }
 
   commitTransformSession() {
     const objects = this.selection.getRootSelectedObjects();
-    if (!objects?.length || !this.handle) return;
-
-    if (this.mode === 'translate') this.commitTranslation(objects, this.handle);
-    else if (this.mode === 'rotate') this.commitRotation(objects, this.handle);
-    else if (this.mode === 'scale') this.commitScale(objects, this.handle);
-
-    this.clearStartData();
+    this.ops.commit(this.mode, objects, this.handle);
   }
 
   cancelTransformSession() {
     const objects = this.selection.getRootSelectedObjects();
-    if (!objects || objects.length === 0) return;
-
-    // restore objects
-    for (let i = 0; i < objects.length; i++) {
-      objects[i].position.copy(this.startPositions[i]);
-      objects[i].quaternion.copy(this.startQuaternions[i]);
-      objects[i].scale.copy(this.startScales[i]);
-      objects[i].updateMatrixWorld(true);
-    }
-
-    // restore pivot / handle
-    this.handle.position.copy(this.startPivotPosition);
-    this.handle.quaternion.copy(this.startPivotQuaternion);
-    this.handle.scale.copy(this.startPivotScale);
-    this.handle.updateMatrixWorld(true);
+    this.ops.cancel(objects, this.handle);
   }
 
   clearCommandTransformState() {
@@ -279,256 +257,6 @@ export class ObjectTransformTool {
       this.signals.transformDragEnded.dispatch('object');
       this.signals.onToolEnded.dispatch();
     });
-  }
-
-  clearStartData() {
-    this.startPositions = null;
-    this.startQuaternions = null;
-    this.startScales = null;
-    this.startPivotPosition = null;
-    this.startPivotQuaternion = null;
-    this.startPivotScale = null;
-    this.oldPositions = null;
-  }
-
-  // Apply transforms
-  applyTranslation(objects, handle) {
-    if (!this.startPivotPosition || !this.startPositions) return;
-
-    const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
-    let offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
-
-    const affectedObjects = this.selection.getAffectedObjects();
-    let snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
-
-    if (snapTarget && !this.transformNumericInput.active) {
-      const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
-
-      if (nearestWorldPos) {
-        offset = new THREE.Vector3().subVectors(snapTarget, nearestWorldPos);
-        offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, this.startPivotQuaternion);
-
-        handle.position.copy(this.startPivotPosition).add(offset);
-        this.transformControls.update();
-      }
-    }
-
-    for (let i = 0; i < objects.length; i++) {
-      const worldPos = this.startPositions[i].clone().add(offset);
-      TransformUtils.setWorldPosition(objects[i], worldPos);
-      objects[i].updateMatrixWorld(true);
-    }
-  }
-
-  applyRotation(objects, handle) {
-    if (!this.startPivotQuaternion || !this.startQuaternions) return;
-
-    const pivot = this.startPivotPosition.clone();
-    const currentPivotQuat = TransformUtils.worldQuaternion(handle);
-    let deltaQuat = currentPivotQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
-
-    const affectedObjects = this.selection.getAffectedObjects();
-    let snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
-
-    if (snapTarget && !this.transformNumericInput.active) {
-      const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
-
-      const fromDir = nearestWorldPos.clone().sub(pivot).normalize();
-      const toDir = snapTarget.clone().sub(pivot).normalize();
-
-      if (fromDir.lengthSq() > 0 && toDir.lengthSq() > 0) {
-        const axis = this.snapManager.getEffectiveRotationAxis(this.transformControls.axis, this.transformControls.space, this.startPivotQuaternion);
-
-        if (axis) {
-          const fromProj = fromDir.clone().projectOnPlane(axis).normalize();
-          const toProj = toDir.clone().projectOnPlane(axis).normalize();
-
-          if (fromProj.lengthSq() > 0 && toProj.lengthSq() > 0) {
-            const angle = Math.atan2(axis.dot(fromProj.clone().cross(toProj)), fromProj.dot(toProj));
-
-            deltaQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-          }
-        } else {
-          deltaQuat = new THREE.Quaternion().setFromUnitVectors(fromDir, toDir);
-        }
-      }
-
-      handle.quaternion.copy(deltaQuat).multiply(this.startPivotQuaternion);
-      this.transformControls.update();
-    }
-
-    if (objects.length === 1) {
-      const object = objects[0];
-
-      const worldQuat = deltaQuat.clone().multiply(this.startQuaternions[0]);
-      TransformUtils.setWorldRotation(object, worldQuat);
-
-      object.updateMatrixWorld(true);
-    } else {
-      for (let i = 0; i < objects.length; i++) {
-        const object = objects[i];
-
-        const worldOffset = this.startPositions[i].clone()
-          .sub(this.startPivotPosition)
-          .applyQuaternion(deltaQuat);
-
-        const worldPos = this.startPivotPosition.clone().add(worldOffset);
-        TransformUtils.setWorldPosition(object, worldPos);
-
-        const worldQuat = deltaQuat.clone().multiply(this.startQuaternions[i]);
-        TransformUtils.setWorldRotation(object, worldQuat);
-
-        objects[i].updateMatrixWorld(true);
-      }
-    }
-
-    handle.scale.set(1, 1, 1);
-    handle.updateMatrixWorld(true);
-  }
-
-  applyScale(objects, handle) {
-    if (!this.startPivotScale || !this.startScales) return;
-
-    const object = objects[objects.length - 1];
-    const pivot = this.startPivotPosition.clone();
-    const currentPivotScale = handle.scale.clone();
-    let scaleFactor = currentPivotScale.divide(this.startPivotScale);
-
-    const affectedObjects = this.selection.getAffectedObjects();
-    const snapTarget = this.snapManager.snapObjectPosition(this.event, affectedObjects);
-
-    if (snapTarget && !this.transformNumericInput.active) {
-      const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
-
-      const fromOffset = nearestWorldPos.clone().sub(pivot);
-      const toOffset = snapTarget.clone().sub(pivot);
-
-      const projectedFrom = this.snapManager.projectOntoTransformAxis(fromOffset, this.transformControls.axis, this.transformControls.space, object);
-      const projectedTo = this.snapManager.projectOntoTransformAxis(toOffset, this.transformControls.axis, this.transformControls.space, object);
-
-      const fromLength = projectedFrom.length();
-      const toLength = projectedTo.length();
-
-      if (fromLength > 1e-6) {
-        const uniformScale = toLength / fromLength;
-
-        scaleFactor = this.snapManager.makeScaleVectorFromAxis(uniformScale, this.transformControls.axis);
-
-        handle.scale.copy(this.startPivotScale).multiply(scaleFactor);
-        this.transformControls.update();
-      } else {
-        scaleFactor = new THREE.Vector3(1, 1, 1);
-      }
-    }
-
-    this.currentScaleFactor = scaleFactor.clone();
-
-    const pivotQuat = this.startPivotQuaternion;
-    const invPivotQuat = pivotQuat.clone().invert();
-    for (let i = 0; i < objects.length; i++) {
-      const object = objects[i];
-
-      const worldScaleFactor = this.getWorldScaleFactor(object, scaleFactor, this.viewportControls.transformOrientation);
-      const worldScale = this.startScales[i].clone().multiply(worldScaleFactor);
-      TransformUtils.setWorldScale(objects[i], worldScale);
-
-      if (objects.length > 1) {
-        let worldOffset = this.startPositions[i].clone().sub(this.startPivotPosition);
-        
-        if (this.transformControls.space === 'local') {
-          worldOffset.applyQuaternion(invPivotQuat);
-          worldOffset.multiply(scaleFactor);
-          worldOffset.applyQuaternion(pivotQuat);
-        } else {
-          worldOffset.multiply(scaleFactor);
-        }
-
-        const worldPos = this.startPivotPosition.clone().add(worldOffset);
-        TransformUtils.setWorldPosition(object, worldPos);
-      }
-
-      object.updateMatrixWorld(true);
-    }
-
-    handle.scale.set(1, 1, 1);
-    handle.updateMatrixWorld(true);
-  }
-
-  // Commit Transforms
-  commitTranslation(objects, handle) {
-    const currentPivotPosition = handle.getWorldPosition(new THREE.Vector3());
-
-    if (!currentPivotPosition.equals(this.startPivotPosition)) {
-      const newPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
-      this.editor.execute(new SetPositionCommand(this.editor, objects, newPositions, this.startPositions));
-    }
-  }
-
-  commitRotation(objects, handle) {
-    const newQuaternions = objects.map(obj => TransformUtils.worldQuaternion(obj));
-    const startQuaternions = this.startQuaternions.map(q => q.clone());
-
-    const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
-    if (currentPivotQuat.equals(this.startPivotQuaternion)) return;
-
-    if (objects.length === 1) {
-      this.editor.execute(new SetRotationCommand(this.editor, objects, newQuaternions, startQuaternions));
-    } else {
-      const newPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
-      const posCmd = new SetPositionCommand(this.editor, objects, newPositions, this.startPositions);
-      const rotCmd = new SetRotationCommand(this.editor, objects, newQuaternions, startQuaternions);
-
-      const multi = new MultiCommand(this.editor, 'Set Rotation Objects');
-      multi.add(posCmd);
-      multi.add(rotCmd);
-      this.editor.execute(multi);
-    }
-  }
-
-  commitScale(objects, handle) {
-    const newScales = objects.map(obj => obj.scale.clone());
-    const startScales = this.startScales.map(s => s.clone());
-
-    const hasScaleChanged = newScales.some((newScale, i) => {
-      return !newScale.equals(startScales[i]);
-    });
-    if (!hasScaleChanged) return;
-
-    this.currentScaleFactor = new THREE.Vector3(1,1,1);
-
-    if (objects.length === 1) {
-      this.editor.execute(new SetScaleCommand(this.editor, objects, newScales, startScales));
-    } else {
-      const newPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
-      const posCmd = new SetPositionCommand(this.editor, objects, newPositions, this.startPositions);
-      const scaleCmd = new SetScaleCommand(this.editor, objects, newScales, startScales);
-
-      const multi = new MultiCommand(this.editor, 'Set Scale Objects');
-      multi.add(posCmd);
-      multi.add(scaleCmd);
-      this.editor.execute(multi);
-    }
-  }
-
-  getWorldScaleFactor(object, scaleFactor, orientation) {
-    if (orientation === 'global') {
-      const localX = new THREE.Vector3(1, 0, 0).applyQuaternion(object.quaternion);
-      const localY = new THREE.Vector3(0, 1, 0).applyQuaternion(object.quaternion);
-      const localZ = new THREE.Vector3(0, 0, 1).applyQuaternion(object.quaternion);
-
-      // Apply the scale factor to the local axes
-      const scaledX = localX.clone().multiply(scaleFactor);
-      const scaledY = localY.clone().multiply(scaleFactor);
-      const scaledZ = localZ.clone().multiply(scaleFactor);
-
-      return new THREE.Vector3(
-        scaledX.length() * (Math.sign(scaledX.dot(localX)) || 1),
-        scaledY.length() * (Math.sign(scaledY.dot(localY)) || 1),
-        scaledZ.length() * (Math.sign(scaledZ.dot(localZ)) || 1)
-      );
-    }
-
-    return scaleFactor.clone();
   }
 
   applyTransformOrientation(orientation) {
@@ -549,118 +277,21 @@ export class ObjectTransformTool {
     }
   }
 
+  // Numeric input (called by TransformNumericInput)
   applyNumericTranslation(value) {
-    const axis = this.transformControls.axis;
-    if (!axis || !this.startPivotPosition || !this.handle) return;
-
-    const offset = new THREE.Vector3();
-    
-    if (axis === 'XYZ') offset.set(value, value, value);
-    else if (axis === 'X') offset.x = value;
-    else if (axis === 'Y') offset.y = value;
-    else if (axis === 'Z') offset.z = value;
-    else if (axis === 'YZ') offset.set(0, value, value);
-    else if (axis === 'XZ') offset.set(value, 0, value);
-    else if (axis === 'XY') offset.set(value, value, 0);
-    else { return; }
-
-    if (this.transformControls.space === 'local') {
-      offset.applyQuaternion(this.startPivotQuaternion);
-    }
-
-    const worldPos = this.startPivotPosition.clone().add(offset);
-    this.handle.position.copy(worldPos);
-
+    if (!this.ops.numericTranslate(value, this.handle)) return;
     this.transformControls.update();
     this.applyTransformSession();
   }
 
   applyNumericRotation(value) {
-    const axis = this.transformControls.axis;
-    if (!axis || !this.startPivotQuaternion || !this.handle) return;
-
-    const angleRad = THREE.MathUtils.degToRad(value);
-
-    let rotAxis = new THREE.Vector3();
-
-    if (axis === 'XYZ') {
-      this.camera.getWorldDirection(rotAxis);
-      rotAxis.normalize();
-    }
-    else if (axis === 'X') rotAxis.set(1, 0, 0);
-    else if (axis === 'Y') rotAxis.set(0, 1, 0);
-    else if (axis === 'Z') rotAxis.set(0, 0, 1);
-    else { return; }
-
-    const deltaQuat = new THREE.Quaternion().setFromAxisAngle(rotAxis, angleRad);
-
-    let resultQuat;
-
-    if (this.transformControls.space === 'local' && axis !== 'XYZ') {
-      resultQuat = this.startPivotQuaternion.clone().multiply(deltaQuat);
-    } else {
-      resultQuat = deltaQuat.clone().multiply(this.startPivotQuaternion);
-    }
-
-    this.handle.quaternion.copy(resultQuat);
-
+    if (!this.ops.numericRotate(value, this.handle, this.camera)) return;
     this.transformControls.update();
     this.applyTransformSession();
   }
 
   applyNumericScale(value) {
-    const axis = this.transformControls.axis;
-    if (!axis || !this.startPivotScale || !this.handle) return;
-
-    const scaleFactor = new THREE.Vector3(1, 1, 1);
-
-    if (axis === 'XYZ') scaleFactor.set(value, value, value);
-    else if (axis === 'X') scaleFactor.x = value;
-    else if (axis === 'Y') scaleFactor.y = value;
-    else if (axis === 'Z') scaleFactor.z = value;
-    else if (axis === 'YZ') scaleFactor.set(1, value, value);
-    else if (axis === 'XZ') scaleFactor.set(value, 1, value);
-    else if (axis === 'XY') scaleFactor.set(value, value, 1);
-    else { return; }
-
-    const pivotQuat = this.startPivotQuaternion;
-    const invPivotQuat = pivotQuat.clone().invert();
-
-    const objects = this.selection.getAffectedObjects();
-
-    for (let i = 0; i < objects.length; i++) {
-      const object = objects[i];
-
-      let worldScaleFactor = scaleFactor.clone();
-      if (this.transformControls.space === 'local') {
-        worldScaleFactor.applyQuaternion(invPivotQuat);
-        worldScaleFactor.applyQuaternion(pivotQuat);
-      }
-
-      const newWorldScale = this.startScales[i].clone().multiply(worldScaleFactor);
-      TransformUtils.setWorldScale(object, newWorldScale);
-
-      if (objects.length > 1) {
-        let offset = this.startPositions[i].clone().sub(this.startPivotPosition);
-
-        if (this.transformControls.space === 'local') {
-          offset.applyQuaternion(invPivotQuat);
-          offset.multiply(scaleFactor);
-          offset.applyQuaternion(pivotQuat);
-        } else {
-          offset.multiply(scaleFactor);
-        }
-
-        const worldPos = this.startPivotPosition.clone().add(offset);
-        TransformUtils.setWorldPosition(object, worldPos);
-      }
-
-      object.updateMatrixWorld(true);
-    }
-
-    const newPivotScale = this.startPivotScale.clone().multiply(scaleFactor);
-    this.handle.scale.copy(newPivotScale);
-
+    if (!this.ops.numericScale(value, this.handle)) return;
     this.transformControls.update();
     this.applyTransformSession();
   }

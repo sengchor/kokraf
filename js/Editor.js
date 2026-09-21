@@ -13,7 +13,7 @@ import Menubar from './ui/Menubar.js';
 import { Signal } from './utils/Signals.js';
 import { ObjectFactory } from './utils/ObjectFactory.js';
 import { History } from './core/History.js';
-import { KeyHandler } from './tools/KeyHandler.js';
+import { KeyHandler } from './core/KeyHandler.js';
 import ViewportControls from './ui/Viewport.Controls.js';
 import Sidebar from './ui/Sidebar.js';
 import Config from './core/Config.js';
@@ -248,13 +248,13 @@ export default class Editor {
 
     this.renderer.applyConfig();
 
-    // this.agent = registerAgentCommands(new CommandRegistry(this));
-    // window.agent = this.agent;
+    this.agent = registerAgentCommands(new CommandRegistry(this));
+    window.agent = this.agent;
 
-    // if (AgentBridge.shouldAutoStart()) {
-    //   console.log('start');
-    //   this.agentBridge = new AgentBridge(this, this.agent).start();
-    // }
+    if (AgentBridge.shouldAutoStart()) {
+      console.log('start');
+      this.agentBridge = new AgentBridge(this, this.agent).start();
+    }
     
     this.setupListeners();
     this.animate();

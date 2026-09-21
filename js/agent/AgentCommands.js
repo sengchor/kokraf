@@ -1,9 +1,5 @@
 import * as THREE from 'three';
-import { SetPositionCommand } from '../commands/SetPositionCommand.js';
-import { SetRotationCommand } from '../commands/SetRotationCommand.js';
-import { SetScaleCommand } from '../commands/SetScaleCommand.js';
-import { MultiCommand } from '../commands/MultiCommand.js';
-import { TransformUtils } from '../utils/TransformUtils.js';
+import { ObjectTransformOps } from '../operations/ObjectTransformOps.js';
 import {
   RAD,
   DEG,
@@ -107,69 +103,32 @@ export function registerAgentCommands(registry) {
         throw new Error('transform: supply at least one of position, rotation or scale.');
       }
 
+      const scene = editor.sceneManager.mainScene;
       const objects = resolveTargets(editor, target);
-      editor.sceneManager.mainScene.updateMatrixWorld(true);
+      scene.updateMatrixWorld(true);
 
-      const multi = new MultiCommand(editor, 'Agent Transform');
+      // Resolve everything against the pre-transform state, then execute once.
+      const options = { relative, space };
+      const changes = {};
 
-      // --- position: Set*Command takes WORLD positions ---------------
       if (position !== undefined) {
-        const oldPositions = objects.map((o) => o.getWorldPosition(new THREE.Vector3()));
-        const input = new THREE.Vector3().fromArray(position);
-
-        const newPositions = objects.map((object, i) => {
-          if (relative) {
-            const delta = input.clone();
-            if (space === 'local') delta.applyQuaternion(TransformUtils.worldQuaternion(object));
-            return oldPositions[i].clone().add(delta);
-          }
-          if (space === 'local' && object.parent) {
-            return input.clone().applyMatrix4(object.parent.matrixWorld);
-          }
-          return input.clone();
-        });
-
-        multi.add(new SetPositionCommand(editor, objects, newPositions, oldPositions));
+        changes.positions = ObjectTransformOps.resolvePositions(objects, position, options);
       }
 
-      // --- rotation: Set*Command takes WORLD quaternions --------------
       if (rotation !== undefined) {
-        const oldQuaternions = objects.map((o) => TransformUtils.worldQuaternion(o));
-        const input = new THREE.Quaternion().setFromEuler(
+        const quaternion = new THREE.Quaternion().setFromEuler(
           new THREE.Euler(rotation[0] * RAD, rotation[1] * RAD, rotation[2] * RAD, 'XYZ')
         );
-
-        const newQuaternions = objects.map((object, i) => {
-          if (relative) {
-            // local: spin about the object's own axes. world: about global axes.
-            return space === 'local'
-              ? oldQuaternions[i].clone().multiply(input)
-              : input.clone().multiply(oldQuaternions[i]);
-          }
-          if (space === 'local' && object.parent) {
-            return TransformUtils.worldQuaternion(object.parent).multiply(input);
-          }
-          return input.clone();
-        });
-
-        multi.add(new SetRotationCommand(editor, objects, newQuaternions, oldQuaternions));
+        changes.quaternions = ObjectTransformOps.resolveQuaternions(objects, quaternion, options);
       }
 
-      // --- scale: Set*Command takes LOCAL scale ----------------------
       if (scale !== undefined) {
-        const oldScales = objects.map((o) => o.scale.clone());
-        const factor = toScaleVector(scale);
-
-        const newScales = objects.map((_, i) =>
-          relative ? oldScales[i].clone().multiply(factor) : factor.clone()
-        );
-
-        multi.add(new SetScaleCommand(editor, objects, newScales, oldScales));
+        changes.scales = ObjectTransformOps.resolveScales(objects, toScaleVector(scale), options);
       }
 
-      editor.execute(multi);
+      editor.execute(ObjectTransformOps.createCommand(editor, objects, changes, 'Agent Transform'));
 
-      editor.sceneManager.mainScene.updateMatrixWorld(true);
+      scene.updateMatrixWorld(true);
       editor.signals.objectChanged.dispatch();
 
       return {
