@@ -6,6 +6,7 @@ import { BevelCommand } from '../commands/BevelCommand.js';
 import { ToolNumericInput } from './ToolNumericInput.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+import { projectToScreen, pixelsToWorldUnits } from '../utils/ScreenUtils.js';
 
 export class BevelTool {
   constructor(editor) {
@@ -262,7 +263,7 @@ export class BevelTool {
     
     this.transformSolver.beginSession(this.startPivotPosition, null, null);
 
-    this.startScreen = this.projectToScreen(
+    this.startScreen = projectToScreen(
       this.startPivotPosition,
       this.camera,
       this.renderer.domElement
@@ -382,12 +383,12 @@ export class BevelTool {
       startFaceId: meshData.nextFaceId
     };
 
-    const edgeGroups = this.groupConnectedSelectedEdges(meshData, this.selectedEdgeIds);
+    const edgeGroups = this.vertexEditor.topology.groupConnectedEdges(meshData, this.selectedEdgeIds);
 
     for (const edgeGroup of edgeGroups) {
       this.vertexNeighborFaceIds = this.getFacesAdjacentToEdgeVertices(meshData, edgeGroup);
 
-      const vertexGraph = this.buildSelectedVertexGraph(meshData, edgeGroup);
+      const vertexGraph = this.vertexEditor.topology.buildSelectedVertexGraph(meshData, edgeGroup);
       const bevelResults = new Map();
 
       let result = null;
@@ -441,7 +442,7 @@ export class BevelTool {
 
     const currentWorld = this.handle.getWorldPosition(new THREE.Vector3());
 
-    const currentScreen = this.projectToScreen(
+    const currentScreen = projectToScreen(
       currentWorld,
       this.camera,
       this.renderer.domElement
@@ -452,7 +453,7 @@ export class BevelTool {
     if (pixelDistance <= 1) return;
 
     const depth = this.startPivotPosition.distanceTo(this.camera.position);
-    this.width = this.pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
+    this.width = pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
     this.applyBevelWidth(this.width);
   }
 
@@ -565,32 +566,6 @@ export class BevelTool {
     return splitedFaces;
   }
 
-  projectToScreen(worldPosition, camera, domElement) {
-    const projected = worldPosition.clone().project(camera);
-
-    return new THREE.Vector2(
-      (projected.x + 1) * 0.5 * domElement.clientWidth,
-      (-projected.y + 1) * 0.5 * domElement.clientHeight
-    );
-  }
-
-  pixelsToWorldUnits(pixelDistance, camera, depth, renderer) {
-    const viewportHeightPx = renderer.domElement.clientHeight;
-
-    let worldPerPixel;
-
-    if (camera.isPerspectiveCamera) {
-      const vFov = THREE.MathUtils.degToRad(camera.fov);
-      const viewportHeight = 2 * Math.tan(vFov / 2) * depth;
-      worldPerPixel = viewportHeight / viewportHeightPx;
-    } else if (camera.isOrthographicCamera) {
-      const worldHeight = (camera.top - camera.bottom) / camera.zoom;
-      worldPerPixel = worldHeight / viewportHeightPx;
-    }
-
-    return pixelDistance * worldPerPixel;
-  }
-
   filterValidBevelEdges(meshData, selectedEdgeIds) {
     const valid = [];
 
@@ -604,93 +579,6 @@ export class BevelTool {
     }
 
     return valid;
-  }
-
-  groupConnectedSelectedEdges(meshData, selectedEdgeIds) {
-    const selectedSet = new Set(selectedEdgeIds);
-    const visitedEdges = new Set();
-    const componentSet = [];
-
-    const vertexToEdges = new Map();
-
-    for (const edgeId of selectedSet) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      for (const vId of [edge.v1Id, edge.v2Id]) {
-        if (!vertexToEdges.has(vId)) {
-          vertexToEdges.set(vId, new Set());
-        }
-        vertexToEdges.get(vId).add(edgeId);
-      }
-    }
-
-    // Traverse connected components
-    for (const startEdgeId of selectedSet) {
-      if (visitedEdges.has(startEdgeId)) continue;
-
-      const stack = [startEdgeId];
-      const componentEdges = new Set();
-
-      while (stack.length > 0) {
-        const currentEdgeId = stack.pop();
-        if (visitedEdges.has(currentEdgeId)) continue;
-
-        visitedEdges.add(currentEdgeId);
-        componentEdges.add(currentEdgeId);
-
-        const edge = meshData.edges.get(currentEdgeId);
-        if (!edge) continue;
-
-        for (const vId of [edge.v1Id, edge.v2Id]) {
-          const connectedEdges = vertexToEdges.get(vId);
-          if (!connectedEdges) continue;
-
-          for (const nextEdgeId of connectedEdges) {
-            if (!visitedEdges.has(nextEdgeId)) {
-              stack.push(nextEdgeId);
-            }
-          }
-        }
-      }
-
-      componentSet.push(componentEdges);
-    }
-    return componentSet;
-  }
-
-  buildSelectedVertexGraph(meshData, selectedEdges) {
-    const vertexToEdges = new Map();
-    const selectedVertices = new Set();
-
-    for (const edgeId of selectedEdges) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      for (const vId of [edge.v1Id, edge.v2Id]) {
-        selectedVertices.add(vId);
-
-        if (!vertexToEdges.has(vId)) {
-          vertexToEdges.set(vId, new Set());
-        }
-
-        vertexToEdges.get(vId).add(edgeId);
-      }
-    }
-
-    const vertexInfo = new Map();
-
-    for (const vId of selectedVertices) {
-      const connectedEdges = vertexToEdges.get(vId) || new Set();
-
-      vertexInfo.set(vId, {
-        vertexId: vId,
-        valence: connectedEdges.size,
-        selectedEdgeIds: [...connectedEdges]
-      });
-    }
-
-    return vertexInfo;
   }
 
   // End Vertex (1 selected edge)
@@ -886,7 +774,7 @@ export class BevelTool {
       }
     }
 
-    const edgeGroups = this.groupEdgesBySharedFace(connectedEdges);
+    const edgeGroups = this.vertexEditor.topology.groupEdgesBySharedFace(connectedEdges);
 
     // Slide along unselected connected edges
     for (const group of edgeGroups) {
@@ -1059,7 +947,7 @@ export class BevelTool {
     }
 
     const vertexNormal = calculateVertexNormal(meshData, vertexId);
-    const edgeGroups = this.groupEdgesBySharedFace(connectedEdges);
+    const edgeGroups = this.vertexEditor.topology.groupEdgesBySharedFace(connectedEdges);
 
     // Slide along unselected connected edges
      for (const group of edgeGroups) {
@@ -1498,60 +1386,6 @@ export class BevelTool {
     else if (mode === 'face') {
       this.editSelection.selectFaces(this.newFaceIds);
     }
-  }
-
-  groupEdgesBySharedFace(edges) {
-    const groups = [];
-    const visited = new Set();
-
-    // Build adjacency: edgeId → Set of connected edgeIds
-    const adjacency = new Map();
-
-    for (const edge of edges) {
-      adjacency.set(edge.id, new Set());
-    }
-
-    for (let i = 0; i < edges.length; i++) {
-      for (let j = i + 1; j < edges.length; j++) {
-        const e1 = edges[i];
-        const e2 = edges[j];
-
-        // Check if they share a face
-        const sharesFace = [...e1.faceIds].some(fid =>
-          e2.faceIds.has(fid)
-        );
-
-        if (sharesFace) {
-          adjacency.get(e1.id).add(e2.id);
-          adjacency.get(e2.id).add(e1.id);
-        }
-      }
-    }
-
-    for (const edge of edges) {
-      if (visited.has(edge.id)) continue;
-
-      const stack = [edge.id];
-      const group = [];
-
-      while (stack.length > 0) {
-        const currentId = stack.pop();
-        if (visited.has(currentId)) continue;
-
-        visited.add(currentId);
-        group.push(currentId);
-
-        for (const neighborId of adjacency.get(currentId)) {
-          if (!visited.has(neighborId)) {
-            stack.push(neighborId);
-          }
-        }
-      }
-
-      groups.push(group);
-    }
-
-    return groups;
   }
 
   selectMostAlignedEdge(meshData, group, normal) {

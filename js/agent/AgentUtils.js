@@ -10,18 +10,6 @@ export function r(n, digits = 4) {
 
 export const vec = (v, digits = 4) => [r(v.x, digits), r(v.y, digits), r(v.z, digits)];
 
-export function pureWorldQuaternion(object) {
-  const q = new THREE.Quaternion();
-  const tmp = new THREE.Quaternion();
-  let current = object;
-  while (current) {
-    tmp.copy(current.quaternion).multiply(q);
-    q.copy(tmp);
-    current = current.parent;
-  }
-  return q;
-}
-
 function size(collection) {
   if (!collection) return 0;
   if (collection instanceof Map || collection instanceof Set) return collection.size;

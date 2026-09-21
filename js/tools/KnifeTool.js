@@ -5,6 +5,7 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { KnifeCommand } from '../commands/KnifeCommand.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { GPUEdgePicker } from '../utils/GPUEdgePicker.js';
+import { worldToScreen } from '../utils/ScreenUtils.js';
 
 export class KnifeTool {
   constructor(editor) {
@@ -392,8 +393,8 @@ export class KnifeTool {
     const skipVIdA = aCut.snapVertexId;
     const skipVIdB = bCut.snapVertexId;
 
-    const aScreen = this.worldToScreen(aPos, this.camera, this.renderer.renderer);
-    const bScreen = this.worldToScreen(bPos, this.camera, this.renderer.renderer);
+    const aScreen = worldToScreen(aPos, this.camera, this.renderer.renderer);
+    const bScreen = worldToScreen(bPos, this.camera, this.renderer.renderer);
 
     const edgeIds = this.edgePicker.pickSegment(aScreen.x, aScreen.y, bScreen.x, bScreen.y, this.camera);
     
@@ -791,14 +792,5 @@ export class KnifeTool {
     // Unpack back into the class arrays
     this.intersections = unique.map(u => u.p);
     this.edgeIntersections = unique.map(u => u.edge);
-  }
-
-  worldToScreen(pos, camera, renderer) {
-    const ndc = pos.clone().project(camera);
-
-    return {
-      x: (ndc.x * 0.5 + 0.5) * renderer.domElement.width,
-      y: (-ndc.y * 0.5 + 0.5) * renderer.domElement.height
-    };
   }
 }

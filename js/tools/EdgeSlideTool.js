@@ -7,6 +7,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { projectToScreen } from '../utils/ScreenUtils.js';
 
 export class EdgeSlideTool {
   constructor(editor) {
@@ -348,7 +349,7 @@ export class EdgeSlideTool {
     const hasEdges = this.selectedEdgeIds.length > 0;
     if (!meshData || !hasEdges) return;
 
-    const vertexGraph = this.buildSelectedVertexGraph(meshData, this.selectedEdgeIds);
+    const vertexGraph = this.vertexEditor.topology.buildSelectedVertexGraph(meshData, this.selectedEdgeIds);
     for (const [vId, info] of vertexGraph) {
       if (info.valence > 2) {
         this.slideData = null;
@@ -359,7 +360,7 @@ export class EdgeSlideTool {
     const selectedEdges = this.selectedEdgeIds.map(id => meshData.edges.get(id));
     const selectedEdgeSet = new Set(selectedEdges);
 
-    const edgeGroups = this.groupConnectedSelectedEdges(meshData, this.selectedEdgeIds);
+    const edgeGroups = this.vertexEditor.topology.groupConnectedEdges(meshData, this.selectedEdgeIds);
     
     this.groupVertexIds = [];
 
@@ -470,7 +471,7 @@ export class EdgeSlideTool {
         ? orderedVertices[(i + 1) % orderedVertices.length] : orderedVertices[i + 1];
 
       let candidatesA, candidatesB;
-      const groupEdges = this.groupEdgesBySharedFace(candidates);
+      const groupEdges = this.vertexEditor.topology.groupEdgesBySharedFace(candidates);
 
       if (groupEdges.length === 1) {
         candidatesA = candidates.filter(edge => edge.faceIds.has(faceA));
@@ -669,40 +670,6 @@ export class EdgeSlideTool {
     return connectedEdges.filter(edge => !selectedEdgeSet.has(edge));
   }
 
-  buildSelectedVertexGraph(meshData, selectedEdges) {
-    const vertexToEdges = new Map();
-    const selectedVertices = new Set();
-
-    for (const edgeId of selectedEdges) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      for (const vId of [edge.v1Id, edge.v2Id]) {
-        selectedVertices.add(vId);
-
-        if (!vertexToEdges.has(vId)) {
-          vertexToEdges.set(vId, new Set());
-        }
-
-        vertexToEdges.get(vId).add(edgeId);
-      }
-    }
-
-    const vertexInfo = new Map();
-
-    for (const vId of selectedVertices) {
-      const connectedEdges = vertexToEdges.get(vId) || new Set();
-
-      vertexInfo.set(vId, {
-        vertexId: vId,
-        valence: connectedEdges.size,
-        selectedEdgeIds: [...connectedEdges]
-      });
-    }
-
-    return vertexInfo;
-  }
-
   orderEdgeChain(selectedEdges) {
     if (!selectedEdges || selectedEdges.length === 0) {
       return { vertices: [], edges: [], isClosed: false };
@@ -784,59 +751,6 @@ export class EdgeSlideTool {
     };
   }
 
-  groupConnectedSelectedEdges(meshData, selectedEdgeIds) {
-    const selectedSet = new Set(selectedEdgeIds);
-    const visitedEdges = new Set();
-    const componentSet = [];
-
-    const vertexToEdges = new Map();
-
-    for (const edgeId of selectedSet) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      for (const vId of [edge.v1Id, edge.v2Id]) {
-        if (!vertexToEdges.has(vId)) {
-          vertexToEdges.set(vId, new Set());
-        }
-        vertexToEdges.get(vId).add(edgeId);
-      }
-    }
-
-    // Traverse connected components
-    for (const startEdgeId of selectedSet) {
-      if (visitedEdges.has(startEdgeId)) continue;
-
-      const stack = [startEdgeId];
-      const componentEdges = new Set();
-
-      while (stack.length > 0) {
-        const currentEdgeId = stack.pop();
-        if (visitedEdges.has(currentEdgeId)) continue;
-
-        visitedEdges.add(currentEdgeId);
-        componentEdges.add(currentEdgeId);
-
-        const edge = meshData.edges.get(currentEdgeId);
-        if (!edge) continue;
-
-        for (const vId of [edge.v1Id, edge.v2Id]) {
-          const connectedEdges = vertexToEdges.get(vId);
-          if (!connectedEdges) continue;
-
-          for (const nextEdgeId of connectedEdges) {
-            if (!visitedEdges.has(nextEdgeId)) {
-              stack.push(nextEdgeId);
-            }
-          }
-        }
-      }
-
-      componentSet.push(componentEdges);
-    }
-    return componentSet;
-  }
-
   computeBisector(pPrev, p0, pNext) {
     const dir1 = new THREE.Vector3().subVectors(pPrev, p0);
     const dir2 = new THREE.Vector3().subVectors(pNext, p0);
@@ -902,60 +816,6 @@ export class EdgeSlideTool {
     return null;
   }
 
-  groupEdgesBySharedFace(edges) {
-    const groups = [];
-    const visited = new Set();
-
-    // Build adjacency: edgeId → Set of connected edgeIds
-    const adjacency = new Map();
-
-    for (const edge of edges) {
-      adjacency.set(edge.id, new Set());
-    }
-
-    for (let i = 0; i < edges.length; i++) {
-      for (let j = i + 1; j < edges.length; j++) {
-        const e1 = edges[i];
-        const e2 = edges[j];
-
-        // Check if they share a face
-        const sharesFace = [...e1.faceIds].some(fid =>
-          e2.faceIds.has(fid)
-        );
-
-        if (sharesFace) {
-          adjacency.get(e1.id).add(e2.id);
-          adjacency.get(e2.id).add(e1.id);
-        }
-      }
-    }
-
-    for (const edge of edges) {
-      if (visited.has(edge.id)) continue;
-
-      const stack = [edge.id];
-      const group = [];
-
-      while (stack.length > 0) {
-        const currentId = stack.pop();
-        if (visited.has(currentId)) continue;
-
-        visited.add(currentId);
-        group.push(currentId);
-
-        for (const neighborId of adjacency.get(currentId)) {
-          if (!visited.has(neighborId)) {
-            stack.push(neighborId);
-          }
-        }
-      }
-
-      groups.push(group);
-    }
-
-    return groups;
-  }
-
   createSlidePreview() {
     this.lineMaterial = new LineMaterial({
       color: 0x00ffff,
@@ -1004,15 +864,6 @@ export class EdgeSlideTool {
     line.computeLineDistances();
   }
 
-  projectToScreen(worldPosition, camera, domElement) {
-    const projected = worldPosition.clone().project(camera);
-
-    return new THREE.Vector2(
-      (projected.x + 1) * 0.5 * domElement.clientWidth,
-      (-projected.y + 1) * 0.5 * domElement.clientHeight
-    );
-  }
-
   findClosestSlideDataOnMouse() {
     if (!this.slideData || !this.event) return null;
 
@@ -1029,7 +880,7 @@ export class EdgeSlideTool {
     for (const [vId, data] of this.slideData) {
       world.copy(data.origin);
 
-      const screen = this.projectToScreen(
+      const screen = projectToScreen(
         world,
         this.camera,
         this.renderer.domElement

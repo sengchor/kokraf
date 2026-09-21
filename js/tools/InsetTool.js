@@ -5,7 +5,7 @@ import { computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
 import { InsetCommand } from '../commands/InsetCommand.js';
 import { ToolNumericInput } from './ToolNumericInput.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
-import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+import { projectToScreen, pixelsToWorldUnits } from '../utils/ScreenUtils.js';
 
 export class InsetTool {
   constructor(editor) {
@@ -219,7 +219,7 @@ export class InsetTool {
     
     this.transformSolver.beginSession(this.startPivotPosition, null, null);
 
-    this.startScreen = this.projectToScreen(
+    this.startScreen = projectToScreen(
       this.startPivotPosition,
       this.camera,
       this.renderer.domElement
@@ -300,15 +300,6 @@ export class InsetTool {
       this.signals.transformDragEnded.dispatch('edit');
       this.signals.onToolEnded.dispatch();
     });
-  }
-
-  projectToScreen(worldPosition, camera, domElement) {
-    const projected = worldPosition.clone().project(camera);
-
-    return new THREE.Vector2(
-      (projected.x + 1) * 0.5 * domElement.clientWidth,
-      (-projected.y + 1) * 0.5 * domElement.clientHeight
-    );
   }
 
   startInset() {
@@ -487,7 +478,7 @@ export class InsetTool {
 
     const currentWorld = this.handle.getWorldPosition(new THREE.Vector3());
 
-    const currentScreen = this.projectToScreen(
+    const currentScreen = projectToScreen(
       currentWorld,
       this.camera,
       this.renderer.domElement
@@ -498,34 +489,8 @@ export class InsetTool {
     if (pixelDistance <= 1) return;
 
     const depth = this.startPivotPosition.distanceTo(this.camera.position);
-    this.width = this.pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
+    this.width = pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
     this.applyInsetWidth(this.width);
-  }
-
-  projectToScreen(worldPosition, camera, domElement) {
-    const projected = worldPosition.clone().project(camera);
-
-    return new THREE.Vector2(
-      (projected.x + 1) * 0.5 * domElement.clientWidth,
-      (-projected.y + 1) * 0.5 * domElement.clientHeight
-    );
-  }
-
-  pixelsToWorldUnits(pixelDistance, camera, depth, renderer) {
-    const viewportHeightPx = renderer.domElement.clientHeight;
-
-    let worldPerPixel;
-
-    if (camera.isPerspectiveCamera) {
-      const vFov = THREE.MathUtils.degToRad(camera.fov);
-      const viewportHeight = 2 * Math.tan(vFov / 2) * depth;
-      worldPerPixel = viewportHeight / viewportHeightPx;
-    } else if (camera.isOrthographicCamera) {
-      const worldHeight = (camera.top - camera.bottom) / camera.zoom;
-      worldPerPixel = worldHeight / viewportHeightPx;
-    }
-
-    return pixelDistance * worldPerPixel;
   }
 
   updateSelectionAfterInset() {

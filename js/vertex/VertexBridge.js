@@ -12,7 +12,7 @@ export class VertexBridge {
   bridgeEdgeLoops(vertexIds, edgeIds, faceIds, options = {}) {
     const { numCuts = 0, smoothness = 1, twist = 0 } = options;
 
-    const groups = this.groupConnectedSelectedEdges(this.meshData, vertexIds, edgeIds, faceIds);
+    const groups = this.groupConnectedSelection(this.meshData, vertexIds, edgeIds, faceIds);
 
     const loops = [];
     for (const group of groups) {
@@ -67,7 +67,7 @@ export class VertexBridge {
     };
   }
 
-  groupConnectedSelectedEdges(meshData, vertexIds, edgeIds, faceIds) {
+  groupConnectedSelection(meshData, vertexIds, edgeIds, faceIds) {
     const parent = new Map();
 
     const find = (id) => {

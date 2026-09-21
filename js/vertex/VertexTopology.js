@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export class VertexTopologyUtils {
+export class VertexTopology {
   constructor(vertexEditor) {
     this.vertexEditor = vertexEditor;
   }
@@ -228,7 +228,7 @@ export class VertexTopologyUtils {
 
     if (vertices.length < 2) return vertices.map((v) => v.id);
 
-    const roots = VertexTopologyUtils.clusterByDistance(vertices, threshold);
+    const roots = VertexTopology.clusterByDistance(vertices, threshold);
 
     // Group by root
     const clusters = new Map();
@@ -343,5 +343,146 @@ export class VertexTopologyUtils {
     const roots = new Map();
     for (const item of items) roots.set(item.id, find(item.id));
     return roots;
+  }
+
+  groupConnectedEdges(meshData, edgeIds) {
+    const selectedSet = new Set(edgeIds);
+    const visitedEdges = new Set();
+    const componentSet = [];
+
+    const vertexToEdges = new Map();
+
+    for (const edgeId of selectedSet) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      for (const vId of [edge.v1Id, edge.v2Id]) {
+        if (!vertexToEdges.has(vId)) {
+          vertexToEdges.set(vId, new Set());
+        }
+        vertexToEdges.get(vId).add(edgeId);
+      }
+    }
+
+    // Traverse connected components
+    for (const startEdgeId of selectedSet) {
+      if (visitedEdges.has(startEdgeId)) continue;
+
+      const stack = [startEdgeId];
+      const componentEdges = new Set();
+
+      while (stack.length > 0) {
+        const currentEdgeId = stack.pop();
+        if (visitedEdges.has(currentEdgeId)) continue;
+
+        visitedEdges.add(currentEdgeId);
+        componentEdges.add(currentEdgeId);
+
+        const edge = meshData.edges.get(currentEdgeId);
+        if (!edge) continue;
+
+        for (const vId of [edge.v1Id, edge.v2Id]) {
+          const connectedEdges = vertexToEdges.get(vId);
+          if (!connectedEdges) continue;
+
+          for (const nextEdgeId of connectedEdges) {
+            if (!visitedEdges.has(nextEdgeId)) {
+              stack.push(nextEdgeId);
+            }
+          }
+        }
+      }
+
+      componentSet.push(componentEdges);
+    }
+    return componentSet;
+  }
+
+  buildSelectedVertexGraph(meshData, selectedEdges) {
+    const vertexToEdges = new Map();
+    const selectedVertices = new Set();
+
+    for (const edgeId of selectedEdges) {
+      const edge = meshData.edges.get(edgeId);
+      if (!edge) continue;
+
+      for (const vId of [edge.v1Id, edge.v2Id]) {
+        selectedVertices.add(vId);
+
+        if (!vertexToEdges.has(vId)) {
+          vertexToEdges.set(vId, new Set());
+        }
+
+        vertexToEdges.get(vId).add(edgeId);
+      }
+    }
+
+    const vertexInfo = new Map();
+
+    for (const vId of selectedVertices) {
+      const connectedEdges = vertexToEdges.get(vId) || new Set();
+
+      vertexInfo.set(vId, {
+        vertexId: vId,
+        valence: connectedEdges.size,
+        selectedEdgeIds: [...connectedEdges]
+      });
+    }
+
+    return vertexInfo;
+  }
+
+  groupEdgesBySharedFace(edges) {
+    const groups = [];
+    const visited = new Set();
+
+    // Build adjacency: edgeId → Set of connected edgeIds
+    const adjacency = new Map();
+
+    for (const edge of edges) {
+      adjacency.set(edge.id, new Set());
+    }
+
+    for (let i = 0; i < edges.length; i++) {
+      for (let j = i + 1; j < edges.length; j++) {
+        const e1 = edges[i];
+        const e2 = edges[j];
+
+        // Check if they share a face
+        const sharesFace = [...e1.faceIds].some(fid =>
+          e2.faceIds.has(fid)
+        );
+
+        if (sharesFace) {
+          adjacency.get(e1.id).add(e2.id);
+          adjacency.get(e2.id).add(e1.id);
+        }
+      }
+    }
+
+    for (const edge of edges) {
+      if (visited.has(edge.id)) continue;
+
+      const stack = [edge.id];
+      const group = [];
+
+      while (stack.length > 0) {
+        const currentId = stack.pop();
+        if (visited.has(currentId)) continue;
+
+        visited.add(currentId);
+        group.push(currentId);
+
+        for (const neighborId of adjacency.get(currentId)) {
+          if (!visited.has(neighborId)) {
+            stack.push(neighborId);
+          }
+        }
+      }
+
+      groups.push(group);
+    }
+
+    return groups;
   }
 }

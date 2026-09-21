@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { VertexDuplicate } from "./VertexDuplicate.js";
 import { VertexDelete } from "./VertexDelete.js";
 import { VertexDissolve } from "./VertexDissolve.js";
-import { VertexTopologyUtils } from "./VertexTopologyUtils.js";
+import { VertexTopology } from "./VertexTopology.js";
 import { VertexTransform } from "./VertexTransform.js";
 import { VertexSubdivide } from "./VertexSubdivide.js";
 import { VertexSelection } from "./VertexSelection.js";
@@ -19,7 +19,7 @@ export class VertexEditor {
     this.object = null;
 
     this.selection = new VertexSelection(this);
-    this.topology = new VertexTopologyUtils(this);
+    this.topology = new VertexTopology(this);
     this.transform = new VertexTransform(this);
     this.duplicate = new VertexDuplicate(this);
     this.delete = new VertexDelete(this);

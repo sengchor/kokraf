@@ -3,12 +3,12 @@ import { SetPositionCommand } from '../commands/SetPositionCommand.js';
 import { SetRotationCommand } from '../commands/SetRotationCommand.js';
 import { SetScaleCommand } from '../commands/SetScaleCommand.js';
 import { MultiCommand } from '../commands/MultiCommand.js';
+import { TransformUtils } from '../utils/TransformUtils.js';
 import {
   RAD,
   DEG,
   r,
   vec,
-  pureWorldQuaternion,
   describeObject,
   resolveTargets,
   toScaleVector,
@@ -120,7 +120,7 @@ export function registerAgentCommands(registry) {
         const newPositions = objects.map((object, i) => {
           if (relative) {
             const delta = input.clone();
-            if (space === 'local') delta.applyQuaternion(pureWorldQuaternion(object));
+            if (space === 'local') delta.applyQuaternion(TransformUtils.worldQuaternion(object));
             return oldPositions[i].clone().add(delta);
           }
           if (space === 'local' && object.parent) {
@@ -134,7 +134,7 @@ export function registerAgentCommands(registry) {
 
       // --- rotation: Set*Command takes WORLD quaternions --------------
       if (rotation !== undefined) {
-        const oldQuaternions = objects.map((o) => pureWorldQuaternion(o));
+        const oldQuaternions = objects.map((o) => TransformUtils.worldQuaternion(o));
         const input = new THREE.Quaternion().setFromEuler(
           new THREE.Euler(rotation[0] * RAD, rotation[1] * RAD, rotation[2] * RAD, 'XYZ')
         );
@@ -147,7 +147,7 @@ export function registerAgentCommands(registry) {
               : input.clone().multiply(oldQuaternions[i]);
           }
           if (space === 'local' && object.parent) {
-            return pureWorldQuaternion(object.parent).multiply(input);
+            return TransformUtils.worldQuaternion(object.parent).multiply(input);
           }
           return input.clone();
         });

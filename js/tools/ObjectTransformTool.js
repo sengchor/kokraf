@@ -212,11 +212,11 @@ export class ObjectTransformTool {
     if (!objects?.length || !this.handle) return;
 
     this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    this.startPivotQuaternion = this.getPureWorldQuaternion(this.handle);
+    this.startPivotQuaternion = TransformUtils.worldQuaternion(this.handle);
     this.startPivotScale = this.handle.scale.clone();
 
     this.startPositions = objects.map(obj => obj.getWorldPosition(new THREE.Vector3()));
-    this.startQuaternions = objects.map(obj => this.getPureWorldQuaternion(obj));
+    this.startQuaternions = objects.map(obj => TransformUtils.worldQuaternion(obj));
     this.startScales = objects.map(obj => obj.scale.clone());
 
     this.transformSolver.beginSession(this.startPivotPosition, this.startPivotQuaternion, this.startPivotScale);
@@ -324,7 +324,7 @@ export class ObjectTransformTool {
     if (!this.startPivotQuaternion || !this.startQuaternions) return;
 
     const pivot = this.startPivotPosition.clone();
-    const currentPivotQuat = this.getPureWorldQuaternion(handle);
+    const currentPivotQuat = TransformUtils.worldQuaternion(handle);
     let deltaQuat = currentPivotQuat.clone().multiply(this.startPivotQuaternion.clone().invert());
 
     const affectedObjects = this.selection.getAffectedObjects();
@@ -465,7 +465,7 @@ export class ObjectTransformTool {
   }
 
   commitRotation(objects, handle) {
-    const newQuaternions = objects.map(obj => this.getPureWorldQuaternion(obj));
+    const newQuaternions = objects.map(obj => TransformUtils.worldQuaternion(obj));
     const startQuaternions = this.startQuaternions.map(q => q.clone());
 
     const currentPivotQuat = handle.getWorldQuaternion(new THREE.Quaternion());
@@ -663,18 +663,5 @@ export class ObjectTransformTool {
 
     this.transformControls.update();
     this.applyTransformSession();
-  }
-
-  getPureWorldQuaternion(object) {
-    const q = new THREE.Quaternion();
-    const tempQ = new THREE.Quaternion();
-    
-    let current = object;
-    while (current) {
-      tempQ.copy(current.quaternion).multiply(q);
-      q.copy(tempQ);
-      current = current.parent;
-    }
-    return q;
   }
 }

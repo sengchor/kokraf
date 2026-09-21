@@ -1,6 +1,18 @@
 import * as THREE from 'three';
 
 export const TransformUtils = {
+  worldQuaternion(object) {
+    const q = new THREE.Quaternion();
+    const tmp = new THREE.Quaternion();
+    let current = object;
+    while (current) {
+      tmp.copy(current.quaternion).multiply(q);
+      q.copy(tmp);
+      current = current.parent;
+    }
+    return q;
+  },
+
   setWorldPosition(object, worldPos) {
     if (!object.parent) {
       object.position.copy(worldPos);
