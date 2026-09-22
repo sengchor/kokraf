@@ -357,7 +357,7 @@ mcp.registerTool(
   {
     title: 'kokraf run',
     description:
-      'Run any Kokraf editor command by name, e.g. command "scene.outline" or "transform". ' +
+      'Run any Kokraf editor command by name, e.g. command "scene.outline" or "object.transform". ' +
       'Call kokraf_commands first to see the available commands and their parameters. ' +
       'Parameters are validated by the editor, and invalid ones return an error naming the valid set. ' +
       'Commands that modify the scene are undoable with Ctrl+Z in the editor.',

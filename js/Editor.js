@@ -268,8 +268,10 @@ export default class Editor {
     // Test commands directly
     this.signals.testCommands.add(async () => {
       console.log(await agent.execute('scene.outline'));
-      await agent.execute('transform', { target: 'Cube', position: [0, 1, 0], relative: true });
-      await agent.execute('transform', { target: 'Cube', rotation: [0, 45, 0] });
+      await agent.execute('object.transform', { target: 'Cube', position: [0, 1, 0], relative: true });
+      await agent.execute('object.transform', { target: 'Cube', rotation: [0, 45, 0] });
+
+      await agent.execute('edit.transform', { target: 'Cube', vertices: 'all', scale: 0.5, rotate: [0, 0, 30], translate: [1, 0, 0] });
     });
   }
 

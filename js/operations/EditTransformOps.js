@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SetVertexPositionCommand } from '../commands/SetVertexPositionCommand.js';
 import { ObjectTransformOps } from './ObjectTransformOps.js';
+import { TransformUtils } from '../utils/TransformUtils.js';
 
 const IDENTITY_QUAT = new THREE.Quaternion();
 const UNIT_SCALE = new THREE.Vector3(1, 1, 1);
@@ -103,7 +104,8 @@ export class EditTransformOps {
       { pivot: s.pivotPosition, pivotQuaternion: s.pivotQuaternion, delta, space: this.space }
     );
 
-    this.editor.execute(EditTransformOps.createCommand(this.editor, object, vertexIds, oldPositions, newPositions));
+    const positions = { from: oldPositions, to: newPositions };
+    this.editor.execute(EditTransformOps.createCommand(this.editor, object, vertexIds, { positions }));
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
 
@@ -266,12 +268,48 @@ export class EditTransformOps {
 
   // Non-interactive API (no gizmo, no session).
 
-  /**
-   * Transform world-space positions about a pivot. Writes into `out` and returns it.
-   * translate: delta is a Vector3 offset.
-   * rotate:    delta is a Quaternion applied about the pivot.
-   * scale:     delta is a Vector3 factor, in the pivot's frame when space is 'local'.
-   */
+  static getPositions(editor, object, vertexIds) {
+    editor.vertexEditor.setObject(object);
+    return editor.vertexEditor.transform.getVertexPositions(vertexIds);
+  }
+
+  static resolvePivot(pivot, object, positions) {
+    if (pivot?.isVector3) return pivot.clone();
+    if (Array.isArray(pivot)) return new THREE.Vector3().fromArray(pivot);
+    if (pivot === 'origin') return object.getWorldPosition(new THREE.Vector3());
+    if (pivot === 'median') {
+      const center = new THREE.Vector3();
+      for (const p of positions) center.add(p);
+      return center.divideScalar(positions.length);
+    }
+    throw new Error(`Unknown pivot "${pivot}". Use 'median', 'origin' or [x, y, z].`);
+  }
+
+  static resolvePositions(object, from, { translate, rotate, scale } = {}, { pivot = 'median', space = 'world' } = {}) {
+    const toVec = (v) => (v.isVector3 ? v.clone() : new THREE.Vector3().fromArray(v));
+
+    const frame = space === 'local' ? TransformUtils.worldQuaternion(object) : new THREE.Quaternion();
+    const pivotPosition = EditTransformOps.resolvePivot(pivot, object, from);
+    const opts = { pivot: pivotPosition, pivotQuaternion: frame, space };
+    const to = from.map((p) => p.clone());
+
+    if (scale) {
+      EditTransformOps.transformPositions('scale', to, to, { ...opts, delta: toVec(scale) });
+    }
+
+    if (rotate) {
+      const worldQuat = frame.clone().multiply(rotate).multiply(frame.clone().invert());
+      EditTransformOps.transformPositions('rotate', to, to, { ...opts, delta: worldQuat });
+    }
+
+    if (translate) {
+      const offset = toVec(translate).applyQuaternion(frame);
+      EditTransformOps.transformPositions('translate', to, to, { ...opts, delta: offset });
+    }
+
+    return { from, to, pivot: pivotPosition };
+  }
+
   static transformPositions(mode, from, out, { pivot, pivotQuaternion, delta, space = 'world' }) {
     const invPivotQuat = mode === 'scale' && space === 'local'
       ? pivotQuaternion.clone().invert()
@@ -307,7 +345,8 @@ export class EditTransformOps {
     return true;
   }
 
-  static createCommand(editor, object, vertexIds, fromPositions, toPositions) {
-    return new SetVertexPositionCommand(editor, object, vertexIds, toPositions, fromPositions);
+  static createCommand(editor, object, vertexIds, { positions } = {}) {
+    if (!positions) return null;
+    return new SetVertexPositionCommand(editor, object, vertexIds, positions.to, positions.from);
   }
 }

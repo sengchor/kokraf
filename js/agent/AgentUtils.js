@@ -93,3 +93,20 @@ export function toScaleVector(scale) {
     ? new THREE.Vector3(scale, scale, scale)
     : new THREE.Vector3().fromArray(scale);
 }
+
+export function resolveVertexIds(editor, object, vertices) {
+  if (Array.isArray(vertices)) return vertices;
+
+  if (vertices === 'selected') {
+    if (editor.editSelection.editedObject !== object) {
+      throw new Error(`edit.transform: "selected" requires "${object.name || object.uuid}" to be in edit mode.`);
+    }
+    return Array.from(editor.editSelection.selectedVertexIds);
+  }
+
+  if (vertices === 'all') {
+    return Array.from(object.userData.meshData.vertices.keys());
+  }
+
+  throw new Error(`edit.transform: invalid vertices "${vertices}".`);
+}
