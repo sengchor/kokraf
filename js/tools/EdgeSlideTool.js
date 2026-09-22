@@ -1,12 +1,10 @@
-import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
-import { EdgeSlideCommand } from '../commands/EdgeSlideCommand.js';
 import { ToolNumericInput } from './ToolNumericInput.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { EdgeSlideOps, EdgeSlideCommitResult } from '../operations/EdgeSlideOps.js';
 import { projectToScreen } from '../utils/ScreenUtils.js';
 
 export class EdgeSlideTool {
@@ -14,15 +12,16 @@ export class EdgeSlideTool {
     this.editor = editor;
     this.signals = editor.signals;
 
-    this.vertexEditor = editor.vertexEditor;
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.controls = editor.controlsManager;
     this.editSelection = editor.editSelection;
-    this.snapManager = editor.snapManager;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
     this.activeTransformSource = null;
+    this.event = null;
+    this.slideLine = null;
+    this.lineMaterial = null;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
@@ -31,6 +30,7 @@ export class EdgeSlideTool {
     this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
+    this.ops = new EdgeSlideOps(editor);
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
     this.toolNumericInput = new ToolNumericInput({
       tool: this,
@@ -47,6 +47,11 @@ export class EdgeSlideTool {
     this._onPointerMove = this.onPointerMove.bind(this);
     this._onPointerUp = this.onPointerUp.bind(this);
     this._onKeyDown = this.onKeyDown.bind(this);
+  }
+
+  // Read-only accessor (numeric input / UI)
+  get slideFactor() {
+    return this.ops.factor;
   }
 
   enableFor(object) {
@@ -69,6 +74,7 @@ export class EdgeSlideTool {
     this.transformControls.visible = false;
   }
 
+  // Signals & Listeners
   setupListeners() {
     this.signals.viewportCameraChanged.add((camera) => {
       if (camera.isDefault) {
@@ -79,9 +85,7 @@ export class EdgeSlideTool {
     });
 
     this.signals.editEdgeSlideStart.add(() => {
-      this.editedObject = this.editSelection.editedObject;
-      if (!this.editedObject || !this.handle) return;
-
+      if (!this.editSelection.editedObject || !this.handle) return;
       if (this.activeTransformSource !== null) return;
 
       if (this.handle && this.transformControls.worldPositionStart) {
@@ -114,11 +118,12 @@ export class EdgeSlideTool {
     for (let i = picker.children.length - 1; i >= 0; i--) {
       const child = picker.children[i];
       if (child.name !== 'XYZ') {
-          picker.remove(child);
+        picker.remove(child);
       }
     }
   }
 
+  // Gizmo Control
   setupTransformListeners() {
     this.transformControls.addEventListener('mouseDown', () => {
       if (this.activeTransformSource !== null) return;
@@ -184,7 +189,7 @@ export class EdgeSlideTool {
   onKeyDown(event) {
     if (this.activeTransformSource !== 'command') return;
 
-    if (this.toolNumericInput.handleKey(event, this.mode)) {
+    if (this.toolNumericInput.handleKey(event)) {
       return;
     }
 
@@ -203,111 +208,41 @@ export class EdgeSlideTool {
 
   // Edge Slide Session
   startEdgeSlideSession() {
-    this.editedObject = this.editSelection.editedObject;
-    if (!this.editedObject || !this.handle) return;
-    this.vertexEditor.setObject(this.editedObject);
+    const session = this.ops.beginSession(this.editSelection.editedObject, this.handle);
+    if (!session) return;
 
-    this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    this.slideData = new Map();
-
-    const meshData = this.editedObject.userData.meshData;
-
-    this.selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
-    this.selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
-
-    const beforeRegionIds = MeshDataRegion.expand(
-      meshData,
-      { vertexIds: this.selectedVertexIds, edgeIds: this.selectedEdgeIds, faceIds: [] },
-      2
-    );
-    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
-
-    this.startElements = {
-      startVertexId: meshData.nextVertexId,
-      startEdgeId: meshData.nextEdgeId,
-      startFaceId: meshData.nextFaceId
-    };
-
-    this.transformSolver.beginSession(this.startPivotPosition, null, null);
-
-    this.edgeSlideStarted = false;
-
+    this.transformSolver.beginSession(session.pivotPosition, null, null);
     this.signals.onToolStarted.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   applyEdgeSlideSession() {
-    if (!this.startPivotPosition) return;
+    if (!this.ops.hasSession()) return;
 
-    const isSingleVertex = this.selectedVertexIds.length === 1;
-
-    if (!this.edgeSlideStarted) {
-      if (isSingleVertex) {
-        this.startVertexSlide();
-      } else {
-        this.startEdgeSlide();
+    if (!this.ops.isBuilt()) {
+      const slide = this.ops.build(this.handle);
+      if (slide?.mode === 'edge') {
+        this.ops.setReferenceVertex(this.findClosestSlideVertexOnMouse(slide.slideData));
       }
-      
-      this.handle.position.copy(this.startPivotPosition);
-      this.edgeSlideStarted = true;
     }
-    if (isSingleVertex) {
-      this.updateVertexSlide();
-    } else {
-      this.updateEdgeSlide();
-    }
+
+    const preview = this.ops.apply(this.handle, this.event, this.toolNumericInput.active);
+    if (preview) this.updateSlidePreview(preview.vertexData, preview.rail);
 
     this.signals.onToolUpdated.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   commitEdgeSlideSession() {
-    if (!this.offset || this.offset === 0 || !this.slideData) {
-      this.cancelEdgeSlideSession();
-      this.clearCommandEdgeSlideState();
-      this.clearStartData();
+    const result = this.ops.commit(this.handle);
+    this.removeSlidePreview();
+
+    if (result === EdgeSlideCommitResult.CANCELLED) {
       this.toolNumericInput.reset();
-      return;
     }
-
-    this.vertexEditor.setObject(this.editedObject);
-    const meshData = this.editedObject.userData.meshData;
-
-    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
-    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
-    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
-
-    this.editor.add(new EdgeSlideCommand(this.editor, this.editedObject, this.beforeSnapshot, afterSnapshot));
-    this.signals.editSelectionRefresh.dispatch();
-    this.editedObject.geometry.computeBoundingBox();
-    this.editedObject.geometry.computeBoundingSphere();
-
-    this.editSelection.clearSelection();
-    if (this.selectedVertexIds.length === 1) {
-      this.editSelection.selectVertices(this.selectedVertexIds);
-    } else {
-      this.editSelection.selectEdges(this.selectedEdgeIds);
-    }
-    this.clearStartData();
   }
 
   cancelEdgeSlideSession() {
-    this.editedObject = this.editSelection.editedObject;
-    if (!this.editedObject) return;
-
-    const meshData = this.editedObject.userData.meshData;
-    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
-
-    this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.applyDelta(this.beforeSnapshot);
-
-    this.handle.position.copy(this.startPivotPosition);
-    this.handle.updateMatrixWorld(true);
-
-    if (this.selectedVertexIds.length === 1) {
-      this.editSelection.selectVertices(this.selectedVertexIds);
-    } else {
-      this.editSelection.selectEdges(this.selectedEdgeIds);
-    }
-    this.clearStartData();
+    this.ops.cancel(this.handle);
+    this.removeSlidePreview();
   }
 
   clearCommandEdgeSlideState() {
@@ -322,569 +257,24 @@ export class EdgeSlideTool {
     });
   }
 
-  clearStartData() {
-    this.sceneEditorHelpers.remove(this.slideLine);
-    this.slideLine = null;
-    this.startPivotPosition = null;
-    this.selectedVertexIds = null;
-    this.selectedEdgeIds = null;
-    this.slideData = null;
-    this.offset = null;
-    this.slideFactor = null;
-    this.closestVertexId = null;
-
-    this.edgeSlideStarted = false;
+  // Numeric input (called by ToolNumericInput)
+  applyEdgeSlideFactor(value) {
+    this.ops.setFactor(value);
   }
 
-  startVertexSlide() {
-    const meshData = this.editedObject.userData.meshData;
-    const isSingleVertex = this.selectedVertexIds.length === 1;
-    if (!meshData || !isSingleVertex) return;
-
-    this.buildVertexSlideData(meshData, this.selectedVertexIds[0]);
-  }
-
-  startEdgeSlide() {
-    const meshData = this.editedObject.userData.meshData;
-    const hasEdges = this.selectedEdgeIds.length > 0;
-    if (!meshData || !hasEdges) return;
-
-    const vertexGraph = this.vertexEditor.topology.buildSelectedVertexGraph(meshData, this.selectedEdgeIds);
-    for (const [vId, info] of vertexGraph) {
-      if (info.valence > 2) {
-        this.slideData = null;
-        return;
-      }
-    }
-
-    const selectedEdges = this.selectedEdgeIds.map(id => meshData.edges.get(id));
-    const selectedEdgeSet = new Set(selectedEdges);
-
-    const edgeGroups = this.vertexEditor.topology.groupConnectedEdges(meshData, this.selectedEdgeIds);
-    
-    this.groupVertexIds = [];
-
-    for (const edgeGroup of edgeGroups) {
-      const edgesInGroup = [...edgeGroup].map(edgeId => meshData.edges.get(edgeId));
-      
-      const { vertices, edges, isClosed } = this.orderEdgeChain(edgesInGroup);
-      
-      this.groupVertexIds.push(vertices);
-
-      this.buildEdgeSlideData(meshData, vertices, edges, isClosed, selectedEdgeSet);
-    }
-
-    this.closestVertexId = this.findClosestSlideDataOnMouse();
-  }
-
-  buildVertexSlideData(meshData, vertexId) {
-    const matrix = this.editedObject.matrixWorld;
-    const vertex = meshData.getVertex(vertexId);
-    const origin = vertex.position.clone().applyMatrix4(matrix);
-
-    const data = { origin, sides: [] };
-
-    for (const edgeId of vertex.edgeIds) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      const otherId = edge.v1Id === vertexId ? edge.v2Id : edge.v1Id;
-      const other = meshData.getVertex(otherId);
-      if (!other) continue;
-
-      const otherWorld = other.position.clone().applyMatrix4(matrix);
-      const dir = new THREE.Vector3().subVectors(otherWorld, origin);
-      if (dir.lengthSq() < 1e-8) continue;
-
-      data.sides.push({
-        edgeId: edge.id,
-        direction: dir.clone(),
-        length: dir.length(),
-        normalized: dir.clone().normalize()
-      });
-    }
-
-    this.slideData.set(vertexId, data);
-  }
-
-  buildEdgeSlideData(meshData, orderedVertices, orderedEdges, isClosed, selectedEdgeSet) {
-    const matrix = this.editedObject.matrixWorld;
-    const toWorld = (p) => (new THREE.Vector3().copy(p)).applyMatrix4(matrix);
-
-    let prevFaceA = null;
-    let prevFaceB = null;
-
-    for (let i = 0; i < orderedVertices.length; i++) {
-      const vId = orderedVertices[i];
-      const vertex = meshData.getVertex(vId);
-
-      const referenceEdge = i === 0 ? orderedEdges[0] : orderedEdges[i - 1];
-      if (!referenceEdge) continue;
-
-      const faceIds = Array.from(referenceEdge.faceIds);
-      if (faceIds.length < 2) continue;
-
-      // --- Consistent face orientation ---
-      let faceA, faceB;
-
-      [faceA, faceB] = faceIds;
-
-      if (i === 0) {
-        [faceA, faceB] = faceIds;
-      } else {
-        if (faceIds.includes(prevFaceA)) {
-          faceA = prevFaceA;
-          faceB = faceIds.find(f => f !== faceA);
-        } else if (faceIds.includes(prevFaceB)) {
-          faceB = prevFaceB;
-          faceA = faceIds.find(f => f !== faceB);
-        } else {
-          faceA = this.findAdjacentFace(meshData, faceIds, prevFaceA);
-          if (faceA) {
-            faceB = faceIds.find(f => f !== faceA);
-          }
-
-          if (!faceA) {
-            faceB = this.findAdjacentFace(meshData, faceIds, prevFaceB);
-            if (faceB) {
-              faceA = faceIds.find(f => f !== faceB);
-            }
-          }
-          if (!faceA && !faceB) {
-            [faceA, faceB] = faceIds; 
-          }
-        }
-      }
-
-      // Classification into two directional groups
-      prevFaceA = faceA;
-      prevFaceB = faceB;
-
-      const candidates = this.getCandidateEdges(meshData, vertex, selectedEdgeSet);
-
-      const vertexWorld = toWorld(vertex.position);
-      const data = { origin: vertexWorld };
-
-      const prevId = isClosed 
-        ? orderedVertices[(i - 1 + orderedVertices.length) % orderedVertices.length] : orderedVertices[i - 1];
-      const nextId = isClosed 
-        ? orderedVertices[(i + 1) % orderedVertices.length] : orderedVertices[i + 1];
-
-      let candidatesA, candidatesB;
-      const groupEdges = this.vertexEditor.topology.groupEdgesBySharedFace(candidates);
-
-      if (groupEdges.length === 1) {
-        candidatesA = candidates.filter(edge => edge.faceIds.has(faceA));
-        candidatesB = candidates.filter(edge => edge.faceIds.has(faceB));
-      } else {
-        const [ group1, group2 ] = groupEdges;
-        const groupEdge1 = group1.map(eId => meshData.edges.get(eId));
-        const groupEdge2 = group2.map(eId => meshData.edges.get(eId));
-
-        const group1HasFaceA = groupEdge1.some(edge => edge.faceIds.has(faceA));
-
-        if (group1HasFaceA) {
-          candidatesA = groupEdge1;
-          candidatesB = groupEdge2;
-        } else {
-          candidatesA = groupEdge2;
-          candidatesB = groupEdge1;
-        }
-      }
-
-      // --- SIDE A ---
-      const edgeA = this.pickBestEdge(meshData, vertex, candidatesA);
-
-      if (edgeA) {
-        const other = meshData.getVertex(edgeA.v1Id === vId ? edgeA.v2Id : edgeA.v1Id);
-        const dir = new THREE.Vector3().subVectors(toWorld(other.position), vertexWorld);
-
-        if (dir.lengthSq() > 1e-8) {
-          data.sideA = {
-            direction: dir,
-            length: dir.length(),
-            normalized: dir.clone().normalize()
-          };
-        }
-      } else if (prevId !== undefined && nextId !== undefined) {
-        const prev = meshData.getVertex(prevId);
-        const next = meshData.getVertex(nextId);
-
-        const bis = this.computeBisector(toWorld(prev.position), vertexWorld, toWorld(next.position));
-
-        data.sideA = {
-          direction: bis.clone(),
-          length: bis.length(),
-          normalized: bis.clone().normalize()
-        };
-      }
-
-      // --- SIDE B ---
-      const edgeB = this.pickBestEdge(meshData, vertex, candidatesB);
-
-      if (edgeB) {
-        const other = meshData.getVertex(edgeB.v1Id === vId ? edgeB.v2Id : edgeB.v1Id);
-        const dir = new THREE.Vector3().subVectors(toWorld(other.position), vertexWorld);
-
-        if (dir.lengthSq() > 1e-8) {
-          data.sideB = {
-            direction: dir,
-            length: dir.length(),
-            normalized: dir.clone().normalize()
-          };
-        }
-      } else if (prevId !== undefined && nextId !== undefined) {
-        const prev = meshData.getVertex(prevId);
-        const next = meshData.getVertex(nextId);
-
-        const bis = this.computeBisector(toWorld(prev.position), vertexWorld, toWorld(next.position));
-
-        data.sideB = {
-          direction: bis.clone(),
-          length: bis.length(),
-          normalized: bis.clone().normalize()
-        };
-      }
-
-      this.slideData.set(vId, data);
-    }
-  }
-
-  updateEdgeSlide() {
-    const meshData = this.editedObject.userData.meshData;
-    const hasEdges = this.selectedEdgeIds.length > 0;
-    if (!meshData || !hasEdges || !this.slideData) return;
-
-    const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    this.offset = new THREE.Vector3().subVectors(
-      currentPivotPosition,
-      this.startPivotPosition
-    );
-
-    const referenceVertexData = this.slideData.get(this.closestVertexId);
-    if (!referenceVertexData || (!referenceVertexData.sideA && !referenceVertexData.sideB)) return;
-
-    let scoreA = referenceVertexData.sideA ? this.offset.dot(referenceVertexData.sideA.normalized) : -Infinity;
-    let scoreB = referenceVertexData.sideB ? this.offset.dot(referenceVertexData.sideB.normalized) : -Infinity;
-
-    const activeSide = scoreA > scoreB ? 'sideA' : 'sideB';
-    const activeScore = Math.max(scoreA, scoreB);
-    const activeLength = referenceVertexData[activeSide].length;
-
-    const snapTarget = this.snapManager.snapEditPosition(this.event, this.selectedVertexIds, this.editedObject);
-
-    if (snapTarget && !this.toolNumericInput.active) {
-      const worldOrigin = referenceVertexData.origin;
-      const worldDir = referenceVertexData[activeSide].normalized;
-
-      const toSnap = snapTarget.clone().sub(worldOrigin);
-      const projected = toSnap.dot(worldDir);
-
-      const snappedFactor = projected / activeLength;
-      this.slideFactor = Math.max(0, Math.min(1, snappedFactor));
-    } else {
-      this.slideFactor = activeScore / activeLength;
-      this.slideFactor = Math.max(0, Math.min(1, this.slideFactor));
-    }
-
-    const rail = referenceVertexData[activeSide];
-    this.updateSlidePreview(referenceVertexData, rail);
-    this.applyEdgeSlideFactor(this.slideFactor, activeSide);
-  }
-
-  updateVertexSlide() {
-    const vertexId = this.selectedVertexIds[0];
-    const data = this.slideData.get(vertexId);
-    if (!data || !data.sides.length) return;
-
-    const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    this.offset = new THREE.Vector3().subVectors(
-      currentPivotPosition,
-      this.startPivotPosition
-    );
-
-    // Pick best edge
-    let bestSide = null;
-    let bestScore = -Infinity;
-
-    for (const side of data.sides) {
-      const score = this.offset.dot(side.normalized);
-      if (score > bestScore) {
-        bestScore = score;
-        bestSide = side;
-      }
-    }
-
-    if (!bestSide) return;
-    this.slideFactor = bestScore / bestSide.length;
-    this.slideFactor = THREE.MathUtils.clamp(this.slideFactor, -1, 1);
-
-    // Apply Position
-    const newPos = new THREE.Vector3()
-      .copy(bestSide.direction)
-      .multiplyScalar(this.slideFactor)
-      .add(data.origin);
-
-    this.vertexEditor.transform.setVertexPositions([vertexId], [newPos]);
-
-    this.updateSlidePreview(data, bestSide);
-  }
-
-  applyEdgeSlideFactor(slideFactor, activeSide) {
-    if (!activeSide) {
-      activeSide = slideFactor >= 0 ? 'sideA' : 'sideB';
-    }
-    
-    this.slideFactor = Math.abs(slideFactor);
-
-    const vertexIds = [];
-    const newPositions = [];
-
-    for (const groupVertex of this.groupVertexIds) {
-      for (const vertexId of groupVertex) {
-        const data = this.slideData.get(vertexId);
-        const activeRail = data[activeSide]; 
-
-        if (!activeRail) {
-          vertexIds.push(vertexId);
-          newPositions.push(data.origin.clone());
-          continue;
-        }
-
-        const newPos = new THREE.Vector3()
-          .copy(activeRail.direction)
-          .multiplyScalar(this.slideFactor)
-          .add(data.origin);
-
-        vertexIds.push(vertexId);
-        newPositions.push(newPos.clone());
-      }
-    }
-
-    this.vertexEditor.transform.setVertexPositions(vertexIds, newPositions);
-  }
-
-  getCandidateEdges(meshData, vertex, selectedEdgeSet) {
-    const connectedEdges = Array.from(vertex.edgeIds).map(id => meshData.edges.get(id));
-
-    return connectedEdges.filter(edge => !selectedEdgeSet.has(edge));
-  }
-
-  orderEdgeChain(selectedEdges) {
-    if (!selectedEdges || selectedEdges.length === 0) {
-      return { vertices: [], edges: [], isClosed: false };
-    }
-
-    const vertexToEdges = new Map();
-
-    for (const edge of selectedEdges) {
-      if (!vertexToEdges.has(edge.v1Id)) vertexToEdges.set(edge.v1Id, []);
-      if (!vertexToEdges.has(edge.v2Id)) vertexToEdges.set(edge.v2Id, []);
-
-      vertexToEdges.get(edge.v1Id).push(edge);
-      vertexToEdges.get(edge.v2Id).push(edge);
-    }
-
-    let endVertices = [];
-    for (const [vId, edges] of vertexToEdges) {
-      if (edges.length === 1) {
-        endVertices.push(vId);
-      }
-      if (edges.length > 2) {
-        console.warn("Invalid chain: branching at vertex", vId);
-      }
-    }
-
-    const isClosed = endVertices.length === 0;
-
-    // Find start vertex
-    let startVertexId = null;
-
-    if (!isClosed) {
-      startVertexId = endVertices[0];
-    } else {
-      startVertexId = selectedEdges[0].v1Id;
-    }
-
-    // Walk the chain
-    const orderedVertexIds = [];
-    const orderedEdges = [];
-    const visitedEdges = new Set();
-
-    let currentVertex = startVertexId;
-
-    while (true) {
-      orderedVertexIds.push(currentVertex);
-
-      const edges = vertexToEdges.get(currentVertex) || [];
-
-      let nextEdge = null;
-
-      for (const edge of edges) {
-        if (!visitedEdges.has(edge.id)) {
-          nextEdge = edge;
-          break;
-        }
-      }
-
-      if (!nextEdge) break;
-
-      visitedEdges.add(nextEdge.id);
-      orderedEdges.push(nextEdge);
-
-      const nextVertex =
-        nextEdge.v1Id === currentVertex
-          ? nextEdge.v2Id
-          : nextEdge.v1Id;
-
-      if (isClosed && nextVertex === startVertexId) {
-        break;
-      }
-
-      currentVertex = nextVertex;
-    }
-
-    return {
-      vertices: orderedVertexIds,
-      edges: orderedEdges,
-      isClosed
-    };
-  }
-
-  computeBisector(pPrev, p0, pNext) {
-    const dir1 = new THREE.Vector3().subVectors(pPrev, p0);
-    const dir2 = new THREE.Vector3().subVectors(pNext, p0);
-
-    const bisector = new THREE.Vector3().addVectors(dir1, dir2);
-
-    if (bisector.lengthSq() < 1e-6) {
-      return dir1.clone();
-    }
-
-    return bisector;
-  }
-
-  pickBestEdge(meshData, vertex, candidates) {
-    if (!candidates?.length) return null;
-
-    let best = null;
-    let bestScore = -Infinity;
-
-    for (const edge of candidates) {
-      const otherId = edge.v1Id === vertex.id ? edge.v2Id : edge.v1Id;
-      const other = meshData.getVertex(otherId);
-      if (!other) continue;
-
-      const dir = new THREE.Vector3()
-        .subVectors(other.position, vertex.position);
-
-      const length = dir.length();
-      if (length < 1e-8) continue;
-
-      dir.normalize();
-
-      let score = 0;
-
-      if (score > bestScore) {
-        bestScore = score;
-        best = edge;
-      }
-    }
-
-    return best;
-  }
-
-  findAdjacentFace(meshData, faceIds, targetFaceId) {
-    const targetFace = meshData.faces.get(targetFaceId);
-    if (!targetFace) return null;
-
-    const targetEdges = targetFace.edgeIds;
-
-    for (const fId of faceIds) {
-      if (fId === targetFaceId) continue;
-
-      const face = meshData.faces.get(fId);
-      if (!face) continue;
-
-      for (const edgeId of face.edgeIds) {
-        if (targetEdges.has(edgeId)) {
-          return fId;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  createSlidePreview() {
-    this.lineMaterial = new LineMaterial({
-      color: 0x00ffff,
-      linewidth: 1.0,
-      dashed: false,
-      worldUnits: true,
-      depthTest: false,
-      worldUnits: false,
-    });
-
-    const geometry = new LineGeometry()
-    geometry.setPositions([0, 0, 0, 0, 0, 0]);
-
-    this.slideLine = new Line2(geometry, this.lineMaterial);
-    this.slideLine.visible = false;
-    this.sceneEditorHelpers.add(this.slideLine);
-  }
-
-  updateSlidePreview(vertexData, rail) {
-    if (!this.slideLine) {
-      this.createSlidePreview();
-    }
-
-    if (!vertexData || !rail) {
-      this.slideLine.visible = false;
-      return;
-    }
-
-    const matrix = this.editedObject.matrixWorld;
-
-    const origin = vertexData.origin.clone();
-    const end = origin.clone().add(rail.normalized.clone().multiplyScalar(rail.length));
-
-    this.updateLine(this.slideLine, origin, end);
-
-    this.slideLine.visible = true;
-  }
-
-  updateLine(line, start, end) {
-    const positions = [
-      start.x, start.y, start.z,
-      end.x,   end.y,   end.z
-    ];
-
-    line.geometry.setPositions(positions);
-    line.computeLineDistances();
-  }
-
-  findClosestSlideDataOnMouse() {
-    if (!this.slideData || !this.event) return null;
+  // Reference vertex: the slide vertex closest to the cursor drives the rails.
+  findClosestSlideVertexOnMouse(slideData) {
+    if (!slideData || !this.event) return null;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
-
     const mouseX = this.event.clientX - rect.left;
     const mouseY = this.event.clientY - rect.top;
 
     let closestId = null;
     let minDistSq = Infinity;
 
-    const world = new THREE.Vector3();
-
-    for (const [vId, data] of this.slideData) {
-      world.copy(data.origin);
-
-      const screen = projectToScreen(
-        world,
-        this.camera,
-        this.renderer.domElement
-      );
+    for (const [vId, data] of slideData) {
+      const screen = projectToScreen(data.origin, this.camera, this.renderer.domElement);
 
       const dx = screen.x - mouseX;
       const dy = screen.y - mouseY;
@@ -897,5 +287,52 @@ export class EdgeSlideTool {
     }
 
     return closestId;
+  }
+
+  // Preview line
+  createSlidePreview() {
+    if (!this.lineMaterial) {
+      this.lineMaterial = new LineMaterial({
+        color: 0x00ffff,
+        linewidth: 1.0,
+        dashed: false,
+        worldUnits: false,
+        depthTest: false,
+      });
+    }
+
+    const geometry = new LineGeometry();
+    geometry.setPositions([0, 0, 0, 0, 0, 0]);
+
+    this.slideLine = new Line2(geometry, this.lineMaterial);
+    this.slideLine.visible = false;
+    this.sceneEditorHelpers.add(this.slideLine);
+  }
+
+  updateSlidePreview(vertexData, rail) {
+    if (!this.slideLine) this.createSlidePreview();
+
+    if (!vertexData || !rail) {
+      this.slideLine.visible = false;
+      return;
+    }
+
+    const origin = vertexData.origin.clone();
+    const end = origin.clone().add(rail.normalized.clone().multiplyScalar(rail.length));
+
+    this.slideLine.geometry.setPositions([
+      origin.x, origin.y, origin.z,
+      end.x, end.y, end.z,
+    ]);
+    this.slideLine.computeLineDistances();
+    this.slideLine.visible = true;
+  }
+
+  removeSlidePreview() {
+    if (!this.slideLine) return;
+
+    this.sceneEditorHelpers.remove(this.slideLine);
+    this.slideLine.geometry.dispose();
+    this.slideLine = null;
   }
 }

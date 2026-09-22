@@ -1,19 +1,16 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
-import { DuplicateSelectionCommand } from '../commands/DuplicateSelectionCommand.js';
-import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { DuplicateOps } from '../operations/DuplicateOps.js';
 
 export class DuplicateTool {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
 
-    this.vertexEditor = editor.vertexEditor;
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.editSelection = editor.editSelection;
-    this.snapManager = editor.snapManager;
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
     this.viewportControls = editor.viewportControls;
 
@@ -27,6 +24,7 @@ export class DuplicateTool {
     this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
+    this.ops = new DuplicateOps(editor, this.transformControls);
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
 
     this.transformSolver.changeTransformControlsColor();
@@ -57,6 +55,7 @@ export class DuplicateTool {
     this.transformControls.visible = false;
   }
 
+  // Signals & Listeners
   setupListeners() {
     this.signals.viewportCameraChanged.add((camera) => {
       if (camera.isDefault) {
@@ -67,29 +66,26 @@ export class DuplicateTool {
     });
 
     this.signals.duplicateSelection.add(() => {
-      const editedObject = this.editSelection.editedObject;
-      if (!editedObject) return;
+      if (!this.editSelection.editedObject) return;
 
-      const selectedVertexIds = this.editSelection.selectedVertexIds;
-      const selectedEdgeIds = this.editSelection.selectedEdgeIds;
-      const selectedFaceIds = this.editSelection.selectedFaceIds;
+      const { selectedVertexIds, selectedEdgeIds, selectedFaceIds } = this.editSelection;
+      if (selectedVertexIds.size === 0 && selectedEdgeIds.size === 0 && selectedFaceIds.size === 0) return;
 
-      if (
-        selectedVertexIds.size === 0 && selectedEdgeIds.size === 0 && selectedFaceIds.size === 0
-      ) return;
-
-      const attachObject = this.editSelection.vertexHandle;
-      this.enableFor(attachObject);
+      this.enableFor(this.editSelection.vertexHandle);
 
       if (!this.handle) return;
       if (this.activeTransformSource !== null) return;
 
-      if (this.handle && this.transformControls.worldPositionStart) {
+      if (this.transformControls.worldPositionStart) {
         this.handle.getWorldPosition(this.transformControls.worldPositionStart);
       }
 
+      if (!this.startDuplicateSession()) {
+        this.disable();
+        return;
+      }
+
       this.activeTransformSource = 'command';
-      this.startDuplicateSession();
 
       this.transformSolver.updateHandleFromCommandInput('translate', this.event);
       this.applyDuplicateSession();
@@ -98,6 +94,7 @@ export class DuplicateTool {
     });
   }
 
+  // Command Control
   onPointerMove() {
     if (this.activeTransformSource !== 'command') return;
     this.transformSolver.updateHandleFromCommandInput('translate', this.event);
@@ -119,6 +116,7 @@ export class DuplicateTool {
 
   onKeyDown(event) {
     if (this.activeTransformSource !== 'command') return;
+
     const key = event.key.toLowerCase();
     if (key === 'x' || key === 'y' || key === 'z') {
       this.transformSolver.setAxisConstraintFromKey(key);
@@ -129,6 +127,7 @@ export class DuplicateTool {
     }
 
     if (event.key === 'Escape') {
+      // Cancel keeps the copy in place on top of the original, then records it.
       this.cancelDuplicateSession();
       this.clearCommandDuplicateState();
       this.commitDuplicateSession();
@@ -140,112 +139,27 @@ export class DuplicateTool {
     }
   }
 
+  // Duplicate session
+  // Returns true if a session started (and the selection was duplicated).
   startDuplicateSession() {
-    const editedObject = this.editSelection.editedObject;
-    if (!editedObject || !this.handle) return;
+    const session = this.ops.beginSession(this.editSelection.editedObject, this.handle);
+    if (!session) return false;
 
-    this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    this.startPivotQuaternion = this.handle.getWorldQuaternion(new THREE.Quaternion());
-    this.startPivotScale = this.handle.getWorldScale(new THREE.Vector3());
-
-    const selectedVertexIds = Array.from(this.editSelection.selectedVertexIds);
-    const selectedEdgeIds = Array.from(this.editSelection.selectedEdgeIds);
-    const selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
-
-    if (!selectedVertexIds.length) return;
-
-    this.transformSolver.beginSession(this.startPivotPosition, this.startPivotQuaternion, this.startPivotScale);
-
-    this.vertexEditor.setObject(editedObject);
-    this.oldPositions = this.vertexEditor.transform.getVertexPositions(selectedVertexIds);
-    const meshData = editedObject.userData.meshData;
-
-    const beforeRegionIds = MeshDataRegion.expand(
-      meshData,
-      { vertexIds: selectedVertexIds, edgeIds: selectedEdgeIds, faceIds: selectedFaceIds },
-      1
-    );
-    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
-
-    this.startElements = {
-      startVertexId: meshData.nextVertexId,
-      startEdgeId: meshData.nextEdgeId,
-      startFaceId: meshData.nextFaceId,
-    };
-
-    this.duplicateSelection();
+    this.transformSolver.beginSession(session.pivotPosition, session.pivotQuaternion, session.pivotScale);
+    return true;
   }
 
   applyDuplicateSession() {
-    if (!this.startPivotPosition) return;
-
-    const editedObject = this.editSelection.editedObject;
-    if (!editedObject || !this.handle) return;
-
-    const currentPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    let offset = new THREE.Vector3().subVectors(currentPivotPosition, this.startPivotPosition);
-
-    const snapTarget = this.snapManager.snapEditPosition(this.event, this.newVertexIds, editedObject);
-    
-    if (snapTarget) {
-      const nearestWorldPos = this.snapManager.getNearestPositionToPoint(this.oldPositions, snapTarget);
-      offset.subVectors(snapTarget, nearestWorldPos);
-      offset = this.snapManager.constrainTranslationOffset(offset, this.transformControls.axis, this.transformControls.space, this.startPivotQuaternion);
-
-      this.handle.position.copy(this.startPivotPosition).add(offset);
-      this.transformControls.update();
-    }
-
-    // Move duplicated vertices
-    const newPositions = this.initialDuplicatedPositions.map(pos => pos.clone().add(offset));
-    this.vertexEditor.transform.setVertexPositions(this.newVertexIds, newPositions);
+    if (!this.ops.hasSession() || !this.handle) return;
+    this.ops.apply(this.handle, this.event);
   }
 
   commitDuplicateSession() {
-    const editedObject = this.editSelection.editedObject;
-    if (!editedObject || !this.handle) return;
-
-    const mode = this.editSelection.subSelectionMode;
-    const meshData = editedObject.userData.meshData;
-
-    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
-    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
-    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
-
-    this.editor.execute(new DuplicateSelectionCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
-
-    if (mode === 'vertex') {
-      this.editSelection.selectVertices(this.newVertexIds);
-    } else if (mode === 'edge') {
-      this.editSelection.selectEdges(this.newEdgeIds);
-    } else if (mode === 'face') {
-      this.editSelection.selectFaces(this.newFaceIds);
-    }
-
-    this.clearStartData();
+    this.ops.commit();
   }
 
   cancelDuplicateSession() {
-    const editedObject = this.editSelection.editedObject;
-    if (!editedObject) return;
-
-    if (!this.newVertexIds || !this.initialDuplicatedPositions) return;
-
-    if (!this.vertexEditor.object) {
-      this.vertexEditor.setObject(editedObject);
-    }
-
-    // Restore duplicated vertices
-    this.vertexEditor.transform.setVertexPositions(
-      this.newVertexIds,
-      this.initialDuplicatedPositions
-    );
-
-    // restore pivot / handle
-    this.handle.position.copy(this.startPivotPosition);
-    this.handle.quaternion.copy(this.startPivotQuaternion);
-    this.handle.scale.copy(this.startPivotScale);
-    this.handle.updateMatrixWorld(true);
+    this.ops.cancel(this.handle);
   }
 
   clearCommandDuplicateState() {
@@ -258,51 +172,6 @@ export class DuplicateTool {
     requestAnimationFrame(() => {
       this.signals.transformDragEnded.dispatch('edit');
     });
-  }
-
-  clearStartData() {
-    this.vertexEditor.object = null;
-    this.startPivotPosition = null;
-    this.startPivotQuaternion = null;
-    this.startPivotScale = null;
-
-    this.oldPositions = null;
-    this.initialDuplicatedPositions = null;
-    this.newVertexIds = null;
-    this.newEdgeIds = null;
-    this.newFaceIds = null;
-  }
-
-  duplicateSelection() {
-    const mode = this.editSelection.subSelectionMode;
-    const selectedVertexIds = this.editSelection.selectedVertexIds;
-    const selectedEdgeIds = this.editSelection.selectedEdgeIds;
-    const selectedFaceIds = this.editSelection.selectedFaceIds;
-
-    let duplicationResult;
-    if (mode === 'vertex') {
-      duplicationResult = this.vertexEditor.duplicate.duplicateSelectionVertices(selectedVertexIds);
-    } else if (mode === 'edge') {
-      duplicationResult = this.vertexEditor.duplicate.duplicateSelectionEdges(selectedEdgeIds);
-    } else if (mode === 'face') {
-      duplicationResult = this.vertexEditor.duplicate.duplicateSelectionFaces(selectedFaceIds);
-    }
-
-    this.newVertexIds = duplicationResult.newVertexIds;
-    this.newEdgeIds = duplicationResult.newEdgeIds;
-    this.newFaceIds = duplicationResult.newFaceIds;
-
-    this.signals.editSelectionRefresh.dispatch();
-    this.editSelection.clearSelection();
-    this.initialDuplicatedPositions = this.vertexEditor.transform.getVertexPositions(this.newVertexIds);
-
-    if (mode === 'vertex') {
-      this.editSelection.selectVertices(this.newVertexIds);
-    } else if (mode === 'edge') {
-      this.editSelection.selectEdges(this.newEdgeIds);
-    } else if (mode === 'face') {
-      this.editSelection.selectFaces(this.newFaceIds);
-    }
   }
 
   applyTransformOrientation(orientation) {

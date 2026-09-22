@@ -1,10 +1,8 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
 import { TransformCommandSolver } from './TransformCommandSolver.js';
-import { computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
-import { InsetCommand } from '../commands/InsetCommand.js';
 import { ToolNumericInput } from './ToolNumericInput.js';
-import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { InsetOps, InsetCommitResult } from '../operations/InsetOps.js';
 import { projectToScreen, pixelsToWorldUnits } from '../utils/ScreenUtils.js';
 
 export class InsetTool {
@@ -12,7 +10,6 @@ export class InsetTool {
     this.editor = editor;
     this.signals = editor.signals;
 
-    this.vertexEditor = editor.vertexEditor;
     this.camera = editor.cameraManager.camera;
     this.renderer = editor.renderer;
     this.controls = editor.controlsManager;
@@ -20,6 +17,8 @@ export class InsetTool {
     this.sceneEditorHelpers = editor.sceneManager.sceneEditorHelpers;
 
     this.activeTransformSource = null;
+    this.event = null;
+    this.startScreen = null;
 
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.setMode('translate');
@@ -28,6 +27,7 @@ export class InsetTool {
     this.renderer.domElement.addEventListener('pointermove', (e) => this.event = e);
     this.sceneEditorHelpers.add(this.transformControls.getHelper());
 
+    this.ops = new InsetOps(editor);
     this.transformSolver = new TransformCommandSolver(this.camera, this.renderer, this.transformControls);
     this.toolNumericInput = new ToolNumericInput({
       tool: this,
@@ -44,6 +44,11 @@ export class InsetTool {
     this._onPointerMove = this.onPointerMove.bind(this);
     this._onPointerUp = this.onPointerUp.bind(this);
     this._onKeyDown = this.onKeyDown.bind(this);
+  }
+
+  // Read-only accessor (numeric input / UI)
+  get width() {
+    return this.ops.width;
   }
 
   enableFor(object) {
@@ -66,6 +71,7 @@ export class InsetTool {
     this.transformControls.visible = false;
   }
 
+  // Signals & Listeners
   setupListeners() {
     this.signals.viewportCameraChanged.add((camera) => {
       if (camera.isDefault) {
@@ -76,9 +82,7 @@ export class InsetTool {
     });
 
     this.signals.editInsetStart.add(() => {
-      this.editedObject = this.editSelection.editedObject;
-      if (!this.editedObject || !this.handle) return;
-
+      if (!this.editSelection.editedObject || !this.handle) return;
       if (this.activeTransformSource !== null) return;
 
       if (this.handle && this.transformControls.worldPositionStart) {
@@ -111,11 +115,12 @@ export class InsetTool {
     for (let i = picker.children.length - 1; i >= 0; i--) {
       const child = picker.children[i];
       if (child.name !== 'XYZ') {
-          picker.remove(child);
+        picker.remove(child);
       }
     }
   }
 
+  // Gizmo Control
   setupTransformListeners() {
     this.transformControls.addEventListener('mouseDown', () => {
       if (this.activeTransformSource !== null) return;
@@ -181,7 +186,7 @@ export class InsetTool {
   onKeyDown(event) {
     if (this.activeTransformSource !== 'command') return;
 
-    if (this.toolNumericInput.handleKey(event, this.mode)) {
+    if (this.toolNumericInput.handleKey(event)) {
       return;
     }
 
@@ -200,94 +205,51 @@ export class InsetTool {
 
   // Inset Session
   startInsetSession() {
-    this.editedObject = this.editSelection.editedObject;
-    if (!this.editedObject || !this.handle) return;
-    this.vertexEditor.setObject(this.editedObject);
+    const session = this.ops.beginSession(this.editSelection.editedObject, this.handle);
+    if (!session || !this.ops.isValid()) return;
 
-    this.startPivotPosition = this.handle.getWorldPosition(new THREE.Vector3());
-    
-    this.newVertexIds = [];
-    this.newEdgeIds = [];
-    this.newFaceIds = [];
-    this.insetMoveData = new Map();
-
-    this.selectedFaceIds = Array.from(this.editSelection.selectedFaceIds);
-    if (this.selectedFaceIds.length <= 0) {
-      this.clearStartData();
-      return;
-    }
-    
-    this.transformSolver.beginSession(this.startPivotPosition, null, null);
-
-    this.startScreen = projectToScreen(
-      this.startPivotPosition,
-      this.camera,
-      this.renderer.domElement
-    );
-
-    this.insetStarted = false;
+    this.transformSolver.beginSession(session.pivotPosition, null, null);
+    this.startScreen = projectToScreen(session.pivotPosition, this.camera, this.renderer.domElement);
 
     this.signals.onToolStarted.dispatch(this.toolNumericInput.getDisplayText());
   }
 
   applyInsetSession() {
-    if (!this.startPivotPosition) return;
+    if (!this.ops.isValid()) return;
 
-    if (!this.insetStarted) {
-      this.startInset();
-      this.editSelection.selectFaces(Array.from(this.newFaceIds));
-      this.handle.position.copy(this.startPivotPosition);
-      this.insetStarted = true;
-    }
-    this.updateInset();
+    if (!this.ops.isBuilt()) this.ops.build(this.handle);
+    this.updateWidthFromHandle();
 
     this.signals.onToolUpdated.dispatch(this.toolNumericInput.getDisplayText());
   }
 
+  // Maps the handle's on-screen distance from the start point to a world-space width.
+  updateWidthFromHandle() {
+    const session = this.ops.session;
+    if (!session || !this.startScreen) return;
+
+    const currentWorld = this.handle.getWorldPosition(new THREE.Vector3());
+    const currentScreen = projectToScreen(currentWorld, this.camera, this.renderer.domElement);
+
+    const pixelDistance = currentScreen.clone().sub(this.startScreen).length();
+    if (pixelDistance <= 1) return;
+
+    const depth = session.pivotPosition.distanceTo(this.camera.position);
+    this.ops.setWidth(pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer));
+  }
+
   commitInsetSession() {
-    if (!this.width || this.width === 0) {
-      this.cancelInsetSession();
-      this.clearCommandInsetState();
-      this.clearStartData();
+    const result = this.ops.commit(this.handle);
+    this.startScreen = null;
+
+    if (result === InsetCommitResult.CANCELLED) {
       this.toolNumericInput.reset();
-      return;
     }
-
-    if (this.selectedFaceIds.length <= 0) {
-      this.editSelection.clearSelection();
-      this.disable();
-      return;
-    }
-
-    const meshData = this.editedObject.userData.meshData;
-
-    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
-    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
-    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
-
-    this.editor.add(new InsetCommand(this.editor, this.editedObject, this.beforeSnapshot, afterSnapshot));
-    this.signals.editSelectionRefresh.dispatch();
-    this.editedObject.geometry.computeBoundingBox();
-    this.editedObject.geometry.computeBoundingSphere();
-
-    this.updateSelectionAfterInset();
-    this.clearStartData();
   }
 
   cancelInsetSession() {
-    this.editedObject = this.editSelection.editedObject;
-    if (!this.editedObject || !this.startPivotPosition) return;
-
-    const meshData = this.editedObject.userData.meshData;
-    MeshDataRegion.captureNewElements(meshData, this.startElements, this.beforeSnapshot);
-
-    this.vertexEditor.setObject(this.editedObject);
-    this.vertexEditor.applyDelta(this.beforeSnapshot);
-
-    this.handle.position.copy(this.startPivotPosition);
-    this.handle.updateMatrixWorld(true);
-
-    this.editSelection.selectFaces(this.selectedFaceIds);
+    this.ops.cancel(this.handle);
+    this.startScreen = null;
   }
 
   clearCommandInsetState() {
@@ -302,319 +264,8 @@ export class InsetTool {
     });
   }
 
-  startInset() {
-    const meshData = this.editedObject.userData.meshData;
-    const faceSet = this.editSelection.selectedFaceIds;
-    const selectedFaceIds = Array.from(faceSet);
-
-    const beforeRegionIds = MeshDataRegion.expand(
-      meshData,
-      { vertexIds: [], edgeIds: [], faceIds: selectedFaceIds },
-      2
-    );
-
-    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
-
-    this.startElements = {
-      startVertexId: meshData.nextVertexId,
-      startEdgeId: meshData.nextEdgeId,
-      startFaceId: meshData.nextFaceId
-    };
-    
-    const faceIslands = this.vertexEditor.dissolve.splitFaceIslands(selectedFaceIds);
-    this.boundaryVertexIdsSet = new Set();
-    this.newVertexIds = new Set();
-    this.newEdgeIds = new Set();
-    this.newFaceIds = new Set();
-
-    for (const faceIsland of faceIslands) {
-      const groupFaceIdsSet = new Set(faceIsland);
-
-      const { vertexSet, edgeSet } = this.editSelection.resolveSelectionGraphFromFaces(groupFaceIdsSet);
-      const groupVertexIds = Array.from(vertexSet);
-      const groupEdgeIds = Array.from(edgeSet);
-      const groupFaceIds = Array.from(groupFaceIdsSet);
-
-      this.boundaryEdges = this.vertexEditor.selection.getBoundaryEdges(groupVertexIds, groupEdgeIds, groupFaceIds);
-      if (!this.boundaryEdges) return;
-
-      const selectedEdges = groupEdgeIds.map(edgeId => meshData.edges.get(edgeId));
-
-      const duplicationResult = this.vertexEditor.duplicate.duplicateSelectionFaces(groupFaceIds);
-      const mappedVertexIds = duplicationResult.mappedVertexIds;
-      duplicationResult.newVertexIds.forEach(id => this.newVertexIds.add(id));
-      duplicationResult.newEdgeIds.forEach(id => this.newEdgeIds.add(id));
-      duplicationResult.newFaceIds.forEach(id => this.newFaceIds.add(id));
-
-      for (const edge of this.boundaryEdges) {
-        for (const vId of [edge.v1Id, edge.v2Id]) {
-          const newId = mappedVertexIds.get(vId);
-          if (newId !== undefined) this.boundaryVertexIdsSet.add(newId);
-        }
-      }
-
-      for (const [originalVertexId, newVertexId] of mappedVertexIds) {
-        if (!this.boundaryVertexIdsSet.has(newVertexId)) continue;
-
-        const vertex = meshData.getVertex(originalVertexId);
-        const basePosition = new THREE.Vector3().copy(vertex.position).applyMatrix4(this.editedObject.matrixWorld);
-
-        const faceIds = this.getConnectedFaces(meshData, originalVertexId, groupFaceIdsSet);
-
-        const neighbors = this.getConnectedVertices(originalVertexId, this.boundaryEdges);
-        if (neighbors.length !== 2) continue;
-
-        let prevId = null;
-        let nextId = null;
-
-        for (const neighborId of neighbors) {
-          const edge = meshData.getEdge(originalVertexId, neighborId);
-          const sharedFaceId = [...edge.faceIds].find(fid => groupFaceIdsSet.has(fid));
-          const face = meshData.faces.get(sharedFaceId);
-
-          const vIndex = face.vertexIds.indexOf(originalVertexId);
-          const nIndex = face.vertexIds.indexOf(neighborId);
-          const len = face.vertexIds.length;
-
-          if ((nIndex + 1) % len === vIndex) {
-            prevId = neighborId;
-          }
-          else if ((vIndex + 1) % len === nIndex) {
-            nextId = neighborId;
-          }
-        }
-
-        if (prevId === null || nextId === null) {
-          prevId = neighbors[0];
-          nextId = neighbors[1];
-        }
-
-        const prev = meshData.getVertex(prevId);
-        const next = meshData.getVertex(nextId);
-
-        const e1 = new THREE.Vector3().subVectors(vertex.position, prev.position).normalize();
-        const e2 = new THREE.Vector3().subVectors(next.position, vertex.position).normalize();
-
-        const faceNormal = computeFacesAverageNormal(meshData, faceIds);
-
-        const n1 = new THREE.Vector3().crossVectors(faceNormal, e1).normalize();
-        const n2 = new THREE.Vector3().crossVectors(faceNormal, e2).normalize();
-
-        let insetDir = new THREE.Vector3().addVectors(n1, n2);
-
-        if (insetDir.lengthSq() < 1e-6) {
-          insetDir.copy(n1);
-        } else {
-          insetDir.normalize();
-        }
-
-        let dot = insetDir.dot(n1);
-        dot = Math.max(dot, 0.1); 
-        const miterScale = 1.0 / dot;
-
-        insetDir.transformDirection(this.editedObject.matrixWorld).normalize();
-
-        this.insetMoveData.set(newVertexId, {
-          originalVertexId,
-          basePosition: basePosition.clone(),
-          direction: insetDir,
-          scale: miterScale
-        });
-      }
-
-      const inverseWorldMatrix = this.editedObject.matrixWorld.clone().invert();
-
-      // Bridge boundary edges
-      for (const edge of this.boundaryEdges) {
-        const nv1Id = mappedVertexIds.get(edge.v1Id);
-        const nv2Id = mappedVertexIds.get(edge.v2Id);
-
-        const sideFaceVertexIds = [edge.v1Id, edge.v2Id, nv2Id, nv1Id];
-
-        const worldDir1 = this.insetMoveData.get(nv1Id).direction;
-        const worldDir2 = this.insetMoveData.get(nv2Id).direction;
-        
-        const dir1 = worldDir1.clone().transformDirection(inverseWorldMatrix).normalize();
-        const dir2 = worldDir2.clone().transformDirection(inverseWorldMatrix).normalize();
-
-        const normal = new THREE.Vector3().crossVectors(dir1, dir2).normalize();
-
-        if (normal.lengthSq() < 1e-8) {
-          const v1 = meshData.getVertex(edge.v1Id).position;
-          const v2 = meshData.getVertex(edge.v2Id).position;
-          const v3 = new THREE.Vector3()
-            .copy(meshData.getVertex(nv2Id).position)
-            .addScaledVector(dir2, 1);
-
-          normal.crossVectors(
-            new THREE.Vector3().subVectors(v2, v1),
-            new THREE.Vector3().subVectors(v3, v1)
-          );
-          normal.normalize();
-        }
-
-        const sharedFaceIds = [...edge.faceIds].filter(fid =>
-          groupFaceIdsSet.has(fid)
-        );
-
-        const faceNormal = computeFacesAverageNormal(meshData, sharedFaceIds);
-        
-        if (normal.dot(faceNormal) < 0) {
-          sideFaceVertexIds.reverse();
-        }
-
-        this.vertexEditor.topology.createFaceFromVertices(sideFaceVertexIds);
-      }
-    };
-
-    this.vertexEditor.delete.deleteSelectionFaces(selectedFaceIds);
-    this.signals.editSelectionRefresh.dispatch();
-  }
-
-  updateInset() {
-    const meshData = this.editedObject.userData.meshData;
-    if (!meshData) return;
-    if (this.selectedFaceIds.length <= 0) return;
-
-    const currentWorld = this.handle.getWorldPosition(new THREE.Vector3());
-
-    const currentScreen = projectToScreen(
-      currentWorld,
-      this.camera,
-      this.renderer.domElement
-    );
-
-    const delta2D = currentScreen.clone().sub(this.startScreen);
-    const pixelDistance = delta2D.length();
-    if (pixelDistance <= 1) return;
-
-    const depth = this.startPivotPosition.distanceTo(this.camera.position);
-    this.width = pixelsToWorldUnits(pixelDistance, this.camera, depth, this.renderer);
-    this.applyInsetWidth(this.width);
-  }
-
-  updateSelectionAfterInset() {
-    const mode = this.editSelection.subSelectionMode;
-
-    this.editSelection.clearSelection();
-
-    if (mode === 'vertex') {
-      this.editSelection.selectVertices(Array.from(this.newVertexIds));
-    } 
-    else if (mode === 'edge') {
-      this.editSelection.selectEdges(Array.from(this.newEdgeIds));
-    } 
-    else if (mode === 'face') {
-      this.editSelection.selectFaces(Array.from(this.newFaceIds));
-    }
-  }
-
-  clearStartData() {
-    this.startPivotPosition = null;
-
-    this.newVertexIds = null;
-    this.newEdgeIds = null;
-    this.newFaceIds = null;
-    this.startScreen = null;
-    this.insetMoveData = null;
-    this.width = null;
-
-    this.insetStarted = false;
-  }
-
-  getConnectedVertices(vertexId, edges) {
-    const connected = [];
-
-    for (const edge of edges) {
-      if (edge.v1Id === vertexId) {
-        connected.push(edge.v2Id);
-      } 
-      else if (edge.v2Id === vertexId) {
-        connected.push(edge.v1Id);
-      }
-    }
-
-    return connected;
-  }
-
-  getConnectedFaces(meshData, vertexId, selectedFaceIds) {
-    const vertex = meshData.getVertex(vertexId);
-
-    const faceIds = [];
-    for (const faceId of vertex.faceIds) {
-      if (selectedFaceIds.has(faceId)) {
-        faceIds.push(faceId);
-      }
-    }
-
-    return faceIds;
-  }
-
-  calculateScaleFactor(dir1, dir2) {
-    const EPS = 0.001;
-    const dot = THREE.MathUtils.clamp(dir1.dot(dir2), -1, 1);
-    const sin = Math.sqrt(1 - dot * dot);
-    const scaleFactor = sin > EPS ? 1 / sin : 1;
-    return scaleFactor;
-  }
-
-  computeFacesCenter(meshData, faceIds) {
-    const vertexSet = new Set();
-    for (const faceId of faceIds) {
-      const face = meshData.faces.get(faceId);
-
-      for (const vId of face.vertexIds) {
-        vertexSet.add(vId);
-      }
-    }
-
-    const center = new THREE.Vector3();
-    for (const vId of vertexSet) {
-      const v = meshData.getVertex(vId);
-      center.add(v.position);
-    }
-
-    center.divideScalar(vertexSet.size);
-
-    return center;
-  }
-
-  computeAverageMidpoint(meshData, vertexId, neighborIds) {
-    const vertex = meshData.getVertex(vertexId);
-    const center = new THREE.Vector3();
-
-    for (const nId of neighborIds) {
-      const neighbor = meshData.getVertex(nId);
-
-      const mid = new THREE.Vector3()
-        .addVectors(neighbor.position, vertex.position)
-        .multiplyScalar(0.5);
-
-      center.add(mid);
-    }
-
-    center.divideScalar(neighborIds.length);
-
-    return center;
-  }
-
+  // Numeric input (called by ToolNumericInput)
   applyInsetWidth(value) {
-    if (!value) { value = 0 };
-    this.width = value;
-
-    const newPositions = [];
-    const newBoundaryVertexIds = Array.from(this.boundaryVertexIdsSet);
-    for (const vId of newBoundaryVertexIds) {
-      const moveData = this.insetMoveData.get(vId);
-      if (!moveData) continue;
-
-      const basePosition = moveData.basePosition;
-      const direction = moveData.direction;
-      const newPos = basePosition.clone().addScaledVector(direction, this.width * moveData.scale);
-
-      newPositions.push(newPos);
-    }
-
-    this.vertexEditor.transform.setVertexPositions(newBoundaryVertexIds, newPositions);
+    this.ops.setWidth(value);
   }
 }

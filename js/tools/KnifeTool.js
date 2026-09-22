@@ -2,10 +2,12 @@ import * as THREE from 'three';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { KnifeCommand } from '../commands/KnifeCommand.js';
-import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { KnifeOps } from '../operations/KnifeOps.js';
 import { GPUEdgePicker } from '../utils/GPUEdgePicker.js';
 import { worldToScreen } from '../utils/ScreenUtils.js';
+
+const DRAG_THRESHOLD_SQ = 16; // px²
+const VERTEX_SNAP_THRESHOLD = 0.05;
 
 export class KnifeTool {
   constructor(editor) {
@@ -16,18 +18,20 @@ export class KnifeTool {
     this.renderer = editor.renderer;
     this.sceneManager = editor.sceneManager;
     this.scene = editor.sceneManager.sceneEditorHelpers;
+    this.vertexEditor = editor.vertexEditor;
+    this.editSelection = editor.editSelection;
+
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
-    this.vertexEditor = editor.vertexEditor;
+
+    this.ops = new KnifeOps(editor);
 
     this.active = false;
-    this.editSelection = editor.editSelection;
-    this.cutPoints = [];
-    this.intersections = [];
-    this.edgeIntersections = [];
-    this.newVertices = [];
+    this.cutPoints = []; // [a] while placing, [a, b] when cutting
+    this.plan = null;    // latest cut plan, drives the preview points
 
     this.isDragging = false;
+    this.middleButton = false;
     this.dragStart = new THREE.Vector2();
 
     this._rafPending = false;
@@ -48,17 +52,16 @@ export class KnifeTool {
     if (this.active) return;
     this.active = true;
     this.cutPoints = [];
-    this.intersections = [];
-    this.edgeIntersections = [];
+    this.plan = null;
+
     this.renderer.domElement.addEventListener('pointerdown', this._onPointerDown);
     this.renderer.domElement.addEventListener('pointermove', this._onPointerMove);
     this.renderer.domElement.addEventListener('pointerup', this._onPointerUp);
     window.addEventListener('keydown', this._onKeyDown);
 
-    const editedObject = this.editSelection.editedObject;
     const edgeHelper = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
     this.edgePicker.buildFromHelper(edgeHelper);
-    this.edgePicker.buildFromObject(editedObject);
+    this.edgePicker.buildFromObject(this.editSelection.editedObject);
   }
 
   disable() {
@@ -80,70 +83,48 @@ export class KnifeTool {
     });
   }
 
+  // Cut
   executeCut() {
-    const aCut = this.cutPoints[0];
-    const bCut = this.cutPoints[1];
-    
-    const editedObject = this.editSelection.editedObject;
-    const meshData = editedObject.userData.meshData;
+    const object = this.editSelection.editedObject;
+    if (!object) return this.cancelCut();
 
-    this.computeNewVertices(aCut, bCut, meshData);
+    const [aCut, bCut] = this.cutPoints;
+    this.plan = this.computePlan(aCut, bCut);
 
-    // Don't apply cut when selecting on the existing polyline
-    if (this.matchesExistingPolyline(meshData)) {
-      this.updatePreview(aCut.position, bCut.position);
-      this.cancelCut();
-      return;
-    }
-    
-    this.updatePreview(aCut.position, bCut.position);
-    
-    const seedEdgeIds = this.edgeIntersections.filter(e => e !== null).map(e => e.id);
-    const seedVertexIds = [];
-    for (let i = 0; i < this.edgeIntersections.length; i++) {
-      if (this.edgeIntersections[i] === null) {
-        const cp = this.cutPoints.find(c => c.position.equals(this.intersections[i]));
-        if (cp && cp.snapVertexId !== null) {
-          seedVertexIds.push(cp.snapVertexId);
-        }
-      }
+    // Don't cut when the stroke only retraces existing geometry
+    if (!KnifeOps.matchesExistingPolyline(object.userData.meshData, object.matrixWorld, this.plan)) {
+      this.ops.cut(object, this.plan);
     }
 
-    const beforeRegionIds = MeshDataRegion.expand(
-      meshData,
-      { edgeIds: seedEdgeIds, vertexIds: seedVertexIds },
-      2
-    );
-    this.beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
-
-    const startElements = {
-      startVertexId: meshData.nextVertexId,
-      startEdgeId: meshData.nextEdgeId,
-      startFaceId: meshData.nextFaceId
-    };
-    
-    this.applyCut();
-
-    MeshDataRegion.captureNewElements(meshData, startElements, this.beforeSnapshot);
-    const afterRegionIds = MeshDataRegion.idsOf(this.beforeSnapshot);
-    const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
-
-    this.editor.add(new KnifeCommand(this.editor, editedObject, this.beforeSnapshot, afterSnapshot));
-    this.signals.editSelectionRefresh.dispatch();
-    editedObject.geometry.computeBoundingBox();
-    editedObject.geometry.computeBoundingSphere();
-
-    const mode = this.editSelection.subSelectionMode;
-    if (mode === 'vertex') {
-      this.editSelection.selectVertices(this.newVertices.map(v => v.id));
-    } else if (mode === 'edge') {
-      this.editSelection.selectEdges(this.newEdges.map(e => e.id));
-    } else if (mode === 'face') {
-      this.editSelection.clearSelection();
-    }
     this.cancelCut();
   }
 
+  computePlan(aCut, bCut) {
+    const object = this.editSelection.editedObject;
+
+    const aScreen = worldToScreen(aCut.position, this.camera, this.renderer.renderer);
+    const bScreen = worldToScreen(bCut.position, this.camera, this.renderer.renderer);
+    const candidateEdgeIds = this.edgePicker.pickSegment(aScreen.x, aScreen.y, bScreen.x, bScreen.y, this.camera);
+
+    return KnifeOps.computeCutPlan(
+      object.userData.meshData,
+      object.matrixWorld,
+      this.camera,
+      aCut,
+      bCut,
+      candidateEdgeIds
+    );
+  }
+
+  cancelCut() {
+    this.previewLine.visible = false;
+    this.previewPoints.visible = false;
+    this.cutPoints = [];
+    this.plan = null;
+    this.edgePicker.dispose();
+  }
+
+  // Pointer input
   onPointerDown(event) {
     if (event.button === 1) {
       this.middleButton = true;
@@ -153,149 +134,70 @@ export class KnifeTool {
 
     if (event.button !== 0 || !this.active) return;
 
+    const object = this.editSelection.editedObject;
+    if (!object) return;
+
     this.dragStart.set(event.clientX, event.clientY);
     this.isDragging = true;
 
     this.signals.transformDragStarted.dispatch('edit');
+    this.vertexEditor.setObject(object);
 
-    const editedObject = this.editSelection.editedObject;
-    this.vertexEditor.setObject(editedObject);
-    const objectMatrix = editedObject.matrixWorld;
-    const meshData = editedObject.userData.meshData;
+    const cutPoint = this.pickCutPoint(event);
+    if (!cutPoint) return;
 
-    const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(event, this.renderer, this.camera, 0.05);
-
-    let cutPointData;
-    if (nearestVertexId !== null) {
-      const v = meshData.getVertex(nearestVertexId);
-      cutPointData = {
-        position: new THREE.Vector3(v.position.x, v.position.y, v.position.z).applyMatrix4(objectMatrix),
-        snapVertexId: nearestVertexId
-      };
-    } else {
-      const intersect = this.getMouseIntersect(event);
-      if (!intersect) return;
-
-      cutPointData = {
-        position: intersect.point.clone(),
-        snapVertexId: null
-      };
-    }
-
-    if (this.cutPoints.length === 0) {
-      this.cutPoints.push(cutPointData);
-      return;
-    }
-
-    this.cutPoints.push(cutPointData);
-    this.executeCut();
+    this.cutPoints.push(cutPoint);
+    if (this.cutPoints.length === 2) this.executeCut();
   }
 
   onPointerMove(event) {
     if (this.middleButton || !this.active) return;
 
     this._pendingMoveEvent = event;
-    if (!this._rafPending) {
-      this._rafPending = true;
-      requestAnimationFrame(() => {
-        this._rafPending = false;
-        const e = this._pendingMoveEvent;
-        this._pendingMoveEvent = null;
-        if (e) this._processMoveEvent(e);
-      });
-    }
+    if (this._rafPending) return;
+
+    this._rafPending = true;
+    requestAnimationFrame(() => {
+      this._rafPending = false;
+      const e = this._pendingMoveEvent;
+      this._pendingMoveEvent = null;
+      if (e) this.processMoveEvent(e);
+    });
   }
 
-  _processMoveEvent(event) {
-    const intersect = this.getMouseIntersect(event);
-    if (!intersect) return;
+  processMoveEvent(event) {
+    if (!this.editSelection.editedObject) return;
 
-    const editedObject = this.editSelection.editedObject;
-    const objectMatrix = editedObject.matrixWorld;
-    const meshData = editedObject.userData.meshData;
-
-    const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(event, this.renderer, this.camera, 0.05);
-
-    // No aCut selected yet → preview hover vertex
+    // No first point yet → preview the hovered vertex only
     if (this.cutPoints.length === 0) {
-      
-      let hoverACut;
-      if (nearestVertexId !== null) {
-        const v = meshData.getVertex(nearestVertexId);
-        hoverACut = {
-          position: new THREE.Vector3(v.position.x, v.position.y, v.position.z).applyMatrix4(objectMatrix),
-          snapVertexId: nearestVertexId
-        };
-      } else {
-        hoverACut = {
-          position: null,
-          snapVertexId: null
-        };
-      }
-
-      this.updatePreview(hoverACut.position);
+      const hover = this.pickCutPoint(event, { allowSurface: false });
+      this.updatePreview(hover?.position ?? null);
       return;
     }
 
-    // aCut already selected → preview aCut and bCut
+    // First point placed → preview the cut to the cursor
     const aCut = this.cutPoints[0];
+    const bCut = this.pickCutPoint(event);
+    if (!bCut) return;
 
-    let bCut;
-    if (nearestVertexId !== null) {
-      const v = meshData.getVertex(nearestVertexId);
-      bCut = {
-        position: new THREE.Vector3(v.position.x, v.position.y, v.position.z).applyMatrix4(objectMatrix),
-        snapVertexId: nearestVertexId
-      };
-    } else {
-      bCut = {
-        position: intersect.point.clone(),
-        snapVertexId: null
-      };
-    }
-
-    this.computeNewVertices(aCut, bCut, meshData);
+    this.plan = this.computePlan(aCut, bCut);
     this.updatePreview(aCut.position, bCut.position);
   }
 
-  onPointerUp() {
-    if (this.middleButton) {
-      this.edgePicker.dirty = true;
-    }
+  onPointerUp(event) {
+    if (this.middleButton) this.edgePicker.dirty = true;
     this.middleButton = false;
 
     if (!this.active) return;
 
     try {
+      // Click-drag-release cuts from the press point to the release point
       if (this.isDragging && this.cutPoints.length === 1) {
         const dx = event.clientX - this.dragStart.x;
         const dy = event.clientY - this.dragStart.y;
-        const dragDistSq = dx * dx + dy * dy;
 
-        if (dragDistSq > 16) {
-          const editedObject = this.editSelection.editedObject;
-          const meshData = editedObject.userData.meshData;
-          const objectMatrix = editedObject.matrixWorld;
-
-          const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(event, this.renderer, this.camera, 0.05);
-
-          let bCut;
-          if (nearestVertexId !== null) {
-            const v = meshData.getVertex(nearestVertexId);
-            bCut = {
-              position: new THREE.Vector3(v.position.x, v.position.y, v.position.z).applyMatrix4(objectMatrix),
-              snapVertexId: nearestVertexId
-            };
-          } else {
-            const intersect = this.getMouseIntersect(event);
-            if (intersect) {
-              bCut = {
-                position: intersect.point.clone(),
-                snapVertexId: null
-              };
-            }
-          }
-
+        if (dx * dx + dy * dy > DRAG_THRESHOLD_SQ) {
+          const bCut = this.pickCutPoint(event);
           if (bCut) {
             this.cutPoints.push(bCut);
             this.executeCut();
@@ -305,12 +207,12 @@ export class KnifeTool {
     } finally {
       this.isDragging = false;
 
-      if (this.cutPoints.length !== 0) return;
-
-      requestAnimationFrame(() => {
-        this.signals.onToolEnded.dispatch();
-        this.signals.transformDragEnded.dispatch('edit');
-      });
+      if (this.cutPoints.length === 0) {
+        requestAnimationFrame(() => {
+          this.signals.onToolEnded.dispatch();
+          this.signals.transformDragEnded.dispatch('edit');
+        });
+      }
     }
   }
 
@@ -324,232 +226,66 @@ export class KnifeTool {
     }
   }
 
+  // Picking
+  // Nearest vertex under the cursor, else (optionally) the surface / fallback point.
+  pickCutPoint(event, { allowSurface = true } = {}) {
+    const object = this.editSelection.editedObject;
+    if (!object) return null;
+
+    const meshData = object.userData.meshData;
+    const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(
+      event, this.renderer, this.camera, VERTEX_SNAP_THRESHOLD
+    );
+
+    if (nearestVertexId !== null) {
+      const v = meshData.getVertex(nearestVertexId);
+      return {
+        position: new THREE.Vector3().copy(v.position).applyMatrix4(object.matrixWorld),
+        snapVertexId: nearestVertexId,
+      };
+    }
+
+    if (!allowSurface) return null;
+
+    const hit = this.getMouseIntersect(event);
+    return hit ? { position: hit.point.clone(), snapVertexId: null } : null;
+  }
+
   getMouseIntersect(event) {
+    const object = this.editSelection.editedObject;
+    if (!object) return null;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    const editedObject = this.editSelection.editedObject;
-    if (!editedObject) return null;
-
     this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    const intersects = this.raycaster.intersectObject(object, false);
+    if (intersects.length > 0) return intersects[0];
+
+    // No hit → point along the ray at the object's distance
     const ray = this.raycaster.ray;
-
-    const intersects = this.raycaster.intersectObject(editedObject, false);
-    if (intersects.length > 0) {
-      const hit = intersects[0];
-
-      return hit;
-    }
-
-    // No hit → fallback point at object's center distance
-    const objectWorldPos = new THREE.Vector3();
-    editedObject.getWorldPosition(objectWorldPos);
+    const objectWorldPos = object.getWorldPosition(new THREE.Vector3());
     const distance = ray.origin.distanceTo(objectWorldPos);
 
-    const fallbackPoint = new THREE.Vector3().copy(ray.origin).addScaledVector(ray.direction, distance);
-
     return {
-      point: fallbackPoint,
-      distance: distance,
+      point: ray.origin.clone().addScaledVector(ray.direction, distance),
+      distance,
       object: null,
       face: null,
       isFallback: true,
     };
   }
 
-  computeNewVertices(aCut, bCut, meshData) {
-    this.intersections = [];
-    this.edgeIntersections = [];
-
-    const aPos = aCut.position;
-    const bPos = bCut.position;
-
-    if (aCut.snapVertexId !== null) {
-      this.intersections.push(aPos.clone());
-      this.edgeIntersections.push(null);
-    }
-
-    const midPoint = new THREE.Vector3().addVectors(aPos, bPos).multiplyScalar(0.5);
-    const cameraPos = this.camera.position.clone();
-
-    let cameraDir;
-    if (this.camera.isPerspectiveCamera) {
-      cameraDir = new THREE.Vector3().subVectors(cameraPos, midPoint).normalize();
-    } else if (this.camera.isOrthographicCamera) {
-      cameraDir = new THREE.Vector3();
-      this.camera.getWorldDirection(cameraDir).normalize();
-      cameraDir.negate();
-    }
-    
-    const segmentDir = new THREE.Vector3().subVectors(bPos, aPos).normalize();
-
-    const planeNormal = new THREE.Vector3().crossVectors(segmentDir, cameraDir).normalize();
-    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, aPos);
-
-    const editedObject = this.editSelection.editedObject;
-    const objectMatrix = editedObject.matrixWorld;
-
-    const skipVIdA = aCut.snapVertexId;
-    const skipVIdB = bCut.snapVertexId;
-
-    const aScreen = worldToScreen(aPos, this.camera, this.renderer.renderer);
-    const bScreen = worldToScreen(bPos, this.camera, this.renderer.renderer);
-
-    const edgeIds = this.edgePicker.pickSegment(aScreen.x, aScreen.y, bScreen.x, bScreen.y, this.camera);
-    
-    for (let edgeId of edgeIds) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      // Skip edges touching snapped endpoints
-      if (skipVIdA !== null && (edge.v1Id === skipVIdA || edge.v2Id === skipVIdA)) continue;
-      if (skipVIdB !== null && (edge.v1Id === skipVIdB || edge.v2Id === skipVIdB)) continue;
-
-      const v1 = meshData.getVertex(edge.v1Id);
-      const v2 = meshData.getVertex(edge.v2Id);
-
-      const p1 = new THREE.Vector3(v1.position.x, v1.position.y, v1.position.z).applyMatrix4(objectMatrix);
-      const p2 = new THREE.Vector3(v2.position.x, v2.position.y, v2.position.z).applyMatrix4(objectMatrix);
-
-      const line = new THREE.Line3(p1, p2);
-      const intersection = plane.intersectLine(line, new THREE.Vector3());
-      if (!intersection) continue;
-
-      if (!this.isIntersectionWithinScreenSegment(aPos, bPos, intersection, this.camera)) continue;
-
-      this.intersections.push(intersection.clone());
-      this.edgeIntersections.push(edge);
-    }
-
-    if (bCut.snapVertexId !== null) {
-      this.intersections.push(bPos.clone());
-      this.edgeIntersections.push(null);
-    }
-
-    this.dedupeIntersections(aPos);
-  }
-
-  applyCut() {
-    if (this.intersections.length === 0) return this.cancelCut();
-
-    const editedObject = this.editSelection.editedObject;
-    if (!editedObject) return;
-    const meshData = editedObject.userData.meshData;
-    const worldToLocal = new THREE.Matrix4().copy(editedObject.matrixWorld).invert();
-
-    this.newVertices = [];
-    this.newEdges = [];
-
-    for (let i = 0; i < this.edgeIntersections.length; i++) {
-      const edge = this.edgeIntersections[i];
-      let newVertex;
-
-      if (edge === null) {
-        const cutPointData = this.cutPoints.find(cp => cp.position.equals(this.intersections[i]));
-        newVertex = meshData.getVertex(cutPointData.snapVertexId);
-      } else {
-        const pos = this.intersections[i];
-        const localPos = pos.clone().applyMatrix4(worldToLocal);
-        newVertex = this.vertexEditor.addVertex({ x: localPos.x, y: localPos.y, z: localPos.z });
-      }
-      this.newVertices.push(newVertex);
-    }
-
-    // Collect affected faces
-    const affectedFaces = new Set();
-    for (let i = 0; i < this.edgeIntersections.length; i++) {
-      const edge = this.edgeIntersections[i];
-
-      if (edge) {
-        // Normal edge intersection
-        for (const faceId of edge.faceIds) {
-          const face = meshData.faces.get(faceId);
-          if (face) affectedFaces.add(face);
-        }
-      } else {
-        // Snap vertex logic
-        this.collectSnapAffectedFaces(i, affectedFaces, meshData);
-      }
-    }
-
-    for (const face of affectedFaces) {
-      const vertexIds = face.vertexIds;
-      const cutPoints = [];
-
-      // Find edges of this face that were cut
-      for (let i = 0; i < vertexIds.length; i++) {
-        const v1 = vertexIds[i];
-        const v2 = vertexIds[(i + 1) % vertexIds.length];
-        const edge = meshData.getEdge(v1, v2);
-
-        const intersectionIndex = this.edgeIntersections.findIndex(e => e && e.id === edge?.id);
-        if (intersectionIndex !== -1) {
-          cutPoints.push({ edgeIndex: i, newVertex: this.newVertices[intersectionIndex] });
-        }
-
-        const snapCut = this.cutPoints.find(cp => cp.snapVertexId === v1);
-        if (snapCut) {
-          cutPoints.push({ edgeIndex: i, newVertex: meshData.getVertex(v1) });
-        }
-      }
-
-      if (cutPoints.length === 0) continue;
-
-      this.vertexEditor.deleteFace(face);
-
-      // Create faces
-      if (cutPoints.length === 1) {
-        const { edgeIndex, newVertex } = cutPoints[0];
-        const newFaceVerts = [];
-        for (let i = 0; i < vertexIds.length; i++) {
-          const v = meshData.getVertex(vertexIds[i]);
-          newFaceVerts.push(v);
-
-          if (i === edgeIndex && v !== newVertex) {
-            newFaceVerts.push(newVertex);
-          }
-        }
-
-        this.vertexEditor.addFace(newFaceVerts);
-      } else if (cutPoints.length === 2) {
-        const [cutA, cutB] = cutPoints;
-
-        const firstFaceVertices = this.buildFaceFromCuts(vertexIds, meshData, [cutA, cutB]);
-        const secondFaceVertices = this.buildFaceFromCuts(vertexIds, meshData, [cutB, cutA]);
-
-        this.vertexEditor.addFace(firstFaceVertices);
-        this.vertexEditor.addFace(secondFaceVertices);
-
-        const newEdge = meshData.getEdge(cutA.newVertex.id, cutB.newVertex.id);
-        this.newEdges.push(newEdge);
-      }
-    }
-
-    // Remove all intersected edges
-    for (const edge of this.edgeIntersections) {
-      this.vertexEditor.deleteEdge(edge);
-    }
-  }
-
-  cancelCut() {
-    this.previewLine.visible = false;
-    this.previewPoints.visible = false;
-    this.cutPoints = [];
-    this.intersections = [];
-    this.edgeIntersections = [];
-    this.newVertices = [];
-    this.edgePicker.dispose();
-  }
-
+  // Preview
   createPreview() {
     this.lineMaterial = new LineMaterial({
       color: 0xffff00,
       linewidth: 1.0,
       dashed: false,
-      worldUnits: true,
-      depthTest: false,
       worldUnits: false,
+      depthTest: false,
     });
 
     this.pointMaterial = new THREE.PointsMaterial({
@@ -558,24 +294,16 @@ export class KnifeTool {
       sizeAttenuation: false,
       depthTest: false,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.8,
     });
 
     this.previewLineGeometry = new LineGeometry();
-    this.previewLine = new Line2(
-      this.previewLineGeometry,
-      this.lineMaterial
-    );
-
+    this.previewLine = new Line2(this.previewLineGeometry, this.lineMaterial);
     this.previewLine.visible = false;
     this.scene.add(this.previewLine);
 
     this.previewPointGeometry = new THREE.BufferGeometry();
-    this.previewPoints = new THREE.Points(
-      this.previewPointGeometry,
-      this.pointMaterial
-    );
-
+    this.previewPoints = new THREE.Points(this.previewPointGeometry, this.pointMaterial);
     this.previewPoints.visible = false;
     this.scene.add(this.previewPoints);
   }
@@ -583,214 +311,33 @@ export class KnifeTool {
   updatePreview(aPos, bPos = null) {
     const hasA = aPos instanceof THREE.Vector3;
     const hasB = bPos instanceof THREE.Vector3;
+    const planPoints = this.plan?.points ?? [];
 
-    // --- Preview Line ---
+    // Line
     if (hasA && hasB) {
-      const positions = [aPos.x, aPos.y, aPos.z, bPos.x, bPos.y, bPos.z];
-      this.previewLineGeometry.setPositions(positions);
-
+      this.previewLineGeometry.setPositions([aPos.x, aPos.y, aPos.z, bPos.x, bPos.y, bPos.z]);
       this.previewLine.computeLineDistances();
       this.previewLine.visible = true;
     } else {
       this.previewLine.visible = false;
     }
 
-    // --- Preview Points ---
+    // Points: the hovered vertex before the first click, the cut intersections after
     const pointPositions = [];
-    if (hasA && !hasB && this.intersections.length === 0) {
-      if (aPos) {
-        pointPositions.push(aPos.x, aPos.y, aPos.z);
-      }
+    if (hasA && !hasB && planPoints.length === 0) {
+      pointPositions.push(aPos.x, aPos.y, aPos.z);
     } else {
-      for (const v of this.intersections) {
-        pointPositions.push(v.x, v.y, v.z);
+      for (const { position } of planPoints) {
+        pointPositions.push(position.x, position.y, position.z);
       }
     }
 
     if (pointPositions.length > 0) {
-      this.previewPointGeometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(pointPositions, 3)
-      );
-
+      this.previewPointGeometry.setAttribute('position', new THREE.Float32BufferAttribute(pointPositions, 3));
       this.previewPointGeometry.computeBoundingSphere();
       this.previewPoints.visible = true;
     } else {
       this.previewPoints.visible = false;
     }
-  }
-
-  isIntersectionWithinScreenSegment(a, b, intersection, camera) {
-    const ndcA = a.clone().project(camera);
-    const ndcB = b.clone().project(camera);
-    const ndcI = intersection.clone().project(camera);
-
-    const screenA = new THREE.Vector2(ndcA.x, ndcA.y);
-    const screenB = new THREE.Vector2(ndcB.x, ndcB.y);
-    const screenI = new THREE.Vector2(ndcI.x, ndcI.y);
-
-    const ab = new THREE.Vector2().subVectors(screenB, screenA);
-    const ai = new THREE.Vector2().subVectors(screenI, screenA);
-
-    const abLen = ab.length();
-    if (abLen === 0) return false;
-
-    const projLen = ai.dot(ab.clone().normalize());
-
-    const withinSegment = projLen >= 0 && projLen <= abLen;
-
-    return withinSegment;
-  }
-
-  buildFaceFromCuts(vertexIds, meshData, cutPoints) {
-    if (cutPoints.length !== 2) return [];
-
-    const [startCut, endCut] = cutPoints;
-    const verts = [];
-    verts.push(startCut.newVertex);
-
-    const startIndex = startCut.edgeIndex;
-    const endIndex = endCut.edgeIndex;
-
-    let i = (startIndex + 1) % vertexIds.length;
-    while (i !== (endIndex + 1) % vertexIds.length) {
-      const v = meshData.getVertex(vertexIds[i]);
-      if (v !== startCut.newVertex && v !== endCut.newVertex) {
-        verts.push(v);
-      }
-      i = (i + 1) % vertexIds.length;
-    }
-
-    if (verts[verts.length - 1] !== endCut.newVertex) {
-      verts.push(endCut.newVertex);
-    }
-    return verts;
-  }
-
-  collectSnapAffectedFaces(intersectionIndex, affectedFaces, meshData) {
-    const i = intersectionIndex;
-    const cutPoint = this.cutPoints.find(cp => cp.position.equals(this.intersections[i]));
-    if (!cutPoint || cutPoint.snapVertexId === null) return;
-
-    const snapVertex = meshData.getVertex(cutPoint.snapVertexId);
-
-    const prevIntersection = (i > 0) ? this.intersections[i - 1] : null;
-    const nextIntersection = (i < this.intersections.length - 1) ? this.intersections[i + 1] : null;
-
-    const prevCutPoint = prevIntersection ? this.cutPoints.find(cp => cp.position.equals(prevIntersection)) : null;
-    const nextCutPoint = nextIntersection ? this.cutPoints.find(cp => cp.position.equals(nextIntersection)) : null;
-    
-    const prevSnapVertex =
-      prevCutPoint && prevCutPoint.snapVertexId !== null
-        ? meshData.getVertex(prevCutPoint.snapVertexId) : null;
-    const nextSnapVertex =
-      nextCutPoint && nextCutPoint.snapVertexId !== null
-        ? meshData.getVertex(nextCutPoint.snapVertexId) : null;
-
-    const sourceSnapVertex = prevSnapVertex || nextSnapVertex;
-
-    const prevEdge = this.edgeIntersections[i - 1] || null;
-    const nextEdge = this.edgeIntersections[i + 1] || null;
-
-    const sourceEdge = prevEdge || nextEdge;
-
-    // Use edge-based face inference
-    if (sourceEdge) {
-      for (const faceId of sourceEdge.faceIds) {
-        if (snapVertex.faceIds.has(faceId)) {
-          const face = meshData.faces.get(faceId);
-          if (face) affectedFaces.add(face);
-        }
-      }
-      return;
-    }
-
-    // No edges → pure snap-to-snap segment
-    if (!sourceSnapVertex) return;
-
-    for (const faceId of snapVertex.faceIds) {
-      if (sourceSnapVertex.faceIds.has(faceId)) {
-        const face = meshData.faces.get(faceId);
-        if (face) affectedFaces.add(face);
-      }
-    }
-  }
-
-  matchesExistingPolyline(meshData) {
-    const aCut = this.cutPoints[0];
-    const bCut = this.cutPoints[1];
-
-    // Early exit if both cut points are the same vertex
-    if (aCut.snapVertexId !== null && bCut.snapVertexId !== null && aCut.snapVertexId === bCut.snapVertexId) {
-      return true;
-    }
-
-    const editedObject = this.editSelection.editedObject;
-    const invMatrix = new THREE.Matrix4().copy(editedObject.matrixWorld).invert();
-    const vertexIds = [];
-
-    for (let i = 0; i < this.intersections.length; i++) {
-      const intersection = this.intersections[i];
-      const localIntersection = intersection.clone().applyMatrix4(invMatrix);
-      let vId = null;
-
-      const edge = this.edgeIntersections[i];
-      if (edge !== null) {
-        const v1 = meshData.getVertex(edge.v1Id);
-        const v2 = meshData.getVertex(edge.v2Id);
-        const v1Pos = new THREE.Vector3(v1.position.x, v1.position.y, v1.position.z);
-        const v2Pos = new THREE.Vector3(v2.position.x, v2.position.y, v2.position.z);
-
-        if (localIntersection.distanceTo(v1Pos) < 1e-4) {
-          vId = edge.v1Id;
-        } else if (localIntersection.distanceTo(v2Pos) < 1e-4) {
-          vId = edge.v2Id;
-        }
-      } else {
-        const cutPoint = this.cutPoints.find(cp => intersection.distanceTo(cp.position) < 1e-4);
-        if (cutPoint) vId = cutPoint.snapVertexId;
-      }
-
-      if (vId === null) return false;
-      vertexIds.push(vId);
-    }
-
-    for (let i = 0; i < vertexIds.length - 1; i++) {
-      const a = vertexIds[i];
-      const b = vertexIds[i + 1];
-      if (!meshData.getEdge(a, b)) return false;
-    }
-
-    return true;
-  }
-
-  dedupeIntersections(aPos, eps = 1e-4) {
-    if (this.intersections.length === 0) return;
-
-    // Pair intersections with edges to keep alignment
-    const pairs = this.intersections.map((p, i) => ({
-      p,
-      edge: this.edgeIntersections[i]
-    }));
-
-    // Sort intersections along the cut direction using distance to aPos
-    pairs.sort((a, b) =>
-      a.p.distanceTo(aPos) - b.p.distanceTo(aPos)
-    );
-
-    const unique = [];
-
-    for (const item of pairs) {
-      const prev = unique[unique.length - 1];
-
-      // Accept first, or accept if far enough from previous
-      if (!prev || prev.p.distanceTo(item.p) > eps) {
-        unique.push(item);
-      }
-    }
-
-    // Unpack back into the class arrays
-    this.intersections = unique.map(u => u.p);
-    this.edgeIntersections = unique.map(u => u.edge);
   }
 }

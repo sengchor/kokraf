@@ -4,7 +4,7 @@ import Renderer from './core/Renderer.js';
 import SceneManager from './core/SceneManager.js';
 import CameraManager from './core/CameraManager.js';
 import ControlsManager from './core/ControlsManager.js';
-import Toolbar from './tools/Toolbar.js';
+import Toolbar from './ui/Toolbar.js';
 import Selection from './tools/Selection.js';
 import UIComponentsLoader from './ui/UIComponentsLoader.js';
 import PanelResizer from './ui/PanelResizer.js';
