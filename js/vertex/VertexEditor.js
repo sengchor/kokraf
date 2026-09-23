@@ -7,6 +7,7 @@ import { VertexTransform } from "./VertexTransform.js";
 import { VertexSubdivide } from "./VertexSubdivide.js";
 import { VertexSelection } from "./VertexSelection.js";
 import { VertexBridge } from "./VertexBridge.js";
+import { VertexFill } from "./VertexFill.js";
 import { MeshData } from '../core/MeshData.js';
 import { MeshRenderBuffer } from '../geometry/MeshRenderBuffer.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
@@ -20,6 +21,7 @@ export class VertexEditor {
 
     this.selection = new VertexSelection(this);
     this.topology = new VertexTopology(this);
+    this.fill = new VertexFill(this);
     this.transform = new VertexTransform(this);
     this.duplicate = new VertexDuplicate(this);
     this.delete = new VertexDelete(this);

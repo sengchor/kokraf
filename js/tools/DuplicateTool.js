@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { TransformCommandSolver } from './TransformCommandSolver.js';
+import { TransformCommandSolver } from './shared/TransformCommandSolver.js';
 import { DuplicateOps } from '../operations/DuplicateOps.js';
 
 export class DuplicateTool {

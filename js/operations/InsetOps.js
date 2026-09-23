@@ -297,7 +297,7 @@ export class InsetOps {
 
       if (normal.dot(faceNormal) < 0) sideFaceVertexIds.reverse();
 
-      vertexEditor.topology.createFaceFromVertices(sideFaceVertexIds);
+      vertexEditor.fill.createFaceFromVertices(sideFaceVertexIds);
     }
   }
 

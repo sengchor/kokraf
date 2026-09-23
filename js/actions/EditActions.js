@@ -167,13 +167,13 @@ export class EditActions {
         sortedVertexIds.reverse();
       }
 
-      result = this.vertexEditor.topology.createEdgeFaceFromVertices(sortedVertexIds);
+      result = this.vertexEditor.fill.createEdgeFaceFromVertices(sortedVertexIds);
       if (!result) return;
     } else {
       const v0 = meshData.getVertex(selectedVertexIds[0]);
       if (!v0) return;
 
-      const resultQuad = this.vertexEditor.topology.computeQuadFromVertex(v0);
+      const resultQuad = this.vertexEditor.fill.computeQuadFromVertex(v0);
       if (!resultQuad) return;
 
       const { quadVertexIds, openEdgeIds } = resultQuad;
@@ -189,7 +189,7 @@ export class EditActions {
         sortedVertexIds.reverse();
       }
 
-      result = this.vertexEditor.topology.createEdgeFaceFromVertices(sortedVertexIds);
+      result = this.vertexEditor.fill.createEdgeFaceFromVertices(sortedVertexIds);
       if (!result) return;
     }
 

@@ -1,6 +1,6 @@
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { TransformCommandSolver } from './TransformCommandSolver.js';
-import { ToolNumericInput } from './ToolNumericInput.js';
+import { TransformCommandSolver } from './shared/TransformCommandSolver.js';
+import { ToolNumericInput } from './shared/ToolNumericInput.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';

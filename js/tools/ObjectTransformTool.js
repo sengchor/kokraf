@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { TransformCommandSolver } from './TransformCommandSolver.js';
-import { TransformNumericInput } from './TransformNumericInput.js';
+import { TransformCommandSolver } from './shared/TransformCommandSolver.js';
+import { TransformNumericInput } from './shared/TransformNumericInput.js';
 import { ObjectTransformOps } from '../operations/ObjectTransformOps.js';
 
 export class ObjectTransformTool {

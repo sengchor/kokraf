@@ -5,7 +5,7 @@ import SceneManager from './core/SceneManager.js';
 import CameraManager from './core/CameraManager.js';
 import ControlsManager from './core/ControlsManager.js';
 import Toolbar from './ui/Toolbar.js';
-import Selection from './tools/Selection.js';
+import Selection from './selection/Selection.js';
 import UIComponentsLoader from './ui/UIComponentsLoader.js';
 import PanelResizer from './ui/PanelResizer.js';
 import ModeManager from './core/ModeManager.js';
@@ -19,13 +19,13 @@ import ViewportControls from './ui/Viewport.Controls.js';
 import Sidebar from './ui/Sidebar.js';
 import Config from './core/Config.js';
 import { Storage } from './core/Storage.js';
-import EditSelection from './tools/EditSelection.js';
+import EditSelection from './selection/EditSelection.js';
 import ContextMenu from './ui/ContextMenu.js';
 import { EditActions } from './actions/EditActions.js';
 import { ObjectActions } from './actions/ObjectActions.js';
 import { UVActions } from './actions/UVActions.js';
 import EditHelpers from './helpers/EditHelpers.js';
-import { SelectionBox } from './tools/SelectionBox.js';
+import { SelectionBox } from './selection/SelectionBox.js';
 import { SnapManager } from './core/SnapManager.js';
 import { VertexEditor } from './vertex/VertexEditor.js';
 import { MeshEditor } from './vertex/MeshEditor.js';
@@ -254,7 +254,6 @@ export default class Editor {
     window.agent = this.agent;
 
     if (AgentBridge.shouldAutoStart()) {
-      console.log('start');
       this.agentBridge = new AgentBridge(this, this.agent).start();
     }
     

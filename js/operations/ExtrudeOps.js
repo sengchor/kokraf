@@ -255,7 +255,7 @@ export class ExtrudeOps {
         }
       }
 
-      vertexEditor.topology.createFaceFromVertices(sideFaceVertexIds);
+      vertexEditor.fill.createFaceFromVertices(sideFaceVertexIds);
     }
 
     return hasReferenceFace;

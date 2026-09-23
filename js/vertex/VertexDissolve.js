@@ -11,8 +11,8 @@ export class VertexDissolve {
     return this.vertexEditor.selection;
   }
 
-  get topology() {
-    return this.vertexEditor.topology;
+  get fill() {
+    return this.vertexEditor.fill;
   }
 
   get delete() {
@@ -75,7 +75,7 @@ export class VertexDissolve {
         }
 
         this.vertexEditor.deleteFace(face);
-        this.topology.createFaceFromVertices(newVertexIds);
+        this.fill.createFaceFromVertices(newVertexIds);
       }
 
       // Remove old edges and vertex
@@ -110,7 +110,7 @@ export class VertexDissolve {
       const boundaryEdges = this.selection.getBoundaryEdges([...candidateVertices], [...candidateEdges], [...candidateFaces]);
 
       const orderedVertexIds = this.orderBoundaryLoop(boundaryEdges);
-      this.topology.createFaceFromVertices(orderedVertexIds);
+      this.fill.createFaceFromVertices(orderedVertexIds);
     }
 
     this.delete.deleteVertices(vertexIds);
@@ -369,7 +369,7 @@ export class VertexDissolve {
     this.vertexEditor.delete.cleanupOrphanVertices(this.meshData, candidateVertices);
     orderedVertexIds = orderedVertexIds.filter(vId => this.meshData.vertices.has(vId));
 
-    this.topology.createFaceFromVertices(orderedVertexIds);
+    this.fill.createFaceFromVertices(orderedVertexIds);
   }
 
   dissolveFaces(faceIds) {
@@ -425,7 +425,7 @@ export class VertexDissolve {
     const finalVerts = orderedVertexIds.filter(vId => this.meshData.vertices.has(vId));
 
     if (finalVerts.length >= 3) {
-      this.topology.createFaceFromVertices(finalVerts);
+      this.fill.createFaceFromVertices(finalVerts);
     }
   }
 }

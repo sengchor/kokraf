@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'jsm/controls/TransformControls.js';
-import { TransformCommandSolver } from './TransformCommandSolver.js';
-import { ToolNumericInput } from './ToolNumericInput.js';
+import { TransformCommandSolver } from './shared/TransformCommandSolver.js';
+import { ToolNumericInput } from './shared/ToolNumericInput.js';
 import { InsetOps, InsetCommitResult } from '../operations/InsetOps.js';
 import { projectToScreen, pixelsToWorldUnits } from '../utils/ScreenUtils.js';
 
