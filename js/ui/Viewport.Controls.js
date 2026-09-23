@@ -1,14 +1,13 @@
 import * as THREE from 'three';
-import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 import { GenerateTexturePanel } from '../panels/GenerateTexturePanel.js';
-import { TexturePainter } from '../texture/TexturePainter.js';
 import { floatingTooltip } from '../ui/FloatingTooltip.js';
 
 export default class ViewportControls {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
+    this.modeManager = editor.modeManager;
     this.uiLoader = editor.uiLoader;
     this.cameraManager = editor.cameraManager;
     this.selection = editor.selection;
@@ -20,9 +19,7 @@ export default class ViewportControls {
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
 
-    this.currentMode = 'object';
     this.transformOrientation = 'global';
-    this.savedPaintMap = 'map';
     
     this.ready = this.load();
   }
@@ -81,10 +78,10 @@ export default class ViewportControls {
     }
 
     if (this.interactionDropdown) {
-      this.currentMode = this.interactionDropdown.value;
+      this.interactionDropdown.value = this.modeManager.currentMode;
       
       this.interactionDropdown.addEventListener('change', (e) => {
-        this.switchMode(e.target.value);
+        this.requestMode(e.target.value);
       });
     }
 
@@ -160,7 +157,10 @@ export default class ViewportControls {
     });
 
     this.signals.modeChanged.add((newMode) => {
-      this.currentMode = newMode;
+      if (this.transformOrientationSelect) {
+        this.transformOrientation = this.transformOrientationSelect.value;
+        this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
+      }
 
       if (this.interactionDropdown) {
         this.interactionDropdown.value = newMode;
@@ -220,7 +220,7 @@ export default class ViewportControls {
     });
 
     this.signals.switchMode.add((newMode) => {
-      this.switchMode(newMode);
+      this.requestMode(newMode);
     });
 
     this.signals.subSelectionModeChanged.add((newMode) => {
@@ -235,22 +235,11 @@ export default class ViewportControls {
     });
 
     this.signals.emptyScene.add(() => {
-      this.editSelection.setSubSelectionMode('vertex');
-      this.signals.subSelectionModeChanged.dispatch('vertex');
-
-      this.savedPaintMap = 'map';
-      if (this.texturePainter) {
-        this.texturePainter.setPaintMap('map');
-      }
-
       this.signals.shadingModeChanged.dispatch('solid');
-
-      this.enterObjectMode();
-      this.signals.modeChanged.dispatch('object');
     });
 
     this.signals.focusSelection.add(() => {
-      if (this.currentMode === 'edit') {
+      if (this.modeManager.currentMode === 'edit') {
         this.signals.vertexFocused.dispatch();
       } else {
         this.signals.objectFocused.dispatch();
@@ -261,6 +250,14 @@ export default class ViewportControls {
       this.shadingDropdown.value = shadingMode;
       this.shadingDropdown.dispatchEvent(new Event('change', { bubbles: true }));
     });
+  }
+
+  requestMode(newMode) {
+    const { ok } = this.modeManager.requestMode(newMode);
+
+    if (!ok && this.interactionDropdown) {
+      this.interactionDropdown.value = this.modeManager.currentMode;
+    }
   }
 
   resetCameraOption(cameras) {
@@ -284,165 +281,6 @@ export default class ViewportControls {
 
     this.cameraDropdown.value = this.cameraManager.camera.uuid;
     this.panelResizer.onWindowResize();
-  }
-
-  switchMode(newMode) {
-    const previousMode = this.currentMode;
-    const paintMap = this.texturePainter?.paintMap || this.savedPaintMap;
-
-    let object = null;
-
-    if (previousMode === 'object') {
-      const selected = this.selection.selectedObjects;
-
-      if (newMode === 'edit') {
-        if (selected.length !== 1) {
-          alert('Please select one mesh to enter Edit Mode.');
-          this.interactionDropdown.value = previousMode;
-          return;
-        }
-
-        object = selected[0];
-      } else if (newMode === 'uv') {
-        if (selected.length !== 1) {
-          alert('Please select one mesh to enter UV Mode.');
-          this.interactionDropdown.value = previousMode;
-          return;
-        }
-
-        object = selected[0];
-      } else if (newMode === 'paint') {
-        if (selected.length !== 1) {
-          alert('Please select one mesh to enter Texture Paint.');
-          this.interactionDropdown.value = previousMode;
-          return;
-        }
-
-        object = selected[0];
-      } else {
-        object = this.editSelection.editedObject;
-      }
-    } else {
-      object = this.editSelection.editedObject;
-    }
-
-    if (newMode === 'edit' && (!object?.isMesh || object.userData?.isImageRef)) {
-      alert('No mesh selected. Please select a mesh object.');
-      this.interactionDropdown.value = previousMode;
-      return;
-    }
-
-    if (newMode === 'edit' && (!object?.isMesh || object.userData?.isImageRef)) {
-      alert('No mesh selected. Please select a mesh object.');
-      this.interactionDropdown.value = previousMode;
-      return;
-    }
-
-    if (newMode === 'paint' && (!object?.isMesh || object.userData?.isImageRef)) {
-      alert('No mesh selected. Please select a mesh object.');
-      this.interactionDropdown.value = previousMode;
-      return;
-    }
-
-    this.editor.execute(new SwitchModeCommand(this.editor, object, newMode, previousMode, paintMap));
-  }
-
-  enterObjectMode() {
-    this.selection.enable = true;
-    this.editSelection.enable = false;
-
-    if (this.editHelpers) {
-      this.editHelpers.removeVertexPoints();
-      this.editHelpers.removeEdgeLines();
-    }
-
-    if (this.editSelection.editedObject) {
-      this.editSelection.clearSelection();
-      this.selection.select(this.editSelection.editedObject);
-      this.editSelection.editedObject = null;
-    }
-
-    if (this.texturePainter) {
-      this.texturePainter.detach();
-    }
-
-    this.transformOrientation = this.transformOrientationSelect.value;
-    this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
-  }
-
-  enterEditMode(selectedObject) {
-    this.selection.enable = false;
-    this.editSelection.enable = true;
-
-    this.editSelection.editedObject = selectedObject;
-    this.signals.editSelectionRefresh.dispatch();
-    this.editSelection.clearSelection();
-    this.selection.deselect();
-
-    if (this.texturePainter) {
-      this.texturePainter.detach();
-    }
-
-    this.transformOrientation = this.transformOrientationSelect.value;
-    this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
-    this.signals.objectSelected.dispatch([selectedObject]);
-
-    this.signals.setEditObjectPanel.dispatch(selectedObject);
-  }
-
-  enterUVMode(selectedObject) {
-    this.selection.enable = false;
-    this.editSelection.enable = true;
-
-    this.editSelection.editedObject = selectedObject;
-    this.signals.editSelectionRefresh.dispatch();
-    this.editSelection.clearSelection();
-    this.selection.deselect();
-
-    if (this.texturePainter) {
-      this.texturePainter.detach();
-    }
-
-    this.transformOrientation = this.transformOrientationSelect.value;
-    this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
-    this.signals.objectSelected.dispatch([selectedObject]);
-
-    this.signals.setEditObjectPanel.dispatch(selectedObject);
-  }
-
-  enterPaintMode(selectedObject, paintMap = 'map') {
-    this.selection.enable = false;
-    this.editSelection.enable = false;
-
-    if (this.editHelpers) {
-      this.editHelpers.removeVertexPoints();
-      this.editHelpers.removeEdgeLines();
-    }
-
-    this.editSelection.editedObject = selectedObject;
-    this.editSelection.clearSelection();
-    this.selection.deselect();
-
-    if (!this.texturePainter) {
-      this.texturePainter = new TexturePainter(this.editor);
-    }
-
-    this.texturePainter.attach(selectedObject).then(() => {
-      if (paintMap && paintMap !== this.texturePainter.paintMap) {
-        this.texturePainter.setPaintMap(paintMap);
-      }
-    }).catch(err => {
-      alert(err.message);
-      this.interactionDropdown.value = 'object';
-      this.enterObjectMode();
-      this.signals.modeChanged.dispatch('object');
-    });
-
-    this.transformOrientation = this.transformOrientationSelect.value;
-    this.signals.transformOrientationChanged.dispatch(this.transformOrientation);
-    this.signals.objectSelected.dispatch([selectedObject]);
-
-    this.signals.setPaintObjectPanel.dispatch(selectedObject);
   }
 
   updateXRayButtonState(shadingMode) {
@@ -535,68 +373,5 @@ export default class ViewportControls {
     });
 
     floatingTooltip.addBlocker(() => this.menuOverlay.style.display === 'block');
-  }
-
-  toJSON() {
-    return {
-      mode: this.interactionDropdown?.value || 'object',
-      editedObjectUuid: this.editSelection.editedObject?.uuid || null,
-      subSelectionMode: this.editSelection.subSelectionMode || 'vertex',
-      paintMap: this.texturePainter?.paintMap || 'map',
-    };
-  }
-
-  fromJSON(json) {
-    if (!json) {
-      this.enterObjectMode();
-      this.signals.modeChanged.dispatch('object');
-      return;
-    }
-
-    const mode = json.mode;
-    const uuid = json.editedObjectUuid;
-    const subMode = json.subSelectionMode || 'vertex';
-    this.savedPaintMap = json.paintMap || 'map';
-
-    this.editSelection.setSubSelectionMode(subMode);
-    this.signals.subSelectionModeChanged.dispatch(subMode);
-
-    if (mode === 'edit' && uuid) {
-      const object = this.editor.objectByUuid(uuid);
-
-      if (object && object.isMesh) {
-        this.selection.select(object);
-        this.enterEditMode(object);
-        this.signals.modeChanged.dispatch('edit');
-      } else {
-        this.enterObjectMode();
-        this.signals.modeChanged.dispatch('object');
-      }
-    } else if (mode === 'uv' && uuid) {
-      const object = this.editor.objectByUuid(uuid);
-
-      if (object && object.isMesh) {
-        this.selection.select(object);
-        this.enterUVMode(object);
-        this.signals.modeChanged.dispatch('uv');
-      } else {
-        this.enterObjectMode();
-        this.signals.modeChanged.dispatch('object');
-      }
-    } else if (mode === 'paint' && uuid) {
-      const object = this.editor.objectByUuid(uuid);
-
-      if (object && object.isMesh) {
-        this.selection.select(object);
-        this.enterPaintMode(object, this.savedPaintMap);
-        this.signals.modeChanged.dispatch('paint');
-      } else {
-        this.enterObjectMode();
-        this.signals.modeChanged.dispatch('object');
-      }
-    } else {
-      this.enterObjectMode();
-      this.signals.modeChanged.dispatch('object');
-    }
   }
 }

@@ -56,7 +56,7 @@ export default class SceneManager {
 
   async emptyAllScenes() {
     this.cameraManager.resetCamera();
-    this.editor.viewportControls.texturePainter?.resetBrush();
+    this.editor.modeManager.texturePainter?.resetBrush();
     this.signals.emptyScene.dispatch();
 
     this.emptyScene(this.mainScene);

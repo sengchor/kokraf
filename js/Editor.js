@@ -8,6 +8,7 @@ import Toolbar from './ui/Toolbar.js';
 import Selection from './tools/Selection.js';
 import UIComponentsLoader from './ui/UIComponentsLoader.js';
 import PanelResizer from './ui/PanelResizer.js';
+import ModeManager from './core/ModeManager.js';
 import { ViewportViewHelper } from './ui/Viewport.ViewHelper.js';
 import Menubar from './ui/Menubar.js';
 import { Signal } from './utils/Signals.js';
@@ -180,6 +181,7 @@ export default class Editor {
     this.editActions = new EditActions(this);
     this.objectActions = new ObjectActions(this);
     this.uvActions = new UVActions(this);
+    this.modeManager = new ModeManager(this);
 
     // UI
     this.uiLoader = new UIComponentsLoader();
@@ -187,6 +189,7 @@ export default class Editor {
     this.uvResizer = new UVResizer(this);
     this.contextMenu = new ContextMenu(this);
     this.uvEditor = new UVEditor(this);
+    this.viewportControls = new ViewportControls(this);
 
     this.clock = new THREE.Clock();
 
@@ -197,7 +200,6 @@ export default class Editor {
     this.currentProjectId = null;
     this.currentProjectName = null;
     
-    this.viewportControls = new ViewportControls(this);
     await this.viewportControls.ready;
 
     // Check for projectId in the URL query parameters
@@ -218,7 +220,7 @@ export default class Editor {
       if (saved) {
         await this.fromJSON(saved);
       } else {
-        this.viewportControls.fromJSON();
+        this.modeManager.fromJSON();
         this.sceneManager.addAmbientLight(0xffffff, 0.5);
         this.sceneManager.addDemoObjects();
       }
@@ -327,12 +329,11 @@ export default class Editor {
     const camera = await loader.parseAsync(json.camera);
     this.cameraManager.replaceCameraInstance(camera);
 
-    await this.viewportControls.ready;
-    this.viewportControls.fromJSON(json.viewportControls);
+    this.modeManager.fromJSON(json.modeManager);
     this.controlsManager.fromJSON(json.controlsManager);
 
     if (json.brush) {
-      this.viewportControls.texturePainter?.fromJSON(json.brush);
+      this.modeManager.texturePainter?.fromJSON(json.brush);
     }
     
     if (this.config.get('history')) {
@@ -346,7 +347,7 @@ export default class Editor {
       this.sceneManager.mainScene
     );
 
-    const texturePainter = this.viewportControls?.texturePainter;
+    const texturePainter = this.modeManager?.texturePainter;
     const restored = texturePainter?._restoreOriginalMaterial();
 
     const json = {
@@ -359,9 +360,9 @@ export default class Editor {
       transforms,
       scene: this.sceneManager.mainScene.toJSON(),
       camera: this.cameraManager.viewportCamera.toJSON(),
-      viewportControls: this.viewportControls.toJSON(),
+      modeManager: this.modeManager.toJSON(),
       controlsManager: this.controlsManager.toJSON(),
-      brush: this.viewportControls.texturePainter?.toJSON(),
+      brush: this.modeManager.texturePainter?.toJSON(),
     };
 
     if (this.config.get('history')) {

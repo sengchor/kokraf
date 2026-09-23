@@ -6,7 +6,6 @@ export default class EditSelection {
     this.editor = editor;
     this.signals = editor.signals;
     this.keyHandler = editor.keyHandler;
-    this.viewportControls = editor.viewportControls;
     this.vertexEditor = editor.vertexEditor;
 
     this.raycaster = new THREE.Raycaster();

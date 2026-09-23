@@ -40,7 +40,7 @@ export class SwitchPaintMapCommand {
     if (!paintMap) return;
 
     const object = this.editor.objectByUuid(this.objectUuid);
-    const texturePainter = this.editor.viewportControls?.texturePainter;
+    const texturePainter = this.editor.modeManager?.texturePainter;
 
     if (texturePainter?.isActive && texturePainter.object === object) {
       texturePainter.setPaintMap(paintMap);

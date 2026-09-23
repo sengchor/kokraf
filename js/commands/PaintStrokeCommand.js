@@ -41,7 +41,7 @@ export class PaintStrokeCommand {
   _getMaterial(object) {
     if (!object) return null;
 
-    const texturePainter = this.editor.viewportControls?.texturePainter;
+    const texturePainter = this.editor.modeManager?.texturePainter;
     if (texturePainter?.isActive && texturePainter.object === object && texturePainter.originalMaterial) {
       return texturePainter.originalMaterial;
     }
@@ -53,7 +53,7 @@ export class PaintStrokeCommand {
     if (!imageData) return;
 
     const object = this.editor.objectByUuid(this.objectUuid);
-    const texturePainter = this.editor.viewportControls?.texturePainter;
+    const texturePainter = this.editor.modeManager?.texturePainter;
 
     const material = this._getMaterial(object);
     const texture = material?.[this.paintMap];

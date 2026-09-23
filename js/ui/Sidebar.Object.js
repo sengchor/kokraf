@@ -12,7 +12,7 @@ export class SidebarObject {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
-    this.viewportControls = editor.viewportControls;
+    this.modeManager = editor.modeManager;
     this.lastSelectedObject = null;
 
     this.isEditingRotation = false;
@@ -35,7 +35,7 @@ export class SidebarObject {
     }
     this.options = null;
 
-    this.currentMode = this.viewportControls.currentMode;
+    this.currentMode = this.modeManager.currentMode;
     if (this.currentMode === 'edit') {
       this.selectObject(editor.editSelection.editedObject);
     }

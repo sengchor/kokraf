@@ -32,7 +32,7 @@ export class SetMaterialMapCommand {
   _getMaterial(object) {
     if (!object) return null;
     
-    const texturePainter = this.editor.viewportControls?.texturePainter;
+    const texturePainter = this.editor.modeManager?.texturePainter;
     if (texturePainter?.isActive && texturePainter.object === object && texturePainter.originalMaterial) {
       return texturePainter.originalMaterial;
     }

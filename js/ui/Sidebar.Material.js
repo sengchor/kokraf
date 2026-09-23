@@ -7,7 +7,7 @@ export class SidebarMaterial {
   constructor(editor) {
     this.editor = editor;
     this.signals = editor.signals;
-    this.viewportControls = editor.viewportControls;
+    this.modeManager = editor.modeManager;
 
     this.lastSelectedObject = null;
     this.materialSettingList = document.getElementById('material-properties-content');
@@ -26,9 +26,9 @@ export class SidebarMaterial {
       normalMap: 'normal',
     };
 
-    this.currentMode = this.viewportControls.currentMode;
+    this.currentMode = this.modeManager.currentMode;
     if (this.currentMode === 'paint') {
-      this.selectObject(this.viewportControls.texturePainter?.object);
+      this.selectObject(this.modeManager.texturePainter?.object);
     }
 
     this.setupListeners();
@@ -469,7 +469,7 @@ export class SidebarMaterial {
   _getMaterial(object) {
     if (!object) return null;
     
-    const texturePainter = this.editor.viewportControls?.texturePainter;
+    const texturePainter = this.editor.modeManager?.texturePainter;
     if (texturePainter?.isActive && texturePainter.object === object && texturePainter.originalMaterial) {
       return texturePainter.originalMaterial;
     }

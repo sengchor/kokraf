@@ -62,7 +62,7 @@ export function createEmptyProject(projectId) {
       }
     },
 
-    viewportControls: {
+    modeManager: {
       mode: "object",
       editedObjectUuid: null,
       subSelectionMode: "vertex"

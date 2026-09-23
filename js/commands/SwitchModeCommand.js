@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MODES } from '../core/ModeManager.js';
 
 export class SwitchModeCommand {
   static type = 'SwitchModeCommand';
@@ -31,24 +32,21 @@ export class SwitchModeCommand {
   }
 
   _switch(object, mode) {
-    const viewportControls = this.editor.viewportControls;
+    const def = MODES[mode];
+    if (!def) return;
 
-    if (mode === 'object') {
-      viewportControls.enterObjectMode();
-      this.editor.signals.modeChanged.dispatch('object');
-    } else if (mode === 'edit') {
-      this.editor.selection.select(object);
-      viewportControls.enterEditMode(object);
-      this.editor.signals.modeChanged.dispatch('edit');
-    } else if (mode === 'uv') {
-      this.editor.selection.select(object);
-      viewportControls.enterUVMode(object);
-      this.editor.signals.modeChanged.dispatch('uv');
-    } else if (mode === 'paint') {
-      this.editor.selection.select(object);
-      viewportControls.enterPaintMode(object, this.paintMap || 'map');
-      this.editor.signals.modeChanged.dispatch('paint');
+    const modeManager = this.editor.modeManager;
+
+    if (def.requiresMesh && !modeManager.isValidMesh(object)) {
+      modeManager.setMode('object');
+      return;
     }
+
+    if (mode !== 'object') {
+      this.editor.selection.select(object);
+    }
+
+    modeManager.setMode(mode, object, { paintMap: this.paintMap || 'map' });
   }
 
   toJSON() {

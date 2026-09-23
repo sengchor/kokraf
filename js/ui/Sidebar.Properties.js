@@ -5,7 +5,7 @@ export default class SidebarProperties {
   constructor(editor) {
     this.signals = editor.signals;
     this.uiLoader = editor.uiLoader;
-    this.viewportControls = editor.viewportControls;
+    this.modeManager = editor.modeManager;
     this.activeTabIndex = 0;
     this.tabs = [];
     this.panels = [];
@@ -13,7 +13,7 @@ export default class SidebarProperties {
     this.isMeshSelected = false;
     this.ready = this.load(editor);
 
-    this.currentMode = this.viewportControls.currentMode;
+    this.currentMode = this.modeManager.currentMode;
   }
 
   async load(editor) {

@@ -20,7 +20,7 @@ export default class Toolbar {
     this.renderer = editor.renderer;
     this.selection = editor.selection;
     this.editSelection = editor.editSelection;
-    this.viewportControls = editor.viewportControls;
+    this.modeManager = editor.modeManager;
     this.activeToolObjectMode = 'select';
     this.activeToolEditMode = 'select';
     this.activeToolPaintMode = 'paint';
@@ -59,7 +59,7 @@ export default class Toolbar {
     this.setupToolbarButtons();
     this.setupListeners();
 
-    this.currentMode = this.viewportControls.currentMode;
+    this.currentMode = this.modeManager.currentMode;
     this.updateTools();
 
     if (this.defaultToolContainer) {
