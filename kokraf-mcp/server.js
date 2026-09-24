@@ -106,9 +106,15 @@ const toolNameFor = (command) => `kokraf_${command.replace(/[^a-zA-Z0-9_-]/g, '_
 
 const bridge = new EditorBridge({ port: PORT, token: TOKEN, log });
 
+const AXES_INSTRUCTIONS =
+  'Kokraf uses a Z-up coordinate system: +X front, +Y right, +Z up. ' +
+  'This is NOT the three.js Y-up convention, even though the editor is built on three.js. ' +
+  'Every position, rotation, scale and pivot sent to or returned by Kokraf tools is Z-up. ' +
+  '"Up" means +Z; "move up by 1" is translate [0, 0, 1].';
+
 const mcp = new McpServer(
   { name: 'kokraf', version: '0.1.0' },
-  { capabilities: { tools: { listChanged: true } } }
+  { capabilities: { tools: { listChanged: true } }, instructions: AXES_INSTRUCTIONS }
 );
 
 const registered = new Set();
@@ -150,15 +156,24 @@ function resultToContent(result) {
   return [{ type: 'text', text }];
 }
 
-function registerCommandTool(command) {
-  if (registered.has(command.name)) return;
-  registered.add(command.name);
+const tools = new Map();
 
+function registerCommandTool(command) {
   const description = command.mutates
     ? `${command.description} (Modifies the scene; undoable with kokraf_undo or Ctrl+Z in the editor.)`
     : command.description;
+  const signature = JSON.stringify([description, command.params]);
 
-  mcp.registerTool(
+  const existing = tools.get(command.name);
+  if (existing) {
+    if (existing.signature === signature) return;
+    existing.handle.update({ description, paramsSchema: toInputSchema(command.params) });
+    existing.signature = signature;
+    log(`updated tool ${toolNameFor(command.name)}`);
+    return;
+  }
+
+  const handle = mcp.registerTool(
     toolNameFor(command.name),
     { title: command.name, description, inputSchema: toInputSchema(command.params) },
     async (args = {}) => {
@@ -171,8 +186,7 @@ function registerCommandTool(command) {
       }
     }
   );
-
-  log(`registered tool ${toolNameFor(command.name)}`);
+  tools.set(command.name, { handle, signature });
 }
 
 async function syncTools() {

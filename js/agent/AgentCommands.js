@@ -1,17 +1,46 @@
 import * as THREE from 'three';
 import { ObjectTransformOps } from '../operations/ObjectTransformOps.js';
 import { EditTransformOps } from '../operations/EditTransformOps.js';
+import { MODES } from '../core/ModeManager.js';
 import {
-  RAD, DEG, r, vec,
   describeObject,
   resolveTargets,
   resolveVertexIds,
   toScaleVector,
 } from './AgentUtils.js';
+import {
+  AXES_NOTE,
+  positionToThree,
+  positionFromThree,
+  pivotToThree,
+  rotationToThree,
+  rotationFromThree,
+  scaleToThree,
+  scaleFromThree,
+} from './AgentAxes.js'
+
+function defineModeCommand(registry, name, { prepare, run, ...spec }) {
+  const mode = name.split('.')[0];
+  if (!MODES[mode]) {
+    throw new Error(`defineModeCommand: "${name}" prefix "${mode}" is not an editor mode.`);
+  }
+
+  return registry.define(name, {
+    ...spec,
+    mode,
+    run(params, editor) {
+      const ctx = prepare ? prepare(params, editor) ?? {} : {};
+      const modeSwitched = editor.modeManager.switchTo(mode, ctx.modeTarget ?? null);
+      const result = run(params, editor, ctx);
+      return { mode, modeSwitched, ...result };
+    },
+  });
+}
 
 export function registerAgentCommands(registry) {
   registry.define('scene.outline', {
     description:
+      AXES_NOTE +
       'List the objects in the scene with their uuid, type, transform, and vertex/edge/face counts. ' +
       'Counts describe the editable mesh topology, so faces are n-gons, not triangles. ' +
       'Returns no geometry data — use this to find the uuid of an object before acting on it.',
@@ -61,6 +90,8 @@ export function registerAgentCommands(registry) {
       return {
         sceneUuid: scene.uuid,
         rootUuid: rootObject === scene ? null : rootObject.uuid,
+        currentMode: editor.modeManager.currentMode,
+        editedObjectUuid: editor.editSelection.editedObject?.uuid ?? null,
         objectCount: objects.length,
         truncated,
         objects,
@@ -68,8 +99,9 @@ export function registerAgentCommands(registry) {
     },
   });
 
-  registry.define('object.transform', {
+  defineModeCommand(registry, 'object.transform', {
     description:
+      AXES_NOTE +
       'Move, rotate and/or scale objects. Each object transforms about its own origin. ' +
       'Undoable via the normal history stack. At least one of position, rotation or scale is required.',
     mutates: true,
@@ -97,13 +129,14 @@ export function registerAgentCommands(registry) {
         description: 'Frame for position and rotation.',
       },
     },
-    run({ target, position, rotation, scale, relative, space }, editor) {
+    prepare({ target, position, rotation, scale }, editor) {
       if (position === undefined && rotation === undefined && scale === undefined) {
-        throw new Error('transform: supply at least one of position, rotation or scale.');
+        throw new Error('object.transform: supply at least one of position, rotation or scale.');
       }
-
+      return { objects: resolveTargets(editor, target) };
+    },
+    run({ position, rotation, scale, relative, space }, editor, { objects }) {
       const scene = editor.sceneManager.mainScene;
-      const objects = resolveTargets(editor, target);
       scene.updateMatrixWorld(true);
 
       // Resolve everything against the pre-transform state, then execute once.
@@ -111,18 +144,15 @@ export function registerAgentCommands(registry) {
       const changes = {};
 
       if (position !== undefined) {
-        changes.positions = ObjectTransformOps.resolvePositions(objects, position, options);
+        changes.positions = ObjectTransformOps.resolvePositions(objects, positionToThree(position), options);
       }
 
       if (rotation !== undefined) {
-        const quaternion = new THREE.Quaternion().setFromEuler(
-          new THREE.Euler(rotation[0] * RAD, rotation[1] * RAD, rotation[2] * RAD, 'XYZ')
-        );
-        changes.quaternions = ObjectTransformOps.resolveQuaternions(objects, quaternion, options);
+        changes.quaternions = ObjectTransformOps.resolveQuaternions(objects, rotationToThree(rotation), options);
       }
 
       if (scale !== undefined) {
-        changes.scales = ObjectTransformOps.resolveScales(objects, toScaleVector(scale), options);
+        changes.scales = ObjectTransformOps.resolveScales(objects, toScaleVector(scaleToThree(scale)), options);
       }
 
       editor.execute(ObjectTransformOps.createCommand(editor, objects, changes, 'Agent Transform'));
@@ -137,23 +167,21 @@ export function registerAgentCommands(registry) {
         objects: objects.map((object) => ({
           uuid: object.uuid,
           name: object.name || '(unnamed)',
-          worldPosition: vec(object.getWorldPosition(new THREE.Vector3())),
-          rotation: [
-            r(object.rotation.x * DEG, 2),
-            r(object.rotation.y * DEG, 2),
-            r(object.rotation.z * DEG, 2),
-          ],
-          scale: vec(object.scale),
+          worldPosition: positionFromThree(object.getWorldPosition(new THREE.Vector3())),
+          rotation: rotationFromThree(object.getWorldQuaternion(new THREE.Quaternion())),
+          scale: scaleFromThree(object.scale),
         })),
       };
     },
   });
 
-  registry.define('edit.transform', {
+  defineModeCommand(registry, 'edit.transform', {
     description:
+      AXES_NOTE +
       'Move, rotate and/or scale mesh vertices of a single object (edit-mode transform). ' +
+      "vertices: 'selected' only works if the target is ALREADY in Edit Mode; otherwise pass 'all' or ids. " +
       'Applied in order scale -> rotate -> translate, all about the same pivot. ' +
-      'Undoalbe as one step. At least one of translate, rotate or scale is required.',
+      'Undoable as one step. At least one of translate, rotate or scale is required.',
     mutates: true,
     params: {
       target: { type: 'string', description: 'uuid or name of a mesh object.' },
@@ -162,9 +190,9 @@ export function registerAgentCommands(registry) {
         default: 'selected',
         description: "'selected' (current edit selection), 'all', or an array of vertex ids.",
       },
-      translate: { type: 'vec3', optional: true, description: '[x, y, z] offset in metres.'},
-      rotate: { type: 'vec3', optional: true, description: '[x, y, z] Euler angles in DEGREES, XYZ order, about the pivot.'},
-      scale: { type: 'number|vec3', optional: true, description: 'Uniform factor or [x, y, z], about the pivot.'},
+      translate: { type: 'vec3', optional: true, description: '[x, y, z] offset in metres.' },
+      rotate: { type: 'vec3', optional: true, description: '[x, y, z] Euler angles in DEGREES, XYZ order, about the pivot.' },
+      scale: { type: 'number|vec3', optional: true, description: 'Uniform factor or [x, y, z], about the pivot.' },
       pivot: {
         type: 'string|vec3',
         default: 'median',
@@ -177,29 +205,33 @@ export function registerAgentCommands(registry) {
         description: "Axes for translate/rotate/scale. 'local' uses the object's orientation.",
       },
     },
-    run({ target, vertices, translate, rotate, scale, pivot, space }, editor) {
+    prepare({ target, vertices, translate, rotate, scale }, editor) {
       if (translate === undefined && rotate === undefined && scale === undefined) {
-        throw new Error('edit.transfrom: supply at least one of translate, rotate or scale.');
+        throw new Error('edit.transform: supply at least one of translate, rotate or scale.');
       }
 
       const objects = resolveTargets(editor, target);
       if (objects.length !== 1) throw new Error('edit.transform: target must resolve to exactly one object.');
       const object = objects[0];
-      if (!object.isMesh) throw new Error(`edit.transform: "${object.name || object.uuid}" is not a mesh.`);
+
+      if (!editor.modeManager.isValidMesh(object)) {
+        throw new Error(`edit.transform: "${object.name || object.uuid}" is not an editable mesh.`);
+      }
 
       const vertexIds = resolveVertexIds(editor, object, vertices);
       if (!vertexIds.length) throw new Error('edit.transform: no vertices to transform.');
 
+      return { modeTarget: object, object, vertexIds };
+    },
+    run({ translate, rotate, scale, pivot, space }, editor, { object, vertexIds }) {
       editor.sceneManager.mainScene.updateMatrixWorld(true);
 
       const from = EditTransformOps.getPositions(editor, object, vertexIds);
       const positions = EditTransformOps.resolvePositions(object, from, {
-        translate,
-        rotate: rotate && new THREE.Quaternion().setFromEuler(
-          new THREE.Euler(rotate[0] * RAD, rotate[1] * RAD, rotate[2] * RAD, 'XYZ')
-        ),
-        scale: scale !== undefined ? toScaleVector(scale) : undefined,
-      }, { pivot, space });
+        translate: translate && positionToThree(translate),
+        rotate: rotate && rotationToThree(rotate),
+        scale: scale && toScaleVector(scaleToThree(scale))
+      }, { pivot: pivotToThree(pivot), space });
 
       editor.execute(EditTransformOps.createCommand(editor, object, vertexIds, { positions }));
       editor.signals.objectChanged.dispatch();
@@ -215,8 +247,8 @@ export function registerAgentCommands(registry) {
         applied: [scale !== undefined && 'scale', rotate && 'rotate', translate && 'translate'].filter(Boolean),
         vertexCount: vertexIds.length,
         space,
-        pivot: vec(positions.pivot),
-        newMedian: vec(median),
+        pivot: positionFromThree(positions.pivot),
+        newMedian: positionFromThree(median),
       };
     },
   });

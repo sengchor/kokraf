@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { positionFromThree, rotationFromThree, scaleFromThree } from './AgentAxes.js';
 
 export const RAD = Math.PI / 180;
 export const DEG = 180 / Math.PI;
@@ -40,9 +41,9 @@ export function describeObject(object, depth, { includeStats, includeMaterials }
     type: object.type,
     depth,
     parent: object.parent && !object.parent.isScene ? object.parent.uuid : null,
-    position: vec(object.position),
-    rotation: [r(object.rotation.x * DEG, 2), r(object.rotation.y * DEG, 2), r(object.rotation.z * DEG, 2)],
-    scale: vec(object.scale),
+    position: positionFromThree(object.position),
+    rotation: rotationFromThree(object.quaternion),
+    scale: scaleFromThree(object.scale),
   };
 
   if (object.visible === false) entry.visible = false;

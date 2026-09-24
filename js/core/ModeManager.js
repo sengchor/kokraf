@@ -90,6 +90,33 @@ export default class ModeManager {
     return result;
   }
 
+  switchTo(newMode, object = null) {
+    const def = MODES[newMode];
+    if (!def) throw new Error(`Unknown mode: ${newMode}`);
+
+    if (!def.requiresMesh) {
+      if (this.currentMode === newMode) return false;
+      this.editor.execute(
+        new SwitchModeCommand(this.editor, this.editSelection.editedObject, newMode, this.currentMode, this.paintMap)
+      );
+      return true;
+    }
+
+    if (!this.isValidMesh(object)) {
+      const label = object ? object.name || object.uuid : 'nothing';
+      throw new Error(`${def.label} needs a mesh, got ${label}.`);
+    }
+
+    if (this.currentMode === newMode && this.editSelection.editedObject === object) {
+      return false;
+    }
+
+    this.editor.execute(
+      new SwitchModeCommand(this.editor, object, newMode, this.currentMode, this.paintMap)
+    );
+    return true;
+  }
+
   setMode(newMode, object = null, { paintMap = this.paintMap } = {}) {
     switch (newMode) {
       case 'edit':
