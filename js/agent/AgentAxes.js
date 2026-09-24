@@ -1,5 +1,14 @@
 import * as THREE from 'three';
-import { RAD, DEG, r, vec } from './AgentUtils.js';
+
+export const RAD = Math.PI / 180;
+export const DEG = 180 / Math.PI;
+
+export function r(n, digits = 4) {
+  const f = 10 ** digits;
+  return Math.round(n * f) / f;
+}
+
+export const vec = (v, digits = 4) => [r(v.x, digits), r(v.y, digits), r(v.z, digits)];
 
 const ZUP_TO_THREE = new THREE.Quaternion().setFromRotationMatrix(
   new THREE.Matrix4().makeBasis(

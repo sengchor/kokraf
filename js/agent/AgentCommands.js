@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ObjectTransformOps } from '../operations/ObjectTransformOps.js';
 import { EditTransformOps } from '../operations/EditTransformOps.js';
 import { MODES } from '../core/ModeManager.js';
+import { editSelectSpec } from './AgentSelection.js';
 import {
   describeObject,
   resolveTargets,
@@ -174,6 +175,8 @@ export function registerAgentCommands(registry) {
       };
     },
   });
+
+  defineModeCommand(registry, 'edit.select', editSelectSpec);
 
   defineModeCommand(registry, 'edit.transform', {
     description:

@@ -1,15 +1,8 @@
 import * as THREE from 'three';
 import { positionFromThree, rotationFromThree, scaleFromThree } from './AgentAxes.js';
+export { RAD, DEG, r, vec } from './AgentAxes.js';
 
-export const RAD = Math.PI / 180;
-export const DEG = 180 / Math.PI;
-
-export function r(n, digits = 4) {
-  const f = 10 ** digits;
-  return Math.round(n * f) / f;
-}
-
-export const vec = (v, digits = 4) => [r(v.x, digits), r(v.y, digits), r(v.z, digits)];
+const label = (object) => object.name || object.uuid;
 
 function size(collection) {
   if (!collection) return 0;
@@ -89,10 +82,17 @@ export function resolveTargets(editor, target) {
   });
 }
 
-export function toScaleVector(scale) {
-  return typeof scale === 'number'
-    ? new THREE.Vector3(scale, scale, scale)
-    : new THREE.Vector3().fromArray(scale);
+export function resolveMeshTarget(editor, target, command) {
+  const objects = resolveTargets(editor, target);
+  if (objects.length !== 1) throw new Error(`${command}: target must resolve to exactly one object.`);
+
+  const object = objects[0];
+  const meshData = object.userData?.meshData;
+  if (!editor.modeManager.isValidMesh(object) || !meshData) {
+    throw new Error(`${command}: "${label(object)}" is not an editable mesh.`);
+  }
+
+  return { object, meshData };
 }
 
 export function resolveVertexIds(editor, object, vertices) {
@@ -110,4 +110,47 @@ export function resolveVertexIds(editor, object, vertices) {
   }
 
   throw new Error(`edit.transform: invalid vertices "${vertices}".`);
+}
+
+export function toScaleVector(scale) {
+  return typeof scale === 'number'
+    ? new THREE.Vector3(scale, scale, scale)
+    : new THREE.Vector3().fromArray(scale);
+}
+
+// mesh data
+export const elementsOf = (meshData, selectMode) =>
+  ({ vertex: meshData.vertices, edge: meshData.edges, face: meshData.faces })[selectMode];
+
+export function vertexIdsOf(element, selectMode) {
+  if (selectMode === 'vertex') return [element.id];
+  if (selectMode === 'edge') return [element.v1Id, element.v2Id];
+  return element.vertexIds;
+}
+
+export function worldPositionLookup(object, meshData = object.userData.meshData) {
+  const cache = new Map();
+  const matrix = object.matrixWorld;
+
+  return (id) => {
+    let p = cache.get(id);
+    if (!p) {
+      p = new THREE.Vector3().copy(meshData.vertices.get(id).position).applyMatrix4(matrix);
+      cache.set(id, p);
+    }
+    return p;
+  };
+}
+
+export function faceNormal(object, vertexIds, worldPos) {
+  const n = new THREE.Vector3();
+  for (let i = 0; i < vertexIds.length; i++) {
+    const a = worldPos(vertexIds[i]);
+    const b = worldPos(vertexIds[(i + 1) % vertexIds.length]);
+    n.x += (a.y - b.y) * (a.z + b.z);
+    n.y += (a.z - b.z) * (a.x + b.x);
+    n.z += (a.x - b.x) * (a.y + b.y);
+  }
+  if (object.matrixWorld.determinant() < 0) n.negate();
+  return n.normalize();
 }
