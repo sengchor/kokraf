@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { MeshDataBuilders } from './MeshDataBuilders.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 
-const DEFAULT_PARAMS = {
+export const PRIMITIVE_DEFAULTS = {
   Plane: { width: 1, height: 1 },
   Cube: { width: 1, height: 1, depth: 1 },
   Circle: { radius: 0.5, segments: 32 },
@@ -12,43 +12,33 @@ const DEFAULT_PARAMS = {
   Torus: { radius: 0.5, tube: 0.2, radialSegments: 24, tubularSegments: 12 },
 };
 
+export const MESH_TYPES = Object.keys(PRIMITIVE_DEFAULTS);
+
+const BUILDERS = {
+  Plane: (p) => MeshDataBuilders.createPlaneMeshData(p),
+  Cube: (p) => MeshDataBuilders.createCubeMeshData(p),
+  Circle: (p) => MeshDataBuilders.createCircleMeshData(p),
+  Sphere: (p) => MeshDataBuilders.createSphereMeshData(p),
+  Cylinder: (p) => MeshDataBuilders.createCylinderMeshData(p),
+  Cone: (p) => MeshDataBuilders.createConeMeshData(p),
+  Torus: (p) => MeshDataBuilders.createTorusMeshData(p),
+};
+
 export class ObjectFactory {
   constructor(editor) {
     this.editor = editor;
   }
 
   getDefaultParams(type) {
-    return { ...(DEFAULT_PARAMS[type] || {}) };
+    return { ...(PRIMITIVE_DEFAULTS[type] || {}) };
   }
 
-  createGeometry(type) {
-    const defaultParams = this.getDefaultParams(type);
-    let meshData;
+  createGeometry(type, { params = {}, name } = {}) {
+    const builder = BUILDERS[type];
+    if (!builder) return null;
 
-    switch (type) {
-      case 'Plane':
-        meshData = MeshDataBuilders.createPlaneMeshData();
-        break;
-      case 'Cube':
-        meshData = MeshDataBuilders.createCubeMeshData();
-        break;
-      case 'Circle':
-        meshData = MeshDataBuilders.createCircleMeshData();
-        break;
-      case 'Sphere':
-        meshData = MeshDataBuilders.createSphereMeshData();
-        break;
-      case 'Cylinder':
-        meshData = MeshDataBuilders.createCylinderMeshData();
-        break;
-      case 'Cone':
-        meshData = MeshDataBuilders.createConeMeshData();
-        break;
-      case 'Torus':
-        meshData = MeshDataBuilders.createTorusMeshData();
-        break;
-      default: return null;
-    }
+    const resolved = { ...this.getDefaultParams(type), ...params };
+    const meshData = builder(resolved);
 
     const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat" });
     
@@ -60,7 +50,7 @@ export class ObjectFactory {
     mesh.userData.renderBuffer = renderBuffer;
     mesh.userData.shading = 'flat';
     mesh.position.set(0, 0, 0);
-    mesh.name = this.editor.nameManager.generateUniqueName(type);
+    mesh.name = this.editor.nameManager.generateUniqueName(name || type);
     return mesh;
   }
 

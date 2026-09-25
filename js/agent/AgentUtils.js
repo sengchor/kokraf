@@ -112,12 +112,6 @@ export function resolveVertexIds(editor, object, vertices) {
   throw new Error(`edit.transform: invalid vertices "${vertices}".`);
 }
 
-export function toScaleVector(scale) {
-  return typeof scale === 'number'
-    ? new THREE.Vector3(scale, scale, scale)
-    : new THREE.Vector3().fromArray(scale);
-}
-
 // mesh data
 export const elementsOf = (meshData, selectMode) =>
   ({ vertex: meshData.vertices, edge: meshData.edges, face: meshData.faces })[selectMode];

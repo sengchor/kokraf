@@ -3,11 +3,11 @@ import { ObjectTransformOps } from '../operations/ObjectTransformOps.js';
 import { EditTransformOps } from '../operations/EditTransformOps.js';
 import { MODES } from '../core/ModeManager.js';
 import { editSelectSpec } from './AgentSelection.js';
+import { objectAddMeshSpec } from './AgentAddMesh.js';
 import {
   describeObject,
   resolveTargets,
   resolveVertexIds,
-  toScaleVector,
 } from './AgentUtils.js';
 import {
   AXES_NOTE,
@@ -100,6 +100,8 @@ export function registerAgentCommands(registry) {
     },
   });
 
+  defineModeCommand(registry, 'object.addMesh', objectAddMeshSpec);
+
   defineModeCommand(registry, 'object.transform', {
     description:
       AXES_NOTE +
@@ -153,7 +155,7 @@ export function registerAgentCommands(registry) {
       }
 
       if (scale !== undefined) {
-        changes.scales = ObjectTransformOps.resolveScales(objects, toScaleVector(scaleToThree(scale)), options);
+        changes.scales = ObjectTransformOps.resolveScales(objects, scaleToThree(scale), options);
       }
 
       editor.execute(ObjectTransformOps.createCommand(editor, objects, changes, 'Agent Transform'));
@@ -233,7 +235,7 @@ export function registerAgentCommands(registry) {
       const positions = EditTransformOps.resolvePositions(object, from, {
         translate: translate && positionToThree(translate),
         rotate: rotate && rotationToThree(rotate),
-        scale: scale && toScaleVector(scaleToThree(scale))
+        scale: scale && scaleToThree(scale)
       }, { pivot: pivotToThree(pivot), space });
 
       editor.execute(EditTransformOps.createCommand(editor, object, vertexIds, { positions }));

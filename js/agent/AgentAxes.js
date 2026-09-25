@@ -25,7 +25,7 @@ export const AXES_NOTE =
   'Kokraf axes: +X front, +Y right, +Z up (Z-up — NOT the three.js Y-up convention). ';
 
 export function positionToThree([x, y, z]) {
-  return [y, z, x];
+  return new THREE.Vector3(y, z, x);
 }
 
 export function positionFromThree(v) {
@@ -50,7 +50,9 @@ export function rotationFromThree(quaternion) {
 }
 
 export function scaleToThree(scale) {
-  return typeof scale === 'number' ? scale : [scale[1], scale[2], scale[0]];
+  return typeof scale === 'number'
+    ? new THREE.Vector3(scale, scale, scale)
+    : new THREE.Vector3(scale[1], scale[2], scale[0]);
 }
 
 export function scaleFromThree(v) {
