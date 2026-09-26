@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { AXES_NOTE, RAD, positionToThree, positionFromThree } from './AgentAxes.js';
-import { resolveMeshTarget, elementsOf, vertexIdsOf, worldPositionLookup, faceNormal } from './AgentUtils.js';
-import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
+import { AXES_NOTE, RAD, positionToThree, positionFromThree } from '../AgentAxes.js';
+import { resolveMeshTarget, elementsOf, vertexIdsOf, worldPositionLookup, faceNormal } from '../AgentUtils.js';
+import { SwitchSubModeCommand } from '../../commands/SwitchSubModeCommand.js';
 
 const ID_SAMPLE = 50;
 

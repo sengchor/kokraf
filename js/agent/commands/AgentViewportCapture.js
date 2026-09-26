@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { resolveTargets } from './AgentUtils.js';
-import { AXES_NOTE, positionToThree, positionFromThree } from './AgentAxes.js';
+import { resolveTargets } from '../AgentUtils.js';
+import { AXES_NOTE, positionToThree, positionFromThree } from '../AgentAxes.js';
 
 const MAX_CAPTURE_EDGE = 1568;
 const MIN_CAPTURE_EDGE = 16;

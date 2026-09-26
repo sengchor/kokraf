@@ -1,7 +1,7 @@
-import { AddObjectCommand } from '../commands/AddObjectCommand.js';
-import { PRIMITIVE_DEFAULTS, MESH_TYPES } from '../utils/ObjectFactory.js';
-import { describeObject } from './AgentUtils.js';
-import { AXES_NOTE, positionToThree, rotationToThree, scaleToThree } from './AgentAxes.js';
+import { AddObjectCommand } from '../../commands/AddObjectCommand.js';
+import { PRIMITIVE_DEFAULTS, MESH_TYPES } from '../../utils/ObjectFactory.js';
+import { describeObject } from '../AgentUtils.js';
+import { AXES_NOTE, positionToThree, rotationToThree, scaleToThree } from '../AgentAxes.js';
 
 const SEGMENT_MIN = { heightSegments: 2 };
 const MAX_SEGMENTS = 256;
