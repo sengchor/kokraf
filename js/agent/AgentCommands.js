@@ -4,6 +4,7 @@ import { EditTransformOps } from '../operations/EditTransformOps.js';
 import { MODES } from '../core/ModeManager.js';
 import { editSelectSpec } from './AgentSelection.js';
 import { objectAddMeshSpec } from './AgentAddMesh.js';
+import { viewportCaptureSpec } from './AgentViewportCapture.js';
 import {
   describeObject,
   resolveTargets,
@@ -99,6 +100,8 @@ export function registerAgentCommands(registry) {
       };
     },
   });
+
+  registry.define('viewport.capture', viewportCaptureSpec);
 
   defineModeCommand(registry, 'object.addMesh', objectAddMeshSpec);
 

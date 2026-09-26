@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { positionFromThree, rotationFromThree, scaleFromThree } from './AgentAxes.js';
-export { RAD, DEG, r, vec } from './AgentAxes.js';
+import { r, positionFromThree, rotationFromThree, scaleFromThree } from './AgentAxes.js';
 
 const label = (object) => object.name || object.uuid;
 

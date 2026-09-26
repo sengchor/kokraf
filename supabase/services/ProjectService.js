@@ -20,7 +20,7 @@ export async function createProject(projectId, name = 'Untitled Project', isPubl
 export async function saveProject(editor, {name = null, isPublic = false, override = false} = {}) {
   const json = editor.toJSON();
   const camera = editor.cameraManager.camera;
-  const blob = await editor.renderer.captureThumbnail(editor.sceneManager, camera);
+  const blob = await editor.renderer.captureViewportRender(editor.sceneManager, camera);
 
   // Check serialized size before uploading
   const jsonString = JSON.stringify(json);

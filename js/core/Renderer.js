@@ -119,17 +119,14 @@ export default class Renderer {
     this.renderer.dispose();
   }
 
-  captureThumbnail(sceneManager, camera, width = 480, height = 270) {
-    const currentSize = new THREE.Vector2();
-    this.renderer.getSize(currentSize);
-
-    const originalAspect = camera.aspect;
+  captureViewportRender(sceneManager, camera, fileType = 'image/webp', width = 480, height = 270) {
+    const currentSize = this.renderer.getSize(new THREE.Vector2());
     const originalPixelRatio = this.renderer.getPixelRatio();
 
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
+    const restoreCamera = this._fitCameraAspect(camera, width / height);
 
-    this.renderer.setSize(width, height);
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(width, height, false);
     this.renderer.clear();
 
     this.renderer.render(sceneManager.mainScene, camera);
@@ -137,15 +134,35 @@ export default class Renderer {
     this.renderer.render(sceneManager.sceneEditorHelpers, camera);
 
     const blob = new Promise((resolve) => {
-      this.renderer.domElement.toBlob((b) => resolve(b), 'image/webp', 0.8);
+      this.renderer.domElement.toBlob((b) => resolve(b), fileType, 0.8);
     });
 
     this.renderer.setPixelRatio(originalPixelRatio);
-    this.renderer.setSize(currentSize.x, currentSize.y);
-    camera.aspect = originalAspect;
-    camera.updateProjectionMatrix();
+    this.renderer.setSize(currentSize.x, currentSize.y, false);
+    restoreCamera();
 
     return blob;
+  }
+
+  _fitCameraAspect(camera, aspect) {
+    if (camera.isPerspectiveCamera) {
+      const saved = camera.aspect;
+      camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+      return () => { camera.aspect = saved; camera.updateProjectionMatrix(); };
+    }
+
+    if (camera.isOrthographicCamera) {
+      const saved = { left: camera.left, right: camera.right, top: camera.top, bottom: camera.bottom };
+      const halfH = (camera.top - camera.bottom) / 2;
+      const cx = (camera.left + camera.right) / 2;
+      camera.left = cx - halfH * aspect;
+      camera.right = cx + halfH * aspect;
+      camera.updateProjectionMatrix();
+      return () => { Object.assign(camera, saved); camera.updateProjectionMatrix(); };
+    }
+
+    return () => {};
   }
 
   captureShadedRender(sceneManager, camera, size = 512) {

@@ -3,6 +3,7 @@ const TYPE_CHECKS = {
   number: (v) => typeof v === 'number' && Number.isFinite(v),
   string: (v) => typeof v === 'string',
   boolean: (v) => typeof v === 'boolean',
+  object: (v) => v !== null && typeof v === 'object' && !Array.isArray(v),
   vec3: (v) => Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === 'number' && Number.isFinite(n)),
   'string[]': (v) => Array.isArray(v) && v.every((s) => typeof s === 'string'),
   'number[]': (v) => Array.isArray(v) && v.every((n) => typeof n === 'number' && Number.isFinite(n)),
