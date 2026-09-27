@@ -6,6 +6,8 @@ import { objectAddMeshSpec } from './commands/AgentAddMesh.js';
 import { objectTransformSpec } from './commands/AgentObjectTransform.js';
 import { editSelectSpec } from './commands/AgentSelection.js';
 import { editTransformSpec } from './commands/AgentEditTransform.js';
+import { editExtrudeSpec} from './commands/AgentEditExtrude.js';
+import { editLoopCutSpec } from './commands/AgentEditLoopCut.js';
 
 function defineModeCommand(registry, name, { prepare, run, ...spec }) {
   const mode = name.split('.')[0];
@@ -33,6 +35,8 @@ export function registerAgentCommands(registry) {
   defineModeCommand(registry, 'object.transform', objectTransformSpec);
   defineModeCommand(registry, 'edit.select', editSelectSpec);
   defineModeCommand(registry, 'edit.transform', editTransformSpec);
+  defineModeCommand(registry, 'edit.extrude', editExtrudeSpec);
+  defineModeCommand(registry, 'edit.loopCut', editLoopCutSpec);
 
   return registry;
 }
