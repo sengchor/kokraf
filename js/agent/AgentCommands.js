@@ -11,6 +11,8 @@ import { editExtrudeSpec} from './commands/AgentEditExtrude.js';
 import { editLoopCutSpec } from './commands/AgentEditLoopCut.js';
 import { editKnifeSpec } from './commands/AgentEditKnife.js';
 import { editInsetSpec } from './commands/AgentEditInset.js';
+import { editBevelSpec } from './commands/AgentEditBevel.js';
+import { editEdgeSlideSpec } from './commands/AgentEditEdgeSlide.js';
 
 function defineModeCommand(registry, name, { prepare, run, ...spec }) {
   const mode = name.split('.')[0];
@@ -43,6 +45,8 @@ export function registerAgentCommands(registry) {
   defineModeCommand(registry, 'edit.loopCut', editLoopCutSpec);
   defineModeCommand(registry, 'edit.knife', editKnifeSpec);
   defineModeCommand(registry, 'edit.inset', editInsetSpec);
+  defineModeCommand(registry, 'edit.bevel', editBevelSpec);
+  defineModeCommand(registry, 'edit.edgeSlide', editEdgeSlideSpec);
 
   return registry;
 }

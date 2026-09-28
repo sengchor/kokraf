@@ -20,9 +20,13 @@ export const editTransformSpec = {
   params: {
     target: { type: 'string', description: 'uuid or name of a mesh object.' },
     vertices: {
-      type: 'string|number[]',
+      anyOf: [
+        { type: 'string', enum: ['selected', 'all'] },
+        { type: 'array', items: { type: 'integer' } },
+      ],
       default: 'selected',
-      description: "'selected' (current edit selection), 'all', or an array of vertex ids.",
+      description:
+        "'selected' (current edit selection; the target must already be in Edit Mode), 'all', or an array of vertex ids.",
     },
     translate: { type: 'vec3', optional: true, description: '[x, y, z] offset in metres.' },
     rotate: { type: 'vec3', optional: true, description: '[x, y, z] Euler angles in DEGREES, XYZ order, about the pivot.' },

@@ -15,7 +15,10 @@ export const editInsetSpec = {
   params: {
     target: { type: 'string', description: 'uuid or name of a mesh object.' },
     faces: {
-      type: 'string|number[]',
+      anyOf: [
+        { type: 'string', enum: ['selected', 'all'] },
+        { type: 'array', items: { type: 'integer' } },
+      ],
       default: 'selected',
       description:
         "'selected' (current edit selection; the target must already be in Edit Mode), 'all', or an array of face ids.",

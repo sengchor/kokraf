@@ -122,7 +122,7 @@ export const resolveVertexIds = (editor, object, vertices, command) =>
   resolveElementIds(editor, object, vertices, 'vertex', command);
 
 export const resolveEdgeIds = (editor, object, edges, command) =>
-  resolveEdgeIds(editor, object, edges, 'edge', command);
+  resolveElementIds(editor, object, edges, 'edge', command);
 
 export const resolveFaceIds = (editor, object, faces, command) =>
   resolveElementIds(editor, object, faces, 'face', command);
