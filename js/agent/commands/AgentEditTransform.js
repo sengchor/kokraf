@@ -52,7 +52,7 @@ export const editTransformSpec = {
       throw new Error(`edit.transform: "${object.name || object.uuid}" is not an editable mesh.`);
     }
 
-    const vertexIds = resolveVertexIds(editor, object, vertices);
+    const vertexIds = resolveVertexIds(editor, object, vertices, 'edit.transform');
     if (!vertexIds.length) throw new Error('edit.transform: no vertices to transform.');
 
     return { modeTarget: object, object, vertexIds };

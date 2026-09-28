@@ -2,13 +2,15 @@ import * as THREE from 'three';
 import { MODES } from '../core/ModeManager.js';
 import { sceneOutlineSpec } from './commands/AgentSceneOutline.js';
 import { viewportCaptureSpec } from './commands/AgentViewportCapture.js';
+import { meshInspectSpec } from './commands/AgentMeshInspect.js';
 import { objectAddMeshSpec } from './commands/AgentAddMesh.js';
 import { objectTransformSpec } from './commands/AgentObjectTransform.js';
 import { editSelectSpec } from './commands/AgentSelection.js';
 import { editTransformSpec } from './commands/AgentEditTransform.js';
 import { editExtrudeSpec} from './commands/AgentEditExtrude.js';
 import { editLoopCutSpec } from './commands/AgentEditLoopCut.js';
-import { meshInspectSpec } from './commands/AgentMeshInspect.js';
+import { editKnifeSpec } from './commands/AgentEditKnife.js';
+import { editInsetSpec } from './commands/AgentEditInset.js';
 
 function defineModeCommand(registry, name, { prepare, run, ...spec }) {
   const mode = name.split('.')[0];
@@ -39,6 +41,8 @@ export function registerAgentCommands(registry) {
   defineModeCommand(registry, 'edit.transform', editTransformSpec);
   defineModeCommand(registry, 'edit.extrude', editExtrudeSpec);
   defineModeCommand(registry, 'edit.loopCut', editLoopCutSpec);
+  defineModeCommand(registry, 'edit.knife', editKnifeSpec);
+  defineModeCommand(registry, 'edit.inset', editInsetSpec);
 
   return registry;
 }

@@ -3,6 +3,8 @@ import { r, positionFromThree, rotationFromThree, scaleFromThree } from './Agent
 
 const label = (object) => object.name || object.uuid;
 
+const SELECTED_IDS = { vertex: 'selectedVertexIds', edge: 'selectedEdgeIds', face: 'selectedFaceIds' };
+
 function size(collection) {
   if (!collection) return 0;
   if (collection instanceof Map || collection instanceof Set) return collection.size;
@@ -94,22 +96,36 @@ export function resolveMeshTarget(editor, target, command) {
   return { object, meshData };
 }
 
-export function resolveVertexIds(editor, object, vertices) {
-  if (Array.isArray(vertices)) return vertices;
+export function resolveElementIds(editor, object, value, selectMode, command) {
+  const elements = elementsOf(object.userData.meshData, selectMode);
 
-  if (vertices === 'selected') {
+  if (value === 'selected') {
     if (editor.editSelection.editedObject !== object) {
-      throw new Error(`edit.transform: "selected" requires "${object.name || object.uuid}" to be in edit mode.`);
+      throw new Error(`${command}: "selected" requires "${label(object)}" to be in edit mode.`);
     }
-    return Array.from(editor.editSelection.selectedVertexIds);
+    return Array.from(editor.editSelection[SELECTED_IDS[selectMode]]);
   }
 
-  if (vertices === 'all') {
-    return Array.from(object.userData.meshData.vertices.keys());
+  if (value === 'all') return Array.from(elements.keys());
+
+  if (Array.isArray(value)) {
+    const ids = [...new Set(value)];
+    const missing = ids.filter(id => !Number.isInteger(id) || !elements.has(id));
+    if (missing.length) throw new Error(`${command}: ${selectMode} id(s) ${missing.join(', ')} do not exist. `);
+    return ids;
   }
 
-  throw new Error(`edit.transform: invalid vertices "${vertices}".`);
+  throw new Error(`${command}: expected 'selected', 'all', or an array of ${selectMode} ids, got ${JSON.stringify(value)}.`);
 }
+
+export const resolveVertexIds = (editor, object, vertices, command) =>
+  resolveElementIds(editor, object, vertices, 'vertex', command);
+
+export const resolveEdgeIds = (editor, object, edges, command) =>
+  resolveEdgeIds(editor, object, edges, 'edge', command);
+
+export const resolveFaceIds = (editor, object, faces, command) =>
+  resolveElementIds(editor, object, faces, 'face', command);
 
 // mesh data
 export const elementsOf = (meshData, selectMode) =>
