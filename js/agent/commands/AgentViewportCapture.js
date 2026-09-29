@@ -273,6 +273,13 @@ export const viewportCaptureSpec = {
 
     if (!blob) throw new Error('viewport.capture: the canvas produced no image.');
 
+    editor.agentCapture = {
+      width: w,
+      height: h,
+      camera: camera.clone(),
+      matrixWorld: camera.matrixWorld.clone(),
+    };
+
     const mimeType = blob.type || `image/${format}`;
     const data = await blobToBase64(blob);
 

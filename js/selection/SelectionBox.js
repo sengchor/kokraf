@@ -51,74 +51,69 @@ export class SelectionBox {
   computeFrustumFromSelection() {
     if (!this.hasValidArea()) return null;
 
-    const camera = this.cameraManager.camera;
     const rect = this.renderer.domElement.getBoundingClientRect();
+    const toNdc = (p) => [
+      ((p.x - rect.left) / rect.width) * 2 - 1,
+      -((p.y - rect.top) / rect.height) * 2 + 1,
+    ];
 
-    const x1 = (this.start.x - rect.left) / rect.width * 2 - 1;
-    const y1 = - (this.start.y - rect.top) / rect.height * 2 + 1;
+    const [x1, y1] = toNdc(this.start);
+    const [x2, y2] = toNdc(this.end);
 
-    const x2 = (this.end.x - rect.left) / rect.width * 2 - 1;
-    const y2 = - (this.end.y - rect.top) / rect.height * 2 + 1;
+    return this.computeFrustumFromNdc(
+      this.cameraManager.camera,
+      Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)
+    );
+  }
 
-    const minX = Math.min(x1, x2);
-    const maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2);
-    const maxY = Math.max(y1, y2);
-
+  computeFrustumFromNdc(camera, minX, minY, maxX, maxY) {
     const ndc = {
       near: [
         new THREE.Vector3(minX, minY, -1),
         new THREE.Vector3(minX, maxY, -1),
         new THREE.Vector3(maxX, maxY, -1),
-        new THREE.Vector3(maxX, minY, -1)
+        new THREE.Vector3(maxX, minY, -1),
       ],
       far: [
-        new THREE.Vector3(minX, minY,  1),
-        new THREE.Vector3(minX, maxY,  1),
-        new THREE.Vector3(maxX, maxY,  1),
-        new THREE.Vector3(maxX, minY,  1)
-      ]
+        new THREE.Vector3(minX, minY, 1),
+        new THREE.Vector3(minX, maxY, 1),
+        new THREE.Vector3(maxX, maxY, 1),
+        new THREE.Vector3(maxX, minY, 1),
+      ],
     };
 
-    const nearWorld = ndc.near.map(v => v.clone().unproject(camera));
-    const farWorld  = ndc.far.map(v => v.clone().unproject(camera));
+    const nearWorld = ndc.near.map((v) => v.clone().unproject(camera));
+    const farWorld = ndc.far.map((v) => v.clone().unproject(camera));
 
-    const centerNDC = new THREE.Vector3((minX + maxX) * 0.5, (minY + maxY) * 0.5, 0);
-    const centerWorld = centerNDC.clone().unproject(camera);
+    const centerWorld = new THREE.Vector3((minX + maxX) * 0.5, (minY + maxY) * 0.5, 0).unproject(camera);
 
-    // Side planes
     const planes = [];
 
     if (camera.isPerspectiveCamera) {
-      const camPos = new THREE.Vector3();
-      camera.getWorldPosition(camPos);
+      const camPos = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
 
-      const leftP   = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[1], nearWorld[0]);
-      const rightP  = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[3], nearWorld[2]);
-      const topP    = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[2], nearWorld[1]);
-      const bottomP = new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[0], nearWorld[3]);
-
-      planes.push(leftP, rightP, topP, bottomP);
+      planes.push(
+        new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[1], nearWorld[0]),
+        new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[3], nearWorld[2]),
+        new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[2], nearWorld[1]),
+        new THREE.Plane().setFromCoplanarPoints(camPos, nearWorld[0], nearWorld[3])
+      );
     } else {
-      const leftP = new THREE.Plane().setFromCoplanarPoints(nearWorld[0], nearWorld[1], farWorld[1]);
-      const rightP = new THREE.Plane().setFromCoplanarPoints(nearWorld[3], farWorld[3], farWorld[2]);
-      const topP = new THREE.Plane().setFromCoplanarPoints(nearWorld[1], nearWorld[2], farWorld[2]);
-      const bottomP = new THREE.Plane().setFromCoplanarPoints(nearWorld[0], farWorld[0], farWorld[3]);
-
-      planes.push(leftP, rightP, topP, bottomP);
+      planes.push(
+        new THREE.Plane().setFromCoplanarPoints(nearWorld[0], nearWorld[1], farWorld[1]),
+        new THREE.Plane().setFromCoplanarPoints(nearWorld[3], farWorld[3], farWorld[2]),
+        new THREE.Plane().setFromCoplanarPoints(nearWorld[1], nearWorld[2], farWorld[2]),
+        new THREE.Plane().setFromCoplanarPoints(nearWorld[0], farWorld[0], farWorld[3])
+      );
     }
 
-    // near and far planes use three points on the plane
-    const nearPlane = new THREE.Plane().setFromCoplanarPoints(nearWorld[0], nearWorld[1], nearWorld[2]);
-    const farPlane  = new THREE.Plane().setFromCoplanarPoints(farWorld[2], farWorld[1], farWorld[0]);
+    planes.push(
+      new THREE.Plane().setFromCoplanarPoints(nearWorld[0], nearWorld[1], nearWorld[2]),
+      new THREE.Plane().setFromCoplanarPoints(farWorld[2], farWorld[1], farWorld[0])
+    );
 
-    planes.push(nearPlane, farPlane);
-
-    // Ensure all plane normals point *into* the frustum (towards centerWorld)
-    for (const p of planes) {
-      if (p.distanceToPoint(centerWorld) < 0) {
-        p.negate();
-      }
+    for (const plane of planes) {
+      if (plane.distanceToPoint(centerWorld) < 0) plane.negate();
     }
 
     return new THREE.Frustum(...planes);
