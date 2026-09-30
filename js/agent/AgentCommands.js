@@ -7,6 +7,7 @@ import { objectPickSpec } from './commands/AgentObjectPick.js';
 import { objectSelectSpec } from './commands/AgentObjectSelection.js';
 import { objectAddMeshSpec } from './commands/AgentAddMesh.js';
 import { objectTransformSpec } from './commands/AgentObjectTransform.js';
+import { editPickSpec } from './commands/AgentEditPick.js';
 import { editSelectSpec } from './commands/AgentEditSelection.js';
 import { editTransformSpec } from './commands/AgentEditTransform.js';
 import { editExtrudeSpec} from './commands/AgentEditExtrude.js';
@@ -15,6 +16,7 @@ import { editKnifeSpec } from './commands/AgentEditKnife.js';
 import { editInsetSpec } from './commands/AgentEditInset.js';
 import { editBevelSpec } from './commands/AgentEditBevel.js';
 import { editEdgeSlideSpec } from './commands/AgentEditEdgeSlide.js';
+import { editSelectLinkedSpec } from './commands/AgentEditSelectLinked.js';
 
 function defineModeCommand(registry, name, { prepare, run, ...spec }) {
   const mode = name.split('.')[0];
@@ -43,7 +45,9 @@ export function registerAgentCommands(registry) {
   defineModeCommand(registry, 'object.select', objectSelectSpec);
   defineModeCommand(registry, 'object.addMesh', objectAddMeshSpec);
   defineModeCommand(registry, 'object.transform', objectTransformSpec);
+  defineModeCommand(registry, 'edit.pick', editPickSpec);
   defineModeCommand(registry, 'edit.select', editSelectSpec);
+  defineModeCommand(registry, 'edit.selectLinked', editSelectLinkedSpec);
   defineModeCommand(registry, 'edit.transform', editTransformSpec);
   defineModeCommand(registry, 'edit.extrude', editExtrudeSpec);
   defineModeCommand(registry, 'edit.loopCut', editLoopCutSpec);
