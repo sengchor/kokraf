@@ -3,6 +3,8 @@ import { MODES } from '../core/ModeManager.js';
 import { sceneOutlineSpec } from './commands/AgentSceneOutline.js';
 import { viewportCaptureSpec } from './commands/AgentViewportCapture.js';
 import { meshInspectSpec } from './commands/AgentMeshInspect.js';
+import { undoSpec } from './commands/AgentUndo.js';
+import { redoSpec } from './commands/AgentRedo.js';
 import { objectPickSpec } from './commands/AgentObjectPick.js';
 import { objectSelectSpec } from './commands/AgentObjectSelection.js';
 import { objectAddMeshSpec } from './commands/AgentAddMesh.js';
@@ -40,6 +42,8 @@ export function registerAgentCommands(registry) {
   registry.define('scene.outline', sceneOutlineSpec);
   registry.define('viewport.capture', viewportCaptureSpec);
   registry.define('mesh.inspect', meshInspectSpec);
+  registry.define('editor.undo', undoSpec);
+  registry.define('editor.redo', redoSpec);
 
   defineModeCommand(registry, 'object.pick', objectPickSpec);
   defineModeCommand(registry, 'object.select', objectSelectSpec);
