@@ -26,7 +26,7 @@ export class MenubarFile {
       this.openProject(editor);
     });
 
-    document.querySelector('.save').addEventListener('click', () => {
+    document.querySelector('.local-save').addEventListener('click', () => {
       this.saveProject(editor);
     });
 

@@ -31,7 +31,7 @@ export default class Menubar {
     this.loginButton = document.querySelector('.login-button');
     this.accountButton = document.querySelector('.account-button');
     this.cloudSaveButton = document.querySelector('.cloud-save-button');
-    this.projectsButton = document.querySelector('.projects-button');
+    this.agentButton = document.querySelector('.agent-button');
 
     this.loginPanel = new LoginPanel({ signals: this.signals });
     this.accountPanel = new AccountPanel({ signals: this.signals });
@@ -67,7 +67,7 @@ export default class Menubar {
         this.setSaveStatus(this.cloudSaveLabel, 'error');
       }
     }
-    this.projectsButton.onclick = () => {
+    this.agentButton.onclick = () => {
       if (!auth.isLoggedIn()) {
         this.signals.showLoginPanel.dispatch();
         return;

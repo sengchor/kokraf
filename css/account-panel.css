@@ -59,20 +59,43 @@
   word-break: break-all;
 }
 
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#account-projects,
 #account-logout {
   width: 100%;
   padding: 10px 0;
   border-radius: 3px;
-  border: 1px solid #111;
-  background-color: #111;
+  border: 1px solid #222;
+  background-color: #222;
   color: #fff;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
 
-#account-logout:hover {
+#account-projects {
+  border: 1px solid #222;
+  background-color: #222;
+  color: #fff;
+}
+
+#account-projects:hover {
   background-color: #000;
+}
+
+#account-logout {
+  border: 1px solid #e6e8eb;
+  background-color: #fff;
+  color: #222;
+}
+
+#account-logout:hover {
+  border-color: #111;
 }
 
 .account-close {

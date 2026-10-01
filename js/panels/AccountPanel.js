@@ -46,6 +46,7 @@ export class AccountPanel {
           </div>
 
           <div class="account-actions">
+            <button id="account-projects">My Projects</button>
             <button id="account-logout">Log Out</button>
           </div>
         </div>
@@ -65,6 +66,8 @@ export class AccountPanel {
     this.expiryLabel = document.getElementById('account-expiry-label');
     this.expiryDisplay = document.getElementById('account-expiry');
 
+    this.projectsBtn = document.getElementById('account-projects');
+
     this.logoutBtn = document.getElementById('account-logout');
 
     this.cancelBtn = document.getElementById('cancel-plan-btn');
@@ -74,6 +77,10 @@ export class AccountPanel {
     document
       .getElementById('account-close')
       .addEventListener('click', () => this.close());
+
+    this.projectsBtn.addEventListener('click', () => {
+      window.location.href = '/projects';
+    });
 
     this.logoutBtn.addEventListener('click', () => this.logout());
 

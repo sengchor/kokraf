@@ -164,7 +164,7 @@
 .login-button,
 .account-button,
 .cloud-save-button,
-.projects-button {
+.agent-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -183,53 +183,148 @@
 .login-button .label,
 .account-button .label,
 .cloud-save-button .label,
-.projects-button .label {
+.agent-button .label {
   white-space: nowrap;
   vertical-align: middle; 
 }
 
-.cloud-save-button {
-  background-color: #fd9f57;
+/* ───────── Agents button: oil slick ───────── */
+.agent-button {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: #3b2fd1;
+  background-image:
+    radial-gradient(120% 140% at 50% 50%, rgba(123, 44, 255, 1), transparent 55%),
+    radial-gradient(110% 130% at 50% 50%, rgba(0, 190, 175, 1), transparent 55%),
+    radial-gradient(90% 120% at 50% 50%, rgba(255, 150, 20, 0.95), transparent 55%),
+    radial-gradient(100% 120% at 50% 50%, rgba(225, 20, 140, 1), transparent 55%),
+    radial-gradient(100% 130% at 50% 50%, rgba(20, 200, 110, 0.9), transparent 55%);
+  background-size: 220% 220%, 240% 240%, 200% 200%, 260% 260%, 230% 230%;
+  background-repeat: no-repeat;
+  animation: oil-slick-swirl 24s linear infinite;
+  transition: filter 0.4s;
+  filter: saturate(1.5) brightness(1.2);
 }
 
-.cloud-save-button:hover {
-  background-color: #fc872d;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+/* Rotating thin-film rainbow layer */
+.agent-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 250%;
+  aspect-ratio: 1;
+  z-index: -1;
+  background: conic-gradient(
+    from 0deg,
+    #ff1f8e, #8a2be2, #1e6bff, #00c2b2, #3ddc63, #ffb21f, #ff1f8e
+  );
+  opacity: 0.7;
+  mix-blend-mode: overlay;
+  filter: blur(6px);
+  transform: translate(-50%, -50%) rotate(0deg);
+  will-change: transform, filter;
+  animation:
+    oil-slick-spin 22s linear infinite,
+    oil-slick-hue 30s linear infinite;
+  pointer-events: none;
 }
 
-.cloud-save-button .label {
-  color: #ffffff;
+/* Glossy sheen sweep */
+.agent-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 65%
+  );
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  mix-blend-mode: soft-light;
+  animation: oil-slick-sheen 10s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  pointer-events: none;
+}
+
+.agent-button .label {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(20, 0, 60, 0.6);
+}
+
+.agent-button:hover {
+  filter: saturate(1.2) brightness(1);
+}
+
+/* Each layer orbits the button; B and D run counter-clockwise */
+@keyframes oil-slick-swirl {
+  0%    { background-position: 90% 50%, 50% 90%, 10% 50%, 50% 10%, 78% 78%; }
+  12.5% { background-position: 78% 78%, 78% 78%, 22% 22%, 22% 22%, 50% 90%; }
+  25%   { background-position: 50% 90%, 90% 50%, 50% 10%, 10% 50%, 22% 78%; }
+  37.5% { background-position: 22% 78%, 78% 22%, 78% 22%, 22% 78%, 10% 50%; }
+  50%   { background-position: 10% 50%, 50% 10%, 90% 50%, 50% 90%, 22% 22%; }
+  62.5% { background-position: 22% 22%, 22% 22%, 78% 78%, 78% 78%, 50% 10%; }
+  75%   { background-position: 50% 10%, 10% 50%, 50% 90%, 90% 50%, 78% 22%; }
+  87.5% { background-position: 78% 22%, 22% 78%, 22% 78%, 78% 22%, 90% 50%; }
+  100%  { background-position: 90% 50%, 50% 90%, 10% 50%, 50% 10%, 78% 78%; }
+}
+
+@keyframes oil-slick-spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes oil-slick-hue {
+  from { filter: blur(6px) hue-rotate(0deg); }
+  to   { filter: blur(6px) hue-rotate(360deg); }
+}
+
+@keyframes oil-slick-sheen {
+  0%        { background-position: 150% 0; }
+  55%, 100% { background-position: -50% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-button,
+  .agent-button::before,
+  .agent-button::after {
+    animation: none;
+  }
 }
 
 .login-button:hover,
-.account-button:hover,
-.projects-button:hover {
+.cloud-save-button:hover,
+.account-button:hover {
   background-color: #f1f3f5;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .star {
-  width: 16px;
-  height: 16px;
-  margin-right: 6px;
-  flex-shrink: 0;
-  vertical-align: middle;
-}
-
-.cloud-icon {
   width: 18px;
   height: 18px;
   margin-right: 6px;
   flex-shrink: 0;
   vertical-align: middle;
-  opacity: 1;
+  opacity: 0.5;
 }
 
-.projects-icon {
-  width: 16px;
-  height: 16px;
+.cloud-icon {
+  width: 19px;
+  height: 19px;
   margin-right: 6px;
   flex-shrink: 0;
   vertical-align: middle;
   opacity: 0.5;
+}
+
+.agent-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  filter: brightness(0) invert(1);
+  opacity: 1;
 }
