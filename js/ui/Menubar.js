@@ -67,13 +67,10 @@ export default class Menubar {
         this.setSaveStatus(this.cloudSaveLabel, 'error');
       }
     }
-    this.agentButton.onclick = () => {
-      if (!auth.isLoggedIn()) {
-        this.signals.showLoginPanel.dispatch();
-        return;
-      }
-
-      window.location.href = '/projects';
+    this.agentButton.onclick = async () => {
+      await editor.sidebar.ready;
+      const open = editor.sidebar.agentPanel.toggle();
+      this.agentButton.classList.toggle('active', open);
     }
 
     auth.signals.login.add(() => {

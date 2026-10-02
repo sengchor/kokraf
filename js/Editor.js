@@ -253,9 +253,9 @@ export default class Editor {
     this.agent = registerAgentCommands(new CommandRegistry(this));
     window.agent = this.agent;
 
-    if (AgentBridge.shouldAutoStart()) {
-      this.agentBridge = new AgentBridge(this, this.agent).start();
-    }
+    // if (AgentBridge.shouldAutoStart()) {
+    //   this.agentBridge = new AgentBridge(this, this.agent).start();
+    // }
     
     this.setupListeners();
     this.animate();

@@ -1,9 +1,14 @@
 import { SidebarScene } from './Sidebar.Scene.js'
 import { SidebarProject } from './Sidebar.Project.js';
 import { SidebarSetting } from './Sidebar.Setting.js';
+import { AgentPanel } from '../panels/AgentPanel.js';
+import { CommandRegistry } from '../agent/CommandRegistry.js';
+import { registerAgentCommands } from '../agent/AgentCommands.js';
 
 export default class Sidebar {
   constructor( editor ) {
+    this.editor = editor;
+    this.signals = editor.signals;
     this.uiLoader = editor.uiLoader;
     this.panelResizer = editor.panelResizer;
     this.sidebarScene = null;
@@ -35,6 +40,15 @@ export default class Sidebar {
     this.sidebarScene = new SidebarScene(editor);
     this.sidebarProject = new SidebarProject(editor);
     this.sidebarSetting = new SidebarSetting(editor);
+
+    this.agent = registerAgentCommands(new CommandRegistry(this.editor));
+
+    this.agentPanel = new AgentPanel({
+      registry: this.agent,
+      signals: this.signals,
+      container: document.getElementById('agent-tab'),
+      tab: document.querySelector('.right-panel .tab[data-tab="agent"]'),
+    });
 
     this.panelResizer.initRightPanelResizer();
     requestAnimationFrame(() => this.panelResizer.onWindowResize());
