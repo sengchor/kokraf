@@ -1,6 +1,13 @@
 import { supabase } from '/supabase/supabase.js';
 import { buildTools, toToolResult } from './AgentTools.js';
 
+export const AGENT_MODELS = [
+  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
+  { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5'},
+  { id: 'claude-opus-5-5', label: 'Opus 5.5'},
+];
+export const DEFAULT_MODEL = 'claude-sonnet-5-5';
+
 export async function invokeAgent(body) {
   const { data, error } = await supabase.functions.invoke('ai-agent', { body });
   if (!error) return data;
@@ -12,8 +19,9 @@ export async function invokeAgent(body) {
 }
 
 export class AgentSession {
-  constructor({ registry, invoke = invokeAgent, onEvent = () => {} }) {
+  constructor({ registry, model = DEFAULT_MODEL, invoke = invokeAgent, onEvent = () => {} }) {
     this.registry = registry;
+    this.model = model;
     this.invoke = invoke;
     this.onEvent = onEvent;
 
@@ -38,12 +46,13 @@ export class AgentSession {
 
     this._appendUser([{ type: 'text', text }]);
     const startGen = this.generation;
+    const model = this.model;
     this.running = true;
     this.stopRequested = false;
     this.onEvent({ type: 'state', running: true });
 
     try {
-      await this._runAgentLoop(startGen);
+      await this._runAgentLoop(startGen, model);
     } catch (err) {
       if (this.generation === startGen) this.onEvent({ type: 'error', message: err.message, code: err.code });
     } finally {
@@ -53,13 +62,13 @@ export class AgentSession {
     }
   }
 
-  async _runAgentLoop(gen) {
+  async _runAgentLoop(gen, model) {
     // Rebuilt per message: commands can change between messages.
     const { tools, commandFor } = buildTools(this.registry);
 
     // The edge function enforces the step limit and answers 'step_limit'.
     for (;;) {
-      const { message, credits } = await this.invoke({ messages: this.messages, tools });
+      const { message, credits } = await this.invoke({ model, messages: this.messages, tools });
       if (gen !== this.generation) return;
 
       this.messages.push({ role: 'assistant', content: message.content });

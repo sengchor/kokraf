@@ -3,9 +3,13 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from "@supabase/supabase-js";
 
-const MODEL = 'claude-sonnet-5-5';
-const CREDITS_PER_MTOK_INPUT = 300;
-const CREDITS_PER_MTOK_OUTPUT = 1500;
+const MODELS: Record<string, { input: number; output: number }> = {
+  'claude-haiku-4-5-20251001': { input: 150, output: 750 },
+  'claude-sonnet-5-5': { input: 300, output: 1500 },
+  'claude-opus-5-5': { input: 600, output: 3000 },
+};
+const DEFAULT_MODEL = 'claude-sonnet-5-5';
+
 const MIN_BALANCE = 1;
 const MAX_TOKENS = 4096;
  
@@ -52,7 +56,6 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
  
-// `reason` matches the other Kokraf functions (create-project, consume-credits-*).
 const fail = (status: number, error: string, reason?: string, extra: Record<string, unknown> = {}) =>
   json({ error, reason, ...extra }, status);
  
@@ -147,23 +150,18 @@ function withCacheBreakpoint(messages: any[]) {
   return out;
 }
  
-function creditsFor(usage: Anthropic.Usage) {
+function creditsFor(rate: { input: number; output: number }, usage: Anthropic.Usage) {
   const input =
     usage.input_tokens +
     (usage.cache_creation_input_tokens ?? 0) * CACHE_WRITE_FACTOR +
     (usage.cache_read_input_tokens ?? 0) * CACHE_READ_FACTOR;
-  const credits = (input * CREDITS_PER_MTOK_INPUT + usage.output_tokens * CREDITS_PER_MTOK_OUTPUT) / 1_000_000;
+  const credits = (input * rate.input + usage.output_tokens * rate.output) / 1_000_000;
   return Math.max(1, Math.ceil(credits));
 }
  
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return fail(405, 'Use POST.');
- 
-  if (!(CREDITS_PER_MTOK_INPUT > 0) || !(CREDITS_PER_MTOK_OUTPUT > 0)) {
-    console.error('AGENT_CREDITS_PER_MTOK_INPUT / AGENT_CREDITS_PER_MTOK_OUTPUT are not set');
-    return fail(500, 'The agent is not configured yet.', 'not_configured');
-  }
  
   // Who is calling. The gateway already checked the JWT (verify_jwt = true);
   // this resolves it to a user id.
@@ -184,6 +182,12 @@ Deno.serve(async (req) => {
   } catch {
     return fail(400, 'Request body is not valid JSON.', 'bad_request');
   }
+
+  const model = body?.model ?? DEFAULT_MODEL;
+  if (typeof model !== 'string' || !Object.hasOwn(MODELS, model)) {
+    return fail(400, 'Unknown model.', 'model');
+  }
+  const rate = MODELS[model];
  
   const tools = cleanTools(body?.tools);
   const messages = body?.messages;
@@ -203,7 +207,8 @@ Deno.serve(async (req) => {
     console.error('balance lookup failed', balanceError);
     return fail(500, 'Could not check your credit balance.', 'balance_error');
   }
-  if (Number(balance) < MIN_BALANCE) {
+  const minBalance = Math.max(MIN_BALANCE, Math.ceil((MAX_TOKENS * rate.output) / 1_000_000));
+  if (Number(balance) < minBalance) {
     return fail(402, "You've reached your current credit limit.", 'no_credits', { balance: Number(balance) });
   }
  
@@ -211,7 +216,7 @@ Deno.serve(async (req) => {
   let message: Anthropic.Message;
   try {
     message = await anthropic.messages.create({
-      model: MODEL,
+      model,
       max_tokens: MAX_TOKENS,
       // One breakpoint here caches tools + system together, since tools come first.
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
@@ -232,11 +237,11 @@ Deno.serve(async (req) => {
   }
  
   // Charge for what was actually used.
-  const spent = creditsFor(message.usage);
+  const spent = creditsFor(rate, message.usage);
   const { data: newBalance, error: spendError } = await supabase.rpc('spend_agent_credits', {
     p_user: user.id,
     p_amount: spent,
-    p_model: MODEL,
+    p_model: model,
     p_usage: message.usage,
   });
   if (spendError) console.error('credit deduction failed', spendError); // still return the answer; it was paid for upstream

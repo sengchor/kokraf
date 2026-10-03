@@ -1,10 +1,25 @@
-import { AgentSession } from '../agent/hosted/AgentSession.js';
+import { AgentSession, AGENT_MODELS, DEFAULT_MODEL } from '../agent/hosted/AgentSession.js';
 import { toolNameFor } from '../agent/hosted/AgentTools.js';
 
 const EMPTY_HINT = 'Ask the agent to do something, like "Model a chair."';
 const RESULT_LIMIT = 4000;
 const STICK_THRESHOLD = 40;
 const CREDITS_TIL = 15000;
+
+const MODEL_STORAGE_KEY = 'kokraf.agent.model';
+
+function loadModel() {
+  try {
+    const id = localStorage.getItem(MODEL_STORAGE_KEY);
+    return AGENT_MODELS.some((m) => m.id === id) ? id : DEFAULT_MODEL;
+  } catch {
+    return DEFAULT_MODEL;
+  }
+}
+
+function saveModel(id) {
+  try { localStorage.setItem(MODEL_STORAGE_KEY, id); } catch {}
+}
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -26,7 +41,11 @@ export class AgentPanel {
     this.stickToBottom = true;
     this.creditsFetchedAt = 0;
 
-    this.session = new AgentSession({ registry, onEvent: (event) => this._onEvent(event) });
+    this.session = new AgentSession({
+      registry,
+      model: loadModel(),
+      onEvent: (event) => this._onEvent(event),
+    });
 
     this.root = this._build();
     this.container.appendChild(this.root);
@@ -113,10 +132,29 @@ export class AgentPanel {
         this._submit();
       }
     });
+
+    const footer = el('div', 'agent-panel__composer-footer');
+
+    this.modelSelect = el('select', 'agent-panel__model');
+    this.modelSelect.setAttribute('aria-label', 'Model');
+    for (const { id, label } of AGENT_MODELS) {
+      const option = el('option', null, label);
+      option.value = id;
+      this.modelSelect.append(option);
+    }
+    this.modelSelect.value = this.session.model;
+    this.modelSelect.addEventListener('change', () => {
+      this.session.model = this.modelSelect.value;
+      saveModel(this.modelSelect.value);
+      this.input.focus();
+    });
+
     this.sendButton = el('button', 'agent-panel__send', 'SEND');
     this.sendButton.type = 'button';
     this.sendButton.onclick = () => this._submit();
-    composer.append(this.input, this.sendButton);
+
+    footer.append(this.modelSelect, this.sendButton);
+    composer.append(this.input, footer);
 
     root.append(toolbar, this.log, composer);
     return root;

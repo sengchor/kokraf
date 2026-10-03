@@ -245,7 +245,8 @@
   cursor: default;
 }
 
-.agent-panel button:focus-visible {
+.agent-panel button:focus-visible,
+.agent-panel select:focus-visible {
   outline: 1px solid var(--agent-accent);
   outline-offset: 1px;
 }
@@ -258,6 +259,44 @@
 /* Tab and agents button while a run is in progress (seen from elsewhere). */
 .agent-tab--running {
   color: #08f;
+}
+
+.agent-panel__composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-panel__model {
+  appearance: none;
+  min-width: 0;
+  padding: 3.5px 24px 3.5px 10px;
+  background-color: #ddd;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  color: var(--agent-muted);
+  border: none;
+  border-radius: 0;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.agent-panel__model:hover {
+  background-color: var(--agent-surface);
+  color: #111;
+}
+
+.agent-panel__model:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.agent-panel__model:disabled:hover {
+  background-color: #ddd;
+  color: var(--agent-muted);
 }
 
 @keyframes agent-pulse {
