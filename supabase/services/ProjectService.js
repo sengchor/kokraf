@@ -159,8 +159,16 @@ export async function getUserProjectsCursor(limit, cursor = null) {
     .limit(limit);
 
   if (cursor) {
+    const isIsoDate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.test(cursor.updated_at);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cursor.id);
+    if (!isIsoDate || !isUuid) {
+      console.error('Invalid cursor values');
+      return [];
+    }
+    const safeUpdatedAt = cursor.updated_at;
+    const safeId = cursor.id;
     query = query.or(
-      `updated_at.lt.${cursor.updated_at},and(updated_at.eq.${cursor.updated_at},id.lt.${cursor.id})`
+      'updated_at.lt.' + safeUpdatedAt + ',and(updated_at.eq.' + safeUpdatedAt + ',id.lt.' + safeId + ')'
     );
   }
 
