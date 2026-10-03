@@ -1,9 +1,10 @@
 import { AgentSession } from '../agent/hosted/AgentSession.js';
 import { toolNameFor } from '../agent/hosted/AgentTools.js';
 
-const EMPTY_HINT = 'Describe a change to your scene, like "Add a cube and bevel its top edges."';
+const EMPTY_HINT = 'Ask the agent to do something, like "Model a chair."';
 const RESULT_LIMIT = 4000;
 const STICK_THRESHOLD = 40;
+const CREDITS_TIL = 15000;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -23,6 +24,7 @@ export class AgentPanel {
     this.tab = tab;
     this.toolRows = new Map();
     this.stickToBottom = true;
+    this.creditsFetchedAt = 0;
 
     this.session = new AgentSession({ registry, onEvent: (event) => this._onEvent(event) });
 
@@ -125,6 +127,7 @@ export class AgentPanel {
       if (this.stickToBottom) this.log.scrollTop = this.log.scrollHeight;
       this.input.focus();
     });
+    this._refreshCredits();
   }
 
   _submit(text = this.input.value) {
@@ -263,5 +266,17 @@ export class AgentPanel {
     this.empty.remove();
     this.log.append(node);
     if (this.stickToBottom) this.log.scrollTop = this.log.scrollHeight;
+  }
+
+  async _refreshCredits() {
+    if (this.session.running) return;
+    if (Date.now() - this.creditsFetchedAt < CREDITS_TIL) return;
+
+    this.creditsFetchedAtAt = Date.now();
+    try {
+      await this.session.fetchCredits();
+    } catch {
+      this.creditsFetchedAt = 0;
+    }
   }
 }

@@ -5,8 +5,6 @@ export async function invokeAgent(body) {
   const { data, error } = await supabase.functions.invoke('ai-agent', { body });
   if (!error) return data;
 
-  // Same pattern as createProject: the Response is in error.context, and the
-  // function answers with { error, reason }.
   const detail = await error.context?.json?.().catch(() => null);
   const err = new Error(detail?.error ?? 'Could not reach the agent. Check your connection and try again.');
   err.code = detail?.reason ?? 'network';
@@ -22,8 +20,6 @@ export class AgentSession {
     this.messages = [];
     this.running = false;
     this.stopRequested = false;
-    // Bumped by reset(), so a loop still in flight from the old chat
-    // drops its results instead of writing them into the new one.
     this.generation = 0;
   }
 
@@ -47,7 +43,7 @@ export class AgentSession {
     this.onEvent({ type: 'state', running: true });
 
     try {
-      await this._loop(startGen);
+      await this._runAgentLoop(startGen);
     } catch (err) {
       if (this.generation === startGen) this.onEvent({ type: 'error', message: err.message, code: err.code });
     } finally {
@@ -57,7 +53,7 @@ export class AgentSession {
     }
   }
 
-  async _loop(gen) {
+  async _runAgentLoop(gen) {
     // Rebuilt per message: commands can change between messages.
     const { tools, commandFor } = buildTools(this.registry);
 
@@ -111,7 +107,7 @@ export class AgentSession {
 
     try {
       const raw = await this.registry.execute(command, call.input ?? {});
-      const result = JSON.parse(JSON.stringify(raw ?? null)); // same as AgentBridge._sanitize
+      const result = JSON.parse(JSON.stringify(raw ?? null));
       this.onEvent({ type: 'tool_result', id: call.id, ok: true, result });
       return toToolResult(call.id, result);
     } catch (err) {
@@ -131,5 +127,19 @@ export class AgentSession {
     } else {
       this.messages.push({ role: 'user', content: blocks });
     }
+  }
+
+  async fetchCredits() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('id', session.user.id)
+      .single();
+
+    if (error) throw error;
+    this.onEvent({ type: 'credits', balance: data.credits });
   }
 }

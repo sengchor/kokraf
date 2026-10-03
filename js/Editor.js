@@ -250,10 +250,10 @@ export default class Editor {
 
     this.renderer.applyConfig();
 
-    // this.agent = registerAgentCommands(new CommandRegistry(this));
-    // if (AgentBridge.shouldAutoStart()) {
-    //   this.agentBridge = new AgentBridge(this, this.agent).start();
-    // }
+    // Local Agent
+    this.agent = registerAgentCommands(new CommandRegistry(this));
+    this.agentBridge = new AgentBridge(this, this.agent);
+    this.agentBridge.setEnabled(false);
     
     this.setupListeners();
     this.animate();

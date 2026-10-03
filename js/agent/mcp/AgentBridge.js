@@ -16,7 +16,7 @@ export class AgentBridge {
     this.status = 'idle';
     this.retryDelay = MIN_RETRY;
     this.retryTimer = null;
-    this.stopped = false;
+    this.stopped = true;
     this.loggedFailure = false;
 
     this._queue = Promise.resolve();
@@ -24,11 +24,20 @@ export class AgentBridge {
     this._badge = null;
   }
 
-  static shouldAutoStart() {
-    const flag = localStorage.getItem('kokraf.agent');
-    if (flag === 'on') return true;
-    if (flag === 'off') return false;
-    return ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  isEnabled() {
+    return !this.stopped;
+  }
+
+  setEnabled(enabled) {
+    if (enabled === this.isEnabled()) return;
+
+    if (enabled) {
+      this.retryDelay = MIN_RETRY;
+      this.loggedFailure = false;
+      this.start();
+    } else {
+      this.stop();
+    }
   }
 
   start() {
