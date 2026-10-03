@@ -3,7 +3,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { EditorBridge } from './bridge.js';
+import { EditorBridge } from './editor-bridge.js';
 import { PeerHub, PeerClient, isAddrInUse } from './peer.js';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';

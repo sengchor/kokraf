@@ -1,5 +1,5 @@
-import { AgentSession } from '../agent/AgentSession.js';
-import { toolNameFor } from '../agent/AgentTools.js';
+import { AgentSession } from '../agent/hosted/AgentSession.js';
+import { toolNameFor } from '../agent/hosted/AgentTools.js';
 
 const EMPTY_HINT = 'Describe a change to your scene, like "Add a cube and bevel its top edges."';
 const RESULT_LIMIT = 4000;
