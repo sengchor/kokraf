@@ -17,7 +17,7 @@ body {
 .page-content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 60px 20px 0;
+  padding: 30px 20px 0;
 }
 
 /* Header */
@@ -43,7 +43,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: stretch;
-  gap: 32px;
+  gap: 30px;
   max-width: 900px;
   margin: 0 auto;
   position: relative;
@@ -55,7 +55,7 @@ body {
   background: #ffffff;
   border-radius: 14px;
   padding: 28px 26px 30px;
-  width: 320px;
+  width: 350px;
   border: 1px solid #e6e8eb;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
   display: flex;

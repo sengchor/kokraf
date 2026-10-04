@@ -132,7 +132,7 @@ async function handleTransactionCompleted(
       .update({
         subscription_status: "active",
         subscription_ends_at: payload.data.billing_period?.ends_at ?? null,
-        credits: 600
+        credits: 1200
       })
       .eq("id", userId);
 
@@ -174,7 +174,7 @@ async function handleTransactionCompleted(
       subscription_ends_at: payload.data.billing_period?.ends_at ?? null,
       subscription_status: "active",
       subscription_cancels_at: null,
-      ...(plan === "pro" && { credits: 600 })
+      ...(plan === "pro" && { credits: 1200 })
     })
     .eq("id", userId);
 
