@@ -242,7 +242,7 @@ select:focus {
 .action-button {
   display: block;
   font-size: 13px;
-  color: #888;
+  color: #555;
   background-color: #ddd;
   width: 170px;
   border: none;

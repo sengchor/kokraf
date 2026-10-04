@@ -121,6 +121,10 @@ export class AgentPanel {
     this.empty = el('p', 'agent-panel__empty', EMPTY_HINT);
     this.log.append(this.empty);
 
+    this.thinking = el('div', 'agent-thinking');
+    this.thinking.setAttribute('aria-label', 'Thinking');
+    this.thinking.append(el('span', 'agent-thinking__dot'));
+
     const composer = el('div', 'agent-panel__composer');
     this.input = el('textarea', 'agent-panel__input');
     this.input.rows = 3;
@@ -192,9 +196,11 @@ export class AgentPanel {
         this.sendButton.disabled = false;
         this.root.classList.toggle('is-running', event.running);
         this.tab.classList.toggle('agent-tab--running', event.running);
+        event.running ? this._showThinking() : this._hideThinking();
         break;
 
       case 'assistant':
+        this._hideThinking();
         for (const block of event.content) {
           if (block.type === 'text' && block.text.trim()) {
             this._append(el('div', 'agent-msg agent-msg--assistant', block.text));
@@ -206,6 +212,7 @@ export class AgentPanel {
 
       case 'tool_result':
         this._finishToolRow(event.id, event.ok, event.result);
+        if (this.session.running && !this._hasPendingTools()) this._showThinking();
         break;
 
       case 'credits':
@@ -219,6 +226,7 @@ export class AgentPanel {
         break;
 
       case 'error':
+        this._hideThinking();
         if (event.code === 'step_limit') this._appendStepLimit(event.message);
         else this._appendError(event);
         break;
@@ -281,7 +289,7 @@ export class AgentPanel {
     };
 
     if (code === 'no_credits') {
-      action('BUY CREDITS', () => this.signals.showAccountPanel.dispatch());
+      action('BUY CREDITS', () => window.open('/pricing', '_blank', 'noopener'));
     } else if (code === 'unauthenticated') {
       action('SIGN IN', () => this.signals.showLoginPanel.dispatch());
     } else if (code === 'too_large' || code === 'invalid_conversation') {
@@ -300,9 +308,27 @@ export class AgentPanel {
     return this.log.scrollHeight - this.log.scrollTop - this.log.clientHeight < STICK_THRESHOLD;
   }
 
+  _showThinking() {
+    this.empty.remove();
+    this.log.append(this.thinking);
+    if (this.stickToBottom) this.log.scrollTop = this.log.scrollHeight;
+  }
+
+  _hideThinking() {
+    this.thinking.remove();
+  }
+
+  _hasPendingTools() {
+    for (const row of this.toolRows.values()) {
+      if (row.classList.contains('is-pending')) return true;
+    }
+    return false;
+  }
+
   _append(node) {
     this.empty.remove();
-    this.log.append(node);
+    if (this.thinking.isConnected) this.log.insertBefore(node, this.thinking);
+    else this.log.append(node);
     if (this.stickToBottom) this.log.scrollTop = this.log.scrollHeight;
   }
 
