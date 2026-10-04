@@ -7,6 +7,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const PADDLE_WEBHOOK_SECRET = Deno.env.get("PADDLE_WEBHOOK_SECRET")!;
 
+const CREDIT_PACK_PRICE_ID = "pri_01m43abjm7tcd2t867vbtcx5ax";
+const CREDITS_PER_PACK = 1000;
+
 console.log("Paddle Webhook Function running...");
 
 function parsePaddleSignature(header: string) {
@@ -120,6 +123,21 @@ async function handleTransactionCompleted(
   if (!userId) {
     console.error("Missing supabase_user_id in custom_data");
     return new Response("Missing user ID", { status: 400 });
+  }
+
+  // Credit pack (one-time): must run before the subscription logic
+  const items = payload.data.items ?? [];
+  const creditPackQty = items
+    .filter((item: any) => item.price?.id === CREDIT_PACK_PRICE_ID)
+    .reduce((sum: number, item: any) => sum + (item.quantity ?? 0), 0);
+
+  if (creditPackQty > 0) {
+    return await handleCreditPackPurchase(
+      userId,
+      creditPackQty,
+      payload.data.id,
+      supabase
+    );
   }
 
   const isRecurring =
@@ -247,4 +265,51 @@ async function handleSubscriptionUpdated(
   // Ignore other statuses safely
   console.log(`Unhandled subscription status: ${status}`);
   return null;
+}
+
+async function handleCreditPackPurchase(
+  userId: string,
+  quantity: number,
+  transactionId: string,
+  supabase: SupabaseClient
+): Promise<Response | null> {
+  const credits = quantity * CREDITS_PER_PACK;
+
+  // Retry a few times in case the balance changes between read and write
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: profile, error: readError } = await supabase
+      .from("profiles")
+      .select("purchased_credits")
+      .eq("id", userId)
+      .single();
+
+    if (readError || !profile) {
+      console.error("Failed to read profile:", readError);
+      return new Response("Database error", { status: 500 });
+    }
+
+    const current = profile.purchased_credits;
+
+    const { data: updated, error: updateError } = await supabase
+      .from("profiles")
+      .update({ purchased_credits: current + credits })
+      .eq("id", userId)
+      .eq("purchased_credits", current)
+      .select("id");
+
+    if (updateError) {
+      console.error("Credit pack update failed:", updateError);
+      return new Response("Database error", { status: 500 });
+    }
+
+    if (updated && updated.length > 0) {
+      console.log(
+        `Granted ${credits} purchased credits to ${userId} (${quantity} pack(s), ${transactionId})`
+      );
+      return null;
+    }
+  }
+
+  console.error(`Credit pack grant conflicted repeatedly for ${userId} (${transactionId})`);
+  return new Response("Conflict, please retry", { status: 500 });
 }

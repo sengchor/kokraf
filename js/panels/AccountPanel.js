@@ -107,6 +107,7 @@ export class AccountPanel {
       .from('profiles')
       .select(`
         credits,
+        purchased_credits,
         plan,
         subscription_starts_at,
         subscription_ends_at,
@@ -149,14 +150,22 @@ export class AccountPanel {
     window.location.reload();
   }
 
+  renderCredits(profile) {
+    const monthly = profile.credits ?? 0;
+    const purchased = profile.purchased_credits ?? 0;
+
+    this.usageDisplay.textContent = (monthly + purchased).toLocaleString();
+
+    this.usageLabel.textContent = 'Credits remaining';
+  }
+
   renderPlan(profile) {
     const status = profile.subscription_status;
 
+    this.renderCredits(profile);
+
     if (profile.plan === 'pro') {
       // Pro plan
-      this.usageDisplay.textContent = profile.credits ?? 'Null';
-      this.usageLabel.textContent = 'Credits remaining';
-
       this.planDisplay.textContent = 'Pro';
       this.planDisplay.classList.add('pro');
 
@@ -188,9 +197,6 @@ export class AccountPanel {
       }
     } else {
       // Free plan
-      this.usageDisplay.textContent = profile.credits ?? 'Null';
-      this.usageLabel.textContent = 'Credits remaining';
-
       this.planDisplay.textContent = 'Free';
       this.planDisplay.classList.remove('pro');
 

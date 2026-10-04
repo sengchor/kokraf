@@ -180,11 +180,20 @@ export class AgentSession {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('credits')
+      .select('credits, purchased_credits')
       .eq('id', session.user.id)
       .single();
 
     if (error) throw error;
-    this.onEvent({ type: 'credits', balance: data.credits });
+
+    const monthly = data.credits ?? 0;
+    const purchased = data.purchased_credits ?? 0;
+
+    this.onEvent({
+      type: 'credits',
+      balance: monthly + purchased,
+      monthly,
+      purchased
+    });
   }
 }

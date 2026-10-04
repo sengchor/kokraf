@@ -44,7 +44,7 @@ export async function consumeCredits(req: Request, costMap: CostMap) {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("plan, credits")
+    .select("plan, credits, purchased_credits")
     .eq("id", user.id)
     .single();
 
@@ -64,19 +64,34 @@ export async function consumeCredits(req: Request, costMap: CostMap) {
     };
   }
 
-  if (profile.credits < cost) {
+  const monthly = profile.credits ?? 0;
+  const purchased = profile.purchased_credits ?? 0;
+
+  if (monthly + purchased < cost) {
     return new Response(JSON.stringify({ allowed: false, reason: "no_credits" }), {
       status: 403,
       headers: corsHeaders,
     });
   }
 
-  const { data, error: updateError } = await supabase
+  // Monthly credits first, then purchased credits for the remainder
+  const fromMonthly = Math.min(cost, monthly);
+  const fromPurchased = cost - fromMonthly;
+
+  let query = supabase
     .from("profiles")
-    .update({ credits: profile.credits - cost })
+    .update({
+      credits: monthly - fromMonthly,
+      purchased_credits: purchased - fromPurchased,
+    })
     .eq("id", user.id)
-    .eq("credits", profile.credits)
-    .select();
+    .eq("purchased_credits", purchased);
+
+  query = profile.credits === null
+    ? query.is("credits", null)
+    : query.eq("credits", profile.credits);
+
+  const { data, error: updateError } = await query.select();
 
   if (!data || data.length === 0 || updateError) {
     return new Response(JSON.stringify({ allowed: false, reason: "race_condition" }), {
