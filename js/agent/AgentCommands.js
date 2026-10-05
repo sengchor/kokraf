@@ -19,6 +19,7 @@ import { objectCopySpec, objectPasteSpec } from './commands/AgentObjectClipboard
 import { objectDeleteSpec } from './commands/AgentObjectDelete.js';
 import { objectShadingSpec } from './commands/AgentObjectShading.js';
 import { objectHideSpec, objectUnhideSpec } from './commands/AgentObjectVisibility.js';
+import { objectUnionSpec, objectDifferenceSpec, objectIntersectSpec } from './commands/AgentObjectBoolean.js';
 import { editPickSpec } from './commands/AgentEditPick.js';
 import { editSelectSpec } from './commands/AgentEditSelection.js';
 import { editTransformSpec } from './commands/AgentEditTransform.js';
@@ -80,6 +81,9 @@ export function registerAgentCommands(registry) {
   defineModeCommand(registry, 'object.shading', objectShadingSpec);
   defineModeCommand(registry, 'object.hide', objectHideSpec);
   defineModeCommand(registry, 'object.unhide', objectUnhideSpec);
+  defineModeCommand(registry, 'object.union', objectUnionSpec);
+  defineModeCommand(registry, 'object.difference', objectDifferenceSpec);
+  defineModeCommand(registry, 'object.intersect', objectIntersectSpec);
 
   defineModeCommand(registry, 'edit.pick', editPickSpec);
   defineModeCommand(registry, 'edit.select', editSelectSpec);
