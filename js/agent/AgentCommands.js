@@ -29,6 +29,15 @@ import { editInsetSpec } from './commands/AgentEditInset.js';
 import { editBevelSpec } from './commands/AgentEditBevel.js';
 import { editEdgeSlideSpec } from './commands/AgentEditEdgeSlide.js';
 import { editSelectLinkedSpec } from './commands/AgentEditSelectLinked.js';
+import { editSubdivideSpec } from './commands/AgentEditSubdivide.js';
+import { editDuplicateSpec } from './commands/AgentEditDuplicate.js';
+import { editCreateEdgeFaceSpec } from './commands/AgentEditCreateEdgeFace.js';
+import { editBridgeSpec } from './commands/AgentEditBridge.js';
+import { editSplitSpec } from './commands/AgentEditSplit.js';
+import { editSeparateSpec } from './commands/AgentEditSeparate.js';
+import { editFlipNormalsSpec } from './commands/AgentEditFlipNormals.js';
+import { editMergeSpec } from './commands/AgentEditMerge.js';
+import { editDeleteSpec, editDissolveSpec } from './commands/AgentEditDelete.js';
 
 function defineModeCommand(registry, name, { prepare, run, ...spec }) {
   const mode = name.split('.')[0];
@@ -82,6 +91,16 @@ export function registerAgentCommands(registry) {
   defineModeCommand(registry, 'edit.inset', editInsetSpec);
   defineModeCommand(registry, 'edit.bevel', editBevelSpec);
   defineModeCommand(registry, 'edit.edgeSlide', editEdgeSlideSpec);
+  defineModeCommand(registry, 'edit.subdivide', editSubdivideSpec);
+  defineModeCommand(registry, 'edit.duplicate', editDuplicateSpec);
+  defineModeCommand(registry, 'edit.createEdgeFace', editCreateEdgeFaceSpec);
+  defineModeCommand(registry, 'edit.bridge', editBridgeSpec);
+  defineModeCommand(registry, 'edit.split', editSplitSpec);
+  defineModeCommand(registry, 'edit.separate', editSeparateSpec);
+  defineModeCommand(registry, 'edit.flipNormals', editFlipNormalsSpec);
+  defineModeCommand(registry, 'edit.merge', editMergeSpec);
+  defineModeCommand(registry, 'edit.delete', editDeleteSpec);
+  defineModeCommand(registry, 'edit.dissolve', editDissolveSpec);
 
   return registry;
 }

@@ -254,10 +254,10 @@ export class VertexBridge {
         const p1 = meshData.vertices.get(vertexIds[i]).position;
         const p2 = meshData.vertices.get(vertexIds[(i + 1) % n]).position;
 
-        const u1 = p1.dot(tangent);
-        const v1 = p1.dot(bitangent);
-        const u2 = p2.dot(tangent);
-        const v2 = p2.dot(bitangent);
+        const u1 = tangent.dot(p1);
+        const v1 = bitangent.dot(p1);
+        const u2 = tangent.dot(p2);
+        const v2 = bitangent.dot(p2);
 
         signedArea += (u1 * v2 - u2 * v1);
       }
@@ -441,8 +441,8 @@ export class VertexBridge {
     const mapA = resample(loopA.vertices.length, n);
     const mapB = resample(loopB.vertices.length, n);
 
-    const posA = mapA.map(i => meshData.getVertex(loopA.vertices[i]).position.clone());
-    const posB = mapB.map(i => meshData.getVertex(loopB.vertices[i]).position.clone());
+const posA = mapA.map(i => new THREE.Vector3().copy(meshData.getVertex(loopA.vertices[i]).position));
+const posB = mapB.map(i => new THREE.Vector3().copy(meshData.getVertex(loopB.vertices[i]).position));
 
     const normalA = this.computeLoopNormal(loopA.vertices) || new THREE.Vector3(0, 1, 0);
     const normalB = this.computeLoopNormal(loopB.vertices) || new THREE.Vector3(0, -1, 0);
