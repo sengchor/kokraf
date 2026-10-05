@@ -41,6 +41,8 @@ async function loadPage(page) {
       return;
     }
 
+    if (!/^[a-zA-Z0-9_-]+$/.test(page)) throw new Error('Invalid page name');
+
     const response = await fetch(`./${page}.html`);
     if (!response.ok) throw new Error('Page not found');
     content.innerHTML = await response.text();
