@@ -237,7 +237,7 @@ export class ClipboardManager {
   _saveToStorage(payload) {
     try {
       localStorage.setItem(
-        this.STORAGE_KEY,
+        ClipboardManager.STORAGE_KEY,
         JSON.stringify(payload)
       );
     } catch (e) {
@@ -247,7 +247,7 @@ export class ClipboardManager {
 
   _loadFromStorage() {
     try {
-      const raw = localStorage.getItem(this.STORAGE_KEY);
+      const raw = localStorage.getItem(ClipboardManager.STORAGE_KEY);
       if (!raw) return null;
 
       const parsed = JSON.parse(raw);

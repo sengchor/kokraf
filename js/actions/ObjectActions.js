@@ -28,7 +28,7 @@ export class ObjectActions {
       'apply-location': () => this.applyLocationToObjects(),
       'apply-rotation': () => this.applyRotationToObjects(),
       'apply-scale': () => this.applyScaleToObjects(),
-      'apply-transform': () => this.applyLocationToObjects(),
+      'apply-transform': () => this.applyTransformToObjects(),
       'duplicate-object': () => this.duplicateSelectedObjects(),
       'join-object': () => this.joinSelectedObjects(),
       'copy-objects': () => this.copyObjects(),
