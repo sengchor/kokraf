@@ -21,6 +21,27 @@ export class ObjectActions {
     this.objectEditor = editor.objectEditor;
     this.clipboardManager = editor.clipboardManager;
 
+    this.actions = {
+      'center-object': () => this.centerSelectedObjects(),
+      'geometry-origin': () => this.setGeometryToOrigin(),
+      'origin-geometry': () => this.setOriginToGeometry(),
+      'apply-location': () => this.applyLocationToObjects(),
+      'apply-rotation': () => this.applyRotationToObjects(),
+      'apply-scale': () => this.applyScaleToObjects(),
+      'apply-transform': () => this.applyLocationToObjects(),
+      'duplicate-object': () => this.duplicateSelectedObjects(),
+      'join-object': () => this.joinSelectedObjects(),
+      'copy-objects': () => this.copyObjects(),
+      'paste-objects': () => this.pasteObjects(),
+      'delete-object': () => this.deleteSelectedObjects(),
+      'shade-smooth': () => this.setShading('smooth'),
+      'shade-flat': () => this.setShading('flat'),
+      'shade-auto': () => this.setShading('flat'),
+      'hide-selected': () => this.hideSelectedObjects(),
+      'hide-unselected': () => this.hideUnselectedObjects(),
+      'unhide-all': () => this.unhideAllObjects(),
+    };
+
     this.setupListeners();
   }
 
@@ -37,102 +58,26 @@ export class ObjectActions {
   }
 
   handleAction(action) {
-    if (action === 'center-object') {
-      this.centerSelectedObjects();
+    const handler = this.actions[action];
+    if (!handler) {
+      console.warn('Invalid action:', action);
       return;
     }
+    handler();
+  }
 
-    if (action === 'geometry-origin') {
-      this.setGeometryToOrigin();
-      return;
+  setShading(shading) {
+    const objects = this.selection.selectedObjects
+      .filter(object => object?.isMesh && !object.userData?.isImageRef);
+    if (!objects || objects.length === 0) return;
+
+    const multi = new SequentialMultiCommand(this.editor, `Shade ${shading}`);
+
+    for (const obj of objects) {
+      multi.add(() => new SetShadingCommand(this.editor, obj, shading, obj.userData.shading));
     }
 
-    if (action === 'origin-geometry') {
-      this.setOriginToGeometry();
-      return;
-    }
-
-    if (action === 'apply-location') {
-      this.applyLocationToObjects();
-      return;
-    }
-
-    if (action === 'apply-rotation') {
-      this.applyRotationToObjects();
-      return;
-    }
-
-    if (action === 'apply-scale') {
-      this.applyScaleToObjects();
-      return;
-    }
-
-    if (action === 'apply-transform') {
-      this.applyTransformToObjects();
-      return;
-    }
-
-    if (action === 'duplicate-object') {
-      this.duplicateSelectedObjects();
-      return;
-    }
-
-    if (action === 'join-object') {
-      this.joinSelectedObjects();
-      return;
-    }
-
-    if (action === 'copy-objects') {
-      this.copyObjects();
-      return;
-    }
-
-    if (action === 'paste-objects') {
-      this.pasteObjects();
-      return;
-    }
-
-    if (action === 'delete-object') {
-      this.deleteSelectedObjects();
-      return;
-    }
-
-    if (action === 'shade-smooth' || action === 'shade-flat' || action === 'shade-auto') {
-      const objects = this.selection.selectedObjects
-        .filter(object => object?.isMesh && !object.userData?.isImageRef);
-      if (!objects || objects.length === 0) return;
-
-      objects.forEach(obj => {
-        if (!(obj instanceof THREE.Mesh)) return;
-
-        const currentShading = obj.userData.shading;
-        if (action === 'shade-smooth' && currentShading !== 'smooth') {
-          this.editor.execute(new SetShadingCommand(this.editor, obj, 'smooth', currentShading));
-        } else if (action === 'shade-flat' && currentShading !== 'flat') {
-          this.editor.execute(new SetShadingCommand(this.editor, obj, 'flat', currentShading));
-        } else if (action === 'shade-auto' && currentShading !== 'auto') {
-          this.editor.execute(new SetShadingCommand(this.editor, obj, 'auto', currentShading));
-        }
-      });
-      return;
-    }
-
-    if (action === 'hide-selected') {
-      this.hideSelectedObjects();
-      return;
-    }
-
-    if (action === 'hide-unselected') {
-      this.hideUnselectedObjects();
-      return;
-    }
-
-    if (action === 'unhide-all') {
-      this.unhideAllObjects();
-      return;
-    }
-
-    console.log('Invalid action:', action);
+    this.editor.execute(multi);
   }
 
   deleteSelectedObjects() {
@@ -189,7 +134,7 @@ export class ObjectActions {
       .filter(object => object?.isMesh && !object.userData?.isImageRef);
     if (!objects || objects.length === 0) return;
 
-    const multi = new SequentialMultiCommand(this.editor, 'Origin to Geometry');
+    const multi = new SequentialMultiCommand(this.editor, 'Geometry to Origin');
 
     for (const object of objects) {
       multi.add(() => new SetGeometryToOriginCommand(this.editor, object));

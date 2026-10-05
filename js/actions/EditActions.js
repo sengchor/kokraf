@@ -25,84 +25,31 @@ export class EditActions {
     const operatorPanelContainer = document.getElementById('operator-panel-container');
     this.operatorPanel = new OperatorPanel(editor, operatorPanelContainer);
 
+    this.actions = {
+      'subdivide-selection': () => this.signals.subdivideSelection.dispatch(),
+      'duplicate-selection': () => {
+        this.editor.toolbar.setActiveTool('select');
+        this.signals.duplicateSelection.dispatch();
+      },
+      'create-edge-face': () => this.signals.createElementFromVertices.dispatch(),
+      'bridge-selection': () => this.signals.bridgeSelection.dispatch(),
+      'split-selection': () => this.signals.splitSelection.dispatch(),
+      'separate-selection': () => this.signals.separateSelection.dispatch(),
+      'select-all': () => this.signals.editSelectAll.dispatch(),
+      'select-none': () => this.signals.editSelectNone.dispatch(),
+      'select-linked': () => this.signals.editSelectLinked.dispatch(),
+      'select-rings': () => this.signals.editSelectRings.dispatch(),
+      'select-loops': () => this.signals.editSelectLoops.dispatch(),
+      'flip-normals': () => this.signals.editFlipNormals.dispatch(),
+    };
+
+    this.prefixActions = [
+      ['merge-', (action) => this.signals.mergeSelection.dispatch(action)],
+      ['delete-', (action) => this.signals.deleteSelectedFaces.dispatch(action)],
+      ['dissolve-', (action) => this.signals.deleteSelectedFaces.dispatch(action)],
+    ];
+
     this.setupListeners();
-  }
-
-  handleAction(action) {
-    if (!action) return;
-    
-    if (action === 'subdivide-selection') {
-      this.signals.subdivideSelection.dispatch();
-      return;
-    }
-
-    if (action === 'duplicate-selection') {
-      this.editor.toolbar.setActiveTool('select');
-      this.signals.duplicateSelection.dispatch();
-      return;
-    }
-
-    if (action === 'create-edge-face') {
-      this.signals.createElementFromVertices.dispatch();
-      return;
-    }
-
-    if (action === 'bridge-selection') {
-      this.signals.bridgeSelection.dispatch();
-      return;
-    }
-
-    if (action.startsWith('merge-')) {
-      this.signals.mergeSelection.dispatch(action);
-      return;
-    }
-
-    if (action === 'split-selection') {
-      this.signals.splitSelection.dispatch();
-      return;
-    }
-
-    if (action === 'separate-selection') {
-      this.signals.separateSelection.dispatch();
-      return;
-    }
-
-    if (action.startsWith('delete-') || action.startsWith('dissolve-')) {
-      this.signals.deleteSelectedFaces.dispatch(action);
-      return;
-    }
-
-    if (action === 'select-all') {
-      this.signals.editSelectAll.dispatch();
-      return;
-    }
-
-    if (action === 'select-none') {
-      this.signals.editSelectNone.dispatch();
-      return;
-    }
-
-    if (action === 'select-linked') {
-      this.signals.editSelectLinked.dispatch();
-      return;
-    }
-
-    if (action === 'select-rings') {
-      this.signals.editSelectRings.dispatch();
-      return;
-    }
-
-    if (action === 'select-loops') {
-      this.signals.editSelectLoops.dispatch();
-      return;
-    }
-
-    if (action === 'flip-normals') {
-      this.signals.editFlipNormals.dispatch();
-      return;
-    }
-
-    console.log('Invalid action:', action);
   }
 
   setupListeners() {
@@ -117,6 +64,20 @@ export class EditActions {
     this.signals.editFlipNormals.add(() => this.flipSelectedFacesNormal());
     this.signals.subdivideSelection.add(() => this.subdivideSelection());
     this.signals.bridgeSelection.add(() => this.bridgeSelection());
+  }
+
+  handleAction(action) {
+    if (!action) return;
+
+    const handler = this.actions[action]
+      ?? this.prefixActions.find(([prefix]) => action.startsWith(prefix))?.[1];
+
+    if (!handler) {
+      console.warn('Invalid action:', action);
+      return;
+    }
+
+    handler(action);
   }
 
   createElementFromVertices() {

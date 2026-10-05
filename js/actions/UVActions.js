@@ -10,6 +10,14 @@ export class UVActions {
     this.signals = editor.signals;
     this.editSelection = editor.editSelection;
 
+    this.actions = {
+      'mark-seam': () => this.setSeam(true),
+      'clear-seam': () => this.setSeam(false),
+      'uv-unwrap': () => this.uvUnwrap(),
+      'clear-uv': () => this.clearUV(),
+      'auto-uv-unwrap': () => this.autoUVUnwrap(),
+    };
+
     this.setupListeners();
   }
 
@@ -18,30 +26,12 @@ export class UVActions {
   }
 
   handleAction(action) {
-    if (action === 'mark-seam') {
-      return this.setSeam(true);
-    }
-
-    if (action === 'clear-seam') {
-      return this.setSeam(false);
-    }
-
-    if (action === 'uv-unwrap') {
-      this.uvUnwrap();
+    const handler = this.actions[action];
+    if (!handler) {
+      console.warn('Invalid action:', action);
       return;
     }
-
-    if (action === 'clear-uv') {
-      this.clearUV();
-      return;
-    }
-
-    if (action === 'auto-uv-unwrap') {
-      this.autoUVUnwrap();
-      return;
-    }
-
-    console.log('Invalid action:', action);
+    return handler();
   }
 
   setSeam(value) {
