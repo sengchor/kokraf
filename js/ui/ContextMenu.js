@@ -31,24 +31,24 @@ export default class ContextMenu {
     this.wrapper = this.menuEl.closest('.context-menu-wrapper');
 
     const appContainer = document.querySelector('.app-container');
+    const canvas = document.querySelector('#three-canvas');
+
     appContainer.addEventListener('contextmenu', (e) => {
+      if (e.target === canvas) return;
+
+      this.hide();
+
+      if (e.target.closest('.agent-panel')) return;
+      
       e.preventDefault();
     });
 
-    const canvas = document.querySelector('#three-canvas');
     canvas.addEventListener('contextmenu', (e) => {
       if (e.button === 2) {
         e.preventDefault();
 
         this.menuTrigger = 'mouse';
         this.show(e.clientX, e.clientY);
-      }
-    });
-
-    appContainer.addEventListener('contextmenu', (e) => {
-      if (e.target !== canvas) {
-        e.preventDefault();
-        this.hide();
       }
     });
 

@@ -1,5 +1,16 @@
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { AgentSession, AGENT_MODELS, DEFAULT_MODEL } from '../agent/hosted/AgentSession.js';
 import { toolNameFor } from '../agent/hosted/AgentTools.js';
+
+marked.setOptions({ breaks: true, gfm: true });
+
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  if (node.tagName === 'A') {
+    node.setAttribute('target', '_blank');
+    node.setAttribute('rel', 'noopener noreferrer');
+  }
+});
 
 const EMPTY_HINT = 'Ask the agent to do something, like "Model a chair."';
 const RESULT_LIMIT = 4000;
@@ -19,6 +30,12 @@ function loadModel() {
 
 function saveModel(id) {
   try { localStorage.setItem(MODEL_STORAGE_KEY, id); } catch {}
+}
+
+function markdown(className, text) {
+  const node = el('div', className);
+  node.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  return node;
 }
 
 function el(tag, className, text) {
@@ -203,7 +220,7 @@ export class AgentPanel {
         this._hideThinking();
         for (const block of event.content) {
           if (block.type === 'text' && block.text.trim()) {
-            this._append(el('div', 'agent-msg agent-msg--assistant', block.text));
+            this._append(markdown('agent-msg agent-msg--assistant', block.text));
           } else if (block.type === 'tool_use') {
             this._appendToolRow(block);
           }
@@ -336,7 +353,7 @@ export class AgentPanel {
     if (this.session.running) return;
     if (Date.now() - this.creditsFetchedAt < CREDITS_TIL) return;
 
-    this.creditsFetchedAtAt = Date.now();
+    this.creditsFetchedAt = Date.now();
     try {
       await this.session.fetchCredits();
     } catch {

@@ -29,6 +29,22 @@
   line-height: 1.5;
 }
 
+.agent-panel__log,
+.agent-panel__log *,
+.agent-panel__input {
+  -webkit-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+.agent-panel__log button,
+.agent-tool__summary,
+.agent-tool__summary * {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
 /* Toolbar ------------------------------------------------------------ */
 
 .agent-panel__toolbar {
@@ -103,6 +119,51 @@
 
 .agent-msg--assistant {
   padding: 0 2px;
+  white-space: normal;
+}
+
+.agent-msg--assistant > :first-child { margin-top: 0; }
+.agent-msg--assistant > :last-child { margin-bottom: 0; }
+
+.agent-msg--assistant p,
+.agent-msg--assistant ul,
+.agent-msg--assistant ol,
+.agent-msg--assistant pre {
+  margin: 0 0 8px;
+}
+
+.agent-msg--assistant ul,
+.agent-msg--assistant ol {
+  padding-left: 18px;
+}
+
+.agent-msg--assistant h1,
+.agent-msg--assistant h2,
+.agent-msg--assistant h3 {
+  margin: 10px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agent-msg--assistant code {
+  font: 11.5px/1.4 var(--agent-mono);
+  background: var(--agent-surface);
+  padding: 0 3px;
+}
+
+.agent-msg--assistant pre {
+  padding: 6px 8px;
+  background: var(--agent-surface);
+  overflow-x: auto;
+}
+
+.agent-msg--assistant pre code {
+  padding: 0;
+  background: none;
+}
+
+.agent-msg--assistant a {
+  color: var(--agent-accent);
 }
 
 .agent-note {
