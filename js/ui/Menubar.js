@@ -6,6 +6,7 @@ import { MenubarHelp } from './Menubar.Help.js';
 import { auth } from '/supabase/services/AuthService.js';
 import { LoginPanel } from '../panels/LoginPanel.js';
 import { AccountPanel } from '../panels/AccountPanel.js';
+import { UpgradePanel } from '../panels/UpgradePanel.js';
 import { saveProject, projectExistsInCloud } from '/supabase/services/ProjectService.js';
 import { CloudSavePanel } from '../panels/CloudSavePanel.js';
 
@@ -36,6 +37,7 @@ export default class Menubar {
     this.loginPanel = new LoginPanel({ signals: this.signals });
     this.accountPanel = new AccountPanel({ signals: this.signals });
     this.cloudSavePanel = new CloudSavePanel({ editor, signals: this.signals });
+    this.upgradePanel = new UpgradePanel({ signals: this.signals });
 
     this.cloudSaveLabel = this.cloudSaveButton.querySelector('.label');
 
@@ -94,6 +96,10 @@ export default class Menubar {
 
     this.signals.showAccountPanel.add(() => {
       this.accountPanel.open();
+    });
+
+    this.signals.showUpgradePanel.add((opts) => {
+      this.upgradePanel.open(opts);
     });
 
     this.signals.historyChanged.add(() => {

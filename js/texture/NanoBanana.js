@@ -19,6 +19,7 @@ export class NanoBanana {
       const body = await error.context?.json?.().catch(() => null);
       const creditError = new Error(body?.reason ?? error.message);
       creditError.reason = body?.reason;
+      creditError.plan = body?.plan;
       throw creditError;
     }
 

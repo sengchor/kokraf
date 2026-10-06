@@ -49,11 +49,17 @@ export class MeshExporter {
   }
 
   async canExport() {
-    const { allowed, reason } = await consumeCredits('export');
-    if (!allowed) {
+    const { allowed, reason, plan } = await consumeCredits('export');
+    if (allowed) return true;
+
+    if (reason === 'no_credits') {
+      this.editor.signals.showUpgradePanel.dispatch({ plan });
+    } else if (reason === 'no_session') {
+      this.editor.signals.showLoginPanel.dispatch();
+    } else {
       alert(getCreditsErrorMessage(reason));
     }
-    return allowed;
+    return false;
   }
 
   saveFile(data, filename, mimeType) {

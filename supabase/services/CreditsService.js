@@ -24,5 +24,5 @@ export async function consumeCredits(action) {
   );
 
   const data = await res.json();
-  return { allowed: res.ok && data.allowed, reason: data.reason };
+  return { allowed: res.ok && data.allowed, reason: data.reason, plan: data.plan };
 }

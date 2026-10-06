@@ -264,7 +264,18 @@ export class GenerateTexturePanel {
         if (!reused) bakeGeometry.dispose();
       });
       this._hideLoading();
-      alert(getCreditsErrorMessage(err.reason)?? err.message);
+      
+      if (err.reason === 'no_credits') {
+        this.signals.showUpgradePanel.dispatch({ plan: err.plan });
+        return;
+      }
+
+      if (err.reason === 'no_session') {
+        this.signals.showLoginPanel.dispatch();
+        return;
+      }
+
+      alert(getCreditsErrorMessage(err.reason) ?? err.message);
     }
   }
 

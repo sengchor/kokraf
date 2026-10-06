@@ -105,6 +105,7 @@ export default class Editor {
 
       showLoginPanel: new Signal(),
       showAccountPanel: new Signal(),
+      showUpgradePanel: new Signal(),
 
       objectTransformStart: new Signal(),
       editTransformStart: new Signal(),

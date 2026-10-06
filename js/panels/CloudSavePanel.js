@@ -135,6 +135,19 @@ export class CloudSavePanel {
     } catch (err) {
       console.error('Save failed:', err);
       this.editor.signals.saveStatusChanged.dispatch('error');
+
+      if (err.reason === 'no_credits') {
+        this.close();
+        this.editor.signals.showUpgradePanel.dispatch({ plan: err.plan });
+        return;
+      }
+
+      if (err.reason === 'no_session') {
+        this.close();
+        this.editor.signals.showLoginPanel.dispatch();
+        return;
+      }
+
       if (err.reason === 'size_exceeded') {
         this.showError(`Your project (${err.sizeMB} MB) exceeds the 50 MB upload limit.`);
       } else {
