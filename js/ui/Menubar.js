@@ -43,32 +43,7 @@ export default class Menubar {
 
     this.loginButton.onclick = () => this.loginPanel.open();
     this.accountButton.onclick = () => this.accountPanel.open();
-    this.cloudSaveButton.onclick = async () => {
-      if (!auth.isLoggedIn()) {
-        this.signals.showLoginPanel.dispatch();
-        return;
-      }
-
-      const exists = await projectExistsInCloud(editor.currentProjectId);
-      if (!exists) {
-        this.cloudSavePanel.open();
-        return;
-      }
-
-      try {
-        this.setSaveStatus(this.cloudSaveLabel, 'saving');
-
-        await saveProject(editor, { override: true });
-
-        this.setSaveStatus(this.cloudSaveLabel, 'saved');
-      } catch (err) {
-        console.error(err);
-        if (err.reason === 'size_exceeded') {
-          alert(`Your project (${err.sizeMB} MB) exceeds the 50 MB upload limit.`);
-        }
-        this.setSaveStatus(this.cloudSaveLabel, 'error');
-      }
-    }
+    this.cloudSaveButton.onclick = () => this.cloudSave(editor);
     this.agentButton.onclick = async () => {
       await editor.sidebar.ready;
       const open = editor.sidebar.agentPanel.toggle();
@@ -109,6 +84,8 @@ export default class Menubar {
     this.signals.saveStatusChanged.add((state) => {
       this.setSaveStatus(this.cloudSaveLabel, state);
     });
+
+    this.signals.cloudSaveRequested.add(() => this.cloudSave(editor));
 
     this.initMenuBar();
   }
@@ -194,6 +171,36 @@ export default class Menubar {
       case 'error':
         labelEl.textContent = 'Error';
         break;
+    }
+  }
+
+  async cloudSave(editor) {
+    if (this.isSaving) return;
+
+    if (!auth.isLoggedIn()) {
+      this.signals.showLoginPanel.dispatch();
+      return;
+    }
+
+    this.isSaving = true;
+    try {
+      const exists = await projectExistsInCloud(editor.currentProjectId);
+      if (!exists) {
+        this.cloudSavePanel.open();
+        return;
+      }
+
+      this.setSaveStatus(this.cloudSaveLabel, 'saving');
+      await saveProject(editor, { override: true });
+      this.setSaveStatus(this.cloudSaveLabel, 'saved');
+    } catch (err) {
+      console.error(err);
+      if (err.reason === 'size_exceeded') {
+        alert(`Your project (${err.sizeMB} MB) exceeds the 50 MB upload limit.`);
+      }
+      this.setSaveStatus(this.cloudSaveLabel, 'error');
+    } finally {
+      this.isSaving = false;
     }
   }
 }

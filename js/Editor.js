@@ -41,6 +41,7 @@ import { UVEditor } from './uv/UVEditor.js';
 import { CommandRegistry } from './agent/CommandRegistry.js';
 import { registerAgentCommands } from './agent/AgentCommands.js';
 import { AgentBridge } from './agent/mcp/AgentBridge.js';
+import { CloudSavePanel } from './panels/CloudSavePanel.js';
 
 export default class Editor {
   constructor() {
@@ -151,7 +152,7 @@ export default class Editor {
       uvToolChanged: new Signal(),
       mouseUVSelectLinked: new Signal(),
 
-      testCommands: new Signal(),
+      cloudSaveRequested: new Signal(),
     }
 
     this.helpers = {};
@@ -263,15 +264,6 @@ export default class Editor {
   setupListeners() {
     this.signals.historyChanged.add(async () => {
       await Storage.set('scene', this.toJSON());
-    });
-
-    // Test commands directly
-    this.signals.testCommands.add(async () => {
-      console.log(await agent.execute('scene.outline'));
-      await agent.execute('object.transform', { target: 'Cube', position: [0, 1, 0], relative: true });
-      await agent.execute('object.transform', { target: 'Cube', rotation: [0, 45, 0] });
-
-      await agent.execute('edit.transform', { target: 'Cube', vertices: 'all', scale: 0.5, rotate: [0, 0, 30], translate: [1, 0, 0] });
     });
   }
 

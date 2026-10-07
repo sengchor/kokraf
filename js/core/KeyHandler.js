@@ -79,6 +79,16 @@ export class KeyHandler {
     let handled = false;
 
     /* ---------- Global shortcuts ---------- */
+    if (event.ctrlKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      if (!this.disabled && !event.repeat) {
+        this.signals.cloudSaveRequested.dispatch();
+      }
+      return;
+    }
+
+    if (this.disabled) return;
+
     if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(true);
       handled = true;
@@ -167,9 +177,6 @@ export class KeyHandler {
         handled = true;
       } else if (matchesShortcut(event, this.shortcuts['unhideAll'])) {
         this.signals.unhideAll.dispatch();
-        handled = true;
-      } else if (event.key === 'o') {
-        this.signals.testCommands.dispatch();
         handled = true;
       }
     }
