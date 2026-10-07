@@ -72,24 +72,16 @@ export class KeyHandler {
       document.activeElement.blur();
     }
 
-    // Ignore repeat while held down
-    if (this.keysPressed[key]) return;
-    this.keysPressed[key] = true;
+    if (event.repeat) return;
 
     let handled = false;
 
     /* ---------- Global shortcuts ---------- */
-    if (event.ctrlKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 's') {
+    if (matchesShortcut(event, 'ctrl+s')) {
       event.preventDefault();
-      if (!this.disabled && !event.repeat) {
-        this.signals.cloudSaveRequested.dispatch();
-      }
+      this.signals.cloudSaveRequested.dispatch();
       return;
-    }
-
-    if (this.disabled) return;
-
-    if (event.key === 'Shift') {
+    } else if (event.key === 'Shift') {
       this.signals.multiSelectChanged.dispatch(true);
       handled = true;
     } else if (matchesShortcut(event, this.shortcuts['undo'])) {
@@ -147,10 +139,10 @@ export class KeyHandler {
         this.signals.switchMode.dispatch('edit');
         this.previousMode = 'object';
         return;
-      } else if (event.ctrlKey && event.key.toLowerCase() === 'c') {
+      } else if (matchesShortcut(event, 'ctrl+c')) {
         this.signals.objectsCopied.dispatch();
         handled = true;
-      } else if (event.ctrlKey && event.key.toLowerCase() === 'v') {
+      } else if (matchesShortcut(event, 'ctrl+v')) {
         this.signals.objectsPasted.dispatch();
         handled = true;
       } else if (event.key === 'Delete') {

@@ -124,10 +124,10 @@ export default class ContextMenu {
       if (e.key === 'Delete') {
         this.menuTrigger = 'delete';
         this.show(this.lastMouse.x, this.lastMouse.y);
-      } else if (e.ctrlKey && e.key.toLowerCase() === 'a') {
+      } else if (matchesShortcut(e, 'ctrl+a')) {
         this.menuTrigger = 'apply';
         this.show(this.lastMouse.x, this.lastMouse.y);
-      } else if (e.shiftKey && e.key.toLowerCase() === 'a') {
+      } else if (matchesShortcut(e, 'shift+a')) {
         this.menuTrigger = 'add';
         this.show(this.lastMouse.x, this.lastMouse.y);
       } else if (matchesShortcut(e, this.editor.keyHandler.shortcuts['merge'])) {

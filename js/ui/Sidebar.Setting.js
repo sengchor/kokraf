@@ -1,14 +1,24 @@
 import * as THREE from 'three';
-import { formatKey, buildCombo } from '../utils/FormatLabel.js';
+import { formatKey, buildCombo, formatComboLabel } from '../utils/FormatLabel.js';
 
+// Keys are canonical: "ctrl" means Cmd on Mac, Ctrl elsewhere
 const RESERVED_KEYS = new Map([
   ['tab', 'Switch mode'],
   ['shift', 'Multi-select'],
   ['ctrl+c', 'Copy'],
   ['ctrl+v', 'Paste'],
+  ['ctrl+s', 'Save'],
   ['delete', 'Delete'],
   ['shift+a', 'Add Context Menu'],
   ['ctrl+a', 'Apply Context Menu'],
+
+  // Browser shortcuts that can't be overridden with preventDefault
+  ['ctrl+w', 'Browser (close tab)'],
+  ['ctrl+q', 'Browser (quit)'],
+  ['ctrl+n', 'Browser (new window)'],
+  ['ctrl+t', 'Browser (new tab)'],
+  ['ctrl+shift+t', 'Browser (reopen tab)'],
+  ['ctrl+shift+n', 'Browser (private window)'],
 ]);
 
 export class SidebarSetting {
@@ -41,7 +51,9 @@ export class SidebarSetting {
 
     for (const key of Object.keys(shortcuts)) {
       const input = inputs[key];
-      let prevVal = input.value;
+
+      // Canonical values (e.g. "ctrl+z"); input.value only holds the display label
+      let prevVal = shortcuts[key] ?? '';
       let pendingVal = null;
 
       input.addEventListener('focus', () => {
@@ -59,7 +71,7 @@ export class SidebarSetting {
         }
         if (e.key === 'Escape') {
           pendingVal = null;
-          input.value = prevVal;
+          input.value = formatComboLabel(prevVal);
           this.clearShortcutError(input);
           input.blur();
           return;
@@ -69,7 +81,7 @@ export class SidebarSetting {
         e.preventDefault();
 
         const val = buildCombo(e);
-        input.value = val;
+        input.value = formatComboLabel(val);
         pendingVal = val;
 
         const conflict = this.getConflict(shortcuts, key, val);
@@ -83,7 +95,7 @@ export class SidebarSetting {
         input.classList.remove('capturing');
 
         if (input.classList.contains('conflict') || pendingVal === null) {
-          input.value = prevVal;
+          input.value = formatComboLabel(prevVal);
           this.clearShortcutError(input);
           pendingVal = null;
           return;
@@ -91,10 +103,16 @@ export class SidebarSetting {
 
         prevVal = pendingVal;
         shortcuts[key] = pendingVal;
+        input.value = formatComboLabel(pendingVal);
         pendingVal = null;
         this.config.save();
         this.signals.shortcutsChanged.dispatch();
         this.syncRestoreBtn();
+      });
+
+      // Keep prevVal in sync when defaults are restored
+      input.addEventListener('shortcut-restored', () => {
+        prevVal = shortcuts[key] ?? '';
       });
     }
   }
@@ -113,7 +131,8 @@ export class SidebarSetting {
     restoreBtn.addEventListener('click', () => {
       Object.assign(shortcuts, defaults);
       for (const key of Object.keys(shortcuts)) {
-        inputs[key].value = shortcuts[key];
+        inputs[key].value = formatComboLabel(shortcuts[key]);
+        inputs[key].dispatchEvent(new Event('shortcut-restored'));
       }
       this.clearShortcutError(null);
       this.config.save();
@@ -136,7 +155,7 @@ export class SidebarSetting {
       const input = document.createElement('input');
       input.className = 'key-input';
       input.type = 'text';
-      input.value = shortcuts[key] ?? '';
+      input.value = formatComboLabel(shortcuts[key] ?? '');
       input.id = `${key}-shortcut`;
       input.readOnly = true;
 
@@ -151,16 +170,17 @@ export class SidebarSetting {
   }
 
   getConflict(shortcuts, currentKey, val) {
+    const display = formatComboLabel(val);
+
     // Check against other configurable shortcuts
     for (const [otherKey, otherVal] of Object.entries(shortcuts)) {
       if (otherKey !== currentKey && otherVal === val) {
-        const label = formatKey(otherKey);
-        return `"${val}" is already used by ${label}`;
+        return `"${display}" is already used by ${formatKey(otherKey)}`;
       }
     }
     // Check against hardcoded keys
     if (RESERVED_KEYS.has(val)) {
-      return `"${val}" is reserved for: ${RESERVED_KEYS.get(val)}`;
+      return `"${display}" is reserved for: ${RESERVED_KEYS.get(val)}`;
     }
     return null;
   }
@@ -169,13 +189,13 @@ export class SidebarSetting {
     inputEl?.classList.add('conflict');
     if (this.errorEl) this.errorEl.style.display = '';
     if (this.errorMsg) this.errorMsg.textContent = msg;
-  };
+  }
 
   clearShortcutError(inputEl) {
     inputEl?.classList.remove('conflict');
     if (this.errorEl) this.errorEl.style.display = 'none';
     if (this.errorMsg) this.errorMsg.textContent = '';
-  };
+  }
 
   initHistory() {
     this.clearButton.addEventListener('click', () => {
@@ -222,7 +242,7 @@ export class SidebarSetting {
         this.jumpToHistory(index, 'redo', redoList.length);
       });
       this.historyList.appendChild(li);
-    })
+    });
   }
 
   jumpToHistory(index, type, redoLength = 0) {
