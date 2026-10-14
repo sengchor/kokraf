@@ -41,7 +41,6 @@ import { UVEditor } from './uv/UVEditor.js';
 import { CommandRegistry } from './agent/CommandRegistry.js';
 import { registerAgentCommands } from './agent/AgentCommands.js';
 import { AgentBridge } from './agent/mcp/AgentBridge.js';
-import { CloudSavePanel } from './panels/CloudSavePanel.js';
 
 export default class Editor {
   constructor() {

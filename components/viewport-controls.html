@@ -187,9 +187,9 @@
         <option value="local">LOCAL</option>
       </select>
 
-      <button class="snap-button" id="snap-button" data-tooltip="Snap">
-        <img class="snap-off" src="assets/icons/snap.svg" alt="Snap Off"/>
-        <img class="snap-on" src="assets/icons/snapping.svg" alt="Snap On"/>
+      <button class="toggle-button" id="snap-button" data-tooltip="Snap">
+        <img class="icon-off" src="assets/icons/snap.svg" alt="Snap Off"/>
+        <img class="icon-on" src="assets/icons/snapping.svg" alt="Snap On"/>
       </button>
 
       <select class="snapping-to-select" id="snapping-to" data-tooltip="Snapping To">
@@ -197,6 +197,65 @@
         <option value="edge">EDGE</option>
         <option value="face">FACE</option>
       </select>
+
+      <button class="toggle-button" id="mirror-button" data-tooltip="Mirror">
+        <img class="icon-off" src="assets/icons/mirror.svg" alt="Mirror Off"/>
+        <img class="icon-on" src="assets/icons/mirroring.svg" alt="Mirror On"/>
+      </button>
+
+      <div class="mirror-dropdown" id="mirror-dropdown">
+        <button class="mirror-dropdown-trigger" id="mirror-dropdown-trigger" data-tooltip="Mirror Options">
+          <span class="label">MIRROR</span>
+          <svg class="arrow" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true">
+            <polyline points="1,1 5,5 9,1" fill="none" stroke="currentColor"
+                      stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <div class="mirror-panel" id="mirror-panel">
+          <!-- Axis -->
+          <div class="mirror-panel-row">
+            <span class="mirror-panel-label">Axis</span>
+            <div class="axis-toggle-group">
+              <label class="axis-toggle">
+                <input type="checkbox" name="mirror-axis" value="x" checked />
+                <span>X</span>
+              </label>
+              <label class="axis-toggle">
+                <input type="checkbox" name="mirror-axis" value="y" />
+                <span>Y</span>
+              </label>
+              <label class="axis-toggle">
+                <input type="checkbox" name="mirror-axis" value="z" />
+                <span>Z</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Clipping -->
+          <div class="mirror-panel-row">
+            <label class="mirror-checkbox">
+              <input type="checkbox" id="mirror-clipping" />
+              <span>Clipping</span>
+            </label>
+          </div>
+
+          <!-- Merge -->
+          <div class="mirror-panel-row mirror-merge-row">
+            <label class="mirror-checkbox">
+              <input type="checkbox" id="mirror-merge" checked />
+              <span>Merge</span>
+            </label>
+            <input type="number" class="mirror-number-input" id="mirror-merge-distance"
+                value="0.001" min="0" step="0.001" />
+          </div>
+
+          <div class="mirror-panel-divider"></div>
+
+          <!-- Apply -->
+          <button class="mirror-apply-button" id="mirror-apply">Apply</button>
+        </div>
+      </div>
     </div>
 
     <!-- Brush Settings (Texture Paint) -->

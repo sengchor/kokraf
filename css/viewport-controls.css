@@ -126,7 +126,7 @@
   display: none;
 }
 
-.snap-button {
+.toggle-button {
   width: 20px;
   height: 20px;
   margin-left: 10px;
@@ -140,30 +140,192 @@
   justify-content: center;
 }
 
-.snap-button.active {
+.toggle-button.active {
   background-color: #ddd;
 }
 
-.snap-button .snap-on {
+.toggle-button .icon-on {
   display: none;
 }
 
-.snap-button.active .snap-off {
+.toggle-button.active .icon-off {
   display: none;
 }
 
-.snap-button.active .snap-on {
+.toggle-button.active .icon-on {
   display: block;
 }
 
-.snap-button img {
+.toggle-button img {
   width: 18px;
   height: 18px;
   opacity: 0.6;
 }
 
-.snap-button:hover img {
+.toggle-button:hover img {
   opacity: 0.8;
+}
+
+/* Mirror Dropdown */
+.mirror-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mirror-dropdown-trigger {
+  height: 20px;
+  padding: 0 6px;
+  border: none;
+  background-color: #ffffff;
+  color: #666;
+  font-family: sans-serif;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mirror-dropdown-trigger:hover {
+  background-color: #f1f3f5;
+}
+
+.mirror-dropdown-trigger .arrow {
+  font-size: 10px;
+  color: #666;
+}
+
+.mirror-dropdown.open .mirror-dropdown-trigger {
+  background-color: #ddd;
+}
+
+/* Panel */
+.mirror-panel {
+  display: none;
+  position: fixed;
+  min-width: 190px;
+  padding: 6px 0;
+  background: #ffffff;
+  color: #222;
+  font-family: sans-serif;
+  font-size: 13px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+}
+
+.mirror-dropdown.open .mirror-panel {
+  display: block;
+}
+
+.mirror-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+.mirror-panel-label {
+  color: #666;
+  user-select: none;
+}
+
+.mirror-panel-divider {
+  height: 1px;
+  margin: 6px 0;
+  background-color: #ccc;
+}
+
+/* Axis Toggles */
+.axis-toggle-group {
+  display: flex;
+}
+
+.axis-toggle input {
+  display: none;
+}
+
+.axis-toggle span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 20px;
+  background-color: #f8f8f8;
+  color: #222;
+  cursor: pointer;
+  user-select: none;
+}
+
+.axis-toggle span:hover {
+  background-color: #f0f0f0;
+  color: #222;
+}
+
+.axis-toggle input:checked + span {
+  background-color: #ddd;
+  color: #222;
+}
+
+/* Checkboxes */
+.mirror-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mirror-checkbox input {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Merge distance */
+.mirror-number-input {
+  width: 64px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid #e6e8eb;
+  background: #f8f8f8;
+  color: #222;
+  font-family: sans-serif;
+  font-size: 13px;
+}
+
+.mirror-number-input:focus {
+  outline: none;
+  border-color: rgba(46, 132, 170, 0.8);
+  background: #ffffff;
+}
+
+.mirror-merge-row:has(#mirror-merge:not(:checked)) .mirror-number-input {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.mirror-apply-button {
+  display: block;
+  width: calc(100% - 20px);
+  height: 24px;
+  margin: 0 10px;
+  border: none;
+  background-color: #f1f3f5;
+  color: #222;
+  font-family: sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mirror-apply-button:hover {
+  background-color: #e6e8eb;
+}
+
+.mirror-apply-button:active {
+  background-color: #ddd;
 }
 
 /* X-Ray Button */

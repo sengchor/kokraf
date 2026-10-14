@@ -39,8 +39,9 @@ export default class ViewportControls {
     this.shadingDropdown = document.getElementById('shading-modes');
     this.interactionDropdown = document.getElementById('interaction-modes');
     this.selectionModeBar = document.querySelector('.selection-mode');
-    this.snapButton = document.querySelector('.snap-button');
+    this.snapButton = document.getElementById('snap-button');
     this.snappingSelect = document.getElementById('snapping-to');
+    this.mirrorButton = document.getElementById('mirror-button');
     this.transformOrientationSelect = document.getElementById('transform-orientation');
     this.xrayButton = document.getElementById('xray-button');
     this.objectMenu = document.getElementById('object-menu');
@@ -101,14 +102,15 @@ export default class ViewportControls {
       })
     }
 
-    if (this.snapButton) {
-      const enabled = this.snapButton.classList.contains('active');
-      this.snapManager.setEnabled(enabled);
-      this.snapButton.addEventListener('click', () => {
-        const active = this.snapButton.classList.toggle('active');
-        this.snapManager.setEnabled(active);
-      })
-    }
+    this.setupToggleButton(this.snapButton, (active) => {
+      this.snapManager.setEnabled(active);
+    });
+
+    this.setupToggleButton(this.mirrorButton, (active) => {
+
+    });
+
+    this.setupMirrorDropdown();
 
     if (this.snappingSelect) {
       this.snapManager.setSnapMode(this.snappingSelect.value);
@@ -194,6 +196,8 @@ export default class ViewportControls {
         this.transformControls.classList.toggle('hidden', newMode === 'uv' || newMode === 'paint');
         this.transformControls.classList.remove('active');
       }
+      
+      this.closeMirrorPanel();
 
       if (this.brushSettings) {
         this.brushSettings.classList.toggle('hidden', newMode !== 'paint');
@@ -281,6 +285,86 @@ export default class ViewportControls {
 
     this.cameraDropdown.value = this.cameraManager.camera.uuid;
     this.panelResizer.onWindowResize();
+  }
+
+  setupToggleButton(button, onToggle) {
+    if (!button) return;
+
+    onToggle(button.classList.contains('active'));
+
+    button.addEventListener('click', () => {
+      if (button.classList.contains('disabled')) return;
+      const active = button.classList.toggle('active');
+      onToggle(active);
+    });
+  }
+
+  setupMirrorDropdown() {
+    this.mirrorDropdown = document.getElementById('mirror-dropdown');
+    this.mirrorTrigger = document.getElementById('mirror-dropdown-trigger');
+    this.mirrorPanel = document.getElementById('mirror-panel');
+
+    if (!this.mirrorDropdown || !this.mirrorTrigger || !this.mirrorPanel) return;
+
+    this.mirrorTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.isMirrorPanelOpen()) {
+        this.closeMirrorPanel();
+      } else {
+        this.openMirrorPanel();
+      }
+    });
+
+    document.addEventListener('pointerdown', (e) => {
+      if (!this.isMirrorPanelOpen()) return;
+      if (this.mirrorDropdown.contains(e.target)) return;
+      this.closeMirrorPanel();
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isMirrorPanelOpen()) {
+        this.closeMirrorPanel();
+      }
+    });
+
+    window.addEventListener('resize', () => this.positionMirrorPanel());
+    this.signals.layoutChanged.add(() => this.positionMirrorPanel());
+
+    document.querySelector('.viewport-controls')?.addEventListener('scroll', () => {
+      this.closeMirrorPanel();
+    });
+
+    floatingTooltip.addBlocker(() => this.isMirrorPanelOpen());
+  }
+
+  isMirrorPanelOpen() {
+    return this.mirrorDropdown?.classList.contains('open') ?? false;
+  }
+
+  openMirrorPanel() {
+    floatingTooltip.hide();
+    if (this.menuOverlay) this.menuOverlay.style.display = 'none';
+
+    this.mirrorDropdown.classList.add('open');
+    this.positionMirrorPanel();
+  }
+
+  closeMirrorPanel() {
+    this.mirrorDropdown?.classList.remove('open');
+  }
+
+  positionMirrorPanel() {
+    if (!this.isMirrorPanelOpen()) return;
+
+    const rect = this.mirrorTrigger.getBoundingClientRect();
+    const panelWidth = this.mirrorPanel.offsetWidth;
+    const margin = 4;
+
+    const maxLeft = window.innerWidth - panelWidth - margin;
+    const left = Math.max(margin, Math.min(rect.left, maxLeft));
+
+    this.mirrorPanel.style.left = `${left}px`;
+    this.mirrorPanel.style.top = `${rect.bottom + 1}px`;
   }
 
   updateXRayButtonState(shadingMode) {
