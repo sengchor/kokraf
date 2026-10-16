@@ -41,6 +41,7 @@ import { UVEditor } from './uv/UVEditor.js';
 import { CommandRegistry } from './agent/CommandRegistry.js';
 import { registerAgentCommands } from './agent/AgentCommands.js';
 import { AgentBridge } from './agent/mcp/AgentBridge.js';
+import MirrorManager from './core/MirrorManager.js';
 
 export default class Editor {
   constructor() {
@@ -152,6 +153,7 @@ export default class Editor {
       mouseUVSelectLinked: new Signal(),
 
       cloudSaveRequested: new Signal(),
+      mirrorChanged: new Signal(),
     }
 
     this.helpers = {};
@@ -167,6 +169,7 @@ export default class Editor {
     this.keyHandler = new KeyHandler(this);
     this.controlsManager = new ControlsManager(this);
     this.snapManager = new SnapManager(this);
+    this.mirrorManager = new MirrorManager(this);
     this.clipboardManager = new ClipboardManager(this);
 
     // Helpers
@@ -332,12 +335,13 @@ export default class Editor {
   }
 
   toJSON() {
-    const transforms = this.sceneManager.extractTransforms(
-      this.sceneManager.mainScene
-    );
-
     const texturePainter = this.modeManager?.texturePainter;
     const restored = texturePainter?._restoreOriginalMaterial();
+
+    const { transforms, scene } = this.mirrorManager.withoutPreviews(() => ({
+      transforms: this.sceneManager.extractTransforms(this.sceneManager.mainScene),
+      scene: this.sceneManager.mainScene.toJSON(),
+    }));
 
     const json = {
       metadata: {
@@ -347,7 +351,7 @@ export default class Editor {
       projectId: this.currentProjectId,
       projectName: this.currentProjectName,
       transforms,
-      scene: this.sceneManager.mainScene.toJSON(),
+      scene,
       camera: this.cameraManager.viewportCamera.toJSON(),
       modeManager: this.modeManager.toJSON(),
       controlsManager: this.controlsManager.toJSON(),

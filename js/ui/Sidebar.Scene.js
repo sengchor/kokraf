@@ -96,7 +96,7 @@ export class SidebarScene {
     this.outlinerList.innerHTML = '';
 
     const traverse = (object, depth = 0) => {
-      if (object.name === '__VertexPoints') return;
+      if (object.name === '__VertexPoints' || object.name === '__MirrorPreviews') return;
 
       const li = document.createElement('li');
       li.className = 'outliner-item';

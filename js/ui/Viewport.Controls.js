@@ -18,6 +18,7 @@ export default class ViewportControls {
     this.editHelpers = editor.editHelpers;
     this.panelResizer = editor.panelResizer;
     this.snapManager = editor.snapManager;
+    this.mirrorManager = editor.mirrorManager;
 
     this.transformOrientation = 'global';
     
@@ -107,7 +108,12 @@ export default class ViewportControls {
     });
 
     this.setupToggleButton(this.mirrorButton, (active) => {
-
+      const targets = this.getMirrorTargets();
+      if (targets.length === 0) {
+        this.mirrorButton.classList.remove('active');
+        return;
+      }
+      this.setMirrorSettings({ enabled: active });
     });
 
     this.setupMirrorDropdown();
@@ -198,6 +204,7 @@ export default class ViewportControls {
       }
       
       this.closeMirrorPanel();
+      this.syncMirrorUI();
 
       if (this.brushSettings) {
         this.brushSettings.classList.toggle('hidden', newMode !== 'paint');
@@ -254,6 +261,10 @@ export default class ViewportControls {
       this.shadingDropdown.value = shadingMode;
       this.shadingDropdown.dispatchEvent(new Event('change', { bubbles: true }));
     });
+
+    this.signals.objectSelected?.add(() => this.syncMirrorUI());
+    this.signals.mirrorChanged?.add(() => this.syncMirrorUI());
+    this.syncMirrorUI();
   }
 
   requestMode(newMode) {
@@ -306,6 +317,8 @@ export default class ViewportControls {
 
     if (!this.mirrorDropdown || !this.mirrorTrigger || !this.mirrorPanel) return;
 
+    this.setupMirrorPanelInputs();
+
     this.mirrorTrigger.addEventListener('click', (e) => {
       e.stopPropagation();
       if (this.isMirrorPanelOpen()) {
@@ -337,6 +350,110 @@ export default class ViewportControls {
     floatingTooltip.addBlocker(() => this.isMirrorPanelOpen());
   }
 
+  setupMirrorPanelInputs() {
+    this.mirrorAxisInputs = this.mirrorPanel.querySelectorAll('input[name="mirror-axis"]');
+    this.mirrorClippingInput = document.getElementById('mirror-clipping');
+    this.mirrorMergeInput = document.getElementById('mirror-merge');
+    this.mirrorMergeDistanceInput = document.getElementById('mirror-merge-distance');
+    this.mirrorApplyButton = document.getElementById('mirror-apply');
+
+    this.mirrorDefaults = this.readMirrorPanel();
+
+    this.mirrorAxisInputs.forEach(input => {
+      input.addEventListener('change', () => {
+        this.setMirrorSettings({ axes: { [input.value]: input.checked } });
+      });
+    });
+
+    this.mirrorClippingInput?.addEventListener('change', () => {
+      this.setMirrorSettings({ clipping: this.mirrorClippingInput.checked });
+    });
+
+    this.mirrorMergeInput?.addEventListener('change', () => {
+      this.setMirrorSettings({ merge: this.mirrorMergeInput.checked });
+      this.mirrorMergeDistanceInput.disabled = !this.mirrorMergeInput.checked;
+    });
+
+    this.mirrorMergeDistanceInput?.addEventListener('change', () => {
+      const value = parseFloat(this.mirrorMergeDistanceInput.value);
+      if (!Number.isFinite(value) || value < 0) {
+        this.syncMirrorUI();
+        return;
+      }
+      this.setMirrorSettings({ mergeDistance: value });
+    });
+
+    this.mirrorApplyButton?.addEventListener('click', () => {
+      for (const object of this.getMirrorTargets()) {
+        this.mirrorManager.applyMirror(object);
+      }
+      this.closeMirrorPanel();
+      this.syncMirrorUI();
+    });
+  }
+
+  readMirrorPanel() {
+    const axes = {};
+    this.mirrorAxisInputs?.forEach(input => { axes[input.value] = input.checked; });
+
+    return {
+      enabled: false,
+      axes,
+      clipping: !!this.mirrorClippingInput?.checked,
+      merge: !!this.mirrorMergeInput?.checked,
+      mergeDistance: parseFloat(this.mirrorMergeDistanceInput?.value) || 0,
+    };
+  }
+
+  getMirrorTargets() {
+    if (!this.mirrorManager) return [];
+
+    if (this.modeManager.currentMode === 'edit') {
+      const object = this.editSelection.editedObject;
+      return object?.userData?.meshData ? [object] : [];
+    }
+
+    const selected = this.selection?.selectedObjects ?? [];
+    return [...selected].filter(object => object.isMesh && object.userData?.meshData);
+  }
+
+  setMirrorSettings(patch) {
+    for (const object of this.getMirrorTargets()) {
+      this.mirrorManager.setSettings(object, patch);
+    }
+    this.syncMirrorUI();
+  }
+
+  syncMirrorUI() {
+    if (!this.mirrorManager) return;
+
+    const target = this.getMirrorTargets()[0] ?? null;
+    const settings = target?.userData.mirror ?? this.mirrorDefaults;
+
+    if (this.mirrorButton) {
+      this.mirrorButton.classList.toggle('disabled', !target);
+      this.mirrorButton.classList.toggle('active', !!target && this.mirrorManager.isEnabled(target));
+    }
+
+    if (!settings) return;
+
+    this.mirrorAxisInputs?.forEach(input => {
+      input.checked = !!settings.axes[input.value];
+    });
+
+    if (this.mirrorClippingInput) this.mirrorClippingInput.checked = settings.clipping;
+    if (this.mirrorMergeInput) this.mirrorMergeInput.checked = settings.merge;
+
+    if (this.mirrorMergeDistanceInput) {
+      this.mirrorMergeDistanceInput.value = settings.mergeDistance;
+      this.mirrorMergeDistanceInput.disabled = !settings.merge;
+    }
+
+    if (this.mirrorApplyButton) {
+      this.mirrorApplyButton.disabled = !target || !this.mirrorManager.isEnabled(target);
+    }
+  }
+
   isMirrorPanelOpen() {
     return this.mirrorDropdown?.classList.contains('open') ?? false;
   }
@@ -345,6 +462,7 @@ export default class ViewportControls {
     floatingTooltip.hide();
     if (this.menuOverlay) this.menuOverlay.style.display = 'none';
 
+    this.syncMirrorUI();
     this.mirrorDropdown.classList.add('open');
     this.positionMirrorPanel();
   }

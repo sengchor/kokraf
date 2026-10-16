@@ -291,7 +291,7 @@ export default class Selection {
     const objectHits = this.selectionBox.getObjectsInFrustum(objects, frustum);
     if (!objectHits || objectHits.length === 0) return null;
 
-    const selectedObjects = objectHits.map(h => h.object);
+    const selectedObjects = [...new Set(objectHits.map(h => h.object))];
     return selectedObjects;
   }
 
@@ -301,6 +301,10 @@ export default class Selection {
     this.sceneManager.mainScene.traverseVisible(child => {
       if (!child.visible) return;
       if (child.userData.selectable === false) return;
+
+      const owner = child.userData.object;
+      if (owner && (!owner.visible || !owner.parent)) return;
+
       objects.push(child);
     });
 
@@ -342,9 +346,7 @@ export default class Selection {
           this.selectionBoxes.set(object.id, boxHelper);
         }
 
-        boxHelper.box.setFromObject(object);
-        boxHelper.visible = true;
-        boxHelper.updateMatrixWorld(true);
+        this.fitBoxHelper(object, boxHelper);
       }
     }
 
@@ -490,6 +492,13 @@ export default class Selection {
     }
 
     this.originHelper.removeOriginHelper(object);
+  }
+
+  fitBoxHelper(object, boxHelper) {
+    boxHelper.box.setFromObject(object);
+    this.editor.mirrorManager?.expandWorldBox(object, boxHelper.box);
+    boxHelper.visible = true;
+    boxHelper.updateMatrixWorld(true);
   }
 
   updatePivotHandle() {

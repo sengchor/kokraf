@@ -34,12 +34,14 @@ export class MeshDeltaCommand {
     this.editor.editSelection.clearSelection();
     this.applyDelta(this.afterDelta);
     this.seam.applyAfter();
+    this.editor.signals.objectChanged.dispatch(this.object);
   }
 
   undo() {
     this.editor.editSelection.clearSelection();
     this.applyDelta(this.beforeDelta);
     this.seam.applyBefore();
+    this.editor.signals.objectChanged.dispatch(this.object);
   }
 
   applyDelta(delta) {
