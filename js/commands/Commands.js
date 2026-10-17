@@ -49,6 +49,8 @@ import { BridgeSelectionCommand } from './BridgeSelectionCommand.js';
 import { SetSeamCommand } from './SetSeamCommand.js';
 import { SetUVsCommand } from './SetUVsCommand.js';
 import { SetUVPositionCommand } from './SetUVPositionCommand.js';
+import { ApplyMirrorCommand } from './ApplyMirrorCommand.js';
+import { SetMirrorCommand } from './SetMirrorCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -102,4 +104,6 @@ export const commands = new Map([
   [SetSeamCommand.type, SetSeamCommand],
   [SetUVsCommand.type, SetUVsCommand],
   [SetUVPositionCommand.type, SetUVPositionCommand],
+  [ApplyMirrorCommand.type, ApplyMirrorCommand],
+  [SetMirrorCommand.type, SetMirrorCommand],
 ]);

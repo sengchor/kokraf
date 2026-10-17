@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SwitchSubModeCommand } from '../commands/SwitchSubModeCommand.js';
 import { GenerateTexturePanel } from '../panels/GenerateTexturePanel.js';
 import { floatingTooltip } from '../ui/FloatingTooltip.js';
+import { SetMirrorCommand } from '../commands/SetMirrorCommand.js';
 
 export default class ViewportControls {
   constructor(editor) {
@@ -374,13 +375,20 @@ export default class ViewportControls {
       this.mirrorMergeDistanceInput.disabled = !this.mirrorMergeInput.checked;
     });
 
-    this.mirrorMergeDistanceInput?.addEventListener('change', () => {
-      const value = parseFloat(this.mirrorMergeDistanceInput.value);
-      if (!Number.isFinite(value) || value < 0) {
+    this.mirrorMergeDistanceInput?.addEventListener('change', () => this.commitMergeDistance());
+
+    this.mirrorMergeDistanceInput?.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.commitMergeDistance();
+        this.mirrorMergeDistanceInput.blur();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
         this.syncMirrorUI();
-        return;
+        this.mirrorMergeDistanceInput.blur();
       }
-      this.setMirrorSettings({ mergeDistance: value });
     });
 
     this.mirrorApplyButton?.addEventListener('click', () => {
@@ -390,6 +398,19 @@ export default class ViewportControls {
       this.closeMirrorPanel();
       this.syncMirrorUI();
     });
+  }
+
+  commitMergeDistance() {
+    const input = this.mirrorMergeDistanceInput;
+    const value = parseFloat(input.value);
+
+    if (!Number.isFinite(value) || value < 0) {
+      this.syncMirrorUI();
+      return;
+    }
+
+    const current = this.getMirrorTargets()[0]?.userData.mirror?.mergeDistance;
+    if (value !== current) this.setMirrorSettings({ mergeDistance: value });
   }
 
   readMirrorPanel() {
@@ -419,7 +440,12 @@ export default class ViewportControls {
 
   setMirrorSettings(patch) {
     for (const object of this.getMirrorTargets()) {
-      this.mirrorManager.setSettings(object, patch);
+      const current = this.mirrorManager.resolveSettings(object, {});
+      const next = this.mirrorManager.resolveSettings(object, patch);
+
+      if (JSON.stringify(next) === JSON.stringify(current)) continue;
+
+      this.editor.execute(new SetMirrorCommand(this.editor, object, next));
     }
     this.syncMirrorUI();
   }

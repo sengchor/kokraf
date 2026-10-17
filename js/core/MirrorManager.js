@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { MeshData } from '../core/MeshData.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
-// import { ApplyMirrorCommand } from '../commands/ApplyMirrorCommand.js';
+import { ApplyMirrorCommand } from '../commands/ApplyMirrorCommand.js';
+import { MeshDataRegion } from '../core/MeshDataRegion.js';
 
 const AXES = ['x', 'y', 'z'];
 const DATA_AXIS = { x: 'x', y: 'z', z: 'y' };
@@ -59,6 +60,15 @@ export default class MirrorManager {
 
     this.markDirty(object);
     this.signals.mirrorChanged?.dispatch(object);
+  }
+
+  resolveSettings(object, patch) {
+    const current = object?.userData?.mirror ?? DEFAULT_MIRROR_SETTINGS;
+    return {
+      ...structuredClone(current),
+      ...patch,
+      axes: { ...current.axes, ...patch.axes },
+    };
   }
 
   getActiveAxes(s) {
@@ -320,12 +330,26 @@ export default class MirrorManager {
 
   applyMirror(object) {
     const s = object?.userData?.mirror;
-    if (!s?.enabled || this.getActiveAxes(s).length === 0) return;
+    const meshData = object?.userData?.meshData;
+    if (!s?.enabled || !meshData || this.getActiveAxes(s).length === 0) return;
 
-    const meshData = object.userData.meshData;
-    const before = structuredClone(meshData.toJSON());
-    const after = structuredClone(this.buildMirroredMeshData(meshData, s).toJSON());
+    const beforeDelta = MeshDataRegion.snapshot(meshData, {
+      vertexIds: [...meshData.vertices.keys()],
+      edgeIds: [...meshData.edges.keys()],
+      faceIds: [...meshData.faces.keys()],
+    });
 
-    this.editor.execute(new ApplyMirrorCommand(this.editor, object, before, after));
+    const startElements = {
+      startVertexId: meshData.nextVertexId,
+      startEdgeId: meshData.nextEdgeId,
+      startFaceId: meshData.nextFaceId,
+    };
+
+    const evaluated = this.buildMirroredMeshData(meshData, s);
+
+    MeshDataRegion.captureNewElements(evaluated, startElements, beforeDelta);
+    const afterDelta = MeshDataRegion.snapshot(evaluated, MeshDataRegion.idsOf(beforeDelta));
+
+    this.editor.execute(new ApplyMirrorCommand(this.editor, object, beforeDelta, afterDelta, s));
   }
 }
