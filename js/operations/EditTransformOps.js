@@ -13,6 +13,7 @@ export class EditTransformOps {
     this.vertexEditor = editor.vertexEditor;
     this.editSelection = editor.editSelection;
     this.snapManager = editor.snapManager;
+    this.mirrorManager = editor.mirrorManager;
 
     this.session = null;
     this.currentScaleFactor = new THREE.Vector3(1, 1, 1);
@@ -40,6 +41,7 @@ export class EditTransformOps {
       oldPositions,
       pool: oldPositions.map(() => new THREE.Vector3()), // reused every apply
       delta: null, // Vector3 (translate/scale) or Quaternion (rotate)
+      clip: this.mirrorManager?.createClip(object, vertexIds) ?? null,
     };
 
     return this.session;
@@ -71,6 +73,7 @@ export class EditTransformOps {
       delta,
       space: this.space,
     });
+    s.clip?.(s.pool);
 
     this.vertexEditor.setObject(s.object);
     this.vertexEditor.transform.setVertexPositions(s.vertexIds, s.pool);
@@ -103,6 +106,7 @@ export class EditTransformOps {
       oldPositions.map(() => new THREE.Vector3()),
       { pivot: s.pivotPosition, pivotQuaternion: s.pivotQuaternion, delta, space: this.space }
     );
+    s.clip?.(newPositions);
 
     const positions = { from: oldPositions, to: newPositions };
     this.editor.execute(EditTransformOps.createCommand(this.editor, object, vertexIds, { positions }));

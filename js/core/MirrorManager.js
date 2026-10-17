@@ -8,6 +8,9 @@ const DATA_AXIS = { x: 'x', y: 'z', z: 'y' };
 const ZERO_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 const _box = new THREE.Box3();
 
+const _inv = new THREE.Matrix4();
+const _local = new THREE.Vector3();
+
 export const DEFAULT_MIRROR_SETTINGS = {
   enabled: false,
   axes: { x: true, y: false, z: false },
@@ -234,46 +237,41 @@ export default class MirrorManager {
   }
 
   // ---------- Clipping (edit mode transforms) ----------
-  // On each mirrored axis: a vertex that starts on the plane stays on it,
-  // and a vertex that would cross the plane is clamped onto it.
-
-  beginClip(object, vertexIds) {
+  createClip(object, vertexIds) {
     const s = object?.userData?.mirror;
-    if (!s?.enabled || !s.clipping) { this._clip = null; return; }
+    const meshData = object?.userData?.meshData;
+    if (!s?.enabled || !s.clipping || !meshData) return null;
 
-    const meshData = object.userData.meshData;
-    const start = new Map();
-    for (const id of vertexIds) {
-      const v = meshData.getVertex(id);
-      if (v) start.set(id, v.position.clone());
-    }
+    const axes = this.getActiveAxes(s);
+    if (!axes.length) return null;
 
-    this._clip = { meshData, settings: s, axes: this.getActiveAxes(s), start };
-    console.log(this._clip);
-  }
-
-  applyClip() {
-    if (!this._clip) return;
-    const { meshData, settings, axes, start } = this._clip;
-
-    for (const [id, p0] of start) {
+    // Starting side per vertex per axis: 0 = on the plane (locked), ±1 = side it may not cross
+    const sides = vertexIds.map(id => {
       const p = meshData.getVertex(id)?.position;
-      if (!p) continue;
+      return p && axes.map(a => (Math.abs(p[a]) <= s.mergeDistance ? 0 : Math.sign(p[a])));
+    });
 
-      for (const axis of axes) {
-        if (Math.abs(p0[axis]) <= settings.mergeDistance || p[axis] * p0[axis] < 0) {
-          p[axis] = 0;
-        }
-      }
+    // Clamps world positions in place (index-aligned with vertexIds)
+    return (worldPositions) => {
+      _inv.copy(object.matrixWorld).invert();
+
+      worldPositions.forEach((wp, i) => {
+        const side = sides[i];
+        if (!side) return;
+
+        _local.copy(wp).applyMatrix4(_inv);
+        let hit = false;
+
+        axes.forEach((a, j) => {
+          if (_local[a] * side[j] <= 0) { _local[a] = 0; hit = true; }
+        });
+
+        if (hit) wp.copy(_local).applyMatrix4(object.matrixWorld);
+      });
     }
-  }
-
-  endClip() {
-    this._clip = null;
   }
 
   // ---------- Build / Apply ----------
-
   buildMirroredMeshData(meshData, s) {
     // toJSON() copies positions; existing UV arrays are only read, never mutated
     const result = MeshData.getRehydratedMeshData(meshData.toJSON());

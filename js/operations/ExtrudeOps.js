@@ -19,6 +19,7 @@ export class ExtrudeOps {
     this.vertexEditor = editor.vertexEditor;
     this.editSelection = editor.editSelection;
     this.snapManager = editor.snapManager;
+    this.mirrorManager = editor.mirrorManager;
 
     this.session = null;
   }
@@ -42,6 +43,7 @@ export class ExtrudeOps {
       pivotScale: handle.getWorldScale(new THREE.Vector3()),
       oldPositions: this.vertexEditor.transform.getVertexPositions(selection.vertexIds),
       extrusion: null,
+      clip: null,
     };
 
     return this.session;
@@ -80,6 +82,7 @@ export class ExtrudeOps {
     if (!extrusion) return null;
 
     s.extrusion = extrusion;
+    s.clip = this.mirrorManager?.createClip(s.object, extrusion.newVertexIds) ?? null;
     ExtrudeOps.selectExtruded(this.editSelection, s.mode, extrusion);
     this.signals.editSelectionRefresh.dispatch();
 
@@ -109,6 +112,7 @@ export class ExtrudeOps {
     }
 
     const newPositions = extrusion.initialPositions.map(pos => pos.clone().add(offset));
+    s.clip?.(newPositions);
     this.vertexEditor.transform.setVertexPositions(extrusion.newVertexIds, newPositions);
   }
 
