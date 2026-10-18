@@ -94,7 +94,7 @@ export class SnapManager {
 
     for (const hit of hits) {
       const obj = hit.object;
-      if (!obj.isMesh || !obj.geometry?.attributes?.position) continue;
+      if (!obj.isMesh || !obj.geometry?.attributes?.position || obj.name === '__MirrorPreview') continue;
       if (ignoreSet.has(obj)) continue;
 
       const posAttr = obj.geometry.attributes.position;
@@ -151,7 +151,7 @@ export class SnapManager {
 
     for (const hit of hits) {
       const obj = hit.object;
-      if (!obj.isMesh || !obj.userData.meshData) continue;
+      if (!obj.isMesh || !obj.userData.meshData || obj.name === '__MirrorPreview') continue;
       if (ignoreSet.has(obj)) continue;
 
       const meshData = obj.userData.meshData;
@@ -221,7 +221,7 @@ export class SnapManager {
 
     for (const hit of hits) {
       const obj = hit.object;
-      if (!obj.isMesh) continue;
+      if (!obj.isMesh || obj.name === '__MirrorPreview') continue;
       if (ignoreSet.has(obj)) continue;
 
       const meshData = obj.userData.meshData;

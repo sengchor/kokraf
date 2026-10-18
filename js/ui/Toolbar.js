@@ -181,6 +181,7 @@ export default class Toolbar {
       this.activeToolPaintMode = toolName;
     }
     this.updateTools();
+    this.signals.toolChanged.dispatch(toolName);
   }
 
   restorePreviousTool() {

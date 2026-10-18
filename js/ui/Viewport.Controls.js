@@ -265,6 +265,13 @@ export default class ViewportControls {
 
     this.signals.objectSelected?.add(() => this.syncMirrorUI());
     this.signals.mirrorChanged?.add(() => this.syncMirrorUI());
+    [
+      this.signals.toolChanged,
+      this.signals.onToolStarted,
+      this.signals.transformDragStarted,
+      this.signals.objectTransformStart,
+      this.signals.editTransformStart,
+    ].forEach(signal => signal?.add(() => this.closeMirrorPanel()));
     this.syncMirrorUI();
   }
 

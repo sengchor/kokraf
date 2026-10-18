@@ -145,6 +145,7 @@ export class VertexEditor {
     }
 
     MeshDataRegion.apply(meshData, delta);
+    meshData.syncIdCounters();
 
     for (const [key, data] of Object.entries(delta.vertices)) {
       const id = Number(key);
@@ -172,6 +173,7 @@ export class VertexEditor {
     }
 
     geometry.attributes.position.needsUpdate = true;
+    if (geometry.attributes.uv) geometry.attributes.uv.needsUpdate = true;
 
     const box = new THREE.Box3();
     for (const id of meshData.vertices.keys()) {

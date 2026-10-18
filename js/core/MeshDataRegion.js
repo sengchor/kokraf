@@ -61,10 +61,17 @@ export const MeshDataRegion = {
       return out;
     };
 
+    const uvs = {};
+    for (const id of ids.faceIds) {
+      const faceUVs = meshData.faces.has(id) ? meshData.uvs.get(id) : null;
+      uvs[id] = faceUVs ? faceUVs.map(c => ({ u: c.u, v: c.v })) : null;
+    }
+
     return {
       vertices: snapMap(meshData.vertices, ids.vertexIds, MeshData.serializeVertex),
       edges: snapMap(meshData.edges, ids.edgeIds, MeshData.serializeEdge),
       faces: snapMap(meshData.faces, ids.faceIds, MeshData.serializeFace),
+      uvs,
     };
   },
 
@@ -110,6 +117,14 @@ export const MeshDataRegion = {
       if (data === null) meshData.vertices.delete(id);
       else meshData.vertices.set(id, MeshData.rehydrateVertex(data));
     }
+    
+    if (snapshot.uvs) {
+      for (const [key, data] of Object.entries(snapshot.uvs)) {
+        const id = Number(key);
+        if (data === null) meshData.uvs.delete(id);
+        else meshData.uvs.set(id, data.map(c => ({ u: c.u, v: c.v })));
+      }
+    }
   },
 
   captureNewElements(meshData, startElements, beforeSnapshot) {
@@ -130,6 +145,7 @@ export const MeshDataRegion = {
     for (let id = startFaceId; id < meshData.nextFaceId; id++) {
       if (meshData.faces.has(id) && !(id in beforeSnapshot.faces)) {
         beforeSnapshot.faces[id] = null;
+        if (beforeSnapshot.uvs) beforeSnapshot.uvs[id] = null;
       }
     }
   }

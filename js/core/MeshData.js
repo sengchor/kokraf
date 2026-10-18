@@ -277,4 +277,15 @@ export class MeshData {
     face.edgeIds = new Set(data.edgeIds);
     return face;
   }
+
+  syncIdCounters() {
+    const maxKey = (map) => {
+      let m = -1;
+      for (const id of map.keys()) if (id > m) m = id;
+      return m;
+    };
+    this.nextVertexId = Math.max(this.nextVertexId, maxKey(this.vertices) + 1);
+    this.nextEdgeId = Math.max(this.nextEdgeId, maxKey(this.edges) + 1);
+    this.nextFaceId = Math.max(this.nextFaceId, maxKey(this.faces) + 1);
+  }
 }
