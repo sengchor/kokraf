@@ -26,21 +26,24 @@ export class SetScaleCommand {
   }
 
   execute() {
-    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
-    for (let i = 0; i < objects.length; i++) {
-      TransformUtils.setWorldScale(objects[i], this.newScales[i]);
-      objects[i].updateMatrixWorld(true);
-    }
-    this.editor.selection.select(objects, true);
+    this.apply(this.newScales);
   }
 
   undo() {
-    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
-    for (let i = 0; i < objects.length; i++) {
-      TransformUtils.setWorldScale(objects[i], this.oldScales[i]);
-      objects[i].updateMatrixWorld(true);
+    this.apply(this.oldScales);
+  }
+
+  apply(scales) {
+    for (let i = 0; i < this.objectUuids.length; i++) {
+      const object = this.editor.objectByUuid(this.objectUuids[i]);
+      if (!object) continue;
+
+      TransformUtils.setWorldScale(object, scales[i]);
+      object.updateMatrixWorld(true);
     }
-    this.editor.selection.select(objects, true);
+
+    this.editor.selection.updatePivotHandle();
+    this.editor.signals.objectChanged.dispatch();
   }
 
   toJSON() {

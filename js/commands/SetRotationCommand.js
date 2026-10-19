@@ -26,21 +26,24 @@ export class SetRotationCommand {
   }
 
   execute() {
-    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
-    for (let i = 0; i < objects.length; i++) {
-      TransformUtils.setWorldRotation(objects[i], this.newQuaternions[i]);
-      objects[i].updateMatrixWorld(true);
-    }
-    this.editor.selection.select(objects, true);
+    this.apply(this.newQuaternions);
   }
 
   undo() {
-    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
-    for (let i = 0; i < objects.length; i++) {
-      TransformUtils.setWorldRotation(objects[i], this.oldQuaternions[i]);
-      objects[i].updateMatrixWorld(true);
+    this.apply(this.oldQuaternions);
+  }
+
+  apply(quaternions) {
+    for (let i = 0; i < this.objectUuids.length; i++) {
+      const object = this.editor.objectByUuid(this.objectUuids[i]);
+      if (!object) continue;
+
+      TransformUtils.setWorldRotation(object, quaternions[i]);
+      object.updateMatrixWorld(true);
     }
-    this.editor.selection.select(objects, true);
+
+    this.editor.selection.updatePivotHandle();
+    this.editor.signals.objectChanged.dispatch();
   }
 
   toJSON() {

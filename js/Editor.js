@@ -319,6 +319,10 @@ export default class Editor {
 
     this.sceneManager.setScene(scene);
 
+    const selected = (json.selection ?? [])
+      .map(uuid => this.objectByUuid(uuid)).filter(Boolean);
+    this.selection.setSelection(selected);
+
     const camera = await loader.parseAsync(json.camera);
     this.cameraManager.replaceCameraInstance(camera);
 
@@ -357,6 +361,7 @@ export default class Editor {
       modeManager: this.modeManager.toJSON(),
       controlsManager: this.controlsManager.toJSON(),
       brush: this.modeManager.texturePainter?.toJSON(),
+      selection: this.selection.selectedObjects.map(o => o.uuid),
     };
 
     if (this.config.get('history')) {

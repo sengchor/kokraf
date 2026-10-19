@@ -24,13 +24,13 @@ export class MenubarAdd {
     document.querySelectorAll('[data-geometry]').forEach(item => {
       item.addEventListener('click', (event) => {
         const geometryType = event.target.getAttribute('data-geometry');
-        const geometry = this.objectFactory.createGeometry(geometryType);
-        
-        this.editor.sceneManager.addObject(geometry);
-        this.editor.selection.select(geometry);
-        
+        const object = this.objectFactory.createGeometry(geometryType);
+
+        const command = new AddObjectCommand(this.editor, object);
+        this.editor.execute(command);
+
         const params = this.objectFactory.getDefaultParams(geometryType);
-        this.propertiesPanel.setSelected(geometry, geometryType, params);
+        this.propertiesPanel.setSelected(command, geometryType, params);
       });
     });
 

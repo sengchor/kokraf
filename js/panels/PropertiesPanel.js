@@ -21,16 +21,24 @@ export class PropertiesPanel {
   constructor(editor, containerElement) {
     this.editor = editor;
     this.container = containerElement;
-    this.selectedObject = null;
+    this.command = null;
     this.selectedType = null;
     this.params = null;
 
     this.setupListener();
   }
 
+  get selectedObject() {
+    return this.command?.object ?? null;
+  }
+
+  isActive() {
+    return !!this.command && this.editor.history.undos.at(-1) === this.command;
+  }
+
   setupListener() {
     document.addEventListener('pointerdown', (e) => {
-      if (!this.isNewCreation) return;
+      if (!this.command) return;
       if (e.button === 1) return;
 
       if (this.container.contains(e.target)) return;
@@ -39,7 +47,7 @@ export class PropertiesPanel {
     }, true);
 
     document.addEventListener('keydown', (e) => {
-      if (!this.isNewCreation) return;
+      if (!this.command) return;
 
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
@@ -47,28 +55,17 @@ export class PropertiesPanel {
     }, true);
   }
 
-  setSelected(object, geometryType, params) {
-    this.selectedObject = object;
+  setSelected(command, geometryType, params) {
+    this.command = command;
     this.selectedType = geometryType;
     this.params = { ...params };
-    this.isNewCreation = true;
-
     this.render();
   }
 
   clear() {
-    if (this.isNewCreation && this.selectedObject) {
-      this.editor.sceneManager.removeObject(this.selectedObject);
-      this.editor.selection.deselect();
-
-      this.editor.execute(new AddObjectCommand(this.editor, this.selectedObject));
-    }
-
-    this.selectedObject = null;
+    this.command = null;
     this.selectedType = null;
     this.params = null;
-    this.isNewCreation = false;
-
     this.container.style.display = 'none';
     this.container.innerHTML = '';
   }
@@ -136,7 +133,8 @@ export class PropertiesPanel {
   }
 
   updateMeshGeometry(paramKey, newValue) {
-    if (!this.selectedObject) return;
+    if (!this.isActive()) { this.clear(); return; }
+    const object = this.selectedObject;
 
     this.params[paramKey] = newValue;
 
@@ -167,16 +165,17 @@ export class PropertiesPanel {
         break;
     }
 
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(newMeshData, { mode: this.selectedObject.userData.shading || "flat" });
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(newMeshData, { mode: object.userData.shading || "flat" });
 
-    const oldGeometry = this.selectedObject.geometry;
-    this.selectedObject.geometry = geometry;
+    const oldGeometry = object.geometry;
+    object.geometry = geometry;
     oldGeometry.dispose();
 
-    this.selectedObject.userData.meshData = newMeshData;
-    this.selectedObject.userData.renderBuffer = renderBuffer;
+    object.userData.meshData = newMeshData;
+    object.userData.renderBuffer = renderBuffer;
 
     this.editor.signals.sceneGraphChanged.dispatch();
+    this.editor.signals.historyChanged.dispatch();
   }
 
   getDisplayName(key) {

@@ -196,7 +196,7 @@ export default class Selection {
     const touch = event.changedTouches[0];
     const isBox = this.dragging;
     const hits = isBox ? this.getBoxSelectedObjects()
-      : (touch ? this.getSingleSelectedObject({ clientX: touch.clientX, clientY: touch.clinetY }) : null);
+      : (touch ? this.getSingleSelectedObject({ clientX: touch.clientX, clientY: touch.clientY }) : null);
 
     this.commitSelection(() => this.applyPick(hits, isBox));
     this.resetTouchState();

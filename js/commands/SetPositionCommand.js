@@ -26,21 +26,24 @@ export class SetPositionCommand {
   }
 
   execute() {
-    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
-    for (let i = 0; i < objects.length; i++) {
-      TransformUtils.setWorldPosition(objects[i], this.newPositions[i]);
-      objects[i].updateMatrixWorld(true);
-    }
-    this.editor.selection.select(objects, true);
+    this.apply(this.newPositions);
   }
 
   undo() {
-    const objects = this.objectUuids.map(uuid => this.editor.objectByUuid(uuid));
-    for (let i = 0; i < objects.length; i++) {
-      TransformUtils.setWorldPosition(objects[i], this.oldPositions[i]);
-      objects[i].updateMatrixWorld(true);
+    this.apply(this.oldPositions);
+  }
+
+  apply(positions) {
+    for (let i = 0; i < this.objectUuids.length; i++) {
+      const object = this.editor.objectByUuid(this.objectUuids[i]);
+      if (!object) continue;
+
+      TransformUtils.setWorldPosition(object, positions[i]);
+      object.updateMatrixWorld(true);
     }
-    this.editor.selection.select(objects, true);
+
+    this.editor.selection.updatePivotHandle();
+    this.editor.signals.objectChanged.dispatch();
   }
 
   toJSON() {
