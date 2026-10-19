@@ -12,26 +12,31 @@ export class AddObjectCommand {
     this.editor = editor;
     this.name = 'Add Object: ' + object.name;
     this.object = object;
+    this.prevSelection = editor.selection.selectedObjects.map(o => o.uuid);
   }
 
   execute() {
     this.editor.sceneManager.addObject(this.object);
-    this.editor.selection.deselect();
-    this.editor.selection.select(this.object);
+    this.editor.selection.setSelection([this.object]);
     this.editor.toolbar.updateTools();
   }
 
   undo() {
     this.object = this.editor.objectByUuid(this.object.uuid);
     this.editor.sceneManager.removeObject(this.object);
-    this.editor.selection.deselect();
+
+    const prev = this.prevSelection
+      .map(uuid => this.editor.objectByUuid(uuid)).filter(Boolean);
+
+    this.editor.selection.setSelection(prev);
     this.editor.toolbar.updateTools();
   }
 
   toJSON() {
     return {
       type: AddObjectCommand.type,
-      object: this.object.toJSON()
+      object: this.object.toJSON(),
+      prevSelection: [...this.prevSelection]
     };
   }
 
@@ -44,6 +49,9 @@ export class AddObjectCommand {
       const loader = new THREE.ObjectLoader();
       object = loader.parse(json.object);
     }
-    return new AddObjectCommand(editor, object);
+
+    const command = new AddObjectCommand(editor, object);
+    command.prevSelection = json.prevSelection ?? [];
+    return command;
   }
 }

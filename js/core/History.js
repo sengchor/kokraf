@@ -6,7 +6,7 @@ export class History {
     this.signals = editor.signals;
     this.undos = [];
     this.redos = [];
-    this.maxCommands = 25;
+    this.maxCommands = 30;
   }
 
   execute(cmd) {

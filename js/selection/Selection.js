@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SetSelectionCommand } from '../commands/SetSelectionCommand.js';
 
 export default class Selection {
   constructor(editor) {
@@ -106,29 +107,9 @@ export default class Selection {
     this.keyHandler.endInteraction('select');
     this.selectionBox.finishSelection();
 
-    if (this.dragging) {  
-      const objects = this.getBoxSelectedObjects();
-      if (objects === null || objects.length === 0) {
-        if (!this.multiSelectEnabled) {
-          this.deselect();
-          this.mouseDownPos = null;
-          return;
-        }
-      }
-
-      this.select(objects, true);
-    } else {
-      const object = this.getSingleSelectedObject(event);
-      if (object === null) {
-        if (!this.multiSelectEnabled) {
-          this.deselect();
-          this.mouseDownPos = null;
-          return;
-        }
-      }
-
-      this.select(object);
-    }
+    const isBox = this.dragging;
+    const hits = isBox ? this.getBoxSelectedObjects() : this.getSingleSelectedObject(event);
+    this.commitSelection(() => this.applyPick(hits, isBox));
 
     this.dragging = false;
     this.mouseDownPos = null;
@@ -202,7 +183,6 @@ export default class Selection {
 
   onTouchEnd(event) {
     this.lastTouchEndTime = Date.now();
-
     clearTimeout(this.touchHoldTimer);
     this.touchHoldTimer = null;
 
@@ -214,32 +194,11 @@ export default class Selection {
     }
 
     const touch = event.changedTouches[0];
+    const isBox = this.dragging;
+    const hits = isBox ? this.getBoxSelectedObjects()
+      : (touch ? this.getSingleSelectedObject({ clientX: touch.clientX, clientY: touch.clinetY }) : null);
 
-    if (this.dragging) {
-      const objects = this.getBoxSelectedObjects();
-
-      if (objects === null || objects.length === 0) {
-        if (!this.multiSelectEnabled) {
-          this.deselect();
-          this.resetTouchState();
-          return;
-        }
-      }
-
-      this.select(objects, true);
-    } else {
-      const object = touch ? this.getSingleSelectedObject({ clientX: touch.clientX, clientY: touch.clientY }) : null;
-      if (object === null) {
-        if (!this.multiSelectEnabled) {
-          this.deselect();
-          this.resetTouchState();
-          return;
-        }
-      }
-
-      this.select(object);
-    }
-
+    this.commitSelection(() => this.applyPick(hits, isBox));
     this.resetTouchState();
   }
 
@@ -445,6 +404,38 @@ export default class Selection {
 
     this.updatePivotHandle();
     this.signals.objectSelected.dispatch(this.selectedObjects);
+  }
+
+  setSelection(objects) {
+    this.clearHighlight();
+    this.selectedObjects = [...new Set(objects.filter(Boolean))];
+
+    for (const obj of this.selectedObjects) {
+      this.highlightObject(obj);
+    }
+
+    this.updatePivotHandle();
+    this.signals.objectSelected.dispatch(this.selectedObjects);
+  }
+
+  commitSelection(applyFn) {
+    const before = [...this.selectedObjects];
+    applyFn();
+    const after = [...this.selectedObjects];
+
+    const same = before.length === after.length && before.every((o, i) => o === after[i]);
+    if (same) return;
+
+    this.editor.history.add(new SetSelectionCommand(this.editor, after, before));
+  }
+
+  applyPick(hits, isBoxSelection) {
+    const empty = hits === null || (Array.isArray(hits) && hits.length === 0);
+    if (empty && !this.multiSelectEnabled) {
+      this.deselect();
+      return;
+    }
+    this.select(hits, isBoxSelection);
   }
 
   highlightObject(object) {

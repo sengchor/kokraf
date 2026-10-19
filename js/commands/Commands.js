@@ -51,6 +51,7 @@ import { SetUVsCommand } from './SetUVsCommand.js';
 import { SetUVPositionCommand } from './SetUVPositionCommand.js';
 import { ApplyMirrorCommand } from './ApplyMirrorCommand.js';
 import { SetMirrorCommand } from './SetMirrorCommand.js';
+import { SetSelectionCommand } from './SetSelectionCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -106,4 +107,5 @@ export const commands = new Map([
   [SetUVPositionCommand.type, SetUVPositionCommand],
   [ApplyMirrorCommand.type, ApplyMirrorCommand],
   [SetMirrorCommand.type, SetMirrorCommand],
+  [SetSelectionCommand.type, SetSelectionCommand],
 ]);
