@@ -11,6 +11,7 @@ import { ApplyLocationCommand } from '../commands/ApplyLocationCommand.js';
 import { ApplyRotationCommand } from '../commands/ApplyRotationCommand.js';
 import { ApplyScaleCommand } from '../commands/ApplyScaleCommand.js';
 import { SetVisibilityCommand } from '../commands/SetVisibilityCommand.js';
+import { SetSelectionCommand } from '../commands/SetSelectionCommand.js';
 
 export class ObjectActions {
   constructor(editor) {
@@ -36,7 +37,7 @@ export class ObjectActions {
       'delete-object': () => this.deleteSelectedObjects(),
       'shade-smooth': () => this.setShading('smooth'),
       'shade-flat': () => this.setShading('flat'),
-      'shade-auto': () => this.setShading('flat'),
+      'shade-auto': () => this.setShading('auto'),
       'hide-selected': () => this.hideSelectedObjects(),
       'hide-unselected': () => this.hideUnselectedObjects(),
       'unhide-all': () => this.unhideAllObjects(),
@@ -141,8 +142,6 @@ export class ObjectActions {
     }
 
     this.editor.execute(multi);
-
-    this.editor.selection.select(objects);
     this.editor.toolbar.updateTools();
   }
 
@@ -158,25 +157,22 @@ export class ObjectActions {
     }
 
     this.editor.execute(multi);
-
-    this.editor.selection.select(objects);
     this.editor.toolbar.updateTools();
   }
 
   objectSelectAll() {
+    const scene = this.sceneManager.mainScene;
     const objects = [];
 
-    const scene = this.sceneManager.mainScene;
-
-    scene.traverse(child => {
-      if (child !== scene) {
-        objects.push(child);
-      }
+    scene.traverseVisible(child => {
+      if (child === scene) return;
+      if (child.userData.selectable === false) return;
+      objects.push(child);
     });
 
     if (objects.length === 0) return;
 
-    this.selection.select(objects);
+    this.selection.commitSelection(() => this.selection.setSelection(objects));
     this.editor.toolbar.updateTools();
   }
 
@@ -202,8 +198,6 @@ export class ObjectActions {
     }
 
     this.editor.execute(multi);
-
-    this.editor.selection.select(objects);
     this.editor.toolbar.updateTools();
   }
 
@@ -218,8 +212,6 @@ export class ObjectActions {
     }
 
     this.editor.execute(multi);
-
-    this.editor.selection.select(objects);
     this.editor.toolbar.updateTools();
   }
 
@@ -234,8 +226,6 @@ export class ObjectActions {
     }
 
     this.editor.execute(multi);
-
-    this.editor.selection.select(objects);
     this.editor.toolbar.updateTools();
   }
 
@@ -252,18 +242,22 @@ export class ObjectActions {
     }
 
     this.editor.execute(multi);
-
-    this.editor.selection.select(objects);
     this.editor.toolbar.updateTools();
   }
 
-  setObjectsVisibility(objects, visible, commandName) {
-    if (!objects.length) return;
+  setObjectsVisibility(objects, visible, commandName, selectAfter = null) {
+    const targets = objects.filter(o => o.visible !== visible);
+    if (!targets.length) return;
 
     const multi = new SequentialMultiCommand(this.editor, commandName);
 
-    for (const object of objects) {
+    for (const object of targets) {
       multi.add(() => new SetVisibilityCommand(this.editor, object, visible));
+    }
+
+    if (selectAfter) {
+      const prev = [...this.selection.selectedObjects];
+      multi.add(() => new SetSelectionCommand(this.editor, selectAfter, prev));
     }
 
     this.editor.execute(multi);
@@ -273,9 +267,7 @@ export class ObjectActions {
   hideSelectedObjects() {
     const objects = this.selection.selectedObjects;
 
-    this.setObjectsVisibility(objects, false, 'Hide Selected');
-
-    this.editor.selection.deselect();
+    this.setObjectsVisibility(objects, false, 'Hide Selected', []);
   }
 
   hideUnselectedObjects() {
@@ -289,12 +281,9 @@ export class ObjectActions {
   }
 
   unhideAllObjects() {
-    this.setObjectsVisibility(
-      this.sceneManager.getSceneObjects(),
-      true,
-      'Unhide All'
-    );
+    const objects = this.sceneManager.getSceneObjects();
+    const hidden = objects.filter(o => !o.visible);
 
-    this.editor.selection.deselect();
+    this.setObjectsVisibility(objects, true, 'Unhide All', hidden);
   }
 }

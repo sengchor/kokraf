@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { ShadingUtils } from '../utils/ShadingUtils.js';
 import { MeshData } from './MeshData.js';
 import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+import { SetSelectionCommand } from '../commands/SetSelectionCommand.js';
 
 export class ClipboardManager {
   static STORAGE_KEY = "kokraf.clipboard";
@@ -223,12 +223,14 @@ export class ClipboardManager {
     }
 
     const multi = new SequentialMultiCommand(this.editor, 'Paste Objects');
+    const prev = [...this.editor.selection.selectedObjects];
+
     for (const root of roots) {
       multi.add(() => new AddObjectCommand(this.editor, root));
     }
+    multi.add(() => new SetSelectionCommand(this.editor, createdObjects, prev));
 
     this.editor.execute(multi);
-    this.editor.selection.select(createdObjects);
     this.editor.toolbar.updateTools();
 
     return createdObjects;

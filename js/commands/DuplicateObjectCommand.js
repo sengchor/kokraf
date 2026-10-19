@@ -20,6 +20,8 @@ export class DuplicateObjectCommand {
       uuid: duplicate.uuid,
       json: duplicate.toJSON()
     }));
+
+    this.prevSelection = editor.selection.selectedObjects.map(o => o.uuid);
   }
 
   execute() {
@@ -41,6 +43,8 @@ export class DuplicateObjectCommand {
     }
 
     // Attach with correct hierarchy
+    const attached = [];
+
     for (let i = 0; i < this.originalUuids.length; i++) {
       const original = this.editor.objectByUuid(this.originalUuids[i]);
       if (!original) continue;
@@ -67,10 +71,11 @@ export class DuplicateObjectCommand {
           this.vertexEditor.updateGeometryAndHelpers();
         }
       });
+
+      attached.push(duplicate);
     }
 
-    this.editor.selection.deselect();
-    this.editor.selection.select(created);
+    this.editor.selection.setSelection(attached);
     this.editor.toolbar.updateTools();
   }
 
@@ -82,7 +87,10 @@ export class DuplicateObjectCommand {
       if (obj) sceneManager.removeObject(obj);
     }
 
-    this.editor.selection.deselect();
+    const prev = this.prevSelection
+      .map(uuid => this.editor.objectByUuid(uuid)).filter(Boolean);
+
+    this.editor.selection.setSelection(prev);
     this.editor.toolbar.updateTools();
   }
 
@@ -90,7 +98,8 @@ export class DuplicateObjectCommand {
     return {
       type: DuplicateObjectCommand.type,
       originalUuids: this.originalUuids,
-      duplicateStates: this.duplicateStates
+      duplicateStates: this.duplicateStates,
+      prevSelection: [...this.prevSelection]
     };
   }
 
@@ -98,8 +107,9 @@ export class DuplicateObjectCommand {
     if (!json || json.type !== DuplicateObjectCommand.type) return null;
 
     const cmd = new DuplicateObjectCommand(editor);
-    cmd.originalUuids = json.originalUuids;
-    cmd.duplicateStates = json.duplicateStates;
+    cmd.originalUuids = json.originalUuids ?? [];
+    cmd.duplicateStates = json.duplicateStates ?? [];
+    cmd.prevSelection = json.prevSelection ?? [];
 
     return cmd;
   }

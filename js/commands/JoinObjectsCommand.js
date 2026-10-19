@@ -27,6 +27,8 @@ export class JoinObjectsCommand {
       childrenUuids: obj.children.map(child => child.uuid),
       seam: SeamSnapshot.read(obj)
     }));
+
+    this.prevSelection = editor.selection.selectedObjects.map(o => o.uuid);
   }
 
   execute() {
@@ -58,8 +60,11 @@ export class JoinObjectsCommand {
 
     this.editor.signals.seamsChanged.dispatch(joined);
 
-    this.editor.selection.deselect();
-    this.editor.selection.select(joined);
+    // Keep non-joined selected objects, swap the sources for the result
+    const sourceUuids = new Set(this.objectStates.map(s => s.uuid));
+    const kept = this.resolve(this.prevSelection.filter(uuid => !sourceUuids.has(uuid)));
+
+    this.editor.selection.setSelection([...kept, joined]);
     this.editor.toolbar.updateTools();
   }
 
@@ -90,10 +95,10 @@ export class JoinObjectsCommand {
       const state = this.objectStates[i];
       const obj = restoredObjects.get(state.uuid);
       
-      let parent = this.editor.objectByUuid(state.parentUuid) || restoredObjects.get(state.parentUuid);
-      if (!parent) {
-        parent = sceneManager.mainScene; 
-      }
+      let parent = 
+        this.editor.objectByUuid(state.parentUuid) ||
+        restoredObjects.get(state.parentUuid) ||
+        sceneManager.mainScene;
 
       sceneManager.addObject(obj, parent, state.index);
     }
@@ -101,27 +106,28 @@ export class JoinObjectsCommand {
     // Restore original children
     for (let i = 0; i < this.objectStates.length; i++) {
       const state = this.objectStates[i];
-      if (state.childrenUuids.length > 0) {
-        const obj = restoredObjects.get(state.uuid) || this.editor.objectByUuid(state.uuid);
-        for (const childUuid of state.childrenUuids) {
-          const child = this.editor.objectByUuid(childUuid);
+      if (state.childrenUuids.length) continue;
 
-          if (obj && child) {
-            sceneManager.attachObject(child, obj);
-          }
-        }
+      const obj = restoredObjects.get(state.uuid) || this.editor.objectByUuid(state.uuid);
+      for (const childUuid of state.childrenUuids) {
+        const child = this.editor.objectByUuid(childUuid);
+        if (obj && child) sceneManager.attachObject(child, obj);
       }
     }
 
-    const objects = this.objectStates
-      .map(s => this.editor.objectByUuid(s.uuid))
-      .filter(Boolean);
+    for (const state of this.objectStates) {
+      const obj = this.editor.objectByUuid(state.uuid);
+      if (obj) this.editor.signals.seamsChanged.dispatch(obj);
+    }
 
-    for (const obj of objects) this.editor.signals.seamsChanged.dispatch(obj);
-
-    this.editor.selection.deselect();
-    this.editor.selection.select(objects);
+    this.editor.selection.setSelection(this.resolve(this.prevSelection));
     this.editor.toolbar.updateTools();
+  }
+
+  resolve(uuids) {
+    return uuids
+      .map(uuid => this.editor.objectByUuid(uuid))
+      .filter(Boolean);
   }
   
   toJSON() {
@@ -130,7 +136,8 @@ export class JoinObjectsCommand {
       joinedObjectUuid: this.joinedObjectUuid,
       joinedObjectJSON: this.joinedObjectJSON,
       joinedSeam: this.joinedSeam,
-      objectStates: this.objectStates
+      objectStates: this.objectStates,
+      prevSelection: [...this.prevSelection]
     };
   }
 
@@ -142,7 +149,8 @@ export class JoinObjectsCommand {
     cmd.joinedObjectUuid = json.joinedObjectUuid;
     cmd.joinedObjectJSON = json.joinedObjectJSON;
     cmd.joinedSeam = json.joinedSeam ?? null;
-    cmd.objectStates = json.objectStates;
+    cmd.objectStates = json.objectStates ?? [];
+    cmd.prevSelection = json.prevSelection ?? [];
 
     return cmd;
   }

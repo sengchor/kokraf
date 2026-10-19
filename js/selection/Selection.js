@@ -485,10 +485,17 @@ export default class Selection {
     this.originHelper.removeOriginHelper(object);
   }
 
+  isVisibleInWorld(object) {
+    for (let o = object; o; o = o.parent) {
+      if (!o.visible) return false;
+    }
+    return true;
+  }
+
   fitBoxHelper(object, boxHelper) {
     boxHelper.box.setFromObject(object);
     this.editor.mirrorManager?.expandWorldBox(object, boxHelper.box);
-    boxHelper.visible = true;
+    boxHelper.visible = this.isVisibleInWorld(object);
     boxHelper.updateMatrixWorld(true);
   }
 
