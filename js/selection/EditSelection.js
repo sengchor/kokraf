@@ -5,6 +5,19 @@ import {
   resolveSelectionGraphFromEdges,
   resolveSelectionGraphFromFaces
 } from './SelectionGraph.js';
+import { SetEditSelectionCommand } from '../commands/SetEditSelectionCommand.js';
+
+function sameIds(a, b) {
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every(id => set.has(id));
+}
+
+function sameSnapshot(a, b) {
+  return sameIds(a.vertexIds, b.vertexIds)
+    && sameIds(a.edgeIds, b.edgeIds)
+    && sameIds(a.faceIds, b.faceIds);
+}
 
 export default class EditSelection {
   constructor(editor) {
@@ -85,27 +98,27 @@ export default class EditSelection {
     });
 
     this.signals.editSelectAll.add(() => {
-      this.selectAll();
+      this.commitSelection(() => this.selectAll());
     });
 
     this.signals.editSelectNone.add(() => {
-      this.clearSelection();
+      this.commitSelection(() => this.clearSelection());
     });
 
     this.signals.editSelectLinked.add(() => {
-      this.selectLinked();
+      this.commitSelection(() => this.selectLinked());
     });
 
     this.signals.mouseSelectLinked.add(() => {
-      this.mouseSelectLinked();
+      this.commitSelection(() => this.mouseSelectLinked());
     });
 
     this.signals.editSelectRings.add(() => {
-      this.selectRings();
+      this.commitSelection(() => this.selectRings());
     });
 
     this.signals.editSelectLoops.add(() => {
-      this.selectLoops();
+      this.commitSelection(() => this.selectLoops());
     });
 
     this.signals.uvSelectionChanged.add((uvSelection) => {
@@ -257,11 +270,14 @@ export default class EditSelection {
     
     this.selectionBox.finishSelection();
 
-    if (this.dragging) {
-      this.applyBoxSelection();
-    } else {
-      this.applyClickSelection(event);
-    }
+    const isBox = this.dragging;
+    this.commitSelection(() => {
+      if (isBox) {
+        this.applyBoxSelection();
+      } else {
+        this.applyClickSelection(event);
+      }
+    });
 
     this.dragging = false;
     this.mouseDownPos = null;
@@ -476,6 +492,59 @@ export default class EditSelection {
 
     this.updateVertexHandle();
     this.signals.editSelectionChanged.dispatch(this.selectionState);
+  }
+
+  getSnapshot() {
+    return {
+      vertexIds: [...this.selectedVertexIds],
+      edgeIds: [...this.selectedEdgeIds],
+      faceIds: [...this.selectedFaceIds],
+    };
+  }
+
+  setSelection({ vertexIds = [], edgeIds = [], faceIds = [] } = {}) {
+    const meshData = this.meshData;
+    const existing = (ids, map) => (map ? ids.filter(id => map.has(id)) : []);
+
+    const vertices = existing(vertexIds, meshData?.vertices);
+    const edges = existing(edgeIds, meshData?.edges);
+    const faces = existing(faceIds, meshData?.faces);
+
+    if (vertices.length === 0 && edges.length === 0 && faces.length === 0) {
+      this.clearSelection();
+      return;
+    }
+
+    this.selectedVertexIds = new Set(vertices);
+    this.selectedEdgeIds = new Set(edges);
+    this.selectedFaceIds = new Set(faces);
+
+    this.updateVertexHandle();
+    this.signals.editSelectionChanged.dispatch(this.selectionState);
+  }
+
+  commitSelection(applyFn) {
+    if (this.isCommitting) {
+      applyFn();
+      return;
+    }
+
+    const object = this.editedObject;
+    const before = this.getSnapshot();
+
+    this.isCommitting = true;
+    try {
+      applyFn();
+    } finally {
+      this.isCommitting = false;
+    }
+
+    if (!object || object !== this.editedObject) return;
+
+    const after = this.getSnapshot();
+    if (sameSnapshot(before, after)) return;
+
+    this.editor.history.add(new SetEditSelectionCommand(this.editor, object, after, before));
   }
 
   clearSelection() {
