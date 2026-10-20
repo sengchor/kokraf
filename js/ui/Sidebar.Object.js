@@ -62,6 +62,8 @@ export class SidebarObject {
     this.signals.modeChanged.add(mode => {
       this.currentMode = mode;
     });
+
+    this.signals.objectChanged.add(() => this.updateFields(this.lastSelectedObject));
   }
 
   selectObject(object) {
@@ -96,7 +98,6 @@ export class SidebarObject {
     this.setupSettingInput();
 
     this.updateFields(object);
-    this.signals.objectChanged.add(() => this.updateFields(this.lastSelectedObject));
   }
 
   getOptionsFor(object) {
@@ -604,10 +605,7 @@ export class SidebarObject {
             ),
             object => object.position.clone(),
             SetPositionCommand,
-            () => {
-              this.editor.vertexEditor.updateGeometryAndHelpers();
-              this.editor.selection.deselect();
-            }
+            () => this.editor.vertexEditor.updateGeometryAndHelpers()
           );
           break;
 
@@ -628,10 +626,7 @@ export class SidebarObject {
 
             object => object.quaternion.clone(),
             SetRotationCommand,
-            () => {
-              this.editor.vertexEditor.updateGeometryAndHelpers();
-              this.editor.selection.deselect();
-            }
+            () => this.editor.vertexEditor.updateGeometryAndHelpers()
           );
 
           [f.rotationX, f.rotationY, f.rotationZ].forEach(input => {
@@ -655,10 +650,7 @@ export class SidebarObject {
             ),
             object => object.scale.clone(),
             SetScaleCommand,
-            () => {
-              this.editor.vertexEditor.updateGeometryAndHelpers();
-              this.editor.selection.deselect();
-            }
+            () => this.editor.vertexEditor.updateGeometryAndHelpers()
           );
           break;
 

@@ -19,6 +19,8 @@ export class DifferenceTool {
     this.mouse = new THREE.Vector2();
     this.camera = editor.cameraManager.camera;
 
+    this._pickHelpers = [];
+
     this.setupListeners();
 
     this._onPointerDown = this.onPointerDown.bind(this);
@@ -30,8 +32,8 @@ export class DifferenceTool {
     this._firstObject = null;
     this._secondObject = null;
 
-    // Hand off from normal selection
-    this.selection.deselect();
+    this._prevHighlightVisible = this.selection.highlightVisible;
+    this.selection.setHighlightVisible(false);
     this.selection.enable = false;
     this.selection.tool = true;
 
@@ -39,8 +41,8 @@ export class DifferenceTool {
     window.addEventListener('keydown', this._onKeyDown);
 
     this.signals.onToolStarted.dispatch('Select first object');
+    this.signals.objectSelected.dispatch([]);
   }
-
   disable() {
     if (this._state === 'idle') return;
     this.endSession();
@@ -115,7 +117,7 @@ export class DifferenceTool {
 
     if (this._state === 'pick_first') {
       this._firstObject = object;
-      this.selection.highlightObject(object);
+      this.addPickHighlight(object);
 
       this._state = 'pick_second';
       this.signals.onToolUpdated.dispatch('Select second object');
@@ -124,7 +126,7 @@ export class DifferenceTool {
       if (object === this._firstObject) return;
 
       this._secondObject = object;
-      this.selection.highlightObject(object);
+      this.addPickHighlight(object);
 
       this._state = 'confirm';
       this.signals.onToolUpdated.dispatch({
@@ -164,6 +166,7 @@ export class DifferenceTool {
   // Session teardown: clear highlights, hand selection back, detach input.
   endSession() {
     this.clearPicks();
+    this.selection.setHighlightVisible(this._prevHighlightVisible ?? true);
     this.selection.enable = true;
     this.selection.tool = false;
 
@@ -174,12 +177,35 @@ export class DifferenceTool {
     this.renderer.domElement.removeEventListener('mousedown', this._onPointerDown);
     window.removeEventListener('keydown', this._onKeyDown);
 
+    this.signals.objectSelected.dispatch(this.selection.selectedObjects);
     this.signals.onToolEnded.dispatch();
   }
 
   clearPicks() {
     if (this._firstObject) this.selection.unhighlightObject(this._firstObject);
     if (this._secondObject) this.selection.unhighlightObject(this._secondObject);
-    this.signals.objectSelected.dispatch([]);
+  }
+
+  // Tool-owned highlights, independent of Selection.update()
+  addPickHighlight(object) {
+    const box = new THREE.Box3().setFromObject(object);
+    this.editor.mirrorManager?.expandWorldBox(object, box);
+
+    const helper = new THREE.Box3Helper(box, 0xffa500);
+    helper.material.depthTest = false;
+    helper.material.transparent = true;
+    helper.updateMatrixWorld(true);
+
+    this.editor.sceneManager.sceneEditorHelpers.add(helper);
+    this._pickHelpers.push(helper);
+  }
+
+  clearPicks() {
+    for (const helper of this._pickHelpers) {
+      helper.removeFromParent();
+      helper.geometry.dispose();
+      helper.material.dispose();
+    }
+    this._pickHelpers = [];
   }
 }

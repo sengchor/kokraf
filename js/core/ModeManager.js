@@ -169,14 +169,15 @@ export default class ModeManager {
 
     this._removeEditHelpers();
 
-    const edited = this.editSelection.editedObject;
-    if (edited) {
+    if (this.editSelection.editedObject) {
       this.editSelection.clearSelection();
-      this.selection.select(edited);
       this.editSelection.editedObject = null;
     }
 
     this._detachPainter();
+
+    this.selection.setHighlightVisible(true);
+    this.signals.objectSelected.dispatch(this.selection.selectedObjects);
   }
 
   _enterEdit(object) {
@@ -190,11 +191,11 @@ export default class ModeManager {
   _enterObjectEdit(object) {
     this.selection.enable = false;
     this.editSelection.enable = true;
+    this.selection.setHighlightVisible(false);
 
     this.editSelection.editedObject = object;
     this.signals.editSelectionRefresh.dispatch();
     this.editSelection.clearSelection();
-    this.selection.deselect();
 
     this._detachPainter();
 
@@ -205,12 +206,12 @@ export default class ModeManager {
   _enterPaint(object, paintMap = 'map') {
     this.selection.enable = false;
     this.editSelection.enable = false;
+    this.selection.setHighlightVisible(false);
 
     this._removeEditHelpers();
 
     this.editSelection.editedObject = object;
     this.editSelection.clearSelection();
-    this.selection.deselect();
 
     if (!this.texturePainter) {
       this.texturePainter = new TexturePainter(this.editor);
@@ -267,7 +268,9 @@ export default class ModeManager {
       ? this.editor.objectByUuid(json.editedObjectUuid) : null;
 
     if (def?.requiresMesh && this.isValidMesh(object)) {
-      this.selection.select(object);
+      if (this.selection.selectedObjects.length === 0) {
+        this.selection.setSelection([object]);
+      }
       this.setMode(json.mode, object, { paintMap: this.savedPaintMap });
     } else {
       this.setMode('object');

@@ -125,7 +125,12 @@ export class TexturePainter {
     this.isActive = true;
 
     this._ensureDefaultLight();
-    this.editor.selection.deselect();
+    
+    if (this._prevHighlightVisible === undefined) {
+      this._prevHighlightVisible = this.editor.selection.highlightVisible;
+    }
+    this.editor.selection.setHighlightVisible(false);
+
     this.signals.shadingModeChanged.dispatch('material');
   }
 
@@ -154,6 +159,9 @@ export class TexturePainter {
 
     this._domElement.style.cursor = '';
     this.brushCursor.style.display = 'none';
+
+    this.editor.selection.setHighlightVisible(this._prevHighlightVisible ?? true);
+    this._prevHighlightVisible = undefined;
   }
 
   setupListeners() {

@@ -50,7 +50,7 @@ export class SidebarScene {
       if (nextIndex === currentIndex) return;
 
       items.forEach(i => i.classList.remove('selected'));
-      this.selectObjectFromOutlinerItem(items[nextIndex]);
+      this.selectObjectFromOutlinerItem(items[nextIndex], { replace: true });
       items[nextIndex].scrollIntoView({ block: 'nearest' });
     });
 
@@ -59,7 +59,8 @@ export class SidebarScene {
 
       const item = event.target.closest('.outliner-item');
       if (!item) {
-        this.selection.deselect();
+        if (this.selection.tool) return;
+        this.selection.commitSelection(() => this.selection.deselect());
         this.toolbar.updateTools();
         return;
       }
@@ -149,7 +150,7 @@ export class SidebarScene {
       });
 
       draggedItem = item;
-      this.selectObjectFromOutlinerItem(item);
+      this.selectObjectFromOutlinerItem(item, { replace: true });
     });
 
 
@@ -222,7 +223,6 @@ export class SidebarScene {
       }
 
       dropTarget = nextDropTarget = dropMode = null;
-      this.selectObjectFromOutlinerItem(draggedItem);
     });
   }
 
@@ -248,10 +248,8 @@ export class SidebarScene {
     });
   }
 
-  selectObjectFromOutlinerItem(item) {
+  selectObjectFromOutlinerItem(item, { replace = false } = {}) {
     if (!item) return;
-
-    item.classList.add('selected');
 
     const uuid = item.dataset.uuid;
     if (!uuid) return;
@@ -260,10 +258,15 @@ export class SidebarScene {
     if (!object) return;
 
     if (this.selection.tool) {
+      item.classList.add('selected');
       this.signals.toolSelectObject.dispatch(object);
-    } else {
-      this.selection.select(object);
-      this.toolbar.updateTools();
-    }
+      return;
+    } 
+    
+    this.selection.commitSelection(() => {
+      if (replace) this.selection.setSelection([object]);
+      else this.selection.applyPick(object, false);
+    });
+    this.toolbar.updateTools();
   }
 }

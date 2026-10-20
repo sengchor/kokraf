@@ -2,6 +2,7 @@ import { getManifoldWasm, toManifold, fromManifoldResult } from '../geometry/Mes
 import { RemoveObjectCommand } from '../commands/RemoveObjectCommand.js';
 import { DifferenceCommand } from '../commands/DifferenceCommand.js';
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
+import { SetSelectionCommand } from '../commands/SetSelectionCommand.js';
 
 export class DifferenceOps {
   constructor(editor) {
@@ -73,7 +74,10 @@ export class DifferenceOps {
   }
 
   static createCommand(editor, primary, secondary, beforeMeshData, resultMeshData) {
+    const prevSelection = [...editor.selection.selectedObjects];
+
     const multi = new SequentialMultiCommand(editor, 'Difference Objects');
+    multi.add(() => new SetSelectionCommand(editor, [primary], prevSelection));
     multi.add(() => new DifferenceCommand(editor, primary, beforeMeshData, resultMeshData));
     multi.add(() => new RemoveObjectCommand(editor, secondary));
     return multi;

@@ -10,7 +10,7 @@ export class SetSelectionCommand {
     this.editor = editor;
     this.name = 'Set Selection';
     this.newUuids = newObjects.map(o => o.uuid);
-    this.oldUuids = (oldObjects ?? editor.selection.selectedObject).map(o => o.uuid);
+    this.oldUuids = (oldObjects ?? editor.selection.selectedObjects).map(o => o.uuid);
   }
 
   execute() {

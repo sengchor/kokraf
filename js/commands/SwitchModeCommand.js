@@ -42,10 +42,6 @@ export class SwitchModeCommand {
       return;
     }
 
-    if (mode !== 'object') {
-      this.editor.selection.select(object);
-    }
-
     modeManager.setMode(mode, object, { paintMap: this.paintMap || 'map' });
   }
 

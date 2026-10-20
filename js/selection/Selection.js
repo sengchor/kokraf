@@ -13,6 +13,7 @@ export default class Selection {
     this.multiSelectEnabled = false;
     this.selectedObjects = [];
     this.helpers = editor.helpers;
+    this.highlightVisible = true;
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -277,8 +278,20 @@ export default class Selection {
     return objects;
   }
 
+  setHighlightVisible(visible) {
+    if (this.highlightVisible === visible) return;
+    this.highlightVisible = visible;
+
+    if (visible) {
+      for (const obj of this.selectedObjects) this.highlightObject(obj);
+    } else {
+      this.clearHighlight();
+    }
+    this.updatePivotHandle();
+  }
+
   update() {
-    if (this.selectedObjects.length === 0) return;
+    if (!this.highlightVisible || this.selectedObjects.length === 0) return;
 
     // Update each selected object
     for (const object of this.selectedObjects) {
@@ -439,6 +452,7 @@ export default class Selection {
   }
 
   highlightObject(object) {
+    if (!this.highlightVisible) return;
     const helper = this.helpers[object.id];
 
     if (helper) {
@@ -500,7 +514,7 @@ export default class Selection {
   }
 
   updatePivotHandle() {
-    if (!this.pivotHandle || this.selectedObjects.length === 0) {
+    if (!this.highlightVisible || this.selectedObjects.length === 0) {
       this.pivotHandle.visible = false;
       return;
     }

@@ -2,6 +2,7 @@ import { getManifoldWasm, toManifold, fromManifoldResult } from '../geometry/Mes
 import { RemoveObjectCommand } from '../commands/RemoveObjectCommand.js';
 import { IntersectCommand } from '../commands/IntersectCommand.js';
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
+import { SetSelectionCommand } from '../commands/SetSelectionCommand.js';
 
 export class IntersectOps {
   constructor(editor) {
@@ -73,7 +74,10 @@ export class IntersectOps {
   }
 
   static createCommand(editor, primary, secondary, beforeMeshData, resultMeshData) {
+    const prevSelection = [...editor.selection.selectedObjects];
+
     const multi = new SequentialMultiCommand(editor, 'Intersect Objects');
+    multi.add(() => new SetSelectionCommand(editor, [primary], prevSelection));
     multi.add(() => new IntersectCommand(editor, primary, beforeMeshData, resultMeshData));
     multi.add(() => new RemoveObjectCommand(editor, secondary));
     return multi;
