@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AXES_NOTE, r, positionFromThree } from '../AgentAxes.js';
+import { SetSelectionCommand } from '../../commands/SetSelectionCommand.js';
 
 const HIT_SAMPLE = 10;
 const ID_SAMPLE = 50;
@@ -10,20 +11,15 @@ const fail = (msg) => {
 
 const summarize = (object) => ({ uuid: object.uuid, name: object.name || 'unnamed', type: object.type });
 
-function applySelection(selection, objects) {
-  if (!objects.length) {
-    selection.deselect();
-    return;
-  }
+  function applySelection(editor, objects) {
+    const current = editor.selection.selectedObjects;
+    const next = [...new Set(objects)];
 
-  const previousMulti  = selection.multiSelectEnabled;
-  selection.multiSelectEnabled = false;
-  try {
-    selection.select(objects);
-  } finally {
-    selection.multiSelectEnabled = previousMulti;
+    const same = current.length === next.length && current.every((o, i) => o === next[i]);
+    if (same) return;
+
+    editor.execute(new SetSelectionCommand(editor, next, current));
   }
-}
 
 function captureCamera(capture) {
   const camera = capture.camera.clone();
@@ -118,7 +114,7 @@ export const objectPickSpec = {
     'rect picks every object inside [x1, y1, x2, y2]. ' +
     'op "none" only reports what is there without changing the selection. ' +
     'Picking empty space with op "set" clears the selection, as a click would.',
-  mutates: false,
+  mutates: true,
   params: {
     point: { type: 'number[]', optional: true, description: '[x, y] pixel in the last capture.' },
     rect: { type: 'number[]', optional: true, description: '[x1, y1, x2, y2] pixel corners in the last capture.' },
@@ -165,7 +161,7 @@ export const objectPickSpec = {
       else if (op === 'subtract') next = current.filter((o) => !pickedSet.has(o));
       else next = picked;
 
-      applySelection(selection, next);
+      applySelection(editor, next);
     }
 
     const selected = selection.selectedObjects;

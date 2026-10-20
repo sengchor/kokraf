@@ -1,6 +1,7 @@
 import { SequentialMultiCommand } from '../../commands/SequentialMultiCommand.js';
 import { SetVisibilityCommand } from '../../commands/SetVisibilityCommand.js';
 import { resolveTargets } from '../AgentUtils.js';
+import { SetSelectionCommand } from '../../commands/SetSelectionCommand.js';
 
 const summarize = (object) => ({
   uuid: object.uuid,
@@ -24,28 +25,37 @@ function descendantsOf(object) {
 const isEffectivelyVisible = (object) =>
   object.visible && ancestorsOf(object).every((a) => a.visible);
 
-function applyVisibility(editor, objects, visible, name) {
+function applyVisibility(editor, objects, visible, name, { dropHiddenFromSelection = false } = {}) {
   const toChange = objects.filter((object) => object.visible !== visible);
 
-  if (toChange.length) {
-    const multi = new SequentialMultiCommand(editor, name);
-    for (const object of toChange) {
-      multi.add(() => new SetVisibilityCommand(editor, object, visible));
+  const multi = new SequentialMultiCommand(editor, name);
+  let count = 0;
+
+  if (dropHiddenFromSelection) {
+    const changing = new Set(toChange);
+    const hiddenAfter = (o) =>
+      [o, ...ancestorsOf(o)].some((a) => !a.visible || changing.has(a));
+
+    const selected = [...editor.selection.selectedObjects];
+    const remaining = selected.filter((o) => !hiddenAfter(o));
+
+    if (remaining.length !== selected.length) {
+      multi.add(() => new SetSelectionCommand(editor, remaining, selected));
+      count++;
     }
+  }
+
+  for (const object of toChange) {
+    multi.add(() => new SetVisibilityCommand(editor, object, visible));
+    count++;
+  }
+
+  if (count) {
     editor.execute(multi);
     editor.toolbar.updateTools();
   }
 
   return toChange;
-}
-
-function dropHiddenFromSelection(editor) {
-  const selected = editor.selection.selectedObjects ?? [];
-  const remaining = selected.filter(isEffectivelyVisible);
-  if (remaining.length === selected.length) return;
-
-  if (remaining.length) editor.selection.select(remaining);
-  else editor.selection.deselect();
 }
 
 export const objectHideSpec = {
@@ -83,8 +93,11 @@ export const objectHideSpec = {
     };
   },
   run({ invert = false }, editor, { objects }) {
-    const hidden = applyVisibility(editor, objects, false, invert ? 'Agent Hide Others' : 'Agent Hide');
-    dropHiddenFromSelection(editor);
+    const hidden = applyVisibility(
+      editor, objects, false,
+      invert ? 'Agent Hide Others' : 'Agent Hide',
+      { dropHiddenFromSelection: true }
+    );
 
     const hiddenSet = new Set(hidden);
     return {

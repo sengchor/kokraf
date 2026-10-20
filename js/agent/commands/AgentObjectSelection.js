@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { positionFromThree } from '../AgentAxes.js';
 import { resolveTargets } from '../AgentUtils.js';
+import { SetSelectionCommand } from '../../commands/SetSelectionCommand.js';
 
 const ID_SAMPLE = 50;
 
@@ -10,19 +11,14 @@ const fail = (msg) => {
 
 const label = (object) => object.name || object.uuid;
 
-function applySelection(selection, objects) {
-  if (!objects.length) {
-    selection.deselect();
-    return;
-  }
+function applySelection(editor, objects) {
+  const current = editor.selection.selectedObjects;
+  const next = [...new Set(objects)];
 
-  const previousMulti  = selection.multiSelectEnabled;
-  selection.multiSelectEnabled = false;
-  try {
-    selection.select(objects);
-  } finally {
-    selection.multiSelectEnabled = previousMulti;
-  }
+  const same = current.length === next.length && current.every((o, i) => o === next[i]);
+  if (same) return;
+
+  editor.execute(new SetSelectionCommand(editor, next, current));
 }
 
 function isPickable(object) {
@@ -97,7 +93,7 @@ export const objectSelectSpec = {
     else if (op === 'subtract') next = current.filter((o) => !picked.has(o));
     else next = objects;
 
-    applySelection(selection, next);
+    applySelection(editor, next);
     editor.sceneManager.mainScene.updateMatrixWorld(true);
 
     const selected = selection.selectedObjects;
