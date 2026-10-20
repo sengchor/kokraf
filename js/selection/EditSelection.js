@@ -1,5 +1,10 @@
 import * as THREE from 'three';
-import { GPUDepthReader } from '../utils/GPUDepthReader.js';
+import EditPicker from './EditPicker.js'
+import {
+  resolveSelectionGraphFromVertices,
+  resolveSelectionGraphFromEdges,
+  resolveSelectionGraphFromFaces
+} from './SelectionGraph.js';
 
 export default class EditSelection {
   constructor(editor) {
@@ -8,8 +13,6 @@ export default class EditSelection {
     this.keyHandler = editor.keyHandler;
     this.vertexEditor = editor.vertexEditor;
 
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
     this.editedObject = null;
     this.sceneManager = editor.sceneManager;
     this.enable = false;
@@ -36,11 +39,7 @@ export default class EditSelection {
     this.touchStartClient = null;
     this.lastTouchEndTime = 0;
 
-    this.depthReader = new GPUDepthReader(
-      this.renderer.renderer, 
-      window.innerWidth, 
-      window.innerHeight
-    );
+    this.picker = new EditPicker(editor);
     this.setupListeners();
   }
 
@@ -50,6 +49,10 @@ export default class EditSelection {
       selectedEdgeIds: this.selectedEdgeIds,
       selectedFaceIds: this.selectedFaceIds
     };
+  }
+
+  get meshData() {
+    return this.editedObject?.userData.meshData ?? null;
   }
 
   setupListeners() {
@@ -124,15 +127,15 @@ export default class EditSelection {
     this.subSelectionMode = mode;
 
     if (this.subSelectionMode === 'vertex') {
-      const { edgeSet, faceSet } = this.resolveSelectionGraphFromVertices(this.selectedVertexIds);
+      const { edgeSet, faceSet } = resolveSelectionGraphFromVertices(this.meshData, this.selectedVertexIds);
       this.selectedEdgeIds = edgeSet;
       this.selectedFaceIds = faceSet;
     } else if (this.subSelectionMode === 'edge') {
-      const { vertexSet, faceSet } = this.resolveSelectionGraphFromEdges(this.selectedEdgeIds);
+      const { vertexSet, faceSet } = resolveSelectionGraphFromEdges(this.meshData, this.selectedEdgeIds);
       this.selectedVertexIds = vertexSet;
       this.selectedFaceIds = faceSet;
     } else if (this.subSelectionMode === 'face') {
-      const { vertexSet, edgeSet } = this.resolveSelectionGraphFromFaces(this.selectedFaceIds);
+      const { vertexSet, edgeSet } = resolveSelectionGraphFromFaces(this.meshData, this.selectedFaceIds);
       this.selectedVertexIds = vertexSet;
       this.selectedEdgeIds = edgeSet;
     }
@@ -143,13 +146,13 @@ export default class EditSelection {
     const isAlt = event.altKey;
 
     if (isAlt) {
-      const nearestEdgeId = this.pickNearestEdgeOnMouse(event, this.renderer, this.camera);
+      const nearestEdgeId = this.picker.pickNearestEdgeOnMouse(event, this.camera);
       this.mouseSelectLoops(nearestEdgeId);
       return;
     }
 
     if (this.subSelectionMode === 'vertex') {
-      const nearestVertexId = this.pickNearestVertexOnMouse(event, this.renderer, this.camera);
+      const nearestVertexId = this.picker.pickNearestVertexOnMouse(event, this.camera);
       if (nearestVertexId === null) {
         if (!this.multiSelectEnabled) {
           this.clearSelection();
@@ -159,7 +162,7 @@ export default class EditSelection {
 
       this.selectVertices(nearestVertexId);
     } else if (this.subSelectionMode === 'edge') {
-      const nearestEdgeId = this.pickNearestEdgeOnMouse(event, this.renderer, this.camera);
+      const nearestEdgeId = this.picker.pickNearestEdgeOnMouse(event, this.camera);
       if (nearestEdgeId === null) {
         if (!this.multiSelectEnabled) {
           this.clearSelection();
@@ -169,7 +172,7 @@ export default class EditSelection {
 
       this.selectEdges(nearestEdgeId);
     } else if (this.subSelectionMode === 'face') {
-      const nearestFaceId = this.pickNearestFaceOnMouse(event, this.renderer, this.camera);
+      const nearestFaceId = this.picker.pickNearestFaceOnMouse(event, this.camera);
       if (nearestFaceId === null) {
         if (!this.multiSelectEnabled) {
           this.clearSelection();
@@ -185,7 +188,7 @@ export default class EditSelection {
     if (!this.enable) return;
 
     if (this.subSelectionMode === 'vertex') {
-      const vertexIndices = this.getBoxSelectedVertexIds();
+      const vertexIndices = this.picker.getBoxSelectedVertexIds(this.camera);
       if (vertexIndices === null) {
         if (!this.multiSelectEnabled) {
           this.clearSelection();
@@ -195,7 +198,7 @@ export default class EditSelection {
 
       this.selectVertices(vertexIndices, true);
     } else if (this.subSelectionMode === 'edge') {
-      const edgeIndices = this.getBoxSelectedEdgeIds();
+      const edgeIndices = this.picker.getBoxSelectedEdgeIds(this.camera);
       if (edgeIndices === null) {
         if (!this.multiSelectEnabled) {
           this.clearSelection();
@@ -205,7 +208,7 @@ export default class EditSelection {
 
       this.selectEdges(edgeIndices, true);
     } else if (this.subSelectionMode === 'face') {
-      const faceIndices = this.getBoxSelectedFaceIds();
+      const faceIndices = this.picker.getBoxSelectedFaceIds(this.camera);
       if (faceIndices === null) {
         if (!this.multiSelectEnabled) {
           this.clearSelection();
@@ -382,140 +385,6 @@ export default class EditSelection {
     this.mouseDownPos = null;
   }
 
-  pickNearestVertexOnMouse(event, renderer, camera, threshold = 0.2) {
-    const rect = renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (!vertexPoints) return null;
-
-    this.raycaster.setFromCamera(this.mouse, camera);
-    this.raycaster.params.Points.threshold = threshold;
-
-    const vertexHits = this.raycaster.intersectObject(vertexPoints, false);
-    if (vertexHits.length === 0) return null;
-
-    const vertexCandidates = this.buildVertexCandidates(vertexHits, vertexPoints);
-
-    const xrayMode = this.sceneManager.xrayMode;
-    const visibleVertices = xrayMode ? vertexCandidates : this.filterVisibleVertices(vertexCandidates, camera);
-    if (visibleVertices.length === 0) return null;
-
-    const nearestVertexId = this.pickNearestVertex(visibleVertices, camera, rect);
-
-    return nearestVertexId;
-  }
-
-  pickNearestEdgeOnMouse(event, renderer, camera, threshold = 0.1) {
-    const rect = renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    const thinLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLines');
-    if (!thinLine) return null;
-
-    this.raycaster.setFromCamera(this.mouse, camera);
-    this.raycaster.params.Line.threshold = threshold;
-    
-    const edgeHits = this.raycaster.intersectObjects([thinLine], false);
-    if (edgeHits.length === 0) return null;
-
-    const edgeCandidates = this.buildEdgeCandidates(edgeHits, thinLine);
-
-    const xrayMode = this.sceneManager.xrayMode;
-    const visibleEdges = xrayMode ? edgeCandidates : this.filterVisibleEdges(edgeCandidates, camera);
-    if (visibleEdges.length === 0) return null;
-
-    const nearestEdgeId = this.pickNearestEdge(visibleEdges, camera, rect);
-
-    return nearestEdgeId;
-  }
-
-  pickNearestFaceOnMouse(event, renderer, camera) {
-    const rect = renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (!faceMesh) return null;
-
-    this.raycaster.setFromCamera(this.mouse, camera);
-
-    const faceHits = this.raycaster.intersectObject(faceMesh);
-    if (faceHits.length === 0) return null;
-
-    const faceCandidates = this.buildFaceCandidates([faceHits[0]], faceMesh);
-    
-    const xrayMode = this.sceneManager.xrayMode;
-    const visibleFaces = xrayMode ? faceCandidates : this.filterVisibleFaces(faceCandidates, camera);
-    if (visibleFaces.length === 0) return null;
-
-    const nearestFaceId = visibleFaces[0].faceId;
-
-    return nearestFaceId;
-  }
-
-  getBoxSelectedVertexIds() {
-    const frustum = this.selectionBox.computeFrustumFromSelection();
-    if (!frustum) return null;
-
-    const vertexPoints = this.sceneManager.sceneHelpers.getObjectByName('__VertexPoints');
-    if (!vertexPoints) return null;
-
-    const vertexHits = this.selectionBox.getVerticesInFrustum(vertexPoints, frustum);
-    if (vertexHits.length === 0) return null;
-
-    const xrayMode = this.sceneManager.xrayMode;
-    const visibleVertices = xrayMode ? vertexHits : this.filterVisibleVertices(vertexHits, this.camera);
-    if (visibleVertices.length === 0) return null;
-
-    const vertexIndices = visibleVertices.map(v => v.vertexId);
-    return vertexIndices;
-  }
-
-  getBoxSelectedEdgeIds() {
-    const frustum = this.selectionBox.computeFrustumFromSelection();
-    if (!frustum) return null;
-
-    const thinLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLines');
-    if (!thinLine) return null;
-
-    const edgeHits = this.selectionBox.getEdgesInFrustum(thinLine, frustum);
-    if (edgeHits.length === 0) return null;
-
-    const xrayMode = this.sceneManager.xrayMode;
-    const visibleEdges = xrayMode ? edgeHits : this.filterVisibleEdges(edgeHits, this.camera);
-    if (visibleEdges.length === 0) return null;
-
-    const insideHits = visibleEdges.filter(e => e.type === "endpoint");
-    const clipHits = visibleEdges.filter(e => e.type === "clipping");
-
-    // Prefer inside hits; if none exist, use clipping hits.
-    const selectedEdges = insideHits.length > 0 ? insideHits : clipHits;
-
-    const edgeIndices = selectedEdges.map(e => e.edgeId);
-    return edgeIndices;
-  }
-
-  getBoxSelectedFaceIds() {
-    const frustum = this.selectionBox.computeFrustumFromSelection();
-    if (!frustum) return null;
-
-    const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
-    if (!faceMesh) return null;
-
-    const faceHits = this.selectionBox.getFacesInFrustum(faceMesh, frustum);
-    if (faceHits.length === 0) return null;
-
-    const xrayMode = this.sceneManager.xrayMode;
-    const visibleFaces = xrayMode ? faceHits : this.filterVisibleFaces(faceHits, this.camera);
-    if (visibleFaces.length === 0) return null;
-
-    const faceIndices = visibleFaces.map(f => f.faceId);
-    return faceIndices;
-  }
-
   selectVertices(vertexIds, isBoxSelection = false) {
     const isArray = Array.isArray(vertexIds);
     if (!isArray) vertexIds = [vertexIds];
@@ -539,7 +408,7 @@ export default class EditSelection {
       vertexIds.forEach(id => this.selectedVertexIds.add(id));
     }
 
-    const { edgeSet, faceSet } = this.resolveSelectionGraphFromVertices(this.selectedVertexIds);
+    const { edgeSet, faceSet } = resolveSelectionGraphFromVertices(this.meshData, this.selectedVertexIds);
     this.selectedEdgeIds = edgeSet;
     this.selectedFaceIds = faceSet;
 
@@ -570,7 +439,7 @@ export default class EditSelection {
       edgeIds.forEach(id => this.selectedEdgeIds.add(id));
     }
 
-    const { vertexSet, faceSet } = this.resolveSelectionGraphFromEdges(this.selectedEdgeIds);
+    const { vertexSet, faceSet } = resolveSelectionGraphFromEdges(this.meshData, this.selectedEdgeIds);
     this.selectedVertexIds = vertexSet;
     this.selectedFaceIds = faceSet;
 
@@ -601,7 +470,7 @@ export default class EditSelection {
       faceIds.forEach(id => this.selectedFaceIds.add(id));
     }
 
-    const { vertexSet, edgeSet } = this.resolveSelectionGraphFromFaces(this.selectedFaceIds);
+    const { vertexSet, edgeSet } = resolveSelectionGraphFromFaces(this.meshData, this.selectedFaceIds);
     this.selectedVertexIds = vertexSet;
     this.selectedEdgeIds = edgeSet;
 
@@ -650,379 +519,6 @@ export default class EditSelection {
 
     this.vertexHandle.position.copy(sum);
     this.vertexHandle.visible = true;
-  }
-
-  filterVisibleVertices(vertexHits, camera) {
-    if (!vertexHits || vertexHits.length === 0) return [];
-
-    this.depthReader.updateDepthBuffer(this.sceneManager.mainScene, camera);
-
-    const visibleVertices = [];
-
-    for (const hit of vertexHits) {
-      if (!hit.point) continue;
-
-      if (this.depthReader.isPointVisible(hit.point, camera)) {
-        visibleVertices.push(hit);
-      }
-    }
-
-    return visibleVertices;
-  }
-
-  filterVisibleEdges(edgeHits, camera) {
-    if (!edgeHits || edgeHits.length === 0) return [];
-
-    this.depthReader.updateDepthBuffer(this.sceneManager.mainScene, camera);
-
-    const visibleEdges = [];
-    const testPoints = [];
-
-    for (const hit of edgeHits) {
-      const midpoint = new THREE.Vector3()
-        .addVectors(hit.vA, hit.vB)
-        .multiplyScalar(0.5);
-
-      const BIAS = 0.1;
-      const biasedA = hit.vA.clone().lerp(midpoint, BIAS);
-      const biasedB = hit.vB.clone().lerp(midpoint, BIAS);
-      const testPoints = [midpoint, biasedA, biasedB];
-      
-      for (const testPoint of testPoints) {
-        if (this.depthReader.isPointVisible(testPoint, camera)) {
-          visibleEdges.push(hit);
-          break;
-        }
-      }
-    }
-
-    return visibleEdges;
-  }
-
-  filterVisibleFaces(faceHits, camera) {
-    if (!faceHits || faceHits.length === 0) return [];
-
-    this.depthReader.updateDepthBuffer(this.sceneManager.mainScene, camera);
-
-    const visibleFaces = [];
-    
-    const tempCentroid = new THREE.Vector3();
-
-    for (const hit of faceHits) {
-      tempCentroid.set(0, 0, 0);
-      for (const vertex of hit.vertices) {
-        tempCentroid.add(vertex);
-      }
-      if (hit.vertices.length > 0) {
-        tempCentroid.divideScalar(hit.vertices.length);
-      }
-
-      const isCentroidVisible = this.depthReader.isPointVisible(tempCentroid, camera);
-
-      const BIAS = 0.1;
-      let isVertexVisible = false;
-      for (const vertex of hit.vertices) {
-        const biased = vertex.clone().lerp(tempCentroid, BIAS);
-        if (this.depthReader.isPointVisible(biased, camera)) {
-          isVertexVisible = true;
-          break;
-        }
-      }
-      
-      if (isVertexVisible || isCentroidVisible) {
-        visibleFaces.push(hit);
-      }
-    }
-
-    return visibleFaces;
-  }
-
-  buildVertexCandidates(vertexHits, vertexPoints) {
-    const vertexIdAttr = vertexPoints.geometry.getAttribute('vertexId');
-    const vertices = vertexHits.map(hit => {
-      const vertexId = vertexIdAttr.getX(hit.index);
-      const position = this.vertexEditor.transform.getVertexPosition(vertexId);
-
-      return {
-        ...hit,
-        vertexId,
-        point: position,
-      };
-    });
-
-    return vertices;
-  }
-
-  buildEdgeCandidates(edgeHits, thinLine) {
-    const edges = [];
-    const pos = thinLine.geometry.getAttribute('position');
-    const { edgeIdList } = thinLine.userData;
-
-    for (const hit of edgeHits) {
-      const edgeIndex = Math.floor(hit.index / 2);
-      const edgeId = edgeIdList[edgeIndex];
-      if (edgeId === undefined) continue;
-
-      const baseIndex = edgeIndex * 2;
-
-      const vA = new THREE.Vector3(
-        pos.getX(baseIndex),
-        pos.getY(baseIndex),
-        pos.getZ(baseIndex)
-      ).applyMatrix4(thinLine.matrixWorld);
-
-      const vB = new THREE.Vector3(
-        pos.getX(baseIndex + 1),
-        pos.getY(baseIndex + 1),
-        pos.getZ(baseIndex + 1)
-      ).applyMatrix4(thinLine.matrixWorld);
-
-      edges.push({
-        ...hit,
-        edgeId,
-        vA,
-        vB
-      });
-    }
-
-    return edges;
-  }
-
-  buildFaceCandidates(faceHits, faceMesh) {
-    if (!faceHits || faceHits.length === 0) return [];
-
-    const geom = faceMesh.geometry;
-    const pos = geom.attributes.position.array;
-    const matrixWorld = faceMesh.matrixWorld;
-    const faceIdToRange = faceMesh.userData.faceIdToRange;
-
-    const faces = [];
-
-    for (const hit of faceHits) {
-      const range = this.findRangeFromTriIndex(hit.faceIndex, faceIdToRange);
-      const worldPoints = [];
-      let faceId = null;
-      
-      if (range) {
-        faceId = range.faceId;
-        const startIndex = range.start * 3;
-        const endIndex = (range.start + range.count) * 3;
-        
-        for (let i = startIndex; i < endIndex; i += 3) {
-          const v = new THREE.Vector3().fromArray(pos, i).applyMatrix4(matrixWorld);
-          worldPoints.push(v);
-        }
-      }
-
-      faces.push({
-        ...hit,
-        faceId,
-        vertices: worldPoints,
-      });
-    }
-
-    return faces;
-  }
-
-  pickNearestVertex(vertexHits, camera, rect) {
-    let nearestVertexId = null;
-    let minScreenDistSq = Infinity;
-
-    const clickX = (this.mouse.x * 0.5 + 0.5) * rect.width;
-    const clickY = (-this.mouse.y * 0.5 + 0.5) * rect.height;
-
-    const screenPos = new THREE.Vector3();
-    vertexHits.forEach(hit => {
-      screenPos.copy(hit.point).project(camera);
-      const sx = (screenPos.x * 0.5 + 0.5) * rect.width;
-      const sy = (-screenPos.y * 0.5 + 0.5) * rect.height;
-
-      const dx = sx - clickX;
-      const dy = sy - clickY;
-      const distPxSq = dx * dx + dy * dy;
-
-      if (distPxSq < minScreenDistSq) {
-        minScreenDistSq = distPxSq;
-        nearestVertexId = hit.vertexId;
-      }
-    });
-    
-    return nearestVertexId;
-  }
-
-  pickNearestEdge(edgeHits, camera, rect) {
-    if (!edgeHits || edgeHits.length === 0) return null;
-
-    let nearestEdgeId = null;
-    let minDistSq = Infinity;
-
-    edgeHits.forEach(edgeHit => {
-      const result = this.getClosestPointOnScreenLine(edgeHit, camera, rect);
-
-      if (result.distSq < minDistSq) {
-        minDistSq = result.distSq;
-        nearestEdgeId = result.edgeId;
-      }
-    });
-
-    return nearestEdgeId;
-  }
-
-  findRangeFromTriIndex(triIndex, faceIdToRange) {
-    for (const fr of faceIdToRange.values()) {
-      if (triIndex >= fr.triStart && triIndex < fr.triStart + fr.triCount) {
-        return fr;
-      }
-    }
-    return null;
-  }
-
-  getClosestPointOnScreenLine(edgeHit, camera, rect) {
-    // Mouse in pixel coordinates
-    const clickX = (this.mouse.x * 0.5 + 0.5) * rect.width;
-    const clickY = (-this.mouse.y * 0.5 + 0.5) * rect.height;
-
-    const pA = new THREE.Vector3();
-    const pB = new THREE.Vector3();
-
-    // Project both endpoints to NDC → screen
-    pA.copy(edgeHit.vA).project(camera);
-    pB.copy(edgeHit.vB).project(camera);
-
-    const x1 = (pA.x * 0.5 + 0.5) * rect.width;
-    const y1 = (-pA.y * 0.5 + 0.5) * rect.height;
-
-    const x2 = (pB.x * 0.5 + 0.5) * rect.width;
-    const y2 = (-pB.y * 0.5 + 0.5) * rect.height;
-
-    // Vector AB and AP
-    const ABx = x2 - x1;
-    const ABy = y2 - y1;
-    const APx = clickX - x1;
-    const APy = clickY - y1;
-
-    const abLenSq = ABx * ABx + ABy * ABy;
-
-    // Handle zero-length (rare but safe)
-    let t = 0;
-    if (abLenSq > 0) {
-      t = (APx * ABx + APy * ABy) / abLenSq;
-    }
-
-    // Clamp to segment
-    t = Math.max(0, Math.min(1, t));
-
-    // Closest point
-    const cx = x1 + ABx * t;
-    const cy = y1 + ABy * t;
-
-    const dx = cx - clickX;
-    const dy = cy - clickY;
-
-    return {
-      cx,
-      cy,
-      distSq: dx * dx + dy * dy,
-      t,
-      edgeId: edgeHit.edgeId
-    };
-  }
-
-  resolveSelectionGraphFromVertices(vertexSet) {
-    if (!this.editedObject) return { edgeSet: new Set(), faceSet: new Set() };
-
-    const meshData = this.editedObject.userData.meshData;
-    if (!meshData) return { edgeSet: new Set(), faceSet: new Set() };
-
-    const edgeSet = new Set();
-    const faceSet = new Set();
-
-    for (const edge of meshData.edges.values()) {
-      if (
-        vertexSet.has(edge.v1Id) &&
-        vertexSet.has(edge.v2Id)
-      ) {
-        edgeSet.add(edge.id);
-      }
-    }
-
-    for (const face of meshData.faces.values()) {
-      let allVerticesSelected = true;
-
-      for (const vId of face.vertexIds) {
-        if (!vertexSet.has(vId)) {
-          allVerticesSelected = false;
-          break;
-        }
-      }
-
-      if (allVerticesSelected) {
-        faceSet.add(face.id);
-      }
-    }
-
-
-    return { edgeSet, faceSet };
-  }
-
-  resolveSelectionGraphFromEdges(edgeSet) {
-    if (!this.editedObject) return { vertexSet: new Set(), faceSet: new Set() };
-
-    const meshData = this.editedObject.userData.meshData;
-    if (!meshData) return { vertexSet: new Set(), faceSet: new Set() };
-
-    const vertexSet = new Set();
-    const faceSet = new Set();
-
-    for (const edgeId of edgeSet) {
-      const edge = meshData.edges.get(edgeId);
-      if (!edge) continue;
-
-      vertexSet.add(edge.v1Id);
-      vertexSet.add(edge.v2Id);
-    }
-
-    for (const face of meshData.faces.values()) {
-      let allEdgesSelected = true;
-
-      for (const eId of face.edgeIds) {
-        if (!edgeSet.has(eId)) {
-          allEdgesSelected = false;
-          break;
-        }
-      }
-
-      if (allEdgesSelected) {
-        faceSet.add(face.id);
-      }
-    }
-
-    return { vertexSet, faceSet };
-  }
-
-  resolveSelectionGraphFromFaces(faceSet) {
-    if (!this.editedObject) return { vertexSet: new Set(), edgeSet: new Set() };
-
-    const meshData = this.editedObject.userData.meshData;
-    if (!meshData) return { vertexSet: new Set(), edgeSet: new Set() };
-
-    const vertexSet = new Set();
-    const edgeSet = new Set();
-
-    for (const faceId of faceSet) {
-      const face = meshData.faces.get(faceId);
-      if (!face) continue;
-
-      for (const edgeId of face.edgeIds) {
-        edgeSet.add(edgeId);
-      }
-
-      for (const vId of face.vertexIds) {
-        vertexSet.add(vId);
-      }
-    }
-
-    return { vertexSet, edgeSet };
   }
 
   selectAll() {
