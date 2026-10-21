@@ -38,6 +38,7 @@ export class BevelOps {
     this.session = {
       object,
       edgeIds,
+      selection: this.editSelection.getSnapshot(), // before rebuild() changes it
       pivotPosition: handle.getWorldPosition(new THREE.Vector3()),
       width: 0,
       builder: null, // built lazily on the first apply
@@ -130,15 +131,19 @@ export class BevelOps {
       return BevelCommitResult.CANCELLED;
     }
 
-    const { object, builder } = s;
+    const { object, builder, selection } = s;
     this.vertexEditor.setObject(object);
 
-    this.editor.add(BevelOps.createCommand(this.editor, object, builder));
+    // Select the result first so the command can record it as the "after" state.
+    BevelOps.selectResult(this.editSelection, builder);
+
+    const command = BevelOps.createCommand(this.editor, object, builder)
+      .setSelectionStates(selection, this.editSelection.getSnapshot());
+    this.editor.add(command);
+
     this.signals.editSelectionRefresh.dispatch();
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
-
-    BevelOps.selectResult(this.editSelection, builder);
 
     this.endSession();
     return BevelCommitResult.COMMITTED;
@@ -151,7 +156,7 @@ export class BevelOps {
 
     if (s.builder) {
       s.builder.restore();
-      this.editSelection.selectEdges(s.edgeIds);
+      this.editSelection.setSelection(s.selection);
     }
 
     if (handle) {

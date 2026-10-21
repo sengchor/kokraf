@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { computeFacesAverageNormal } from '../utils/AlignedNormalUtils.js';
 import { InsetCommand } from '../commands/InsetCommand.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { resolveSelectionGraphFromFaces } from '../selection/SelectionGraph.js';
 
 export const InsetCommitResult = Object.freeze({
   COMMITTED: 'committed',
@@ -33,6 +34,7 @@ export class InsetOps {
     this.session = {
       object,
       faceIds: Array.from(this.editSelection.selectedFaceIds),
+      selection: this.editSelection.getSnapshot(), // before build() changes it
       pivotPosition: handle.getWorldPosition(new THREE.Vector3()),
       width: 0,
       inset: null, // built lazily on the first apply
@@ -63,7 +65,7 @@ export class InsetOps {
     if (!s || !this.isValid()) return null;
     if (s.inset) return s.inset;
 
-    s.inset = InsetOps.buildInset(this.vertexEditor, this.editSelection, s.object, s.faceIds);
+    s.inset = InsetOps.buildInset(this.vertexEditor, s.object, s.faceIds);
     this.signals.editSelectionRefresh.dispatch();
 
     // Selecting the new faces re-centres the handle; put it back on the pivot.
@@ -104,15 +106,19 @@ export class InsetOps {
       return InsetCommitResult.CANCELLED;
     }
 
-    const { object, inset } = s;
+    const { object, inset, selection } = s;
     this.vertexEditor.setObject(object);
 
-    this.editor.add(InsetOps.createCommand(this.editor, object, inset));
+    // Select the result first so the command can record it as the "after" state.
+    InsetOps.selectResult(this.editSelection, inset);
+
+    const command = InsetOps.createCommand(this.editor, object, inset)
+      .setSelectionStates(selection, this.editSelection.getSnapshot());
+    this.editor.add(command);
+
     this.signals.editSelectionRefresh.dispatch();
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
-
-    InsetOps.selectResult(this.editSelection, inset);
 
     this.endSession();
     return InsetCommitResult.COMMITTED;
@@ -125,7 +131,7 @@ export class InsetOps {
 
     if (s.inset) {
       InsetOps.restore(this.vertexEditor, s.object, s.inset);
-      this.editSelection.selectFaces(s.faceIds);
+      this.editSelection.setSelection(s.selection);
     }
 
     if (handle && this.isValid()) {
@@ -143,7 +149,7 @@ export class InsetOps {
    * with side faces, delete the originals, and record how each boundary vertex moves with width.
    * Returns the inset record consumed by computeWidthPositions / createCommand / restore.
    */
-  static buildInset(vertexEditor, editSelection, object, faceIds) {
+  static buildInset(vertexEditor, object, faceIds) {
     const meshData = object.userData.meshData;
     const matrixWorld = object.matrixWorld;
     vertexEditor.setObject(object);
@@ -169,7 +175,7 @@ export class InsetOps {
     for (const faceIsland of faceIslands) {
       const islandFaceIdSet = new Set(faceIsland);
 
-      const { vertexSet, edgeSet } = editSelection.resolveSelectionGraphFromFaces(islandFaceIdSet);
+      const { vertexSet, edgeSet } = resolveSelectionGraphFromFaces(meshData, islandFaceIdSet);
       const islandVertexIds = Array.from(vertexSet);
       const islandEdgeIds = Array.from(edgeSet);
       const islandFaceIds = Array.from(islandFaceIdSet);

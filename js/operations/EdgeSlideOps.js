@@ -39,6 +39,7 @@ export class EdgeSlideOps {
       mode: vertexIds.length === 1 ? 'vertex' : 'edge',
       vertexIds,
       edgeIds,
+      selection: this.editSelection.getSnapshot(), // unchanged by the slide
       pivotPosition: handle.getWorldPosition(new THREE.Vector3()),
       beforeSnapshot: MeshDataRegion.snapshot(meshData, regionIds),
       startElements: {
@@ -199,16 +200,20 @@ export class EdgeSlideOps {
       return EdgeSlideCommitResult.CANCELLED;
     }
 
-    const { object } = s;
+    const { object, selection } = s;
     this.vertexEditor.setObject(object);
 
-    this.editor.add(EdgeSlideOps.createCommand(this.editor, object, s.beforeSnapshot, s.startElements));
+    // Slide only moves vertices: selection is the same before and after.
+    const command = EdgeSlideOps.createCommand(this.editor, object, s.beforeSnapshot, s.startElements)
+      .setSelectionStates(selection, selection);
+    this.editor.add(command);
+
     this.signals.editSelectionRefresh.dispatch();
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
 
-    this.editSelection.clearSelection();
-    EdgeSlideOps.selectOriginal(this.editSelection, s);
+    // Re-apply to re-centre the handle on the moved vertices.
+    this.editSelection.setSelection(selection);
 
     this.endSession();
     return EdgeSlideCommitResult.COMMITTED;
@@ -230,16 +235,11 @@ export class EdgeSlideOps {
       handle.updateMatrixWorld(true);
     }
 
-    EdgeSlideOps.selectOriginal(this.editSelection, s);
+    this.editSelection.setSelection(s.selection);
     this.endSession();
   }
 
   // Non-interactive API (no gizmo, no session).
-
-  static selectOriginal(editSelection, { mode, vertexIds, edgeIds }) {
-    if (mode === 'vertex') editSelection.selectVertices(vertexIds);
-    else editSelection.selectEdges(edgeIds);
-  }
 
   /**
    * Build the undo command for a slide that is already applied to meshData.

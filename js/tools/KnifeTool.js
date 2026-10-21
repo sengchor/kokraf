@@ -233,8 +233,8 @@ export class KnifeTool {
     if (!object) return null;
 
     const meshData = object.userData.meshData;
-    const nearestVertexId = this.editSelection.pickNearestVertexOnMouse(
-      event, this.renderer, this.camera, VERTEX_SNAP_THRESHOLD
+    const nearestVertexId = this.editSelection.picker.pickNearestVertexOnMouse(
+      event, this.camera, VERTEX_SNAP_THRESHOLD
     );
 
     if (nearestVertexId !== null) {

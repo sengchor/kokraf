@@ -104,10 +104,10 @@ function applySelection(selection, selectMode, ids) {
 function filterVisible(ctx, selectMode, candidates) {
   if (ctx.xray || !candidates.length) return candidates;
 
-  const selection = ctx.editor.editSelection;
-  if (selectMode === 'vertex') return selection.filterVisibleVertices(candidates, ctx.camera);
-  if (selectMode === 'edge') return selection.filterVisibleEdges(candidates, ctx.camera);
-  return selection.filterVisibleFaces(candidates, ctx.camera);
+  const picker = ctx.editor.editSelection.picker;
+  if (selectMode === 'vertex') return picker.filterVisibleVertices(candidates, ctx.camera);
+  if (selectMode === 'edge') return picker.filterVisibleEdges(candidates, ctx.camera);
+  return picker.filterVisibleFaces(candidates, ctx.camera);
 }
 
 function buildFaces(object, meshData, worldPos) {

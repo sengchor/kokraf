@@ -19,6 +19,9 @@ export class MeshDeltaCommand {
     this.beforeDelta = beforeDelta ? structuredClone(beforeDelta) : null;
     this.afterDelta = afterDelta ? structuredClone(afterDelta) : null;
 
+    this.beforeSelection = null;
+    this.afterSelection = null;
+
     this.seam = new SeamSnapshot(editor, object);
 
     if (object) {
@@ -30,26 +33,45 @@ export class MeshDeltaCommand {
     }
   }
 
+  setSelectionStates(beforeSelection, afterSelection) {
+    this.beforeSelection = beforeSelection ? structuredClone(beforeSelection) : null;
+    this.afterSelection = afterSelection ? structuredClone(afterSelection) : null;
+    return this;
+  }
+
   execute() {
-    this.editor.editSelection.clearSelection();
-    this.applyDelta(this.afterDelta);
-    this.seam.applyAfter();
-    this.editor.signals.objectChanged.dispatch(this.object);
+    this.apply(this.afterDelta, this.afterSelection, () => this.seam.applyAfter());
   }
 
   undo() {
-    this.editor.editSelection.clearSelection();
-    this.applyDelta(this.beforeDelta);
-    this.seam.applyBefore();
-    this.editor.signals.objectChanged.dispatch(this.object);
+    this.apply(this.beforeDelta, this.beforeSelection, () => this.seam.applyBefore());
+  }
+
+  apply(delta, selection, applySeam) {
+    const editSelection = this.editor.editSelection;
+
+    editSelection.clearSelection();
+
+    const object = this.applyDelta(delta);
+    applySeam();
+
+    if (object && selection && editSelection.editedObject === object) {
+      editSelection.setSelection(selection);
+    }
+
+    this.signals.objectChanged.dispatch(object);
   }
 
   applyDelta(delta) {
     const object = this.editor.objectByUuid(this.objectUuid);
-    if (!object || !delta) return;
+    if (!object) return null;
 
-    this.vertexEditor.setObject(object);
-    this.vertexEditor.applyDelta(delta);
+    if (delta) {
+      this.vertexEditor.setObject(object);
+      this.vertexEditor.applyDelta(delta);
+    }
+
+    return object;
   }
 
   toJSON() {
@@ -58,6 +80,8 @@ export class MeshDeltaCommand {
       objectUuid: this.objectUuid,
       beforeDelta: this.beforeDelta,
       afterDelta: this.afterDelta,
+      beforeSelection: this.beforeSelection,
+      afterSelection: this.afterSelection,
       seam: this.seam.toJSON(),
     };
   }
@@ -69,6 +93,8 @@ export class MeshDeltaCommand {
     command.objectUuid = json.objectUuid;
     command.beforeDelta = json.beforeDelta;
     command.afterDelta = json.afterDelta;
+    command.beforeSelection = json.beforeSelection ?? null;
+    command.afterSelection = json.afterSelection ?? null;
     command.seam = SeamSnapshot.fromJSON(editor, json);
     command.seam.objectUuid = json.objectUuid;
     return command;

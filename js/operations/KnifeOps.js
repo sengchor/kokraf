@@ -20,6 +20,8 @@ export class KnifeOps {
 
     this.vertexEditor.setObject(object);
 
+    const beforeSelection = this.editSelection.getSnapshot();
+
     const seedEdgeIds = plan.points.filter(p => p.edge).map(p => p.edge.id);
     const seedVertexIds = plan.points.filter(p => !p.edge && p.snapVertexId !== null).map(p => p.snapVertexId);
 
@@ -34,12 +36,16 @@ export class KnifeOps {
 
     const result = KnifeOps.applyCut(this.vertexEditor, object, plan);
 
-    this.editor.add(KnifeOps.createCommand(this.editor, object, beforeSnapshot, startElements));
+    // Select the result first so the command can record it as the "after" state.
+    KnifeOps.selectResult(this.editSelection, result);
+
+    const command = KnifeOps.createCommand(this.editor, object, beforeSnapshot, startElements)
+      .setSelectionStates(beforeSelection, this.editSelection.getSnapshot());
+    this.editor.add(command);
+
     this.signals.editSelectionRefresh.dispatch();
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
-
-    KnifeOps.selectResult(this.editSelection, result);
 
     return result;
   }

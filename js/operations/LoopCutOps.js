@@ -28,6 +28,8 @@ export class LoopCutOps {
 
     this.vertexEditor.setObject(object);
 
+    const beforeSelection = this.editSelection.getSnapshot();
+
     const beforeRegionIds = MeshDataRegion.expand(meshData, { edgeIds: loopEdges.map(e => e.id) }, 2);
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
 
@@ -41,17 +43,22 @@ export class LoopCutOps {
     const newVertices = LoopCutOps.createCutVertices(this.vertexEditor, meshData, loopEdges, cutCount);
     const newEdges = LoopCutOps.applyLoopCut(this.vertexEditor, meshData, loopEdges, newVertices, isClosed);
 
-    this.editor.add(LoopCutOps.createCommand(this.editor, object, beforeSnapshot, startElements));
-    this.signals.editSelectionRefresh.dispatch();
-    object.geometry.computeBoundingBox();
-    object.geometry.computeBoundingSphere();
-
     const result = {
       newVertexIds: newVertices.flat().map(v => v.id),
       newEdgeIds: newEdges.map(e => e.id),
     };
 
+    // Select the result first so the command can record it as the "after" state.
     LoopCutOps.selectResult(this.editSelection, result);
+
+    const command = LoopCutOps.createCommand(this.editor, object, beforeSnapshot, startElements)
+      .setSelectionStates(beforeSelection, this.editSelection.getSnapshot());
+    this.editor.add(command);
+
+    this.signals.editSelectionRefresh.dispatch();
+    object.geometry.computeBoundingBox();
+    object.geometry.computeBoundingSphere();
+
     return result;
   }
 

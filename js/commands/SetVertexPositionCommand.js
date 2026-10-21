@@ -6,9 +6,9 @@ export class SetVertexPositionCommand {
   /**
    * @param {Editor} editor
    * @param {THREE.Object3D|null} object
-   * @param {number|null} vertexIndices
-   * @param {THREE.Vector3|null} newPositions
-   * @param {THREE.Vector3|null} oldPositions
+   * @param {Array<number>|null} vertexIndices
+   * @param {THREE.Vector3[]|null} newPositions
+   * @param {THREE.Vector3[]|null} oldPositions
    */
   constructor(editor, object = null, vertexIndices = null, newPositions = null, oldPositions = null) {
     this.editor = editor;
@@ -17,28 +17,32 @@ export class SetVertexPositionCommand {
     this.name = 'Set Vertex Position';
 
     this.objectUuid = object ? object.uuid : null;
-    this.vertexIndices = Array.isArray(vertexIndices) ? vertexIndices : [];
+    this.vertexIndices = Array.isArray(vertexIndices) ? [...vertexIndices] : [];
 
     this.newPositions = Array.isArray(newPositions) ? newPositions.map(p => p.clone()) : [];
     this.oldPositions = Array.isArray(oldPositions) ? oldPositions.map(p => p.clone()) : [];
   }
 
   execute() {
-    const object = this.editor.objectByUuid(this.objectUuid);
-
-    this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.setVertexPositions(this.vertexIndices, this.newPositions, true);
-    
-    this.editor.editSelection.selectVertices(this.vertexIndices, true);
+    this.apply(this.newPositions);
   }
 
   undo() {
+    this.apply(this.oldPositions);
+  }
+  
+  apply(positions) {
     const object = this.editor.objectByUuid(this.objectUuid);
-    
-    this.vertexEditor.setObject(object);
-    this.vertexEditor.transform.setVertexPositions(this.vertexIndices, this.oldPositions, true);
+    if (!object) return;
 
-    this.editor.editSelection.selectVertices(this.vertexIndices, true);
+    this.vertexEditor.setObject(object);
+    this.vertexEditor.transform.setVertexPositions(this.vertexIndices, positions, true);
+    this.vertexEditor.updateGeometry();
+
+    const editSelection = this.editor.editSelection;
+    if (editSelection.editedObject === object) {
+      editSelection.updateVertexHandle();
+    }
   }
 
   toJSON() {

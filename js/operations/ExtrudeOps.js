@@ -127,15 +127,19 @@ export class ExtrudeOps {
       return false;
     }
 
-    const { object, mode, extrusion } = s;
+    const { object, mode, extrusion, selection } = s;
     this.vertexEditor.setObject(object);
 
-    this.editor.add(ExtrudeOps.createCommand(this.editor, object, extrusion));
+    // Select the result first so the command can record it as the "after" state.
+    ExtrudeOps.selectExtruded(this.editSelection, mode, extrusion);
+
+    const command = ExtrudeOps.createCommand(this.editor, object, extrusion)
+      .setSelectionStates(selection, this.editSelection.getSnapshot());
+    this.editor.add(command);
+
     this.signals.editSelectionRefresh.dispatch();
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
-
-    ExtrudeOps.selectExtruded(this.editSelection, mode, extrusion);
 
     this.endSession();
     return true;

@@ -43,6 +43,7 @@ export class DuplicateOps {
     this.session = {
       object,
       mode,
+      selection: this.editSelection.getSnapshot(), // before the copy gets selected
       pivotPosition: handle.getWorldPosition(new THREE.Vector3()),
       pivotQuaternion: handle.getWorldQuaternion(new THREE.Quaternion()),
       pivotScale: handle.getWorldScale(new THREE.Vector3()),
@@ -103,11 +104,14 @@ export class DuplicateOps {
     const s = this.session;
     if (!s) return false;
 
-    const { object, mode, duplicate } = s;
+    const { object, selection } = s;
     this.vertexEditor.setObject(object);
 
-    this.editor.execute(DuplicateOps.createCommand(this.editor, object, s.beforeSnapshot, s.startElements));
-    DuplicateOps.selectDuplicated(this.editSelection, mode, duplicate);
+    // The copy is already selected (beginSession). Snapshot it before execute(),
+    // which clears the selection and then re-applies afterSelection.
+    const command = DuplicateOps.createCommand(this.editor, object, s.beforeSnapshot, s.startElements)
+      .setSelectionStates(selection, this.editSelection.getSnapshot());
+    this.editor.execute(command);
 
     this.endSession();
     return true;
