@@ -1,4 +1,6 @@
 import { SwitchModeCommand } from '../commands/SwitchModeCommand.js';
+import { SetEditSelectionCommand } from '../commands/SetEditSelectionCommand.js';
+import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 import { TexturePainter } from '../texture/TexturePainter.js';
  
 export const MODES = {
@@ -83,9 +85,7 @@ export default class ModeManager {
       return result;
     }
 
-    this.editor.execute(
-      new SwitchModeCommand(this.editor, result.object, newMode, this.currentMode, this.paintMap)
-    );
+    this._executeSwitch(result.object, newMode);
 
     return result;
   }
@@ -96,9 +96,7 @@ export default class ModeManager {
 
     if (!def.requiresMesh) {
       if (this.currentMode === newMode) return false;
-      this.editor.execute(
-        new SwitchModeCommand(this.editor, this.editSelection.editedObject, newMode, this.currentMode, this.paintMap)
-      );
+      this._executeSwitch(this.editSelection.editedObject, newMode);
       return true;
     }
 
@@ -111,10 +109,36 @@ export default class ModeManager {
       return false;
     }
 
-    this.editor.execute(
-      new SwitchModeCommand(this.editor, object, newMode, this.currentMode, this.paintMap)
-    );
+    this._executeSwitch(object, newMode);
     return true;
+  }
+
+  _executeSwitch(object, newMode) {
+    const previousMode = this.currentMode;
+    const paintMap = this.paintMap;
+    const makeSwitch = () =>
+      new SwitchModeCommand(this.editor, object, newMode, previousMode, paintMap);
+
+    const editedObject = this.editSelection.editedObject;
+    const before = this.editSelection.getSnapshot();
+    const hasSelection = !!editedObject && (
+      before.vertexIds.length > 0 ||
+      before.edgeIds.length > 0 ||
+      before.faceIds.length > 0
+    );
+
+    if (!hasSelection) {
+      this.editor.execute(makeSwitch());
+      return;
+    }
+
+    const empty = { vertexIds: [], edgeIds: [], faceIds: [] };
+    const multi = new SequentialMultiCommand(this.editor, 'Switch Mode');
+    
+    multi.add(() => new SetEditSelectionCommand(this.editor, editedObject, empty, before));
+    multi.add(makeSwitch);
+
+    this.editor.execute(multi);
   }
 
   setMode(newMode, object = null, { paintMap = this.paintMap } = {}) {

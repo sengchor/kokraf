@@ -559,4 +559,16 @@ export default class Selection {
 
     return set;
   }
+
+  toJSON() {
+    return this.selectedObjects.map(o => o.uuid);
+  }
+
+  fromJSON(json) {
+    const objects = (json ?? [])
+      .map(uuid => this.editor.objectByUuid(uuid))
+      .filter(Boolean);
+    
+    this.setSelection(objects);
+  }
 }

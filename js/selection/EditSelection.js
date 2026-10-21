@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import EditPicker from './EditPicker.js'
+import EditPicker from './EditPicker.js';
 import {
   resolveSelectionGraphFromVertices,
   resolveSelectionGraphFromEdges,
@@ -51,6 +51,8 @@ export default class EditSelection {
     this.touchHoldActive = false;
     this.touchStartClient = null;
     this.lastTouchEndTime = 0;
+
+    this.isCommitting = false;
 
     this.picker = new EditPicker(editor);
     this.setupListeners();
@@ -267,7 +269,7 @@ export default class EditSelection {
   onMouseUp(event) {
     if (!this.enable || event.button !== 0) return;
     this.keyHandler.endInteraction('select');
-    
+
     this.selectionBox.finishSelection();
 
     const isBox = this.dragging;
@@ -296,7 +298,6 @@ export default class EditSelection {
     this.touchStartClient = { x: touch.clientX, y: touch.clientY };
     this.touchHoldActive = false;
     this.dragging = false;
-
 
     clearTimeout(this.touchHoldTimer);
     this.touchHoldTimer = setTimeout(() => {
@@ -363,16 +364,19 @@ export default class EditSelection {
     }
 
     const touch = event.changedTouches[0];
+    const isBox = this.dragging;
 
-    if (this.dragging) {
-      this.applyBoxSelection();
-    } else {
-      this.applyClickSelection({
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-        altKey: false
-      });
-    }
+    this.commitSelection(() => {
+      if (isBox) {
+        this.applyBoxSelection();
+      } else {
+        this.applyClickSelection({
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          altKey: false
+        });
+      }
+    });
 
     this.resetTouchState();
   }
@@ -385,12 +389,12 @@ export default class EditSelection {
   cancelTouchHold() {
     clearTimeout(this.touchHoldTimer);
     this.touchHoldTimer = null;
- 
+
     if (this.touchHoldActive) {
       this.keyHandler.endInteraction('box-select');
       this.selectionBox.finishSelection();
     }
- 
+
     this.resetTouchState();
   }
 
@@ -494,11 +498,15 @@ export default class EditSelection {
     this.signals.editSelectionChanged.dispatch(this.selectionState);
   }
 
+  // ---------------------------------------------------------------------------
+  // History
+  // ---------------------------------------------------------------------------
+
   getSnapshot() {
     return {
       vertexIds: [...this.selectedVertexIds],
       edgeIds: [...this.selectedEdgeIds],
-      faceIds: [...this.selectedFaceIds],
+      faceIds: [...this.selectedFaceIds]
     };
   }
 
@@ -521,6 +529,20 @@ export default class EditSelection {
 
     this.updateVertexHandle();
     this.signals.editSelectionChanged.dispatch(this.selectionState);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Serialization
+  // ---------------------------------------------------------------------------
+
+  toJSON() {
+    if (!this.editedObject) return null;
+    return this.getSnapshot();
+  }
+
+  fromJSON(json) {
+    if (!json || !this.editedObject) return;
+    this.setSelection(json);
   }
 
   commitSelection(applyFn) {
@@ -634,8 +656,8 @@ export default class EditSelection {
 
     this.applyClickSelection(this.lastMouseEvent);
     const linkedVertexIds = this.vertexEditor.selection.selectVertexLinked(meshData, this.selectedVertexIds);
-    const currentVertexIds = this.selectedVertexIds.union(previousVertexIds)
-    
+    const currentVertexIds = this.selectedVertexIds.union(previousVertexIds);
+
     const allVertexIds = linkedVertexIds.union(currentVertexIds);
     this.selectVertices(Array.from(allVertexIds));
   }
