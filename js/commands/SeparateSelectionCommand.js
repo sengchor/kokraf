@@ -29,10 +29,21 @@ export class SeparateSelectionCommand {
     this.afterSeam = seams.after ? Array.from(seams.after) : [];
     this.separatedSeam = seams.separated ? Array.from(seams.separated) : [];
 
+    // Edit selection snapshots ({ vertexIds, edgeIds, faceIds }); null → cleared.
+    this.beforeSelection = null;
+    this.afterSelection = null;
+
     if (!object) return;
     this.parentUuid = object.parent ? object.parent.uuid : null;
     this.index = object.parent ? object.parent.children.indexOf(object) : -1;
     this.newObjectUuid = null;
+  }
+
+  /** Same contract as MeshDeltaCommand.setSelectionStates. Returns this for chaining. */
+  setSelectionStates(beforeSelection, afterSelection) {
+    this.beforeSelection = beforeSelection ? structuredClone(beforeSelection) : null;
+    this.afterSelection = afterSelection ? structuredClone(afterSelection) : null;
+    return this;
   }
 
   execute() {
@@ -59,6 +70,7 @@ export class SeparateSelectionCommand {
     const parent = this.editor.objectByUuid(this.parentUuid);
     this.editor.sceneManager.addObject(newObject, parent, this.index);
 
+    this.restoreSelection(object, this.afterSelection);
     this.editor.toolbar.updateTools();
   }
 
@@ -79,7 +91,15 @@ export class SeparateSelectionCommand {
       this.editor.sceneManager.removeObject(newObject);
     }
 
+    this.restoreSelection(object, this.beforeSelection);
     this.editor.toolbar.updateTools();
+  }
+
+  restoreSelection(object, selection) {
+    const editSelection = this.editor.editSelection;
+    if (!object || !selection || editSelection.editedObject !== object) return;
+
+    editSelection.setSelection(selection);
   }
 
   applyDelta(delta) {
@@ -102,7 +122,9 @@ export class SeparateSelectionCommand {
       newObjectUuid: this.newObjectUuid,
       beforeSeam: this.beforeSeam,
       afterSeam: this.afterSeam,
-      separatedSeam: this.separatedSeam
+      separatedSeam: this.separatedSeam,
+      beforeSelection: this.beforeSelection,
+      afterSelection: this.afterSelection
     };
   }
 
@@ -120,6 +142,8 @@ export class SeparateSelectionCommand {
     cmd.parentUuid = json.parentUuid;
     cmd.index = json.index;
     cmd.newObjectUuid = json.newObjectUuid;
+    cmd.beforeSelection = json.beforeSelection ?? null;
+    cmd.afterSelection = json.afterSelection ?? null;
 
     return cmd;
   }
