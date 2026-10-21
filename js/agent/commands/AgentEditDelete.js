@@ -59,6 +59,7 @@ function prepareTopology(command, { target, element, ids }, editor) {
 function runTopology(editor, { object, elementIds, region }, apply, extra) {
   const meshData = object.userData.meshData;
   const before = meshStats(object);
+  const beforeSelection = editor.editSelection.getSnapshot();
 
   const beforeRegionIds = MeshDataRegion.expand(meshData, region, 2);
   const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
@@ -76,7 +77,9 @@ function runTopology(editor, { object, elementIds, region }, apply, extra) {
   const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
   const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-  editor.execute(new DeleteSelectionCommand(editor, object, beforeSnapshot, afterSnapshot));
+  const command = new DeleteSelectionCommand(editor, object, beforeSnapshot, afterSnapshot)
+    .setSelectionStates(beforeSelection, null);
+  editor.execute(command);
 
   object.geometry.computeBoundingBox();
   object.geometry.computeBoundingSphere();

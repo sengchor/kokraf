@@ -31,6 +31,8 @@ export const editFlipNormalsSpec = {
 
     editor.vertexEditor.setObject(object);
 
+    const selection = editor.editSelection.getSnapshot();
+
     const beforeRegionIds = MeshDataRegion.expand(meshData, { faceIds }, 1);
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
 
@@ -46,7 +48,10 @@ export const editFlipNormalsSpec = {
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    editor.execute(new FlipNormalsCommand(editor, object, beforeSnapshot, afterSnapshot));
+    // Flipping only reverses winding: selection is the same before and after.
+    const command = new FlipNormalsCommand(editor, object, beforeSnapshot, afterSnapshot)
+      .setSelectionStates(selection, selection);
+    editor.execute(command);
     editor.signals.objectChanged.dispatch();
 
     return {

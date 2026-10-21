@@ -48,9 +48,10 @@ export const editInsetSpec = {
     const { vertexEditor, editSelection } = editor;
 
     const selectionMode = editSelection.subSelectionMode;
+    const beforeSelection = editSelection.getSnapshot();
 
     vertexEditor.setObject(object);
-    const inset = InsetOps.buildInset(vertexEditor, editSelection, object, faceIds);
+    const inset = InsetOps.buildInset(vertexEditor, object, faceIds);
 
     try {
       if (!inset.moveData.size) {
@@ -61,17 +62,21 @@ export const editInsetSpec = {
       vertexEditor.transform.setVertexPositions(vertexIds, positions);
     } catch (error) {
       InsetOps.restore(vertexEditor, object, inset);
-      editSelection.selectFaces(faceIds);
+      editSelection.setSelection(beforeSelection);
       editor.signals.editSelectionRefresh.dispatch();
       throw error;
     }
 
-    editor.add(InsetOps.createCommand(editor, object, inset));
+    // Select the result first so the command can record it as the "after" state.
+    InsetOps.selectResult(editSelection, inset);
+
+    const command = InsetOps.createCommand(editor, object, inset)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.add(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
 
-    InsetOps.selectResult(editSelection, inset);
     editor.signals.editSelectionRefresh.dispatch();
     editor.signals.objectChanged.dispatch();
 

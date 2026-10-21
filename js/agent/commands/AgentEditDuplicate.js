@@ -50,8 +50,11 @@ export const editDuplicateSpec = {
   },
   run(params, editor, { object, type, elementIds }) {
     const meshData = object.userData.meshData;
+    const { editSelection } = editor;
 
     editor.vertexEditor.setObject(object);
+
+    const beforeSelection = editSelection.getSnapshot();
 
     const beforeRegionIds = MeshDataRegion.expand(meshData, { [REGION_KEY[type]]: elementIds }, 1);
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
@@ -75,9 +78,12 @@ export const editDuplicateSpec = {
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    editor.execute(new DuplicateSelectionCommand(editor, object, beforeSnapshot, afterSnapshot));
+    // Select the copies first so the command records them; execute() re-applies them.
+    editSelection[SELECT_FN[type]](newIds);
 
-    editor.editSelection[SELECT_FN[type]](newIds);
+    const command = new DuplicateSelectionCommand(editor, object, beforeSnapshot, afterSnapshot)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.execute(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();

@@ -65,6 +65,7 @@ export const editBevelSpec = {
     const { vertexEditor, editSelection } = editor;
 
     const selectionMode = editSelection.subSelectionMode;
+    const beforeSelection = editSelection.getSnapshot(); // before build() changes it
 
     vertexEditor.setObject(object);
     const builder = new BevelBuilder(vertexEditor, object, segments);
@@ -82,17 +83,21 @@ export const editBevelSpec = {
       builder.applyWidth(width);
     } catch (error) {
       if (builder.beforeSnapshot && builder.startElements) builder.restore();
-      editSelection.selectEdges(edgeIds);
+      editSelection.setSelection(beforeSelection);
       editor.signals.editSelectionRefresh.dispatch();
       throw error;
     }
 
-    editor.add(BevelOps.createCommand(editor, object, builder));
+    // Select the result first so the command can record it as the "after" state.
+    BevelOps.selectResult(editSelection, builder);
+
+    const command = BevelOps.createCommand(editor, object, builder)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.add(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
 
-    BevelOps.selectResult(editSelection, builder);
     editor.signals.editSelectionRefresh.dispatch();
     editor.signals.objectChanged.dispatch();
 

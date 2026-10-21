@@ -51,6 +51,9 @@ export const editSeparateSpec = {
     const meshData = object.userData.meshData;
     const { vertexEditor, meshEditor, editSelection } = editor;
 
+    // Undo restores the selection as it was, not the ids selected below for extraction.
+    const beforeSelection = editSelection.getSnapshot();
+
     // After the mode switch, make the edit selection match the requested ids
     // so extraction and the derived vertex/edge/face sets behave exactly like the UI.
     if (ids !== 'selected') editSelection[SELECT_FN[type]](elementIds);
@@ -93,7 +96,10 @@ export const editSeparateSpec = {
     const existing = new Set();
     scene.traverse((o) => existing.add(o.uuid));
 
-    editor.execute(new SeparateSelectionCommand(editor, object, beforeSnapshot, afterSnapshot, newMeshData, seamData));
+    const command = new SeparateSelectionCommand(
+      editor, object, beforeSnapshot, afterSnapshot, newMeshData, seamData
+    ).setSelectionStates(beforeSelection, null);
+    editor.execute(command);
 
     let created = null;
     scene.traverse((o) => {

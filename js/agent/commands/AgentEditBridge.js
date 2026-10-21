@@ -64,8 +64,9 @@ export const editBridgeSpec = {
   },
   run({ numCuts = 0, smoothness = 1, twist = 0 }, editor, { object, vertexIds, edgeIds, faceIds }) {
     const meshData = object.userData.meshData;
-    const { vertexEditor } = editor;
+    const { vertexEditor, editSelection } = editor;
     const before = meshStats(object);
+    const beforeSelection = editSelection.getSnapshot();
 
     const params = {
       numCuts: Math.max(0, Math.min(50, Math.round(numCuts))),
@@ -96,9 +97,13 @@ export const editBridgeSpec = {
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    editor.execute(new BridgeSelectionCommand(editor, object, beforeSnapshot, afterSnapshot));
+    // Select the result first so the command records it; execute() re-applies it.
+    editSelection.selectVertices(result.newVertexIds ?? []);
 
-    editor.editSelection.selectVertices(result.newVertexIds ?? []);
+    const command = new BridgeSelectionCommand(editor, object, beforeSnapshot, afterSnapshot)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.execute(command);
+
     editor.signals.editSelectionRefresh.dispatch();
 
     object.geometry.computeBoundingBox();

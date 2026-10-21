@@ -52,6 +52,8 @@ export const editCreateEdgeFaceSpec = {
 
     vertexEditor.setObject(object);
 
+    const beforeSelection = editSelection.getSnapshot();
+
     const beforeRegionIds = MeshDataRegion.expand(meshData, { vertexIds, edgeIds }, 1);
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
 
@@ -99,8 +101,7 @@ export const editCreateEdgeFaceSpec = {
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    editor.execute(new CreateFaceCommand(editor, object, beforeSnapshot, afterSnapshot));
-
+    // Select the result first so the command records it; execute() re-applies it.
     const mode = editSelection.subSelectionMode;
     if (mode === 'vertex') {
       editSelection.selectVertices(newVertexId != null ? [newVertexId] : newVertices);
@@ -109,6 +110,10 @@ export const editCreateEdgeFaceSpec = {
     } else if (mode === 'face' && created === 'face') {
       editSelection.selectFaces([faceId]);
     }
+
+    const command = new CreateFaceCommand(editor, object, beforeSnapshot, afterSnapshot)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.execute(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();

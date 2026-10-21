@@ -33,8 +33,11 @@ export const editSubdivideSpec = {
   run(params, editor, { object, edgeIds }) {
     const meshData = object.userData.meshData;
     const before = meshStats(object);
+    const { editSelection } = editor;
 
     editor.vertexEditor.setObject(object);
+
+    const beforeSelection = editSelection.getSnapshot();
 
     const beforeRegionIds = MeshDataRegion.expand(meshData, { edgeIds }, 1);
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
@@ -58,9 +61,12 @@ export const editSubdivideSpec = {
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    editor.execute(new SubdivideSelectionCommand(editor, object, beforeSnapshot, afterSnapshot));
+    // Select the result first so the command records it; execute() re-applies it.
+    editSelection.selectVertices(newVertexIds);
 
-    editor.editSelection.selectVertices(newVertexIds);
+    const command = new SubdivideSelectionCommand(editor, object, beforeSnapshot, afterSnapshot)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.execute(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();

@@ -74,7 +74,9 @@ export const editExtrudeSpec = {
     editor.sceneManager.mainScene.updateMatrixWorld(true);
 
     const meshData = object.userData.meshData;
-    const vertexEditor = editor.vertexEditor;
+    const { vertexEditor, editSelection } = editor;
+
+    const beforeSelection = editSelection.getSnapshot();
 
     const offset = new THREE.Vector3();
     let normal = null;
@@ -98,12 +100,16 @@ export const editExtrudeSpec = {
       vertexEditor.transform.setVertexPositions(extrusion.newVertexIds, positions);
     }
 
-    editor.add(ExtrudeOps.createCommand(editor, object, extrusion));
+    // Select the result first so the command can record it as the "after" state.
+    ExtrudeOps.selectExtruded(editSelection, selectionMode, extrusion);
+
+    const command = ExtrudeOps.createCommand(editor, object, extrusion)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.add(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
 
-    ExtrudeOps.selectExtruded(editor.editSelection, selectionMode, extrusion);
     editor.signals.editSelectionRefresh.dispatch();
     editor.signals.objectChanged.dispatch();
 

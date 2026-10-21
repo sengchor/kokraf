@@ -65,9 +65,11 @@ export const editSplitSpec = {
   },
   run(params, editor, { object, type, elementIds, region }) {
     const meshData = object.userData.meshData;
-    const { vertexEditor } = editor;
+    const { vertexEditor, editSelection } = editor;
 
     vertexEditor.setObject(object);
+
+    const beforeSelection = editSelection.getSnapshot();
 
     const beforeRegionIds = MeshDataRegion.expand(meshData, region, 1);
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
@@ -95,9 +97,13 @@ export const editSplitSpec = {
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    editor.execute(new SplitSelectionCommand(editor, object, beforeSnapshot, afterSnapshot));
+    // Originals are deleted; drop their ids, then select the copy so the command records it.
+    editSelection.clearSelection();
+    editSelection[SELECT_FN[type]](newIds);
 
-    editor.editSelection[SELECT_FN[type]](newIds);
+    const command = new SplitSelectionCommand(editor, object, beforeSnapshot, afterSnapshot)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.execute(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();

@@ -87,6 +87,8 @@ export const editEdgeSlideSpec = {
     const meshData = object.userData.meshData;
     const { vertexEditor, editSelection } = editor;
 
+    const beforeSelection = editSelection.getSnapshot();
+
     // Same undo region as the interactive session: the slid elements plus two rings around them.
     const regionIds = MeshDataRegion.expand(meshData, { vertexIds, edgeIds, faceIds: [] }, 2);
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, regionIds);
@@ -107,13 +109,17 @@ export const editEdgeSlideSpec = {
       throw error;
     }
 
-    editor.add(EdgeSlideOps.createCommand(editor, object, beforeSnapshot, startElements));
+    // Select the slid edges first so the command can record them as the "after" state.
+    editSelection.clearSelection();
+    editSelection.selectEdges(edgeIds);
+
+    const command = EdgeSlideOps.createCommand(editor, object, beforeSnapshot, startElements)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.add(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
 
-    editSelection.clearSelection();
-    editSelection.selectEdges(edgeIds);
     editor.signals.editSelectionRefresh.dispatch();
     editor.signals.objectChanged.dispatch();
 

@@ -42,9 +42,11 @@ export const editMergeSpec = {
   },
   run({ at = 'center', threshold = 0.001 }, editor, { object, vertexIds }) {
     const meshData = object.userData.meshData;
-    const { vertexEditor } = editor;
+    const { vertexEditor, editSelection } = editor;
 
     vertexEditor.setObject(object);
+
+    const beforeSelection = editSelection.getSnapshot();
 
     const beforeRegionIds = MeshDataRegion.expand(meshData, { vertexIds }, 1);
     const beforeSnapshot = MeshDataRegion.snapshot(meshData, beforeRegionIds);
@@ -79,9 +81,12 @@ export const editMergeSpec = {
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
-    editor.execute(new MergeSelectionCommand(editor, object, beforeSnapshot, afterSnapshot));
+    // Select the result first so the command records it; execute() re-applies it.
+    editSelection.selectVertices(targetIds);
 
-    editor.editSelection.selectVertices(targetIds);
+    const command = new MergeSelectionCommand(editor, object, beforeSnapshot, afterSnapshot)
+      .setSelectionStates(beforeSelection, editSelection.getSnapshot());
+    editor.execute(command);
 
     object.geometry.computeBoundingBox();
     object.geometry.computeBoundingSphere();
