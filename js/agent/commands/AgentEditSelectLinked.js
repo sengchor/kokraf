@@ -168,7 +168,7 @@ export const editSelectLinkedSpec = {
     if (op === 'add') linkedIds.forEach((id) => next.add(id));
     if (op === 'subtract') linkedIds.forEach((id) => next.delete(id));
 
-    applySelection(selection, selectMode, [...next]);
+    selection.commitSelection(() => applySelection(selection, selectMode, [...next]));
 
     editor.sceneManager.mainScene.updateMatrixWorld(true);
     const worldPos = worldPositionLookup(object, meshData);

@@ -113,7 +113,7 @@ export const editSelectSpec = {
     if (op === 'add') matched.forEach((id) => next.add(id));
     if (op === 'subtract') matched.forEach((id) => next.delete(id));
 
-    applySelection(selection, selectMode, [...next]);
+    selection.commitSelection(() => applySelection(selection, selectMode, [...next]));
 
     let bounds = null;
     if (selection.selectedVertexIds.size) {

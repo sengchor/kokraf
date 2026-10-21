@@ -380,7 +380,7 @@ export const editPickSpec = {
       if (op === 'add') picked.forEach((id) => next.add(id));
       if (op === 'subtract') picked.forEach((id) => next.delete(id));
  
-      applySelection(selection, selectMode, [...next]);
+      selection.commitSelection(() => applySelection(selection, selectMode, [...next]));
     }
  
     const result = {

@@ -362,6 +362,10 @@ export default class MirrorManager {
 
     const seamsAfter = [...seams].filter(id => evaluated.edges.has(id));
 
-    this.editor.execute(new ApplyMirrorCommand(this.editor, object, beforeDelta, afterDelta, s, seamsAfter));
+    const selection = this.editor.editSelection.getSnapshot();
+
+    const command = new ApplyMirrorCommand(this.editor, object, beforeDelta, afterDelta, s, seamsAfter)
+      .setSelectionStates(selection, selection);
+    this.editor.execute(command);
   }
 }
