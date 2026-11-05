@@ -149,10 +149,14 @@ export class Outline {
     renderer.render(this.edgeScene, this.edgeCamera);
   }
 
-  dispose() {
-    this.idTarget.dispose();
+  clearMaterialCache() {
     this._matCache.forEach(mat => mat.dispose());
     this._matCache.clear();
+  }
+
+  dispose() {
+    this.idTarget.dispose();
+    this.clearMaterialCache();
     this.edgeMaterial.dispose();
   }
 }

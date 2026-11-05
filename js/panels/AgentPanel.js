@@ -144,6 +144,9 @@ export class AgentPanel {
 
     const composer = el('div', 'agent-panel__composer');
     this.input = el('textarea', 'agent-panel__input');
+    this.input.name = 'agent-message';
+    this.input.id = 'agent-panel-input';
+    this.input.autocomplete = 'off';
     this.input.rows = 3;
     this.input.placeholder = 'Ask the agent';
     this.input.setAttribute('aria-label', 'Message to the agent');
@@ -157,6 +160,8 @@ export class AgentPanel {
     const footer = el('div', 'agent-panel__composer-footer');
 
     this.modelSelect = el('select', 'agent-panel__model');
+    this.modelSelect.name = 'agent-model';
+    this.modelSelect.id = 'agent-panel-model';
     this.modelSelect.setAttribute('aria-label', 'Model');
     for (const { id, label } of AGENT_MODELS) {
       const option = el('option', null, label);

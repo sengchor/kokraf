@@ -23,7 +23,7 @@ export default class Renderer {
   }
 
   setupListeners() {
-    this.signals.emptyScene.add(() => this.dispose());
+    this.signals.emptyScene.add(() => this.outline.clearMaterialCache());
 
     this.signals.viewportShadingChanged.add((shadingMode) => {
       this.outline.enabled = shadingMode !== 'material' && shadingMode !== 'wireframe';
