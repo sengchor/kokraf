@@ -1192,36 +1192,38 @@ export class BevelBuilder {
   }
 
   alignLoopWindingWithTopology(meshData, orderedVertexIds) {
-    for (let i = 0; i < orderedVertexIds.length; i++) {
-      const vAId = orderedVertexIds[i];
-      const vBId = orderedVertexIds[(i + 1) % orderedVertexIds.length];
+    const { newLoop } = this.insertSegmentsIntoLoop(orderedVertexIds);
+    const len = newLoop.length;
 
-      const vertexA = meshData.getVertex(vAId);
-      const vertexB = meshData.getVertex(vBId);
+    for (let i = 0; i < len; i++) {
+      const aId = newLoop[i];
+      const bId = newLoop[(i + 1) % len];
+
+      const vertexA = meshData.getVertex(aId);
+      const vertexB = meshData.getVertex(bId);
       if (!vertexA || !vertexB) continue;
 
-      let sharedFaceId = null;
       for (const faceId of vertexA.faceIds) {
-        if (vertexB.faceIds.has(faceId)) {
-          sharedFaceId = faceId;
-          break;
+        if (!vertexB.faceIds.has(faceId)) continue;
+
+        const face = meshData.faces.get(faceId);
+        if (!face) continue;
+
+        const vIds = face.vertexIds;
+        const faceLen = vIds.length;
+        const idxA = vIds.indexOf(aId);
+        const idxB = vIds.indexOf(bId);
+        if (idxA === -1 || idxB === -1) continue;
+
+        if ((idxA + 1) % faceLen === idxB) {
+          orderedVertexIds.reverse();
+          return;
+        }
+
+        if ((idxB + 1) % faceLen === idxA) {
+          return;
         }
       }
-
-      if (!sharedFaceId) continue;
-
-      const sharedFace = meshData.faces.get(sharedFaceId);
-      if (!sharedFace) continue;
-
-      const vIds = sharedFace.vertexIds;
-      const idxA = vIds.indexOf(vAId);
-      const idxB = vIds.indexOf(vBId);
-      if (idxA === -1 || idxB === -1) continue;
-
-      if ((idxA + 1) % vIds.length === idxB) {
-        orderedVertexIds.reverse();
-      }
-      return;
     }
   }
 
