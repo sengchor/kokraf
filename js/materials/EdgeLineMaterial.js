@@ -8,6 +8,7 @@ export class EdgeLineMaterial extends LineMaterial {
       vertexColors: true,
       dashed: false,
       depthTest: true,
+      depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -5,
       polygonOffsetUnits: -5,

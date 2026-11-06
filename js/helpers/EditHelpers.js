@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { LineSegmentsGeometry } from 'jsm/lines/LineSegmentsGeometry.js';
-import { LineMaterial } from 'jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'jsm/lines/LineSegments2.js';
 import earcut from 'earcut';
 import { computePlaneNormal, projectTo2D } from '../geometry/TriangulationUtils.js';
@@ -8,6 +7,7 @@ import { MeshData } from '../core/MeshData.js';
 import { SeamUtils } from '../utils/SeamUtils.js';
 import { SharpUtils } from '../utils/SharpUtils.js';
 import { EdgeLineMaterial } from '../materials/EdgeLineMaterial.js';
+import { VertexPointMaterial } from '../materials/VertexPointMaterial.js';
 
 const EDGE_COLOR_DEFAULT = [0, 0, 0];
 const EDGE_COLOR_SELECTED = [1, 1, 1];
@@ -86,15 +86,7 @@ export default class EditHelpers {
     pointGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     pointGeometry.setAttribute('vertexId', new THREE.Uint16BufferAttribute(vertexIds, 1));
 
-    const pointMaterial = new THREE.PointsMaterial({
-      size: 3.5,
-      sizeAttenuation: false,
-      vertexColors: true,
-
-      polygonOffset: true,
-      polygonOffsetFactor: -3,
-      polygonOffsetUnits: -3,
-    });
+    const pointMaterial = new VertexPointMaterial();
 
     const vertexPoints = new THREE.Points(pointGeometry, pointMaterial);
     vertexPoints.renderOrder = 11;
