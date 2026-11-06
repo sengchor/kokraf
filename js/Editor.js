@@ -149,6 +149,7 @@ export default class Editor {
       uvsChanged: new Signal(),
       seamsChanged: new Signal(),
       setSeam: new Signal(),
+      sharpsChanged: new Signal(),
       uvToolChanged: new Signal(),
       mouseUVSelectLinked: new Signal(),
 

@@ -53,6 +53,7 @@ import { ApplyMirrorCommand } from './ApplyMirrorCommand.js';
 import { SetMirrorCommand } from './SetMirrorCommand.js';
 import { SetSelectionCommand } from './SetSelectionCommand.js';
 import { SetEditSelectionCommand } from './SetEditSelectionCommand.js';
+import { SetSharpCommand } from './SetSharpCommand.js';
 
 export const commands = new Map([
   [SetPositionCommand.type, SetPositionCommand],
@@ -110,4 +111,5 @@ export const commands = new Map([
   [SetMirrorCommand.type, SetMirrorCommand],
   [SetSelectionCommand.type, SetSelectionCommand],
   [SetEditSelectionCommand.type, SetEditSelectionCommand],
+  [SetSharpCommand.type, SetSharpCommand],
 ]);

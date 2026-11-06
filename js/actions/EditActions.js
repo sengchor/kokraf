@@ -9,6 +9,7 @@ import { SplitSelectionCommand } from '../commands/SplitSelectionCommand.js';
 import { FlipNormalsCommand } from '../commands/FlipNormalsCommand.js';
 import { SubdivideSelectionCommand } from '../commands/SubdivideSelectionCommand.js';
 import { BridgeSelectionCommand } from '../commands/BridgeSelectionCommand.js';
+import { SetSharpCommand } from '../commands/SetSharpCommand.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { OperatorPanel } from '../panels/OperatorPanel.js';
 import { SeamSnapshot } from '../uv/SeamSnapshot.js';
@@ -41,6 +42,8 @@ export class EditActions {
       'select-rings': () => this.signals.editSelectRings.dispatch(),
       'select-loops': () => this.signals.editSelectLoops.dispatch(),
       'flip-normals': () => this.signals.editFlipNormals.dispatch(),
+      'mark-sharp': () => this.setSharp(true),
+      'clear-sharp': () => this.setSharp(false),
     };
 
     this.prefixActions = [
@@ -594,5 +597,16 @@ export class EditActions {
         this.editSelection.setSelection(beforeSelection);
       },
     });
+  }
+
+  setSharp(value) {
+    const object = this.editSelection.editedObject;
+    if (!object) return;
+
+    const selectedEdgeIds = this.editSelection.selectedEdgeIds;
+    if (!selectedEdgeIds?.size) return;
+
+    const command = new SetSharpCommand(this.editor, object, [...selectedEdgeIds], value);
+    this.editor.execute(command);
   }
 }
