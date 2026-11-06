@@ -16,7 +16,7 @@ export default class SceneManager {
     this.history = editor.history;
 
     this.mainScene = new THREE.Scene();
-    this.mainScene.background = new THREE.Color(0x3b3b3b);
+    this.mainScene.background = new THREE.Color(0x2e2e2e);
 
     this.sceneEditorHelpers = new THREE.Scene();
     this.sceneEditorHelpers.background = null;

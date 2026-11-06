@@ -7,6 +7,7 @@ import { computePlaneNormal, projectTo2D } from '../geometry/TriangulationUtils.
 import { MeshData } from '../core/MeshData.js';
 import { SeamUtils } from '../utils/SeamUtils.js';
 import { SharpUtils } from '../utils/SharpUtils.js';
+import { EdgeLineMaterial } from '../materials/EdgeLineMaterial.js';
 
 const EDGE_COLOR_DEFAULT = [0, 0, 0];
 const EDGE_COLOR_SELECTED = [1, 1, 1];
@@ -14,6 +15,9 @@ const EDGE_COLOR_SEAM = [1, 0.05, 0.05];
 const EDGE_COLOR_SELECTED_SEAM = [1, 0.5, 0];
 const EDGE_COLOR_SHARP = [0, 0.75, 1];
 const EDGE_COLOR_SELECTED_SHARP = [0.6, 0.95, 1];
+
+const EDGE_WIDTH_DEFAULT = 1.1;
+const EDGE_WIDTH_MARKED = 1.5;
 
 const EMPTY_SET = new Set();
 
@@ -142,22 +146,16 @@ export default class EditHelpers {
 
     // Visible Line
     const fatGeo = new LineSegmentsGeometry().setPositions(posArray);
-    const fatMat = new LineMaterial({
-      color: 0xffffff,
-      linewidth: 0.9,
-      vertexColors: true,
-      dashed: false,
-      depthTest: true,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    });
+    const fatMat = new EdgeLineMaterial();
     fatMat.resolution.set(window.innerWidth, window.innerHeight);
 
     const instanceColorStart = new THREE.InstancedBufferAttribute(new Float32Array(edgeIdList.length * 3).fill(0), 3);
     const instanceColorEnd = new THREE.InstancedBufferAttribute(new Float32Array(edgeIdList.length * 3).fill(0), 3);
+    const instanceWidth = new THREE.InstancedBufferAttribute(new Float32Array(edgeIdList.length).fill(EDGE_WIDTH_DEFAULT), 1);
+
     fatGeo.setAttribute('instanceColorStart', instanceColorStart);
     fatGeo.setAttribute('instanceColorEnd', instanceColorEnd);
+    fatGeo.setAttribute('instanceWidth', instanceWidth);
 
     const fatLine = new LineSegments2(fatGeo, fatMat);
     fatLine.computeLineDistances();
@@ -462,32 +460,42 @@ export default class EditHelpers {
     return isSelected ? EDGE_COLOR_SELECTED : EDGE_COLOR_DEFAULT;
   }
 
-  applyEdgeHighlight(selectedEdgeIds) {
-    const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
-    if (!fatLine) return;
-
-    this.lastSelectedEdgeIds = selectedEdgeIds ?? EMPTY_SET;
-
+  _writeEdgeStyles(fatLine, selectedEdgeIds) {
     const { edgeIdList, edgeIdToBufferIndex } = fatLine.userData;
     const sharpIds = SharpUtils.getSharpIds(this.editedObject);
     const seamIds = this.isUVMode ? SeamUtils.getSeamIds(this.editedObject) : null;
 
     const colorStart = fatLine.geometry.getAttribute('instanceColorStart');
-    const colorEnd   = fatLine.geometry.getAttribute('instanceColorEnd');
+    const colorEnd = fatLine.geometry.getAttribute('instanceColorEnd');
+    const width = fatLine.geometry.getAttribute('instanceWidth');
 
-    for (let edgeId of edgeIdList) {
+    for (const edgeId of edgeIdList) {
       const idx = edgeIdToBufferIndex.get(edgeId);
       if (idx === undefined) continue;
-
-      const isSelected = this.lastSelectedEdgeIds.has(edgeId);
+      
+      const isSelected = selectedEdgeIds.has(edgeId);
       const c = this._getEdgeColor(edgeId, isSelected, seamIds, sharpIds);
 
       colorStart.setXYZ(idx, c[0], c[1], c[2]);
       colorEnd.setXYZ(idx, c[0], c[1], c[2]);
+
+      if (width) {
+        const isMarked = seamIds?.has(edgeId) || sharpIds?.has(edgeId);
+        width.setX(idx, isMarked ? EDGE_WIDTH_MARKED : EDGE_WIDTH_DEFAULT);
+      }
     }
 
     colorStart.needsUpdate = true;
     colorEnd.needsUpdate = true;
+    if (width) width.needsUpdate = true;
+  }
+
+  applyEdgeHighlight(selectedEdgeIds) {
+    const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
+    if (!fatLine) return;
+
+    this.lastSelectedEdgeIds = selectedEdgeIds ?? EMPTY_SET;
+    this._writeEdgeStyles(fatLine, this.lastSelectedEdgeIds);
   }
 
   applyFaceHighlight(selectedFaceIds) {
@@ -532,24 +540,7 @@ export default class EditHelpers {
 
     const fatLine = this.sceneManager.sceneHelpers.getObjectByName('__EdgeLinesVisual');
     if (fatLine) {
-      const { edgeIdList, edgeIdToBufferIndex } = fatLine.userData;
-      const sharpIds = SharpUtils.getSharpIds(this.editedObject);
-      const seamIds = this.isUVMode ? SeamUtils.getSeamIds(this.editedObject) : null;
-
-      const colorStart = fatLine.geometry.getAttribute('instanceColorStart');
-      const colorEnd   = fatLine.geometry.getAttribute('instanceColorEnd');
-
-      for (const edgeId of edgeIdList) {
-        const idx = edgeIdToBufferIndex.get(edgeId);
-        if (idx === undefined) continue;
-        
-        const c = this._getEdgeColor(edgeId, false, seamIds, sharpIds);
-        colorStart.setXYZ(idx, c[0], c[1], c[2]);
-        colorEnd.setXYZ(idx, c[0], c[1], c[2]);
-      }
-
-      colorStart.needsUpdate = true;
-      colorEnd.needsUpdate = true;
+      this._writeEdgeStyles(fatLine, EMPTY_SET);
     }
 
     const faceMesh = this.sceneManager.sceneHelpers.getObjectByName('__FacePolygons');
