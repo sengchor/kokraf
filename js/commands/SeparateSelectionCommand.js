@@ -63,9 +63,8 @@ export class SeparateSelectionCommand {
     SeamSnapshot.write(object, this.afterSeam);
     this.signals.seamsChanged.dispatch(object);
 
-    const changed = SharpSnapshot.diff(object, this.beforeSharp);
     SharpSnapshot.write(object, this.afterSharp);
-    this.signals.sharpsChanged.dispatch(object, changed)
+    this.signals.sharpsChanged.dispatch(object)
 
     const newObject = this.editor.objectEditor.cloneObjectFromMeshData(this.newMeshData, object, {
       seam: this.separatedSeam,
@@ -95,9 +94,8 @@ export class SeparateSelectionCommand {
       SeamSnapshot.write(object, this.beforeSeam);
       this.signals.seamsChanged.dispatch(object);
 
-      const changed = SharpSnapshot.diff(object, this.beforeSharp);
       SharpSnapshot.write(object, this.beforeSharp);
-      this.signals.sharpsChanged.dispatch(object, changed)
+      this.signals.sharpsChanged.dispatch(object)
     }
 
     const newObject = this.editor.objectByUuid(this.newObjectUuid);

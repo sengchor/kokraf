@@ -11,8 +11,8 @@ export class MeshRenderBuffer {
 
     this.normalMode = null;
     this.normalAngle = null;
-
-    this.sharps = null;
+    
+    this.sharpKeys = null;
 
     this.slotAllocator = null;
     this.indexSlotAllocator = null;

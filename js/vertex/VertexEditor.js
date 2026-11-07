@@ -30,8 +30,8 @@ export class VertexEditor {
     this.subdivide = new VertexSubdivide(this);
     this.bridge = new VertexBridge(this);
 
-    this.signals.sharpsChanged.add((object, changedEdgeIds) => {
-      this.onSharpsChanged(object, changedEdgeIds);
+    this.signals.sharpsChanged.add((object) => {
+      this.onSharpsChanged(object);
     });
   }
 
@@ -199,7 +199,7 @@ export class VertexEditor {
     this.signals.editSelectionRefresh.dispatch();
   }
 
-  onSharpsChanged(object, changedEdgeIds = null) {
+  onSharpsChanged(object) {
     if (!object?.userData?.meshData || !object.userData.renderBuffer || !object.geometry) return;
 
     this.setObject(object);
@@ -208,8 +208,7 @@ export class VertexEditor {
       this.meshData,
       this.renderBuffer,
       this.geometry,
-      SharpUtils.getSharpIds(object),
-      changedEdgeIds
+      SharpUtils.getSharpIds(object)
     );
   }
 }

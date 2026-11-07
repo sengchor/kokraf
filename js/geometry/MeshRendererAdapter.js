@@ -3,16 +3,17 @@ import earcut from 'earcut';
 import { computePlaneNormal, projectTo2D } from './TriangulationUtils.js';
 import { SlotAllocator } from './SlotAllocator.js';
 import { MeshRenderBuffer } from './MeshRenderBuffer.js';
+import { SharpUtils } from '../utils/SharpUtils.js';
 
 export class MeshRendererAdapter {
   static toBufferGeometry(meshData, options = {}) {
-    const { mode = "angle", angle = 60, sharps = null } = options;
+    const { mode = "auto", angle = 60, sharps = null } = options;
 
     switch (mode) {
       case "flat":
         return this.generateFlatGeometry(meshData);
       case "smooth":
-        return this.generateSmoothGeometry(meshData);
+        return this.generateSmoothGeometry(meshData, sharps);
       case "auto":
         return this.generateAngleBasedGeometry(meshData, angle, sharps);
     }
@@ -34,8 +35,9 @@ export class MeshRendererAdapter {
     return { geometry, renderBuffer };
   }
 
-  static generateSmoothGeometry(meshData) {
+  static generateSmoothGeometry(meshData, sharps = null) {
     const { positions, uvs, indices, renderBuffer } = this.buildDuplicatedMeshData(meshData);
+    SharpUtils.setSharps(meshData, renderBuffer, sharps);
 
     const normals = this.calculateSmoothNormalsMap(meshData, renderBuffer);
 
@@ -54,9 +56,9 @@ export class MeshRendererAdapter {
     const { positions, uvs, indices, renderBuffer } = this.buildDuplicatedMeshData(meshData);
     renderBuffer.normalMode = 'auto';
     renderBuffer.normalAngle = angle;
-    renderBuffer.sharpEdgeIds = sharps;
+    SharpUtils.setSharps(meshData, renderBuffer, sharps);
 
-    const normals = this.calculateAngleBasedNormalsMap(meshData, renderBuffer);
+    const normals = this.calculateAngleBasedNormalsMap(meshData, renderBuffer, angle);
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -197,7 +199,7 @@ export class MeshRendererAdapter {
     renderBuffer.bufferIndexToVertexId.delete(slot);
   }
 
-static addFace(meshData, renderBuffer, geometry, faceId) {
+  static addFace(meshData, renderBuffer, geometry, faceId) {
     const { normalMode: mode = 'auto', normalAngle: angle = 60 } = renderBuffer;
     const face = meshData.faces.get(faceId);
     const verts = face.vertexIds.map(id => meshData.vertices.get(id));
@@ -472,11 +474,45 @@ static addFace(meshData, renderBuffer, geometry, faceId) {
       paddedNormals[bufferIdx * 3 + 1] = n.y;
       paddedNormals[bufferIdx * 3 + 2] = n.z;
     }
+
+    // Sharp edges: vertices on a sharp edge get one normal per smoothing group
+    // instead of one shared normal. Threshold = 180° so only sharp edges split.
+    const sharpKeys = SharpUtils.getSharpKeys(renderBuffer);
+    const sharpVertices = SharpUtils.getSharpVertices(renderBuffer);
+
+    if (sharpVertices.size > 0) {
+      const faceNormalCache = new Map();
+      const getFaceNormal = (fId) => {
+        let n = faceNormalCache.get(fId);
+        if (!n) {
+          const verts = meshData.faces.get(fId).vertexIds.map(id => meshData.vertices.get(id));
+          n = computePlaneNormal(verts);
+          faceNormalCache.set(fId, n);
+        }
+        return n;
+      };
+
+      for (const vId of sharpVertices) {
+        const vertex = meshData.vertices.get(vId);
+        if (!vertex) continue;
+        const faceIds = [...vertex.faceIds].filter(fId => meshData.faces.has(fId));
+        const cornerNormals = this._computeCornerNormals(
+          meshData, vId, faceIds, getFaceNormal, Math.PI, sharpKeys
+        );
+        this._forEachCornerSlot(meshData, renderBuffer, vId, cornerNormals, (bufferIdx, n) => {
+          paddedNormals[bufferIdx * 3] = n.x;
+          paddedNormals[bufferIdx * 3 + 1] = n.y;
+          paddedNormals[bufferIdx * 3 + 2] = n.z;
+        });
+      }
+    }
+
     return paddedNormals;
   }
 
-  static calculateAngleBasedNormalsMap(meshData, renderBuffer, angleDegree = 60) {
-    const threshold = (angleDegree * Math.PI) / 180;
+  static calculateAngleBasedNormalsMap(meshData, renderBuffer, angleDegree = renderBuffer.normalAngle ?? 60) {
+    const threshold = THREE.MathUtils.degToRad(angleDegree);
+    const sharpKeys = SharpUtils.getSharpKeys(renderBuffer);
 
     const capacity = renderBuffer.slotAllocator.capacity;
     const paddedNormals = new Float32Array(capacity * 3);
@@ -487,8 +523,7 @@ static addFace(meshData, renderBuffer, geometry, faceId) {
 
     for (const face of meshData.faces.values()) {
       const verts = face.vertexIds.map(id => meshData.vertices.get(id));
-      const normal = computePlaneNormal(verts);
-      faceNormals.set(face.id, normal);
+      faceNormals.set(face.id, computePlaneNormal(verts));
 
       for (const vId of face.vertexIds) {
         if (!vertexToFaces.has(vId)) vertexToFaces.set(vId, new Set());
@@ -496,31 +531,19 @@ static addFace(meshData, renderBuffer, geometry, faceId) {
       }
     }
 
-    // Calculate Normals per Buffer Index
-    for (const face of meshData.faces.values()) {
-      let verts = face.vertexIds.map(id => meshData.vertices.get(id));
-      const faceBufferIndices = renderBuffer.faceIdToBufferIndices.get(face.id);
-      const currentFaceNormal = faceNormals.get(face.id);
+    const getFaceNormal = id => faceNormals.get(id);
 
-      for (let i = 0; i < verts.length; i++) {
-        const averagedNormal = new THREE.Vector3();
-        const neighborFaceIds = vertexToFaces.get(verts[i].id);
+    // Per vertex: split surrounding faces into smoothing groups, write one normal per corner
+    for (const [vId, faceIds] of vertexToFaces) {
+      const cornerNormals = this._computeCornerNormals(
+        meshData, vId, faceIds, getFaceNormal, threshold, sharpKeys
+      );
 
-        for (const neighborId of neighborFaceIds) {
-          const neighborNormal = faceNormals.get(neighborId);
-          const angle = currentFaceNormal.angleTo(neighborNormal);
-
-          if (angle <= threshold) {
-            averagedNormal.add(neighborNormal);
-          }
-        }
-        averagedNormal.normalize();
-        
-        const bufferIdx = faceBufferIndices[i];
-        paddedNormals[bufferIdx * 3] = averagedNormal.x;
-        paddedNormals[bufferIdx * 3 + 1] = averagedNormal.y;
-        paddedNormals[bufferIdx * 3 + 2] = averagedNormal.z;
-      }
+      this._forEachCornerSlot(meshData, renderBuffer, vId, cornerNormals, (bufferIdx, n) => {
+        paddedNormals[bufferIdx * 3] = n.x;
+        paddedNormals[bufferIdx * 3 + 1] = n.y;
+        paddedNormals[bufferIdx * 3 + 2] = n.z;
+      });
     }
 
     // Isolated vertices
@@ -562,7 +585,10 @@ static addFace(meshData, renderBuffer, geometry, faceId) {
       faceNormals.set(fId, computePlaneNormal(verts));
     }
 
-    if (mode === 'smooth') {
+    const onSharpEdge = SharpUtils.getSharpVertices(renderBuffer).has(vertexId);
+
+    if (mode === 'smooth' && !onSharpEdge) {
+      // One shared normal for every copy of the vertex
       const sum = new THREE.Vector3();
       for (const n of faceNormals.values()) sum.add(n);
       if (sum.lengthSq() > 0) sum.normalize();
@@ -570,21 +596,19 @@ static addFace(meshData, renderBuffer, geometry, faceId) {
       for (const bufferIdx of renderBuffer.vertexIdToBufferIndex.get(vertexId) ?? []) {
         normalAttr.setXYZ(bufferIdx, sum.x, sum.y, sum.z);
       }
-    } else if (mode === 'auto') {
-      const threshold = (angle * Math.PI) / 180;
+    } else if (mode === 'smooth' || mode === 'auto') {
+      // Smoothing groups: smooth = split at sharp edges only (180°),
+      // auto = split at sharp edges and at the angle threshold.
+      const threshold = mode === 'smooth' ? Math.PI : THREE.MathUtils.degToRad(angle);
+      const sharpKeys = SharpUtils.getSharpKeys(renderBuffer);
 
-      for (const [fId, nF] of faceNormals) {
-        const sum = new THREE.Vector3();
-        for (const nG of faceNormals.values()) {
-          if (nF.angleTo(nG) <= threshold) sum.add(nG);
-        }
-        if (sum.lengthSq() > 0) sum.normalize();
+      const cornerNormals = this._computeCornerNormals(
+        meshData, vertexId, faceNormals.keys(), id => faceNormals.get(id), threshold, sharpKeys
+      );
 
-        const face = meshData.faces.get(fId);
-        const corner = face.vertexIds.indexOf(vertexId);
-        const bufferIdx = renderBuffer.faceIdToBufferIndices.get(fId)?.[corner];
-        if (bufferIdx !== undefined) normalAttr.setXYZ(bufferIdx, sum.x, sum.y, sum.z);
-      }
+      this._forEachCornerSlot(meshData, renderBuffer, vertexId, cornerNormals, (bufferIdx, n) => {
+        normalAttr.setXYZ(bufferIdx, n.x, n.y, n.z);
+      });
     }
 
     normalAttr.needsUpdate = true;
@@ -661,7 +685,89 @@ static addFace(meshData, renderBuffer, geometry, faceId) {
     }
   }
 
-  static updateSharpEdges() {
-    
+  static updateSharpEdges(meshData, renderBuffer, geometry, sharps) {
+    const oldKeys = SharpUtils.getSharpKeys(renderBuffer);
+    const newKeys = SharpUtils.setSharps(meshData, renderBuffer, sharps);
+
+    // Flat shading is already split everywhere; just keep the data for later
+    const mode = renderBuffer.normalMode;
+    if (mode !== 'auto' && mode !== 'smooth') return;
+    const normalAttr = geometry.attributes.normal;
+    if (!normalAttr) return;
+
+    const affectedVertices = SharpUtils.diffSharpVertices(oldKeys, newKeys);
+    if (affectedVertices.size === 0) return;
+
+    const angle = renderBuffer.normalAngle ?? 60;
+    for (const vId of affectedVertices) {
+      this._recomputeVertexNormals(meshData, renderBuffer, geometry, vId, mode, angle);
+    }
+    normalAttr.needsUpdate = true;
+  }
+
+  // ---------- Corner normal helpers ----------
+
+  // Calls fn(bufferIdx, normal) for this vertex's corner slot in each face
+  static _forEachCornerSlot(meshData, renderBuffer, vertexId, cornerNormals, fn) {
+    for (const [fId, n] of cornerNormals) {
+      const corner = meshData.faces.get(fId).vertexIds.indexOf(vertexId);
+      const bufferIdx = renderBuffer.faceIdToBufferIndices.get(fId)?.[corner];
+      if (bufferIdx !== undefined) fn(bufferIdx, n);
+    }
+  }
+
+  static _computeCornerNormals(meshData, vertexId, faceIds, getFaceNormal, threshold, sharpKeys) {
+    const faces = [...faceIds];
+    const result = new Map();
+    if (faces.length === 0) return result;
+
+    const parent = faces.map((_, i) => i);
+    const find = (i) => {
+      while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+      return i;
+    };
+    const union = (i, j) => {
+      const ri = find(i), rj = find(j);
+      if (ri !== rj) parent[ri] = rj;
+    };
+
+    // Edges incident to this vertex -> local indices of faces that use them
+    const edgeFaces = new Map();
+    faces.forEach((fId, i) => {
+      const ids = meshData.faces.get(fId).vertexIds;
+      const n = ids.length;
+      const c = ids.indexOf(vertexId);
+      if (c === -1) return;
+      for (const u of [ids[(c + n - 1) % n], ids[(c + 1) % n]]) {
+        const key = SharpUtils.edgeKey(vertexId, u);
+        if (!edgeFaces.has(key)) edgeFaces.set(key, []);
+        edgeFaces.get(key).push(i);
+      }
+    });
+
+    for (const [key, list] of edgeFaces) {
+      if (list.length < 2 || sharpKeys.has(key)) continue;   // boundary or sharp: no smoothing across
+      for (let a = 0; a < list.length; a++) {
+        for (let b = a + 1; b < list.length; b++) {
+          const nA = getFaceNormal(faces[list[a]]);
+          const nB = getFaceNormal(faces[list[b]]);
+          if (nA.angleTo(nB) <= threshold) union(list[a], list[b]);
+        }
+      }
+    }
+
+    // Average face normals per group
+    const groupSums = new Map();
+    faces.forEach((fId, i) => {
+      const root = find(i);
+      if (!groupSums.has(root)) groupSums.set(root, new THREE.Vector3());
+      groupSums.get(root).add(getFaceNormal(fId));
+    });
+    for (const sum of groupSums.values()) {
+      if (sum.lengthSq() > 0) sum.normalize();
+    }
+
+    faces.forEach((fId, i) => result.set(fId, groupSums.get(find(i))));
+    return result;
   }
 }

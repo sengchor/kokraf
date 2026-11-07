@@ -17,7 +17,6 @@ export class SharpSnapshot {
     return sharp ? [...sharp] : [];
   }
 
-  // Updates the existing Set in place so renderBuffer.sharpEdgeIds stays the live reference
   static write(object, ids) {
     let set = object.userData.sharp;
     if (!(set instanceof Set)) {
@@ -30,16 +29,6 @@ export class SharpSnapshot {
 
   get object() {
     return this.editor.objectByUuid(this.objectUuid);
-  }
-
-  static diff(object, ids) {
-    const current = new Set(SharpSnapshot.read(object));
-    const next = new Set(ids);
-
-    const changed = [];
-    for (const id of next) if (!current.has(id)) changed.push(id);
-    for (const id of current) if (!next.has(id)) changed.push(id);
-    return changed;
   }
 
   applyAfter() {
@@ -65,17 +54,11 @@ export class SharpSnapshot {
     const object = this.object;
     if (!object) return;
 
-    const current = new Set(SharpSnapshot.read(object));
-    const next = new Set(ids);
+    const current = SharpSnapshot.read(object);
+    if (current.length === ids.length && ids.every(id => current.includes(id))) return;
 
-    // Only edges whose state flips; normals change only at their endpoints
-    const changed = [];
-    for (const id of next) if (!current.has(id)) changed.push(id);
-    for (const id of current) if (!next.has(id)) changed.push(id);
-    if (changed.length === 0) return;
-
-    SharpSnapshot.write(object, next);
-    this.signals.sharpsChanged.dispatch(object, changed);
+    SharpSnapshot.write(object, ids);
+    this.signals.sharpsChanged.dispatch(object);
   }
 
   toJSON() {
