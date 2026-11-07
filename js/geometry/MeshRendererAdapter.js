@@ -6,7 +6,7 @@ import { MeshRenderBuffer } from './MeshRenderBuffer.js';
 
 export class MeshRendererAdapter {
   static toBufferGeometry(meshData, options = {}) {
-    const { mode = "angle", angle = 60 } = options;
+    const { mode = "angle", angle = 60, sharps = null } = options;
 
     switch (mode) {
       case "flat":
@@ -14,7 +14,7 @@ export class MeshRendererAdapter {
       case "smooth":
         return this.generateSmoothGeometry(meshData);
       case "auto":
-        return this.generateAngleBasedGeometry(meshData, angle);
+        return this.generateAngleBasedGeometry(meshData, angle, sharps);
     }
   }
 
@@ -50,19 +50,19 @@ export class MeshRendererAdapter {
     return { geometry, renderBuffer };
   }
 
-  static generateAngleBasedGeometry(meshData, angle = 60) {
+  static generateAngleBasedGeometry(meshData, angle = 60, sharps = null) {
     const { positions, uvs, indices, renderBuffer } = this.buildDuplicatedMeshData(meshData);
+    renderBuffer.normalMode = 'auto';
+    renderBuffer.normalAngle = angle;
+    renderBuffer.sharpEdgeIds = sharps;
 
-    const normals = this.calculateAngleBasedNormalsMap(meshData, renderBuffer, angle);
+    const normals = this.calculateAngleBasedNormalsMap(meshData, renderBuffer);
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-
-    renderBuffer.normalMode = 'auto';
-    renderBuffer.normalAngle = angle;
 
     return { geometry, renderBuffer };
   }
@@ -659,5 +659,9 @@ static addFace(meshData, renderBuffer, geometry, faceId) {
       const status = this.retriangulateFace(meshData, renderBuffer, geometry, faceId);
       if (status === 'rebuilt') return;
     }
+  }
+
+  static updateSharpEdges() {
+    
   }
 }

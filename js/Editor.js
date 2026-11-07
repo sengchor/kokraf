@@ -156,6 +156,7 @@ export default class Editor {
       cloudSaveRequested: new Signal(),
       mirrorChanged: new Signal(),
       toolChanged: new Signal(),
+      objectShadingChanged: new Signal()
     }
 
     this.helpers = {};

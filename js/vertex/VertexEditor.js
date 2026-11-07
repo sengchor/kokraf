@@ -12,6 +12,7 @@ import { MeshData } from '../core/MeshData.js';
 import { MeshRenderBuffer } from '../geometry/MeshRenderBuffer.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { MeshRendererAdapter } from "../geometry/MeshRendererAdapter.js";
+import { SharpUtils } from '../utils/SharpUtils.js';
 
 export class VertexEditor {
   constructor(editor) {
@@ -28,6 +29,10 @@ export class VertexEditor {
     this.dissolve = new VertexDissolve(this);
     this.subdivide = new VertexSubdivide(this);
     this.bridge = new VertexBridge(this);
+
+    this.signals.sharpsChanged.add((object, changedEdgeIds) => {
+      this.onSharpsChanged(object, changedEdgeIds);
+    });
   }
 
   get meshData() {
@@ -104,7 +109,12 @@ export class VertexEditor {
   updateGeometry() {
     const shading = this.object.userData.shading;
     
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(this.meshData, { mode: shading });
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(this.meshData, {
+      mode: shading,
+      sharps: SharpUtils.getSharpIds(this.object),
+    });
+    
+    this.geometry?.dispose();
     this.geometry = geometry;
     this.renderBuffer = renderBuffer;
     this.geometry.computeBoundingBox();
@@ -187,5 +197,19 @@ export class VertexEditor {
     MeshRendererAdapter.updateNormalsForAffectedFaces(meshData, renderBuffer, geometry, affectedFaces, affectedVertices);
 
     this.signals.editSelectionRefresh.dispatch();
+  }
+
+  onSharpsChanged(object, changedEdgeIds = null) {
+    if (!object?.userData?.meshData || !object.userData.renderBuffer || !object.geometry) return;
+
+    this.setObject(object);
+
+    MeshRendererAdapter.updateSharpEdges(
+      this.meshData,
+      this.renderBuffer,
+      this.geometry,
+      SharpUtils.getSharpIds(object),
+      changedEdgeIds
+    );
   }
 }

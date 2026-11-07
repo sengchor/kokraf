@@ -38,6 +38,8 @@ export default class MirrorManager {
     this.signals.emptyScene.add(() => this.clearAll());
     this.signals.objectChanged.add(() => this._scheduleRescan());
     this.signals.vertexPositionsUpdated.add(() => this._scheduleRescan());
+    this.signals.sharpsChanged.add((object) => this.markDirty(object));
+    this.signals.objectShadingChanged.add((object) => this.markDirty(object));
   }
 
   // ---------- Settings ----------
@@ -130,12 +132,14 @@ export default class MirrorManager {
     }
 
     const originalFaceIdLimit = meshData.nextFaceId;
-    const evaluated = this.buildMirroredMeshData(meshData, s);
+    const sharps = new Set(object.userData.sharp ?? []);
+    const evaluated = this.buildMirroredMeshData(meshData, s, [sharps]);
 
     const rb = object.userData.renderBuffer;
     const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(evaluated, {
       mode: rb?.normalMode ?? 'auto',
       angle: rb?.normalAngle ?? 60,
+      sharps,
     });
 
     // Keep only the mirrored faces; the original object draws its own half
@@ -282,16 +286,16 @@ export default class MirrorManager {
   }
 
   // ---------- Build / Apply ----------
-  buildMirroredMeshData(meshData, s, seams = null) {
+  buildMirroredMeshData(meshData, s, edgeSets = []) {
     // toJSON() copies positions; existing UV arrays are only read, never mutated
     const result = MeshData.getRehydratedMeshData(meshData.toJSON());
     for (const axis of this.getActiveAxes(s)) {
-      this._mirrorAxis(result, axis, s, seams);
+      this._mirrorAxis(result, axis, s, edgeSets);
     }
     return result;
   }
 
-  _mirrorAxis(mesh, axis, s, seams = null) {
+  _mirrorAxis(mesh, axis, s, edgeSets = []) {
     const vertices = [...mesh.vertices.values()];
     const faces = [...mesh.faces.values()];
     const looseEdges = [...mesh.edges.values()].filter(e => e.faceIds.size === 0);
@@ -327,12 +331,12 @@ export default class MirrorManager {
       mesh.addEdge(map.get(e.v1Id), map.get(e.v2Id));
     }
 
-    if (seams) {
-      for (const id of [...seams]) {
+    for (const set of edgeSets) {
+      for (const id of [...set]) {
         const e = mesh.edges.get(id);
         if (!e) continue;
         const mirrored = mesh.getEdge(map.get(e.v1Id).id, map.get(e.v2Id).id);
-        if (mirrored) seams.add(mirrored.id);
+        if (mirrored) set.add(mirrored.id);
       }
     }
   }
@@ -355,16 +359,18 @@ export default class MirrorManager {
     };
 
     const seams = new Set(object.userData.seam ?? []);
-    const evaluated = this.buildMirroredMeshData(meshData, s, seams);
+    const sharps = new Set(object.userData.sharp ?? []);
+    const evaluated = this.buildMirroredMeshData(meshData, s, [seams, sharps]);
 
     MeshDataRegion.captureNewElements(evaluated, startElements, beforeDelta);
     const afterDelta = MeshDataRegion.snapshot(evaluated, MeshDataRegion.idsOf(beforeDelta));
 
     const seamsAfter = [...seams].filter(id => evaluated.edges.has(id));
+    const sharpsAfter = [...sharps].filter(id => evaluated.edges.has(id));
 
     const selection = this.editor.editSelection.getSnapshot();
 
-    const command = new ApplyMirrorCommand(this.editor, object, beforeDelta, afterDelta, s, seamsAfter)
+    const command = new ApplyMirrorCommand(this.editor, object, beforeDelta, afterDelta, s, seamsAfter, sharpsAfter)
       .setSelectionStates(selection, selection);
     this.editor.execute(command);
   }

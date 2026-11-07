@@ -35,6 +35,8 @@ export class ClipboardManager {
       meshData: obj.userData.meshData.toJSON(),
       materialData: obj.material?.toJSON(),
       shading: obj.userData.shading || 'flat',
+      seams: this._toIdArray(obj.userData.seam),
+      sharps: this._toIdArray(obj.userData.sharp),
     };
   }
 
@@ -100,12 +102,17 @@ export class ClipboardManager {
         side: THREE.DoubleSide,
       });
 
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: item.shading });
+    const seams = new Set(item.seams ?? []);
+    const sharps = new Set(item.sharps ?? []);
+
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: item.shading, sharps });
 
     const obj = new THREE.Mesh(geometry, material);
     obj.userData.meshData = meshData;
     obj.userData.renderBuffer = renderBuffer;
     obj.userData.shading = item.shading;
+    obj.userData.seam = seams;
+    obj.userData.sharp = sharps;
 
     return obj;
   }
@@ -283,5 +290,9 @@ export class ClipboardManager {
     }
 
     return Array.from(result);
+  }
+
+  _toIdArray(ids) {
+    return ids ? Array.from(ids) : [];
   }
 }

@@ -12,6 +12,7 @@ export class SetShadingCommand {
    */
   constructor(editor, object = null, newMode = null, optionalOldMode = null) {
     this.editor = editor;
+    this.signals = editor.signals;
     this.name = `Set Shading`;
 
     this.objectUuid = object ? object.uuid : null;
@@ -24,12 +25,14 @@ export class SetShadingCommand {
     this.object = this.editor.objectByUuid(this.objectUuid);
     this.object.userData.shading = this.newMode;
     ShadingUtils.applyShading(this.object, this.newMode);
+    this.signals.objectShadingChanged.dispatch(this.object);
   }
 
   undo() {
     this.object = this.editor.objectByUuid(this.objectUuid);
     this.object.userData.shading = this.oldMode;
     ShadingUtils.applyShading(this.object, this.oldMode);
+    this.signals.objectShadingChanged.dispatch(this.object);
   }
 
   toJSON() {

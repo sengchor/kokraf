@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SeamSnapshot } from '../uv/SeamSnapshot.js';
+import { SharpSnapshot } from '../uv/SharpSnapshot.js';
 
 export class MeshDeltaCommand {
   /**
@@ -23,6 +24,7 @@ export class MeshDeltaCommand {
     this.afterSelection = null;
 
     this.seam = new SeamSnapshot(editor, object);
+    this.sharp = new SharpSnapshot(editor, object);
 
     if (object) {
       const renderBuffer = object.userData.renderBuffer;
@@ -40,11 +42,17 @@ export class MeshDeltaCommand {
   }
 
   execute() {
-    this.apply(this.afterDelta, this.afterSelection, () => this.seam.applyAfter());
+    this.apply(this.afterDelta, this.afterSelection, () => { 
+      this.seam.applyAfter();
+      this.sharp.applyAfter();
+    });
   }
 
   undo() {
-    this.apply(this.beforeDelta, this.beforeSelection, () => this.seam.applyBefore());
+    this.apply(this.beforeDelta, this.beforeSelection, () => {
+      this.seam.applyBefore();
+      this.sharp.applyBefore();
+    });
   }
 
   apply(delta, selection, applySeam) {
@@ -83,6 +91,7 @@ export class MeshDeltaCommand {
       beforeSelection: this.beforeSelection,
       afterSelection: this.afterSelection,
       seam: this.seam.toJSON(),
+      sharp: this.sharp.toJSON(),
     };
   }
 
@@ -97,6 +106,8 @@ export class MeshDeltaCommand {
     command.afterSelection = json.afterSelection ?? null;
     command.seam = SeamSnapshot.fromJSON(editor, json);
     command.seam.objectUuid = json.objectUuid;
+    command.sharp = SharpSnapshot.fromJSON(editor, json);
+    command.sharp.objectUuid = json.objectUuid;
     return command;
   }
 }

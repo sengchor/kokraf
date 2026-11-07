@@ -1,9 +1,13 @@
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+import { SharpUtils } from './SharpUtils.js';
 
 export class ShadingUtils {
   static applyShading(object, mode) {
     const meshData = object.userData.meshData;
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode });
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, {
+      mode,
+      sharps: SharpUtils.getSharpIds(object),
+  });
 
     object.geometry.dispose();
     object.geometry = geometry;

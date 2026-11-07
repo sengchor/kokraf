@@ -14,6 +14,8 @@ import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { OperatorPanel } from '../panels/OperatorPanel.js';
 import { SeamSnapshot } from '../uv/SeamSnapshot.js';
 import { SeamUtils } from '../utils/SeamUtils.js';
+import { SharpSnapshot } from '../uv/SharpSnapshot.js';
+import { SharpUtils } from '../utils/SharpUtils.js';
 
 export class EditActions {
   constructor(editor) {
@@ -292,6 +294,7 @@ export class EditActions {
     const { extracted: newMeshData, map } = this.meshEditor.extractMeshData(meshData, mode, this.editSelection);
 
     const beforeSeam = SeamSnapshot.read(editedObject);
+    const beforeSharp = SharpSnapshot.read(editedObject);
 
     this.vertexEditor.setObject(editedObject);
     if (mode === 'vertex') {
@@ -305,12 +308,15 @@ export class EditActions {
     const { separated: newSeam, remaining: afterSeam } = SeamUtils.splitSeams(editedObject, map.edgeIdMap, meshData);
     const seamData = { before: beforeSeam, after: afterSeam, separated: newSeam };
 
+    const { separated: newSharp, remaining: afterSharp } = SharpUtils.splitSharps(editedObject, map.edgeIdMap, meshData);
+    const sharpData = { before: beforeSharp, after: afterSharp, separated: newSharp }
+
     MeshDataRegion.captureNewElements(meshData, startElements, beforeSnapshot);
     const afterRegionIds = MeshDataRegion.idsOf(beforeSnapshot);
     const afterSnapshot = MeshDataRegion.snapshot(meshData, afterRegionIds);
 
     const command = new SeparateSelectionCommand(
-      this.editor, editedObject, beforeSnapshot, afterSnapshot, newMeshData, seamData
+      this.editor, editedObject, beforeSnapshot, afterSnapshot, newMeshData, seamData, sharpData
     ).setSelectionStates(beforeSelection, null);
     this.editor.execute(command);
   }

@@ -3,11 +3,12 @@ import { MeshDeltaCommand } from "./MeshDeltaCommand.js";
 export class ApplyMirrorCommand extends MeshDeltaCommand {
   static type = 'ApplyMirrorCommand';
 
-  constructor(editor, object, beforeDelta, afterDelta, mirrorSettings = null, seamsAfter = null) {
+  constructor(editor, object, beforeDelta, afterDelta, mirrorSettings = null, seamsAfter = null, sharpsAfter = null) {
     super(editor, object, beforeDelta, afterDelta, 'Apply Mirror');
     this.mirrorSettings = mirrorSettings ? structuredClone(mirrorSettings) : null;
 
     if (seamsAfter) this.seam.after = [...seamsAfter];
+    if (sharpsAfter) this.sharp.after = [...sharpsAfter];
   }
 
   execute() {

@@ -34,15 +34,15 @@ export class SetSharpCommand {
   }
 
   static _getSharpSet(object) {
-    const sharps = object.userData.sharps;
+    const sharps = object.userData.sharp;
     if (sharps instanceof Set) return sharps;
     if (Array.isArray(sharps)) {
       const set = new Set(sharps);
-      object.userData.sharps = set;
+      object.userData.sharp = set;
       return set;
     }
     const set = new Set();
-    object.userData.sharps = set;
+    object.userData.sharp = set;
     return set;
   }
 
