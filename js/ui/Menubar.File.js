@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { Loader } from '../loaders/Loader.js';
-import { MeshExporter } from '../utils/MeshExporter.js';
-import { TextureExporter } from '../utils/TextureExporter.js';
+import { Loader } from '../io/loaders/Loader.js';
+import { MeshExporter } from '../io/exporters/MeshExporter.js';
+import { TextureExporter } from '../io/exporters/TextureExporter.js';
 
 export class MenubarFile {
   constructor(editor) {

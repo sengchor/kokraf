@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { AddObjectCommand } from "../commands/AddObjectCommand.js";
-import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+import { AddObjectCommand } from "../../commands/AddObjectCommand.js";
+import { MeshRendererAdapter } from '../../geometry/MeshRendererAdapter.js';
 import OBJLoader from './OBJLoader.js';
 import GLBLoader from './GLBLoader.js';
 
@@ -40,8 +40,12 @@ export class Loader {
       const meshObjects = OBJLoader.fromOBJText(text);
 
       const reservedNames = new Set();
-      const meshes = meshObjects.map(({ name, meshData, shading }) => {
-        const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
+      const meshes = meshObjects.map(({ name, meshData, shading, sharps }) => {
+        const sharp = new Set(sharps);
+        const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { 
+          mode: shading,
+          sharps: sharp
+        });
 
         const material = new THREE.MeshStandardMaterial({
           color: 0xcccccc,
@@ -61,6 +65,7 @@ export class Loader {
         mesh.userData.meshData = meshData;
         mesh.userData.renderBuffer = renderBuffer;
         mesh.userData.shading = shading;
+        mesh.userData.sharp = sharp;
         mesh.geometry.computeBoundingSphere();
         mesh.geometry.computeBoundingBox();
         return mesh;

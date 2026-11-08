@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { computePerVertexNormals, computeFaceNormals, computeVertexNormalsWithAngle } from '../geometry/NormalCalculator.js';
+import { computeFaceNormals, computeCornerNormals } from '../../geometry/NormalCalculator.js';
 
 const f6 = (n) => Number(n).toFixed(6);
 const f4 = (n) => Number(n === 0 ? 0 : n).toFixed(4);
@@ -77,15 +77,15 @@ export function buildObj(objects, { autoSmoothAngle = 60 } = {}) {
     }
 
     // ---- vn -----------------------------------------------------------
+    const sharpEdges = object.userData.sharp;
     let lookup = null;
-    if (shading === 'smooth') lookup = computePerVertexNormals(meshData);
-    else if (shading === 'flat') lookup = computeFaceNormals(meshData);
-    else if (shading === 'auto') lookup = computeVertexNormalsWithAngle(meshData, autoSmoothAngle);
+    if (shading === 'flat') lookup = computeFaceNormals(meshData);
+    else if (shading === 'smooth') lookup = computeCornerNormals(meshData, { angleDeg: 180, sharpEdges });
+    else if (shading === 'auto') lookup = computeCornerNormals(meshData, { angleDeg: autoSmoothAngle, sharpEdges });
 
     const localNormal = (face, vId) => {
       if (!lookup) return null;
       if (shading === 'flat') return lookup.get(face.id);
-      if (shading === 'smooth') return lookup.get(vId);
       return lookup.get(`${face.id}_${vId}`);
     };
 

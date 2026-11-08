@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { MeshData } from '../core/MeshData.js';
+import { MeshData } from '../../core/MeshData.js';
+import { SharpUtils } from '../../utils/SharpUtils.js'
 
 const parseIndex = (token, count) => {
   const i = parseInt(token, 10);
@@ -17,12 +18,9 @@ export default class OBJLoader {
     let current = null;
     let sawObject = false;
     let smooth = false;
+    let group = 0;
 
-    const makeCurrent = (name) => ({
-      name,
-      faces: [],
-      shading: smooth ? 'smooth' : 'flat',
-    });
+    const makeCurrent = (name) => ({ name, faces: [] });
 
     const pushCurrent = () => {
       if (current && current.faces.length > 0) objects.push(current);
@@ -76,16 +74,16 @@ export default class OBJLoader {
           const x = parseFloat(parts[1]);
           const y = parseFloat(parts[2]);
           const z = parseFloat(parts[3]);
-          globalNormals.push(
-            isFinite(x) && isFinite(y) && isFinite(z) ? { x, y, z } : null
-          );
+          const n = isFinite(x) && isFinite(y) && isFinite(z) ? new THREE.Vector3(x, y, z) : null;
+          globalNormals.push(n && n.lengthSq() > 0 ? n.normalize() : null);
           break;
         }
 
         case 's': {
           const arg = (parts[1] || '').toLowerCase();
-          smooth = !(arg === 'off' || arg === '0' || arg === '');
-          if (current) current.shading = smooth ? 'smooth' : 'flat';
+          const off = arg === 'off' || arg === '0' || arg === '';
+          smooth = !off;
+          group = off ? 0 : (parseInt(arg, 10) || 1);
           break;
         }
 
@@ -104,35 +102,14 @@ export default class OBJLoader {
             corners.push({ vIdx, vtIdx, vnIdx });
           }
 
-          if (corners.length >= 3) current.faces.push(corners);
+          if (corners.length >= 3) current.faces.push({ corners, smooth, group });
           break;
         }
       }
     }
     pushCurrent();
 
-    return objects.map(({ name, faces, shading }) => {
-      let mode = shading;
-      if (mode === 'smooth') {
-        const perVertex = new Map();
-        let split = false;
-
-        outer:
-        for (const corners of faces) {
-          for (const c of corners) {
-            if (c.vnIdx === null || !globalNormals[c.vnIdx]) continue;
-            const prev = perVertex.get(c.vIdx);
-            if (prev === undefined) {
-              perVertex.set(c.vIdx, c.vnIdx);
-            } else if (prev !== c.vnIdx) {
-              split = true;
-              break outer;
-            }
-          }
-        }
-        if (split) mode = 'auto';
-      }
-
+    return objects.map(({ name, faces }) => {
       const meshData = new MeshData();
       const vertexCache = new Map();
 
@@ -145,7 +122,10 @@ export default class OBJLoader {
         return v;
       };
 
-      for (const corners of faces) {
+      // faceId -> { smooth, group, normals: Map<vertexId, Vector3|null> }
+      const faceInfo = new Map();
+
+      for (const { corners, smooth, group } of faces) {
         const resolved = [];
         const seen = new Set();
 
@@ -154,7 +134,7 @@ export default class OBJLoader {
           if (!vertex) continue;
           if (seen.has(vertex.id)) continue;
           seen.add(vertex.id);
-          resolved.push({ vertex, vtIdx: c.vtIdx });
+          resolved.push({ vertex, vtIdx: c.vtIdx, vnIdx: c.vnIdx });
         }
 
         if (resolved.length < 3) continue;
@@ -171,9 +151,16 @@ export default class OBJLoader {
           });
           meshData.uvs.set(face.id, faceUVs);
         }
+
+        const normals = new Map();
+        for (const c of resolved) {
+          normals.set(c.vertex.id, c.vnIdx !== null ? (globalNormals[c.vnIdx] ?? null) : null);
+        }
+        faceInfo.set(face.id, { smooth, group, normals });
       }
 
-      return { name, meshData, shading: mode };
+      const { shading, sharps } = SharpUtils.detectSharps(meshData, faceInfo);
+      return { name, meshData, shading, sharps };
     });
   }
 }

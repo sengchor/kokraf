@@ -1,42 +1,7 @@
 import * as THREE from 'three';
+import { computePlaneNormal } from './TriangulationUtils.js';
 
-/**
- * Compute per-vertex normals by averaging face normals of all faces touching the vertex
- */
-export function computePerVertexNormals(meshData) {
-  const normals = new Map();
-
-  for (const [vid, v] of meshData.vertices) {
-    normals.set(vid, new THREE.Vector3(0, 0, 0));
-  }
-
-  for (const [, f] of meshData.faces) {
-    const vIds = f.vertexIds;
-    if (vIds.length < 3) continue;
-
-    const p0 = meshData.vertices.get(vIds[0]).position;
-    const p1 = meshData.vertices.get(vIds[1]).position;
-    const p2 = meshData.vertices.get(vIds[2]).position;
-
-    const e1 = new THREE.Vector3().subVectors(p1, p0);
-    const e2 = new THREE.Vector3().subVectors(p2, p0);
-    const faceNormal = new THREE.Vector3().crossVectors(e1, e2);
-
-    if (faceNormal.lengthSq() === 0) continue;
-    faceNormal.normalize();
-
-    for (const vid of vIds) {
-      normals.get(vid).add(faceNormal);
-    }
-  }
-
-  for (const [vid, n] of normals) {
-    if (n.lengthSq() === 0) n.set(0, 0, 1);
-    else n.normalize();
-  }
-
-  return normals;
-}
+const toSet = (s) => (s instanceof Set ? s : new Set(s ?? []));
 
 /**
  * Compute normals for each face
@@ -47,13 +12,8 @@ export function computeFaceNormals(meshData) {
   for (let [fid, f] of meshData.faces) {
     if (f.vertexIds.length < 3) continue;
 
-    const v0 = meshData.vertices.get(f.vertexIds[0]).position;
-    const v1 = meshData.vertices.get(f.vertexIds[1]).position;
-    const v2 = meshData.vertices.get(f.vertexIds[2]).position;
-
-    const edge1 = new THREE.Vector3().subVectors(v1, v0);
-    const edge2 = new THREE.Vector3().subVectors(v2, v0);
-    const normal = new THREE.Vector3().crossVectors(edge1, edge2);
+    const verts = f.vertexIds.map(id => meshData.vertices.get(id));
+    const normal = computePlaneNormal(verts).clone();
 
     if (normal.lengthSq() === 0) {
       normal.set(0, 0, 1);
@@ -68,71 +28,116 @@ export function computeFaceNormals(meshData) {
 }
 
 /**
- * Compute vertex normals with angle-based smoothing
+ * Compute per-vertex normals by averaging face normals of all faces touching the vertex
  */
-export function computeVertexNormalsWithAngle(meshData, angleDeg = 60) {
-  const angleLimit = THREE.MathUtils.degToRad(angleDeg);
-  const cosLimit = Math.cos(angleLimit);
+export function computePerVertexNormals(meshData) {
+  const faceNormals = computeFaceNormals(meshData);
+  const normals = new Map();
 
+  for (const vid of meshData.vertices.keys()) {
+    normals.set(vid, new THREE.Vector3());
+  }
+
+  for (const [fid, f] of meshData.faces) {
+    const fn = faceNormals.get(fid);
+    if (!fn) continue;
+    for (const vid of f.vertexIds) normals.get(vid)?.add(fn);
+  }
+
+  for (const n of normals.values()) {
+    if (n.lengthSq() === 0) n.set(0, 0, 1);
+    else n.normalize();
+  }
+
+  return normals;
+}
+
+export function computeCornerNormals(meshData, { angleDeg = 180, sharpEdges = null } = {}) {
+  const angleSplit = angleDeg < 180;
+  const cosLimit = angleSplit ? Math.cos(THREE.MathUtils.degToRad(angleDeg)) : -Infinity;
+  const sharp = toSet(sharpEdges);
+ 
   const faceNormals = computeFaceNormals(meshData);
   const result = new Map();
-
-  // Build adjacency: vertex → faces
+ 
+  // Vertex -> faces
   const vertexToFaces = new Map();
   for (const [fid, f] of meshData.faces) {
+    if (!faceNormals.has(fid)) continue;
     for (const vid of f.vertexIds) {
       if (!vertexToFaces.has(vid)) vertexToFaces.set(vid, []);
       vertexToFaces.get(vid).push(fid);
     }
   }
-
-  // Build face adjacency through edges
+ 
+  // Edge adjacency. Sharp edges are left out, so smoothing never crosses them
+  // (they behave exactly like boundary edges).
+  const edgeKey = (a, b) => (a < b ? `${a}_${b}` : `${b}_${a}`);
   const edgeToFaces = new Map();
-  for (let e of meshData.edges.values()) {
-    const edgeKey = e.v1Id < e.v2Id ? `${e.v1Id}_${e.v2Id}` : `${e.v2Id}_${e.v1Id}`;
-    edgeToFaces.set(edgeKey, Array.from(e.faceIds));
+  const sharpVertices = new Set();
+ 
+  for (const [eid, e] of meshData.edges) {
+    if (sharp.has(eid)) {
+      sharpVertices.add(e.v1Id);
+      sharpVertices.add(e.v2Id);
+      continue;
+    }
+    const fids = [...e.faceIds].filter(fid => faceNormals.has(fid));
+    if (fids.length >= 2) edgeToFaces.set(edgeKey(e.v1Id, e.v2Id), fids);
   }
-
-  // For each vertex, flood-fill connected faces into smoothing groups
+ 
   for (const [vid, faceIds] of vertexToFaces) {
+    // Smooth mode, vertex not on a sharp edge: one shared normal (matches the renderer)
+    if (!angleSplit && !sharpVertices.has(vid)) {
+      const avg = new THREE.Vector3();
+      for (const fid of faceIds) avg.add(faceNormals.get(fid));
+      if (avg.lengthSq() === 0) avg.copy(faceNormals.get(faceIds[0]));
+      avg.normalize();
+      for (const fid of faceIds) result.set(`${fid}_${vid}`, avg);
+      continue;
+    }
+ 
+    // Flood-fill the faces around this vertex into smoothing groups
     const unvisited = new Set(faceIds);
     while (unvisited.size > 0) {
+      const first = unvisited.values().next().value;
+      const stack = [first];
       const groupFaces = [];
-      const stack = [unvisited.values().next().value];
       const avgNormal = new THREE.Vector3();
-
+ 
       while (stack.length > 0) {
         const fid = stack.pop();
         if (!unvisited.has(fid)) continue;
         unvisited.delete(fid);
-
+ 
         const fn = faceNormals.get(fid);
         groupFaces.push(fid);
         avgNormal.add(fn);
-
-        const face = meshData.faces.get(fid);
-        for (let i = 0; i < face.vertexIds.length; i++) {
-          const v1 = face.vertexIds[i];
-          const v2 = face.vertexIds[(i + 1) % face.vertexIds.length];
+ 
+        const ids = meshData.faces.get(fid).vertexIds;
+        for (let i = 0; i < ids.length; i++) {
+          const v1 = ids[i];
+          const v2 = ids[(i + 1) % ids.length];
           if (v1 !== vid && v2 !== vid) continue;
-
-          const edgeKey = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
-          const neighbors = edgeToFaces.get(edgeKey) || [];
-          for (const nf of neighbors) {
-            if (unvisited.has(nf)) {
-              const dot = fn.dot(faceNormals.get(nf));
-              if (dot >= cosLimit) stack.push(nf);
-            }
+ 
+          for (const nf of edgeToFaces.get(edgeKey(v1, v2)) ?? []) {
+            if (unvisited.has(nf) && fn.dot(faceNormals.get(nf)) >= cosLimit) stack.push(nf);
           }
         }
       }
-
+ 
+      if (avgNormal.lengthSq() === 0) avgNormal.copy(faceNormals.get(first));
       avgNormal.normalize();
-      for (const fid of groupFaces) {
-        result.set(`${fid}_${vid}`, avgNormal.clone());
-      }
+      for (const fid of groupFaces) result.set(`${fid}_${vid}`, avgNormal);
     }
   }
-
+ 
   return result;
+}
+ 
+/**
+ * Compute vertex normals with angle-based smoothing (kept for existing callers).
+ */
+export function computeVertexNormalsWithAngle(meshData, angleDeg = 60, sharpEdges = null) {
+  return computeCornerNormals(meshData, { angleDeg, sharpEdges });
 }

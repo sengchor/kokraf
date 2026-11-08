@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { auth } from '/supabase/services/AuthService.js';
-import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+import { MeshRendererAdapter } from '../../geometry/MeshRendererAdapter.js';
 import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
-import { buildObj } from './ObjExporter.js'
+import { buildObj } from './ObjExporter.js';
 
 export class MeshExporter {
   constructor(editor) {
@@ -81,7 +81,8 @@ export class MeshExporter {
     objects.forEach(object => {
       const meshData = object.userData.meshData;
       const shading = object.userData.shading;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
+      const sharps = object.userData.sharp;
+      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
       const mesh = new THREE.Mesh(geometry, object.material);
       mesh.name = object.name;
 
@@ -110,7 +111,8 @@ export class MeshExporter {
     objects.forEach(object => {
       const meshData = object.userData.meshData;
       const shading = object.userData.shading;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
+      const sharps = object.userData.sharp;
+      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
       const mesh = new THREE.Mesh(geometry, object.material);
       mesh.name = object.name;
 
@@ -145,7 +147,8 @@ export class MeshExporter {
     objects.forEach(object => {
       const meshData = object.userData.meshData;
       const shading = object.userData.shading;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
+      const sharps = object.userData.sharp;
+      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
       const mesh = new THREE.Mesh(geometry, object.material);
       mesh.name = object.name;
 
@@ -171,7 +174,8 @@ export class MeshExporter {
     objects.forEach(object => {
       const meshData = object.userData.meshData;
       const shading = object.userData.shading;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
+      const sharps = object.userData.sharp;
+      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
       const mesh = new THREE.Mesh(geometry, object.material);
       mesh.name = object.name;
 
@@ -197,7 +201,8 @@ export class MeshExporter {
     objects.forEach(object => {
       const meshData = object.userData.meshData;
       const shading = object.userData.shading;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading });
+      const sharps = object.userData.sharp;
+      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
       const mesh = new THREE.Mesh(geometry, object.material);
       mesh.name = object.name;
 

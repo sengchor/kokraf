@@ -1,3 +1,5 @@
+const SAME_NORMAL_DOT = 0.9999;
+
 export class SharpUtils {
   // ---------- Object-level sharp IDs ----------
 
@@ -104,5 +106,54 @@ export class SharpUtils {
       if (!newKeys.has(key)) { affected.add(a); affected.add(b); }
     }
     return affected;
+  }
+
+  // ---------- Import: rebuild sharps from corner normals ----------
+
+  static detectSharps(meshData, faceInfo) {
+    let anySmooth = false;
+    for (const info of faceInfo.values()) {
+      if (info.smooth || [...info.normals.values()].some(Boolean)) { anySmooth = true; break; }
+    }
+    if (!anySmooth) return { shading: 'flat', sharps: [] };
+
+    const sharps = [];
+    let interiorEdges = 0;
+
+    for (const [edgeId, edge] of meshData.edges) {
+      const faceIds = [...edge.faceIds].filter(fId => faceInfo.has(fId));
+      if (faceIds.length < 2) continue;
+      interiorEdges++;
+      if (this._isSharpEdge(edge, faceIds, faceInfo)) sharps.push(edgeId);
+    }
+
+    if (interiorEdges > 0 && sharps.length === interiorEdges) {
+      return { shading: 'flat', sharps: [] };
+    }
+
+    return { shading: 'smooth', sharps };
+  }
+
+  static _isSharpEdge(edge, faceIds, faceInfo) {
+    for (let a = 0; a < faceIds.length; a++) {
+      for (let b = a + 1; b < faceIds.length; b++) {
+        const A = faceInfo.get(faceIds[a]);
+        const B = faceInfo.get(faceIds[b]);
+
+        let compared = false;
+        for (const vId of [edge.v1Id, edge.v2Id]) {
+          const nA = A.normals.get(vId);
+          const nB = B.normals.get(vId);
+          if (!nA || !nB) continue;
+          compared = true;
+          if (nA !== nB && nA.dot(nB) < SAME_NORMAL_DOT) return true;
+        }
+        if (compared) continue;
+ 
+        if (!A.smooth || !B.smooth) return true;
+        if (A.group !== B.group) return true;
+      }
+    }
+    return false;
   }
 }
