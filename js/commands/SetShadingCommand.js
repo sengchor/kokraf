@@ -6,32 +6,33 @@ export class SetShadingCommand {
   /**
    * @param {Editor} editor
    * @param {THREE.Object3D|null} object
-   * @param {"flat"|"smooth"|"auto"|"null"} newMode
-   * @param {"flat"|"smooth"|"auto"|"null"} optionalOldMode
+   * @param {{ mode?: 'flat'|'smooth'|'auto', angle?: number }} patch
    * @constructor 
    */
-  constructor(editor, object = null, newMode = null, optionalOldMode = null) {
+  constructor(editor, object = null, patch = {}) {
     this.editor = editor;
     this.signals = editor.signals;
     this.name = `Set Shading`;
 
     this.objectUuid = object ? object.uuid : null;
 
-    this.newMode = newMode;
-    this.oldMode = optionalOldMode !== null ? optionalOldMode : (object ? object.userData.shading : null);
+    this.oldState = object ? ShadingUtils.getShading(object) : null;
+    this.newState = object ? ShadingUtils.normalize({ ...this.oldState, ...patch }) : null;
   }
 
   execute() {
-    this.object = this.editor.objectByUuid(this.objectUuid);
-    this.object.userData.shading = this.newMode;
-    ShadingUtils.applyShading(this.object, this.newMode);
-    this.signals.objectShadingChanged.dispatch(this.object);
+    this._apply(this.newState);
   }
 
   undo() {
+    this._apply(this.oldState);
+  }
+
+  _apply(state) {
     this.object = this.editor.objectByUuid(this.objectUuid);
-    this.object.userData.shading = this.oldMode;
-    ShadingUtils.applyShading(this.object, this.oldMode);
+    if (!this.object || !state) return;
+
+    ShadingUtils.setShading(this.object, state);
     this.signals.objectShadingChanged.dispatch(this.object);
   }
 
@@ -39,8 +40,8 @@ export class SetShadingCommand {
     return {
       type: SetShadingCommand.type,
       objectUuid: this.objectUuid,
-      newMode: this.newMode,
-      oldMode: this.oldMode
+      oldState: this.oldState,
+      newState: this.newState,
     };
   }
 
@@ -48,10 +49,10 @@ export class SetShadingCommand {
     if (!json || json.type !== SetShadingCommand.type) return null;
 
     const command = new SetShadingCommand(editor);
-
     command.objectUuid = json.objectUuid;
-    command.newMode = json.newMode;
-    command.oldMode = json.oldMode;
+
+    command.oldState = ShadingUtils.normalize(json.oldState ?? { mode: json.oldMode });
+    command.newState = ShadingUtils.normalize(json.newState ?? { mode: json.newMode });
 
     return command;
   }

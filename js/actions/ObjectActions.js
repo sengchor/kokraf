@@ -75,7 +75,7 @@ export class ObjectActions {
     const multi = new SequentialMultiCommand(this.editor, `Shade ${shading}`);
 
     for (const obj of objects) {
-      multi.add(() => new SetShadingCommand(this.editor, obj, shading, obj.userData.shading));
+      multi.add(() => new SetShadingCommand(this.editor, obj, { mode: shading }));
     }
 
     this.editor.execute(multi);

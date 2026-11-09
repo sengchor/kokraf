@@ -36,6 +36,9 @@ export default class SidebarProperties {
     new SidebarObject(editor);
     new SidebarMaterial(editor);
 
+    const selected = editor.selection.selectedObjects;
+    this.isMeshSelected = selected.length === 1 && !!selected[0].isMesh;
+
     this.showActiveTab();
     this.applyTabState();
 
@@ -84,7 +87,7 @@ export default class SidebarProperties {
       return;
     }
 
-    if (this.currentMode === 'edit') {
+    if (this.currentMode === 'edit' || this.currentMode === 'uv') {
       if (this.objectTab) this.objectTab.style.display = 'inline-block';
       if (this.materialTab) this.materialTab.style.display = 'none';
 

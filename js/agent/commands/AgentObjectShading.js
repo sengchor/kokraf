@@ -1,5 +1,6 @@
 import { SequentialMultiCommand } from '../../commands/SequentialMultiCommand.js';
 import { SetShadingCommand } from '../../commands/SetShadingCommand.js';
+import { ShadingUtils } from '../../utils/ShadingUtils.js';
 import { resolveTargets } from '../AgentUtils.js';
 
 const SHADING_MODES = ['smooth', 'flat', 'auto'];
@@ -8,7 +9,7 @@ const label = (object) => object.name || object.uuid;
 
 const isShadable = (object) => object?.isMesh && !object.userData?.isImageRef;
 
-const currentShading = (object) => object.userData?.shading || 'flat';
+const sameState = (a, b) => a?.mode === b?.mode && a?.angle === b?.angle;
 
 export const objectShadingSpec = {
   description:
@@ -27,12 +28,21 @@ export const objectShadingSpec = {
       enum: SHADING_MODES,
       description: "'smooth', 'flat' or 'auto'.",
     },
+    angle: {
+      type: 'number',
+      optional: true,
+      description: "Auto-smooth angle threshold, used with 'auto'. Omit to keep the object's current angle.",
+    },
   },
-  prepare({ target, shading }, editor) {
+  prepare({ target, shading, angle }, editor) {
     if (!SHADING_MODES.includes(shading)) {
       throw new Error(
         `object.shading: shading must be one of ${SHADING_MODES.map((m) => `'${m}'`).join(', ')}, got ${JSON.stringify(shading)}.`
       );
+    }
+
+    if (angle !== undefined && !Number.isFinite(angle)) {
+      throw new Error(`object.shading: angle must be a finite number, got ${JSON.stringify(angle)}.`);
     }
 
     const objects = [...new Set(resolveTargets(editor, target))];
@@ -45,22 +55,31 @@ export const objectShadingSpec = {
       );
     }
 
-    return { objects };
+    const patch = angle === undefined ? { mode: shading } : { mode: shading, angle };
+
+    return { objects, patch };
   },
-  run({ shading }, editor, { objects }) {
+  run({ shading }, editor, { objects, patch }) {
     const changed = [];
     const unchanged = [];
+    const before = new Map();
 
     for (const object of objects) {
-      (currentShading(object) === shading ? unchanged : changed).push(object);
-    }
+      const current = ShadingUtils.getShading(object);
+      const target = ShadingUtils.normalize({ ...current, ...patch });
 
-    const before = new Map(changed.map((object) => [object, currentShading(object)]));
+      if (sameState(current, target)) {
+        unchanged.push(object);
+      } else {
+        before.set(object, current);
+        changed.push(object);
+      }
+    }
 
     if (changed.length) {
       const multi = new SequentialMultiCommand(editor, `Agent Shade ${shading}`);
       for (const object of changed) {
-        multi.add(() => new SetShadingCommand(editor, object, shading, before.get(object)));
+        multi.add(() => new SetShadingCommand(editor, object, patch));
       }
       editor.execute(multi);
     }
@@ -75,7 +94,7 @@ export const objectShadingSpec = {
       changed: changed.map((object) => ({
         ...summarize(object),
         from: before.get(object),
-        to: currentShading(object),
+        to: ShadingUtils.getShading(object),
       })),
       unchanged: unchanged.map(summarize),
     };

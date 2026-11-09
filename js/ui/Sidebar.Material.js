@@ -27,9 +27,7 @@ export class SidebarMaterial {
     };
 
     this.currentMode = this.modeManager.currentMode;
-    if (this.currentMode === 'paint') {
-      this.selectObject(this.modeManager.texturePainter?.object);
-    }
+    this.selectObject(this.getInitialObject());
 
     this.setupListeners();
   }
@@ -50,6 +48,19 @@ export class SidebarMaterial {
     this.signals.modeChanged.add(mode => {
       this.currentMode = mode;
     });
+
+    this.signals.objectChanged.add(() => this.updateFields(this.lastSelectedObject));
+  }
+
+  getInitialObject() {
+    if (this.currentMode === 'paint') {
+      return this.modeManager.texturePainter?.object || null;
+    }
+    if (this.currentMode === 'object' || this.currentMode === 'uv') {
+      const selected = this.editor.selection.selectedObjects;
+      return selected.length === 1 ? selected[0] : null;
+    }
+    return null;
   }
 
   selectObject(object) {
@@ -79,8 +90,6 @@ export class SidebarMaterial {
     this.setupSettingInput();
 
     this.updateFields(object);
-
-    this.signals.objectChanged.add(() => this.updateFields(this.lastSelectedObject));
   }
 
   getOptionsFor(object) {
@@ -450,7 +459,7 @@ export class SidebarMaterial {
       e.stopPropagation();
       const object = this.lastSelectedObject;
       const material = this._getMaterial(object);
-      if (!object || !material[key]) return;
+      if (!object || !material?.[key]) return;
 
       this.editor.execute(new SetMaterialMapCommand(this.editor, object, key, null, null));
       this.updateTextureField(key, null);

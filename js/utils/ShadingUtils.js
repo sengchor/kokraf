@@ -1,43 +1,46 @@
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import { SharpUtils } from './SharpUtils.js';
 
+export const SHADING_MODES = ['flat', 'smooth', 'auto'];
+export const DEFAULT_SHADING_MODE = 'flat';
+export const DEFAULT_SHADING_ANGLE = 60;
+
 export class ShadingUtils {
-  static applyShading(object, mode) {
+  static getShading(object) {
+    return this.normalize({
+      mode: object.userData.shading,
+      angle: object.userData.shadingAngle,
+    });
+  }
+
+  static normalize({ mode, angle } = {}) {
+    return {
+      mode: SHADING_MODES.includes(mode) ? mode : DEFAULT_SHADING_MODE,
+      angle: Number.isFinite(angle) ? Math.min(Math.max(angle, 0), 180) : DEFAULT_SHADING_ANGLE,
+    };
+  }
+
+  static setShading(object, patch) {
+    const state = this.normalize({ ...this.getShading(object), ...patch });
+
+    object.userData.shading = state.mode;
+    object.userData.shadingAngle = state.angle;
+
+    this.rebuildShading(object);
+    return state;
+  }
+
+  static rebuildShading(object) {
     const meshData = object.userData.meshData;
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, {
-      mode,
-      sharps: SharpUtils.getSharpIds(object),
-  });
+    if (!meshData) return;
+
+    const { mode, angle } = this.getShading(object);
+    const sharps = SharpUtils.getSharpIds(object);
+
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode, angle, sharps });
 
     object.geometry.dispose();
     object.geometry = geometry;
     object.userData.renderBuffer = renderBuffer;
-    object.userData.shading = mode;
-  }
-  
-  static hasSharpEdges(faces, normals, vertices) {
-    const map = new Map();
-
-    for (const face of faces) {
-      for (const fv of face) {
-        if (fv.v == null || fv.n == null) continue;
-        const key = vertices[fv.v].join(',');
-        if (!map.has(key)) map.set(key, new Set());
-        map.get(key).add(normals[fv.n].join(','));
-      }
-    }
-
-    for (const set of map.values()) {
-      if (set.size > 1) return true;
-    }
-
-    return false;
-  }
-
-  static parseFace(parts) {
-    return parts.slice(1).map(p => {
-      const [v, , n] = p.split('/').map(x => (x ? parseInt(x) - 1 : null));
-      return { v, n };
-    });
   }
 }

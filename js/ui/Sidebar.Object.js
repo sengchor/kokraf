@@ -7,6 +7,8 @@ import { SetColorCommand } from '../commands/SetColorCommand.js';
 import { SetShadowValueCommand } from '../commands/SetShadowValueCommand.js';
 import { SetUserDataValueCommand } from '../commands/SetUserDataValueCommand.js';
 import { SetVisibilityCommand } from '../commands/SetVisibilityCommand.js';
+import { ShadingUtils } from '../utils/ShadingUtils.js';
+import { SetShadingCommand } from '../commands/SetShadingCommand.js';
 
 export class SidebarObject {
   constructor(editor) {
@@ -22,7 +24,7 @@ export class SidebarObject {
     this.objectSettingList = document.getElementById('object-properties-content');
 
     this.optionsPerType = {
-      'Mesh': ['type', 'uuid', 'name', 'position', 'rotation', 'scale', 'shadow', 'visible', 'frustumCull', 'renderOrder'],
+      'Mesh': ['type', 'uuid', 'name', 'position', 'rotation', 'scale', 'shade', 'shadow', 'visible', 'frustumCull', 'renderOrder'],
       'AmbientLight': ['type', 'uuid', 'name', 'position', 'intensity', 'color', 'visible', 'frustumCull', 'renderOrder'],
       'DirectionalLight': ['type', 'uuid', 'name', 'position', 'intensity', 'color', 'shadow', 'shadowIntensity', 'shadowBias', 'shadowNormalBias', 'shadowRadius','visible', 'frustumCull', 'renderOrder'],
       'HemisphereLight': ['type', 'uuid', 'name', 'position', 'intensity', 'color', 'groundColor', 'visible', 'frustumCull', 'renderOrder'],
@@ -36,9 +38,7 @@ export class SidebarObject {
     this.options = null;
 
     this.currentMode = this.modeManager.currentMode;
-    if (this.currentMode === 'edit') {
-      this.selectObject(editor.editSelection.editedObject);
-    }
+    this.selectObject(this.getInitialObject());
 
     this.setupListeners();
   }
@@ -64,6 +64,21 @@ export class SidebarObject {
     });
 
     this.signals.objectChanged.add(() => this.updateFields(this.lastSelectedObject));
+
+    this.signals.objectShadingChanged.add(object => {
+      if (object === this.lastSelectedObject) this.updateFields(object);
+    });
+  }
+
+  getInitialObject() {
+    if (this.currentMode === 'edit' || this.currentMode === 'uv') {
+      return this.editor.editSelection.editedObject || null;
+    }
+    if (this.currentMode === 'object') {
+      const selected = this.editor.selection.selectedObjects;
+      return selected.length === 1 ? selected[0] : null;
+    }
+    return null;
   }
 
   selectObject(object) {
@@ -127,6 +142,9 @@ export class SidebarObject {
       scaleX: document.getElementById('setting-scale-x'),
       scaleY: document.getElementById('setting-scale-y'),
       scaleZ: document.getElementById('setting-scale-z'),
+
+      shade: document.getElementById('setting-shade'),
+      shadeAngle: document.getElementById('setting-shade-angle'),
 
       shadowCast: document.getElementById('setting-shadow-cast'),
       shadowReceive: document.getElementById('setting-shadow-receive'),
@@ -209,6 +227,19 @@ export class SidebarObject {
           <input class="number-input" id="setting-scale-x" type="number" min="1" max="10000" step="1" value="1.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
           <input class="number-input" id="setting-scale-y" type="number" min="1" max="10000" step="1" value="1.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
           <input class="number-input" id="setting-scale-z" type="number" min="1" max="10000" step="1" value="1.000" onclick="this.select()" onkeydown="handleEnter(event, this)" />
+        `;
+        break;
+      }
+      case 'shade': {
+        li.innerHTML = `
+          <span class="label">Shade</span>
+          <select id="setting-shade" name="shade">
+            <option value="smooth">Smooth</option>
+            <option value="flat">Flat</option>
+            <option value="auto">Auto</option>
+          </select>
+          <input class="number-input" id="setting-shade-angle" type="number" min="0" max="150" step="1" value="60"
+          title="Auto smooth angle (degrees)" style="display: none; margin-left: 10px;" onclick="this.select()" onkeydown="handleEnter(event, this)" />
         `;
         break;
       }
@@ -427,6 +458,15 @@ export class SidebarObject {
           f.scaleY.value = fix(object.scale.x, 3);
           f.scaleZ.value = fix(object.scale.y, 3);
           break;
+        case 'shade': {
+          const { mode, angle } = ShadingUtils.getShading(object);
+          f.shade.value = mode;
+          f.shadeAngle.style.display = mode === 'auto' ? '' : 'none';
+          if (document.activeElement !== f.shadeAngle) {
+            f.shadeAngle.value = fix(angle, 1);
+          }
+          break;
+        }
         case 'shadow':
           f.shadowCast.checked = !!object.castShadow;
           f.shadowReceive.checked = !!object.receiveShadow;
@@ -652,6 +692,24 @@ export class SidebarObject {
             SetScaleCommand,
             () => this.editor.vertexEditor.updateGeometryAndHelpers()
           );
+          break;
+
+        case 'shade':
+          this.bindInput(f.shade, () => f.shade.value, (object, mode) => {
+            f.shadeAngle.style.display = mode === 'auto' ? '' : 'none';
+
+            if (ShadingUtils.getShading(object).mode === mode) return;
+            this.editor.execute(new SetShadingCommand(this.editor, object, { mode }));
+          });
+
+          this.bindInput(f.shadeAngle, () => parseFloat(f.shadeAngle.value), (object, value) => {
+            const current = ShadingUtils.getShading(object);
+            const input = Number.isFinite(value) ? value : current.angle;
+            const { angle } = ShadingUtils.normalize({ mode: current.mode, angle: input });
+            f.shadeAngle.value = angle;
+            if (angle === current.angle) return;
+            this.editor.execute(new SetShadingCommand(this.editor, object, { angle }));
+          });
           break;
 
         case 'shadow':
