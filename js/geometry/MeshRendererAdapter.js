@@ -559,7 +559,7 @@ export class MeshRendererAdapter {
     return paddedNormals;
   }
 
-  static _recomputeVertexNormals(meshData, renderBuffer, geometry, vertexId, mode, angle = 60, excludeFaceId = null) {
+  static _recomputeVertexNormals(meshData, renderBuffer, geometry, vertexId, mode, angle = 60, excludeFaceId = null, faceNormalCache = null) {
     const normalAttr = geometry.attributes.normal;
     if (!normalAttr) return;
 
@@ -579,10 +579,14 @@ export class MeshRendererAdapter {
     const faceNormals = new Map();
     for (const fId of faceIds) {
       if (fId === excludeFaceId) continue;
-      const face = meshData.faces.get(fId);
-      if (!face) continue;
-      const verts = face.vertexIds.map(id => meshData.vertices.get(id));
-      faceNormals.set(fId, computePlaneNormal(verts));
+      let n = faceNormalCache?.get(fId);
+      if (!n) {
+        const face = meshData.faces.get(fId);
+        if (!face) continue;
+        n = computePlaneNormal(face.vertexIds.map(id => meshData.vertices.get(id)));
+        faceNormalCache?.set(fId, n);
+      }
+      faceNormals.set(fId, n);
     }
 
     const onSharpEdge = SharpUtils.getSharpVertices(renderBuffer).has(vertexId);
@@ -637,8 +641,10 @@ export class MeshRendererAdapter {
         if (!face) continue;
         for (const vId of face.vertexIds) vertexIds.add(vId);
       }
+      // Each face is shared by several vertices; compute its normal only once
+      const cache = new Map();
       for (const vId of vertexIds) {
-        this._recomputeVertexNormals(meshData, renderBuffer, geometry, vId, mode, angle);
+        this._recomputeVertexNormals(meshData, renderBuffer, geometry, vId, mode, angle, null, cache);
       }
     }
 
@@ -731,22 +737,24 @@ export class MeshRendererAdapter {
       if (ri !== rj) parent[ri] = rj;
     };
 
-    // Edges incident to this vertex -> local indices of faces that use them
+    // Edges incident to this vertex, keyed by their other endpoint -> local indices of faces that use them
     const edgeFaces = new Map();
     faces.forEach((fId, i) => {
       const ids = meshData.faces.get(fId).vertexIds;
       const n = ids.length;
       const c = ids.indexOf(vertexId);
       if (c === -1) return;
-      for (const u of [ids[(c + n - 1) % n], ids[(c + 1) % n]]) {
-        const key = SharpUtils.edgeKey(vertexId, u);
-        if (!edgeFaces.has(key)) edgeFaces.set(key, []);
-        edgeFaces.get(key).push(i);
+      for (let k = -1; k <= 1; k += 2) {
+        const u = ids[(c + n + k) % n];
+        let list = edgeFaces.get(u);
+        if (!list) edgeFaces.set(u, list = []);
+        list.push(i);
       }
     });
 
-    for (const [key, list] of edgeFaces) {
-      if (list.length < 2 || sharpKeys.has(key)) continue;   // boundary or sharp: no smoothing across
+    for (const [u, list] of edgeFaces) {
+      if (list.length < 2) continue;   // boundary: no smoothing across
+      if (sharpKeys.size > 0 && sharpKeys.has(SharpUtils.edgeKey(vertexId, u))) continue;   // sharp: no smoothing across
       for (let a = 0; a < list.length; a++) {
         for (let b = a + 1; b < list.length; b++) {
           const nA = getFaceNormal(faces[list[a]]);
