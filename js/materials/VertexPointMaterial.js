@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import { VIEW_DEPTH_BIAS } from './chunks/ViewDepthBias.js';
 
 export class VertexPointMaterial extends THREE.PointsMaterial {
   constructor(parameters = {}) {
-    const { depthBias = 1e-4, ...rest } = parameters;
+    const { depthBias = 0.002, ...rest } = parameters;
 
     super({
       size: 3.5,
@@ -20,7 +21,9 @@ export class VertexPointMaterial extends THREE.PointsMaterial {
         .replace('void main() {', 'uniform float depthBias;\nvoid main() {')
         .replace(
           '#include <project_vertex>',
-          '#include <project_vertex>\n\tgl_Position.z -= depthBias * gl_Position.w;'
+          `#include <project_vertex>
+          vec4 biasSrc = mvPosition;
+          ${VIEW_DEPTH_BIAS}`
         );
     };
   }

@@ -1,7 +1,10 @@
 import { LineMaterial } from 'jsm/lines/LineMaterial.js';
+import { VIEW_DEPTH_BIAS } from './chunks/ViewDepthBias.js';
 
 export class EdgeLineMaterial extends LineMaterial {
   constructor(parameters = {}) {
+    const { depthBias = 0.002, ...rest } = parameters
+
     super({
       color: 0xffffff,
       linewidth: 0.9,
@@ -10,30 +13,44 @@ export class EdgeLineMaterial extends LineMaterial {
       depthTest: true,
       depthWrite: false,
       polygonOffset: true,
-      polygonOffsetFactor: -5,
-      polygonOffsetUnits: -5,
-      ...parameters,
+      polygonOffset: false,
+      ...rest,
     });
  
     this.isEdgeLineMaterial = true;
-    this.perEdgeWidth = this._enablePerEdgeWidth();
+    this.uniforms.depthBias = { value: depthBias };
+    this._patchShader();
   }
+
+  get depthBias() { return this.uniforms.depthBias.value; }
+  set depthBias(v) { this.uniforms.depthBias.value = v; }
  
-  _enablePerEdgeWidth() {
-    const vs = this.vertexShader;
-    const target = 'offset *= linewidth;';
- 
-    if (vs.includes('attribute float instanceWidth;')) return true;
- 
-    if (!vs.includes(target)) {
-      console.warn('EdgeLineMaterial: LineMaterial shader changed, per-edge width disabled.');
-      return false;
+  _patchShader() {
+    let vs = this.vertexShader;
+    const widthTarget = 'offset *= linewidth;';
+    const biasTarget = '#include <logdepthbuf_vertex>';
+
+    if (!vs.includes(widthTarget) || !vs.includes(biasTarget)) {
+      console.warn('EdgeLineMaterial: LineMaterial shader changed, patch skipped.');
+      this.perEdgeWidth = false;
+      return;
     }
- 
-    this.vertexShader = vs
-      .replace('uniform float linewidth;', 'uniform float linewidth;\nattribute float instanceWidth;')
-      .replace(target, 'offset *= linewidth * instanceWidth;');
+
+    vs = vs
+      .replace(
+        'uniform float linewidth;',
+        'uniform float linewidth;\nuniform float depthBias;\nattribute float instanceWidth;'
+      )
+      .replace(widthTarget, 'offset *= linewidth * instanceWidth;')
+      .replace(
+        biasTarget,
+        `vec4 biasSrc = (position.y < 0.5) ? start : end;
+        ${VIEW_DEPTH_BIAS}
+        ${biasTarget}`
+      );
+
+    this.vertexShader = vs;
+    this.perEdgeWidth = true;
     this.needsUpdate = true;
-    return true;
   }
 }
