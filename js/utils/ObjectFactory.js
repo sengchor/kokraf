@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MeshDataBuilders } from './MeshDataBuilders.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
+import { DEFAULT_SHADING_MODE, DEFAULT_SHADING_ANGLE } from '../utils/ShadingUtils.js';
 
 export const PRIMITIVE_DEFAULTS = {
   Plane: { width: 1, height: 1 },
@@ -40,7 +41,11 @@ export class ObjectFactory {
     const resolved = { ...this.getDefaultParams(type), ...params };
     const meshData = builder(resolved);
 
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: "flat" });
+    const mode = DEFAULT_SHADING_MODE;
+    const angle = DEFAULT_SHADING_ANGLE;
+    const sharps = new Set();
+
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode, angle, sharps });
     
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.2, roughness: 0.2, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geometry, material);
@@ -48,7 +53,10 @@ export class ObjectFactory {
     mesh.receiveShadow = true;
     mesh.userData.meshData = meshData;
     mesh.userData.renderBuffer = renderBuffer;
-    mesh.userData.shading = 'flat';
+    mesh.userData.shading = mode;
+    mesh.userData.shadingAngle = angle;
+    mesh.userData.sharp = sharps;
+    mesh.userData.seam = new Set();
     mesh.position.set(0, 0, 0);
     mesh.name = this.editor.nameManager.generateUniqueName(name || type);
     return mesh;

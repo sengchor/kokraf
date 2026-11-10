@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { auth } from '/supabase/services/AuthService.js';
 import { MeshRendererAdapter } from '../../geometry/MeshRendererAdapter.js';
+import { ShadingUtils } from '../../utils/ShadingUtils.js';
 import { consumeCredits, getCreditsErrorMessage } from '/supabase/services/CreditsService.js';
 import { buildObj } from './ObjExporter.js';
 
@@ -71,30 +72,41 @@ export class MeshExporter {
     URL.revokeObjectURL(link.href);
   }
 
+  buildExportMesh(object) {
+    const meshData = object.userData.meshData;
+    if (!meshData) return null;
+
+    const { mode, angle } = ShadingUtils.getShading(object);
+    const sharps = object.userData.sharp;
+
+    const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode, angle, sharps });
+    const mesh = new THREE.Mesh(geometry, object.material);
+    mesh.name = object.name;
+
+    object.updateWorldMatrix(true, false);
+    mesh.applyMatrix4(object.matrixWorld);
+
+    return mesh;
+  }
+
+  buildExportGroup(objects) {
+    const group = new THREE.Group();
+    for (const object of objects) {
+      const mesh = this.buildExportMesh(object);
+      if (mesh) group.add(mesh);
+    }
+    return group;
+  }
+
   async exportGlb(objects) {
     const { GLTFExporter } = await import('jsm/exporters/GLTFExporter.js');
 
     const exporter = new GLTFExporter();
-
-    const group = new THREE.Group();
-
-    objects.forEach(object => {
-      const meshData = object.userData.meshData;
-      const shading = object.userData.shading;
-      const sharps = object.userData.sharp;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
-      const mesh = new THREE.Mesh(geometry, object.material);
-      mesh.name = object.name;
-
-      object.updateWorldMatrix(true, false);
-      mesh.applyMatrix4(object.matrixWorld);
-
-      group.add(mesh);
-    });
+    const group = this.buildExportGroup(objects);
 
     const result = await new Promise((resolve, reject) => {
       exporter.parse(group, resolve, reject, { binary: true });
-    });
+    })
 
     const blob = new Blob([result], { type: 'model/gltf-binary' });
     this.saveFile(blob, `object.glb`, 'model/gltf-binary');
@@ -105,23 +117,7 @@ export class MeshExporter {
     const { GLTFExporter } = await import('jsm/exporters/GLTFExporter.js');
 
     const exporter = new GLTFExporter();
-
-    const group = new THREE.Group();
-
-    objects.forEach(object => {
-      const meshData = object.userData.meshData;
-      const shading = object.userData.shading;
-      const sharps = object.userData.sharp;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
-      const mesh = new THREE.Mesh(geometry, object.material);
-      mesh.name = object.name;
-
-      object.updateWorldMatrix(true, false);
-      mesh.applyMatrix4(object.matrixWorld);
-
-      group.add(mesh);
-    });
-
+    const group = this.buildExportGroup(objects);
 
     const result = await new Promise((resolve, reject) => {
       exporter.parse(group, resolve, reject, { binary: false });
@@ -141,22 +137,7 @@ export class MeshExporter {
     const { STLExporter } = await import('jsm/exporters/STLExporter.js');
 
     const exporter = new STLExporter();
-
-    const group = new THREE.Group();
-
-    objects.forEach(object => {
-      const meshData = object.userData.meshData;
-      const shading = object.userData.shading;
-      const sharps = object.userData.sharp;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
-      const mesh = new THREE.Mesh(geometry, object.material);
-      mesh.name = object.name;
-
-      object.updateWorldMatrix(true, false);
-      mesh.geometry.applyMatrix4(object.matrixWorld);
-
-      group.add(mesh);
-    });
+    const group = this.buildExportGroup(objects);
 
     const result = exporter.parse(group);
 
@@ -168,22 +149,7 @@ export class MeshExporter {
     const { STLExporter } = await import('jsm/exporters/STLExporter.js');
 
     const exporter = new STLExporter();
-
-    const group = new THREE.Group();
-
-    objects.forEach(object => {
-      const meshData = object.userData.meshData;
-      const shading = object.userData.shading;
-      const sharps = object.userData.sharp;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
-      const mesh = new THREE.Mesh(geometry, object.material);
-      mesh.name = object.name;
-
-      object.updateWorldMatrix(true, false);
-      mesh.geometry.applyMatrix4(object.matrixWorld);
-
-      group.add(mesh);
-    });
+    const group = this.buildExportGroup(objects);
 
     const result = exporter.parse(group, { binary: true });
 
@@ -195,22 +161,7 @@ export class MeshExporter {
     const { USDZExporter } = await import('jsm/exporters/USDZExporter.js');
 
     const exporter = new USDZExporter();
-
-    const group = new THREE.Group();
-
-    objects.forEach(object => {
-      const meshData = object.userData.meshData;
-      const shading = object.userData.shading;
-      const sharps = object.userData.sharp;
-      const { geometry } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: shading, sharps });
-      const mesh = new THREE.Mesh(geometry, object.material);
-      mesh.name = object.name;
-
-      object.updateWorldMatrix(true, false);
-      mesh.geometry.applyMatrix4(object.matrixWorld);
-
-      group.add(mesh);
-    });
+    const group = this.buildExportGroup(objects);
 
     const result = await exporter.parseAsync(group);
 

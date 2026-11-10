@@ -3,6 +3,7 @@ import { MeshData } from '../core/MeshData.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import { ApplyMirrorCommand } from '../commands/ApplyMirrorCommand.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
+import { ShadingUtils } from '../utils/ShadingUtils.js';
 
 const AXES = ['x', 'y', 'z'];
 const DATA_AXIS = { x: 'x', y: 'z', z: 'y' };
@@ -135,11 +136,9 @@ export default class MirrorManager {
     const sharps = new Set(object.userData.sharp ?? []);
     const evaluated = this.buildMirroredMeshData(meshData, s, [sharps]);
 
-    const rb = object.userData.renderBuffer;
+    const { mode, angle } = ShadingUtils.getShading(object);
     const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(evaluated, {
-      mode: rb?.normalMode ?? 'auto',
-      angle: rb?.normalAngle ?? 60,
-      sharps,
+      mode, angle, sharps
     });
 
     // Keep only the mirrored faces; the original object draws its own half

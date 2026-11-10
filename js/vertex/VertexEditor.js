@@ -12,6 +12,7 @@ import { MeshData } from '../core/MeshData.js';
 import { MeshRenderBuffer } from '../geometry/MeshRenderBuffer.js';
 import { MeshDataRegion } from '../core/MeshDataRegion.js';
 import { MeshRendererAdapter } from "../geometry/MeshRendererAdapter.js";
+import { ShadingUtils } from '../utils/ShadingUtils.js';
 import { SharpUtils } from '../utils/SharpUtils.js';
 
 export class VertexEditor {
@@ -107,16 +108,8 @@ export class VertexEditor {
   }
 
   updateGeometry() {
-    const shading = this.object.userData.shading;
-    
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(this.meshData, {
-      mode: shading,
-      sharps: SharpUtils.getSharpIds(this.object),
-    });
-    
-    this.geometry?.dispose();
-    this.geometry = geometry;
-    this.renderBuffer = renderBuffer;
+    ShadingUtils.rebuildShading(this.object);
+
     this.geometry.computeBoundingBox();
     this.geometry.computeBoundingSphere();
   }

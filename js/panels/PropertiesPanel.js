@@ -1,6 +1,6 @@
 import { MeshDataBuilders } from '../utils/MeshDataBuilders.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
-import { AddObjectCommand } from '../commands/AddObjectCommand.js';
+import { ShadingUtils } from '../utils/ShadingUtils.js';
 
 const PARAM_LABELS = {
   width: 'Width',
@@ -165,7 +165,12 @@ export class PropertiesPanel {
         break;
     }
 
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(newMeshData, { mode: object.userData.shading || "flat" });
+    object.userData.sharp = new Set();
+    object.userData.seam = new Set();
+
+    const { mode, angle } = ShadingUtils.getShading(object);
+    const sharps = object.userData.sharp;
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(newMeshData, { mode, angle, sharps });
 
     const oldGeometry = object.geometry;
     object.geometry = geometry;

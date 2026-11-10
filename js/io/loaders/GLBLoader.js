@@ -132,7 +132,7 @@ export default class GLBLoader {
       faceInfo.set(face.id, { smooth: hasNormals, group: 0, normals });
     }
 
-    const { shading, sharps } = SharpUtils.detectSharps(meshData, faceInfo);
-    return { name, meshData, shading, sharps };
+    const { shading, angle, sharps } = SharpUtils.detectSharps(meshData, faceInfo);
+    return { name, meshData, shading, angle, sharps };
   }
 }

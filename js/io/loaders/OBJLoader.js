@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MeshData } from '../../core/MeshData.js';
-import { SharpUtils } from '../../utils/SharpUtils.js'
+import { SharpUtils } from '../../utils/SharpUtils.js';
 
 const parseIndex = (token, count) => {
   const i = parseInt(token, 10);
@@ -89,7 +89,7 @@ export default class OBJLoader {
 
         case 'f': {
           if (!current) current = makeCurrent('unnamed');
-          
+
           const corners = [];
           for (let i = 1; i < parts.length; i++) {
             const segs = parts[i].split('/');
@@ -159,8 +159,8 @@ export default class OBJLoader {
         faceInfo.set(face.id, { smooth, group, normals });
       }
 
-      const { shading, sharps } = SharpUtils.detectSharps(meshData, faceInfo);
-      return { name, meshData, shading, sharps };
+      const { shading, angle, sharps } = SharpUtils.detectSharps(meshData, faceInfo);
+      return { name, meshData, shading, angle, sharps };
     });
   }
 }

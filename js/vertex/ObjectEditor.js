@@ -3,6 +3,7 @@ import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import { MeshData } from '../core/MeshData.js';
 import { SeamUtils } from '../utils/SeamUtils.js';
 import { SharpUtils } from '../utils/SharpUtils.js';
+import { ShadingUtils } from '../utils/ShadingUtils.js';
 
 export class ObjectEditor {
   constructor(editor) {
@@ -44,9 +45,13 @@ export class ObjectEditor {
         );
         MeshData.rehydrateMeshData(clone);
 
+        const { mode, angle } = ShadingUtils.getShading(object);
+        const sharps = clone.userData.sharp;
+        clone.userData.shading = mode;
+        clone.userData.shadingAngle = angle;
+
         const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(clone.userData.meshData, {
-          mode: clone.userData.shading,
-          sharps: clone.userData.sharp,
+          mode, angle, sharps,
         });
         clone.geometry = geometry;
         clone.userData.renderBuffer = renderBuffer;
@@ -71,7 +76,7 @@ export class ObjectEditor {
 
     const baseObject = objects[objects.length - 1];
     const baseMaterial = baseObject.material;
-    const baseShading = baseObject.userData.shading;
+    const { mode, angle } = ShadingUtils.getShading(baseObject);
 
     for (const object of objects) {
       if (!object.isMesh || !object.userData.meshData) return null;
@@ -94,9 +99,8 @@ export class ObjectEditor {
     const seams = SeamUtils.mergeSeams(objects, maps);
     const sharps = SharpUtils.mergeSharps(objects, maps);
 
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(mergedMeshData, { 
-      mode: baseShading,
-      sharps,
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(mergedMeshData, {
+      mode, angle, sharps,
     });
 
     const material = Array.isArray(baseMaterial) ? baseMaterial.map(m => m.clone()) : baseMaterial.clone();
@@ -105,7 +109,8 @@ export class ObjectEditor {
 
     mesh.userData.meshData = mergedMeshData;
     mesh.userData.renderBuffer = renderBuffer;
-    mesh.userData.shading = baseShading;
+    mesh.userData.shading = mode;
+    mesh.userData.shadingAngle = angle;
     mesh.userData.seam = seams;
     mesh.userData.sharp = sharps;
     mesh.name = baseObject.name;
@@ -120,15 +125,14 @@ export class ObjectEditor {
       meshData = MeshData.getRehydratedMeshData(meshData);
     }
 
-    const shading = object.userData.shading;
+    const { mode, angle } = ShadingUtils.getShading(object);
     const material = object.material;
 
     const seams = new Set(seam ?? []);
     const sharps = new Set(sharp ?? []);
 
     const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, {
-      mode: shading,
-      sharps,
+      mode, angle, sharps,
     });
 
     const clonedMaterial = Array.isArray(material) ? material.map(m => m.clone()) : material.clone();
@@ -142,7 +146,8 @@ export class ObjectEditor {
 
     mesh.userData.meshData = meshData;
     mesh.userData.renderBuffer = renderBuffer;
-    mesh.userData.shading = shading;
+    mesh.userData.shading = mode;
+    mesh.userData.shadingAngle = angle;
     mesh.userData.seam = seams;
     mesh.userData.sharp = sharps;
 

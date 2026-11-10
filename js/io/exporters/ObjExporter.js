@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { computeFaceNormals, computeCornerNormals } from '../../geometry/NormalCalculator.js';
+import { ShadingUtils } from '../../utils/ShadingUtils.js';
 
 const f6 = (n) => Number(n).toFixed(6);
 const f4 = (n) => Number(n === 0 ? 0 : n).toFixed(4);
 
-export function buildObj(objects, { autoSmoothAngle = 60 } = {}) {
+export function buildObj(objects) {
   const lines = ['# Kokraf OBJ File', '# https://kokraf.com'];
 
   let totalVerts = 0;
@@ -18,8 +19,8 @@ export function buildObj(objects, { autoSmoothAngle = 60 } = {}) {
     const meshData = object.userData?.meshData;
     if (!meshData || !meshData.vertices || !meshData.faces) continue;
 
-    const shading = object.userData.shading || 'flat';
-    const smooth = shading === 'smooth' || shading === 'auto';
+    const { mode: shading, angle } = ShadingUtils.getShading(object);
+    const smooth = shading !== 'flat';
 
     object.updateWorldMatrix(true, false);
     const world = object.matrixWorld;
@@ -81,7 +82,7 @@ export function buildObj(objects, { autoSmoothAngle = 60 } = {}) {
     let lookup = null;
     if (shading === 'flat') lookup = computeFaceNormals(meshData);
     else if (shading === 'smooth') lookup = computeCornerNormals(meshData, { angleDeg: 180, sharpEdges });
-    else if (shading === 'auto') lookup = computeCornerNormals(meshData, { angleDeg: autoSmoothAngle, sharpEdges });
+    else if (shading === 'auto') lookup = computeCornerNormals(meshData, { angleDeg: angle, sharpEdges });
 
     const localNormal = (face, vId) => {
       if (!lookup) return null;

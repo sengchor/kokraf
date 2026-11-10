@@ -4,6 +4,8 @@ import { AddObjectCommand } from "../commands/AddObjectCommand.js";
 import { SequentialMultiCommand } from '../commands/SequentialMultiCommand.js';
 import { MeshRendererAdapter } from '../geometry/MeshRendererAdapter.js';
 import { SetSelectionCommand } from '../commands/SetSelectionCommand.js';
+import { ShadingUtils } from '../utils/ShadingUtils.js';
+import { DEFAULT_MIRROR_SETTINGS } from './MirrorManager.js';
 
 export class ClipboardManager {
   static STORAGE_KEY = "kokraf.clipboard";
@@ -29,14 +31,18 @@ export class ClipboardManager {
   }
 
   buildMeshClipboardItem(obj) {
+    const { mode, angle } = ShadingUtils.getShading(obj);
+
     return {
       ...this.buildBaseClipboardItem(obj),
       type: 'mesh',
       meshData: obj.userData.meshData.toJSON(),
       materialData: obj.material?.toJSON(),
-      shading: obj.userData.shading || 'flat',
+      shading: mode,
+      shadingAngle: angle,
       seams: this._toIdArray(obj.userData.seam),
       sharps: this._toIdArray(obj.userData.sharp),
+      mirror: obj.userData.mirror ? structuredClone(obj.userData.mirror) : null,
     };
   }
 
@@ -105,14 +111,27 @@ export class ClipboardManager {
     const seams = new Set(item.seams ?? []);
     const sharps = new Set(item.sharps ?? []);
 
-    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode: item.shading, sharps });
+    const { mode, angle } = ShadingUtils.normalize({
+      mode: item.shading,
+      angle: item.shadingAngle,
+    });
+
+    const { geometry, renderBuffer } = MeshRendererAdapter.toBufferGeometry(meshData, { mode, angle, sharps });
 
     const obj = new THREE.Mesh(geometry, material);
     obj.userData.meshData = meshData;
     obj.userData.renderBuffer = renderBuffer;
     obj.userData.shading = item.shading;
+    obj.userData.shadingAngle = angle;
     obj.userData.seam = seams;
     obj.userData.sharp = sharps;
+    if (item.mirror) {
+      obj.userData.mirror = {
+        ...structuredClone(DEFAULT_MIRROR_SETTINGS),
+        ...item.mirror,
+        axes: { ...DEFAULT_MIRROR_SETTINGS.axes, ...item.mirror.axes },
+      };
+    }
 
     return obj;
   }
