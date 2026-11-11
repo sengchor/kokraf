@@ -33,6 +33,8 @@ import { ObjectEditor } from './vertex/ObjectEditor.js';
 import OriginHelper from './helpers/OriginHelper.js';
 import { ClipboardManager } from './core/ClipboardManager.js';
 import { NameManager } from './utils/NameManager.js';
+import { SeamUtils } from './utils/SeamUtils.js';
+import { SharpUtils } from './utils/SharpUtils.js';
 import { ToolInputDisplay } from './ui/ToolInputDisplay.js';
 import { loadProject } from '/supabase/services/ProjectService.js';
 import { ShortcutLabel } from './core/ShortcutLabel.js';
@@ -347,6 +349,9 @@ export default class Editor {
       transforms: this.sceneManager.extractTransforms(this.sceneManager.mainScene),
       scene: this.sceneManager.mainScene.toJSON(),
     }));
+
+    SeamUtils.serializeSeams(scene.object);
+    SharpUtils.serializeSharps(scene.object);
 
     const json = {
       metadata: {

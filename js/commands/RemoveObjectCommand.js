@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { SeamUtils } from '../utils/SeamUtils.js';
+import { SharpUtils } from '../utils/SharpUtils.js';
 
 export class RemoveObjectCommand {
   static type = 'RemoveObjectCommand';
@@ -91,6 +93,15 @@ export class RemoveObjectCommand {
   serializeObjectWithoutChildren(object) {
     const clone = object.clone(false);
     clone.children.length = 0;
+
+    // clone() round-trips userData through JSON, which empties the Sets
+    if (object.userData.seam !== undefined) {
+      clone.userData.seam = [...SeamUtils.normalizeSeam(object.userData.seam)];
+    }
+    if (object.userData.sharp !== undefined) {
+      clone.userData.sharp = [...SharpUtils.normalizeSharp(object.userData.sharp)];
+    }
+
     return clone.toJSON();
   }
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SeamSnapshot } from '../uv/SeamSnapshot.js';
+import { SharpUtils } from '../utils/SharpUtils.js';
 
 export class JoinObjectsCommand {
   static type = 'JoinObjectsCommand';
@@ -16,6 +17,7 @@ export class JoinObjectsCommand {
 
     this.joinedObjectUuid = joinedObject ? joinedObject.uuid : null;
     this.joinedObjectJSON = joinedObject ? joinedObject.toJSON() : null;
+    if (this.joinedObjectJSON) SharpUtils.serializeSharps(this.joinedObjectJSON.object);
     this.joinedSeam = joinedObject ? SeamSnapshot.read(joinedObject) : null;
 
     // Store original objects state
@@ -40,6 +42,7 @@ export class JoinObjectsCommand {
     let joined = this.editor.objectByUuid(this.joinedObjectUuid);
     if (!joined) {
       joined = new THREE.ObjectLoader().parse(this.joinedObjectJSON);
+      SharpUtils.rehydrateSharp(joined);
     }
     
     // set before the object enters the scene so helpers read a real Set
@@ -158,6 +161,12 @@ export class JoinObjectsCommand {
   serializeObjectWithoutChildren(object) {
     const clone = object.clone(false);
     clone.children.length = 0;
+
+    // clone() round-trips userData through JSON, which empties the Set
+    if (object.userData.sharp !== undefined) {
+      clone.userData.sharp = [...SharpUtils.normalizeSharp(object.userData.sharp)];
+    }
+
     return clone.toJSON();
   }
 }

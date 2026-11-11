@@ -3,6 +3,8 @@ import { GridHelper } from '../helpers/GridHelper.js';
 import { Storage } from './Storage.js';
 import { MeshData } from './MeshData.js';
 import { MeshRenderBuffer } from '../geometry/MeshRenderBuffer.js';
+import { SeamUtils } from '../utils/SeamUtils.js';
+import { SharpUtils } from '../utils/SharpUtils.js';
 
 export default class SceneManager {
   constructor(editor) {
@@ -68,6 +70,8 @@ export default class SceneManager {
   setScene(scene) {
     scene.traverse(obj => {
       if (obj.isMesh && obj.userData.meshData) {
+        // The shading rebuild below reads the sharps
+        SharpUtils.rehydrateSharp(obj);
         this.editor.vertexEditor.setObject(obj);
         this.editor.vertexEditor.updateGeometryAndHelpers();
       }
@@ -115,6 +119,8 @@ export default class SceneManager {
     }
 
     object.traverse((child) => {
+      SeamUtils.rehydrateSeam(child);
+      SharpUtils.rehydrateSharp(child);
       this.addHelper(child);
       this.addCamera(child);
     });

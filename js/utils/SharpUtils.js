@@ -12,7 +12,7 @@ export class SharpUtils {
     const sharps = object?.userData?.sharp;
     if (!sharps) return null;
 
-    const raw = sharps instanceof Set ? sharps : new Set(sharps);
+    const raw = SharpUtils.normalizeSharp(sharps);
 
     const meshData = object?.userData?.meshData;
     if (!meshData) return raw;
@@ -28,6 +28,23 @@ export class SharpUtils {
     if (sharp instanceof Set) return sharp;
     if (Array.isArray(sharp)) return new Set(sharp);
     return new Set();
+  }
+
+  static serializeSharps(objectJSON) {
+    if (objectJSON.userData?.sharp instanceof Set) {
+      objectJSON.userData = { ...objectJSON.userData, sharp: [...objectJSON.userData.sharp] };
+    }
+
+    for (const child of objectJSON.children ?? []) {
+      SharpUtils.serializeSharps(child);
+    }
+  }
+
+  static rehydrateSharp(object) {
+    const { sharp } = object.userData;
+    if (sharp === undefined || sharp instanceof Set) return;
+
+    object.userData = { ...object.userData, sharp: SharpUtils.normalizeSharp(sharp) };
   }
 
   static splitSharps(object, edgeIdMap, remainingMeshData) {

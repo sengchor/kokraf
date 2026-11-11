@@ -1,9 +1,9 @@
 export class SeamUtils {
   static getSeamIds(object) {
-    const seam = object?.userData?.seam;
-    if (!seam) return null;
+    const seams = object?.userData?.seam;
+    if (!seams) return null;
 
-    const raw = seam instanceof Set ? seam : new Set(seam);
+    const raw = SeamUtils.normalizeSeam(seams)
 
     const meshData = object?.userData?.meshData;
     if (!meshData) return raw;
@@ -19,6 +19,23 @@ export class SeamUtils {
     if (seam instanceof Set) return seam;
     if (Array.isArray(seam)) return new Set(seam);
     return new Set();
+  }
+
+  static serializeSeams(objectJSON) {
+    if (objectJSON.userData?.seam instanceof Set) {
+      objectJSON.userData = { ...objectJSON.userData, seam: [...objectJSON.userData.seam] };
+    }
+
+    for (const child of objectJSON.children ?? []) {
+      SeamUtils.serializeSeams(child);
+    }
+  }
+
+  static rehydrateSeam(object) {
+    const { seam } = object.userData;
+    if (seam === undefined || seam instanceof Set) return;
+
+    object.userData = { ...object.userData, seam: SeamUtils.normalizeSeam(seam) };
   }
 
   static splitSeams(object, edgeIdMap, remainingMeshData) {

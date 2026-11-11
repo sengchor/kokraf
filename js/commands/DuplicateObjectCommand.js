@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { SeamUtils } from '../utils/SeamUtils.js';
+import { SharpUtils } from '../utils/SharpUtils.js';
 
 export class DuplicateObjectCommand {
   static type = 'DuplicateObjectCommand';
@@ -16,10 +18,12 @@ export class DuplicateObjectCommand {
 
     this.originalUuids = originals.map(object => object.uuid);
 
-    this.duplicateStates = duplicates.map(duplicate => ({
-      uuid: duplicate.uuid,
-      json: duplicate.toJSON()
-    }));
+    this.duplicateStates = duplicates.map(duplicate => {
+      const json = duplicate.toJSON();
+      SeamUtils.serializeSeams(json.object);
+      SharpUtils.serializeSharps(json.object);
+      return { uuid: duplicate.uuid, json };
+    });
 
     this.prevSelection = editor.selection.selectedObjects.map(o => o.uuid);
   }
@@ -34,6 +38,8 @@ export class DuplicateObjectCommand {
       const state = this.duplicateStates[i];
       const obj = loader.parse(state.json);
       obj.uuid = state.uuid;
+      SeamUtils.rehydrateSeam(obj);
+      SharpUtils.rehydrateSharp(obj);
 
       if (obj.userData?.isImageRef && obj.material) {
         obj.material.allowOverride = false;

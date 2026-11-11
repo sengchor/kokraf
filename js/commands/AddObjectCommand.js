@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { SeamUtils } from '../utils/SeamUtils.js';
+import { SharpUtils } from '../utils/SharpUtils.js';
 
 export class AddObjectCommand {
   static type = 'AddObjectCommand';
@@ -33,9 +35,13 @@ export class AddObjectCommand {
   }
 
   toJSON() {
+    const object = this.object.toJSON();
+    SeamUtils.serializeSeams(object.object);
+    SharpUtils.serializeSharps(object.object);
+
     return {
       type: AddObjectCommand.type,
-      object: this.object.toJSON(),
+      object,
       prevSelection: [...this.prevSelection]
     };
   }
