@@ -66,7 +66,9 @@ export default class EditPicker {
     if (edgeHits.length === 0) return null;
  
     const edgeCandidates = this.buildEdgeCandidates(edgeHits, thinLine);
-    const visibleEdges = this.xrayMode ? edgeCandidates : this.filterVisibleEdges(edgeCandidates, camera);
+    const visibleEdges = this.xrayMode
+      ? edgeCandidates 
+      : this.filterVisibleEdgesAtCursor(edgeCandidates, camera);
     if (visibleEdges.length === 0) return null;
  
     return this.pickNearestEdge(visibleEdges, camera, rect);
@@ -190,6 +192,19 @@ export default class EditPicker {
     }
  
     return visibleEdges;
+  }
+
+  filterVisibleEdgesAtCursor(edgeHits, camera) {
+    if (!edgeHits?.length) return [];
+    this.depthReader.updateDepthBuffer(this.sceneManager.mainScene, camera);
+
+    const ray = this.raycaster.ray;
+    const onEdge = new THREE.Vector3();
+
+    return edgeHits.filter(hit => {
+      ray.distanceSqToSegment(hit.vA, hit.vB, null, onEdge);
+      return this.depthReader.isPointVisible(onEdge, camera);
+    });
   }
  
   filterVisibleFaces(faceHits, camera) {

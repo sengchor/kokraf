@@ -50,7 +50,8 @@ export class GPUDepthReader {
       uniforms: {
         cameraNear: { value: 0.1 },
         cameraFar: { value: 1000.0 }
-      }
+      },
+      side: THREE.DoubleSide
     });
 
     this.pixelBuffer = new Uint8Array(this.width * this.height * 4);
@@ -120,7 +121,7 @@ export class GPUDepthReader {
 
     // Direct 1D comparison
     // Epsilon may need slight tuning depending on your scene scale
-    const VIEW_EPSILON = 0.001; 
+    const VIEW_EPSILON = Math.max(1e-3, testViewZ * 2e-3);
     return testViewZ <= gpuViewZ + VIEW_EPSILON;
   }
 
