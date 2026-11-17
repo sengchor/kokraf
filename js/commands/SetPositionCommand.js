@@ -15,6 +15,8 @@ export class SetPositionCommand {
     this.editor = editor;
     this.name = 'Set Position';
 
+    this.vertexEditor = editor.vertexEditor;
+
     if (!Array.isArray(objects)) objects = [objects];
     if (!Array.isArray(newPositions)) newPositions = [newPositions];
     if (!Array.isArray(oldPositions)) oldPositions = [oldPositions];
@@ -40,6 +42,9 @@ export class SetPositionCommand {
 
       TransformUtils.setWorldPosition(object, positions[i]);
       object.updateMatrixWorld(true);
+
+      this.vertexEditor.setObject(object);
+      this.vertexEditor.updateGeometryAndHelpers();
     }
 
     this.editor.selection.updatePivotHandle();

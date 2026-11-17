@@ -15,6 +15,8 @@ export class SetScaleCommand {
     this.editor = editor;
     this.name = 'Set Scale';
 
+    this.vertexEditor = editor.vertexEditor;
+
     if (!Array.isArray(objects)) objects = [objects];
     if (!Array.isArray(newScales)) newScales = [newScales];
     if (!Array.isArray(oldScales)) oldScales = [oldScales];
@@ -40,6 +42,9 @@ export class SetScaleCommand {
 
       TransformUtils.setWorldScale(object, scales[i]);
       object.updateMatrixWorld(true);
+
+      this.vertexEditor.setObject(object);
+      this.vertexEditor.updateGeometryAndHelpers();
     }
 
     this.editor.selection.updatePivotHandle();

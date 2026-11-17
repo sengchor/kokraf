@@ -15,6 +15,8 @@ export class SetRotationCommand {
     this.editor = editor;
     this.name = 'Set Rotation';
 
+    this.vertexEditor = editor.vertexEditor;
+
     if (!Array.isArray(objects)) objects = [objects];
     if (!Array.isArray(newQuaternions)) newQuaternions = [newQuaternions];
     if (!Array.isArray(oldQuaternions)) oldQuaternions = [oldQuaternions];
@@ -40,6 +42,9 @@ export class SetRotationCommand {
 
       TransformUtils.setWorldRotation(object, quaternions[i]);
       object.updateMatrixWorld(true);
+
+      this.vertexEditor.setObject(object);
+      this.vertexEditor.updateGeometryAndHelpers();
     }
 
     this.editor.selection.updatePivotHandle();
